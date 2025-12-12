@@ -340,21 +340,22 @@
 	});
 </script>
 
-<div class="flex flex-col h-full bg-white">
+<div class="flex flex-col h-full bg-white overflow-hidden">
 	<!-- Header -->
-	<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-		<div>
-			<h1 class="text-2xl font-semibold text-gray-900">Tasks</h1>
-			<p class="text-sm text-gray-500 mt-0.5">Manage and track all your work</p>
+	<div class="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-gray-200">
+		<div class="min-w-0">
+			<h1 class="text-xl sm:text-2xl font-semibold text-gray-900 truncate">Tasks</h1>
+			<p class="text-sm text-gray-500 mt-0.5 hidden sm:block">Manage and track all your work</p>
 		</div>
 		<button
 			onclick={() => showNewTaskModal = true}
-			class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+			class="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors flex-shrink-0"
 		>
 			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 			</svg>
-			New Task
+			<span class="hidden xs:inline">New Task</span>
+			<span class="xs:hidden">New</span>
 		</button>
 	</div>
 

@@ -8,6 +8,9 @@
 
 	const session = useSession();
 
+	// Check if we're in embed mode (used by desktop windows)
+	const isEmbedMode = $derived($page.url.searchParams.get('embed') === 'true');
+
 	// Sidebar collapsed state (persisted to localStorage)
 	let isCollapsed = $state(false);
 
@@ -57,6 +60,11 @@
 			icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z'
 		},
 		{
+			href: '/clients',
+			label: 'Clients',
+			icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'
+		},
+		{
 			href: '/contexts',
 			label: 'Contexts',
 			icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'
@@ -85,6 +93,12 @@
 		<div class="animate-spin h-8 w-8 border-2 border-gray-900 border-t-transparent rounded-full"></div>
 	</div>
 {:else if $session.data}
+	{#if isEmbedMode}
+		<!-- Embed mode: no sidebar, just content -->
+		<div class="h-screen w-screen overflow-hidden bg-white">
+			{@render children()}
+		</div>
+	{:else}
 	<div class="h-screen flex overflow-hidden">
 		<!-- Sidebar -->
 		<aside
@@ -109,6 +123,26 @@
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
 					</svg>
 				</button>
+			</div>
+
+			<!-- Window Desktop Button -->
+			<div class="px-2 pb-2">
+				<a
+					href="/window"
+					class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200
+						bg-gradient-to-r from-gray-100 to-gray-50 hover:from-gray-200 hover:to-gray-100
+						border border-gray-200 text-gray-700 hover:text-gray-900
+						{isCollapsed ? 'justify-center' : ''}"
+					title={isCollapsed ? 'Window Desktop' : ''}
+				>
+					<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+					</svg>
+					{#if !isCollapsed}
+						<span class="font-medium">Window</span>
+						<span class="ml-auto text-xs text-gray-400">Desktop</span>
+					{/if}
+				</a>
 			</div>
 
 			<Separator.Root class="h-px bg-gray-200" />
@@ -163,4 +197,5 @@
 			{@render children()}
 		</main>
 	</div>
+	{/if}
 {/if}

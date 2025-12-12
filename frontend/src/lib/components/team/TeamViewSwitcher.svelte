@@ -61,7 +61,7 @@
 					{view === option.value ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'}"
 			>
 				{@html option.icon}
-				<span class="hidden sm:inline">{option.label}</span>
+				<span>{option.label}</span>
 			</button>
 		{/each}
 	</div>

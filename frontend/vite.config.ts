@@ -48,6 +48,14 @@ export default defineConfig({
 				target: 'http://localhost:8000',
 				changeOrigin: true,
 			},
+			'/api/clients': {
+				target: 'http://localhost:8000',
+				changeOrigin: true,
+			},
+			'/api/deals': {
+				target: 'http://localhost:8000',
+				changeOrigin: true,
+			},
 			'/health': {
 				target: 'http://localhost:8000',
 				changeOrigin: true,

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
 	import { fly } from 'svelte/transition';
+	import { goto } from '$app/navigation';
 	import TaskCheckbox from './TaskCheckbox.svelte';
 	import PriorityBadge from './PriorityBadge.svelte';
 
@@ -18,6 +19,7 @@
 		title: string;
 		status: TaskStatus;
 		priority: Priority;
+		projectId?: string;
 		projectName?: string;
 		projectColor?: string;
 		assignee?: Assignee;
@@ -37,6 +39,7 @@
 		title,
 		status,
 		priority,
+		projectId,
 		projectName,
 		projectColor = '#6B7280',
 		assignee,
@@ -50,6 +53,13 @@
 		onAssign,
 		onSetDueDate
 	}: Props = $props();
+
+	function navigateToProject(e: MouseEvent) {
+		if (projectId) {
+			e.stopPropagation();
+			goto(`/projects/${projectId}`);
+		}
+	}
 
 	let menuOpen = $state(false);
 
@@ -104,10 +114,13 @@
 
 		<div class="flex items-center gap-2 mt-1 text-xs text-gray-500">
 			{#if projectName}
-				<span class="flex items-center gap-1">
+				<button
+					onclick={navigateToProject}
+					class="flex items-center gap-1 hover:text-gray-700 transition-colors {projectId ? 'hover:underline cursor-pointer' : ''}"
+				>
 					<span class="w-2 h-2 rounded-full" style="background-color: {projectColor}"></span>
 					{projectName}
-				</span>
+				</button>
 				<span class="text-gray-300">•</span>
 			{/if}
 
@@ -201,6 +214,17 @@
 						</svg>
 						Duplicate
 					</DropdownMenu.Item>
+					{#if projectId && projectName}
+						<DropdownMenu.Item
+							class="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors"
+							onclick={() => goto(`/projects/${projectId}`)}
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+							</svg>
+							Go to Project
+						</DropdownMenu.Item>
+					{/if}
 
 					<DropdownMenu.Separator class="h-px bg-gray-200 my-1" />
 

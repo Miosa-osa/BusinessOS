@@ -55,3 +55,4 @@ class ChatRequest(BaseModel):
     model: str | None = None
     system_prompt_key: str | None = None  # e.g., "daily_planning", "code_review"
     node_context: str | None = None  # Active node context to inject into system prompt
+    context_profile: str | None = None  # Context profile information to inject into system prompt

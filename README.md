@@ -30,9 +30,12 @@ Business OS is a foundational operating system template for the agentic era. Bui
 | **Team** | Org chart, capacity planning, workload management, and member profiles |
 | **AI Chat** | Chat with local AI models using the Orchestrator agent system |
 | **Contexts** | Store business knowledge (people, businesses, projects) that AI can reference |
+| **Documents** | Notion-like document editor with blocks, properties, and relations |
+| **Clients** | Client management with profiles, contacts, and project linking |
 | **Nodes** | Hierarchical business structure - your cognitive operating system |
 | **Daily Log** | Track your day, patterns, and reflections |
 | **Artifacts** | AI-generated documents: proposals, SOPs, frameworks, reports, code |
+| **Desktop Mode** | Multi-window interface for power users (embed mode) |
 | **Settings** | Configure models, preferences, and integrations |
 
 ### Nodes System
@@ -72,6 +75,43 @@ AI-generated content with versioning:
 - **Business Documents**: Proposals, SOPs, Frameworks, Agendas, Reports, Plans
 - **Code**: Code snippets, React components, HTML, SVG
 - **Other**: Markdown, general documents
+
+### Document Editor (Notion-like)
+
+A full-featured block-based document editor:
+- **Block Types**: Paragraph, headings (H1-H3), bullet/numbered lists, todo, quote, code, divider, image, callout, table, embed, artifact
+- **Slash Commands**: Type `/` to insert any block type
+- **Properties**: Add custom properties to documents (text, select, multi-select, date, number, checkbox, URL, email, relation)
+- **Relations**: Link documents to other contexts, projects, or clients
+- **Panel Modes**: View documents in side panel, center modal, or full screen
+- **Auto-save**: Changes save automatically with debouncing
+- **Icon Picker**: Choose custom icons for documents
+
+### Clients System
+
+Full client relationship management:
+- **Client Profiles**: Company info, contacts, status tracking
+- **Project Linking**: Associate projects with clients
+- **Context Profiles**: Link people/business contexts to clients
+- **Activity History**: Track interactions and changes
+
+### Desktop Mode
+
+Multi-window interface for power users:
+- **Embed Mode**: Open pages in resizable, draggable windows
+- **Window Management**: Minimize, maximize, close windows
+- **Taskbar**: Quick access to open windows
+- **Persistent Layout**: Windows remember position and size
+
+### AI Chat Features
+
+Enhanced AI chat experience:
+- **Project Context**: Select a project to focus AI responses
+- **Context Profiles**: Include business knowledge in conversations
+- **Artifacts Panel**: View and manage generated artifacts
+- **Context Aggregation**: AI can pull from multiple sources (profiles, projects, documents)
+- **Personalized Greeting**: Time-aware greeting with typewriter effect
+- **Task Generation**: Convert artifacts into actionable tasks
 
 ---
 
@@ -129,7 +169,8 @@ BusinessOS/
 │   │   │   └── planning_agent.py # Planning & strategy
 │   │   ├── models/           # SQLAlchemy models
 │   │   │   ├── node.py           # Nodes system
-│   │   │   ├── context.py        # Context profiles
+│   │   │   ├── context.py        # Context profiles & documents
+│   │   │   ├── client.py         # Client management
 │   │   │   ├── artifact.py       # Generated artifacts
 │   │   │   ├── conversation.py   # Chat conversations
 │   │   │   ├── project.py        # Projects
@@ -137,10 +178,15 @@ BusinessOS/
 │   │   │   ├── team_member.py    # Team members
 │   │   │   └── daily_log.py      # Daily logs
 │   │   ├── routers/          # API endpoints
+│   │   │   ├── contexts.py       # Context & document APIs
+│   │   │   ├── clients.py        # Client APIs
+│   │   │   └── ...
+│   │   ├── schemas/          # Pydantic schemas
 │   │   ├── services/         # Business logic
 │   │   │   └── ollama.py         # LLM service
 │   │   ├── prompts/          # System prompts
 │   │   └── main.py           # FastAPI app
+│   ├── alembic/              # Database migrations
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
@@ -148,24 +194,39 @@ BusinessOS/
 │   │   │   ├── components/   # Svelte components
 │   │   │   │   ├── chat/         # Chat UI
 │   │   │   │   ├── dashboard/    # Dashboard widgets
+│   │   │   │   ├── editor/       # Document editor (blocks, menus)
+│   │   │   │   ├── clients/      # Client components
+│   │   │   │   ├── desktop/      # Desktop mode components
 │   │   │   │   ├── projects/     # Project components
 │   │   │   │   ├── tasks/        # Task components
-│   │   │   │   └── team/         # Team components
+│   │   │   │   ├── team/         # Team components
+│   │   │   │   └── ui/           # Shared UI (Tooltip, etc.)
 │   │   │   ├── stores/       # State management
+│   │   │   │   ├── editor.ts     # Document editor state
+│   │   │   │   ├── clients.ts    # Client state
+│   │   │   │   ├── contexts.ts   # Context/document state
+│   │   │   │   ├── windowStore.ts # Desktop windows
+│   │   │   │   └── ...
 │   │   │   └── api/          # API client
 │   │   └── routes/
-│   │       └── (app)/        # Authenticated routes
-│   │           ├── dashboard/
-│   │           ├── chat/
-│   │           ├── projects/
-│   │           ├── tasks/
-│   │           ├── team/
-│   │           ├── contexts/
-│   │           ├── nodes/
-│   │           ├── daily/
-│   │           └── settings/
+│   │       ├── (app)/        # Authenticated routes
+│   │       │   ├── dashboard/
+│   │       │   ├── chat/
+│   │       │   ├── projects/
+│   │       │   ├── tasks/
+│   │       │   ├── team/
+│   │       │   ├── contexts/
+│   │       │   ├── clients/
+│   │       │   ├── nodes/
+│   │       │   ├── daily/
+│   │       │   └── settings/
+│   │       ├── (embed)/      # Embed mode routes
+│   │       └── window/       # Desktop mode
 │   ├── package.json
 │   └── svelte.config.js
+├── docs/
+│   ├── ARCHITECTURE.md       # System architecture
+│   └── FEATURES.md           # Feature documentation
 └── README.md
 ```
 
@@ -311,6 +372,13 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 MIT License — See [LICENSE](LICENSE) for details.
+
+---
+
+## Documentation
+
+- **[Architecture](docs/ARCHITECTURE.md)** — System architecture and technical details
+- **[Features](docs/FEATURES.md)** — Comprehensive feature documentation
 
 ---
 

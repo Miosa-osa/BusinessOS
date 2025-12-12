@@ -43,6 +43,9 @@ class Artifact(Base):
     project_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
     )
+    context_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("contexts.id", ondelete="SET NULL"), nullable=True
+    )
     title: Mapped[str] = mapped_column(String(255))
     type: Mapped[ArtifactType] = mapped_column(SQLEnum(ArtifactType))
     language: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -62,6 +65,7 @@ class Artifact(Base):
     )
     message: Mapped["Message"] = relationship("Message", back_populates="artifacts")
     project: Mapped["Project"] = relationship("Project", back_populates="artifacts")
+    context: Mapped["Context"] = relationship("Context", back_populates="artifacts")
     versions: Mapped[list["ArtifactVersion"]] = relationship(
         "ArtifactVersion", back_populates="artifact", cascade="all, delete-orphan"
     )

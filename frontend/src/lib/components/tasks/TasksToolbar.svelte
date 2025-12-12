@@ -27,6 +27,7 @@
 
 	let filterOpen = $state(false);
 	let groupByOpen = $state(false);
+	const dropdownTransitionProps = { transition: fly, transitionConfig: { y: -10, duration: 150 } } as any;
 
 	const viewOptions: { value: ViewMode; label: string; icon: string }[] = [
 		{
@@ -78,23 +79,23 @@
 	}
 </script>
 
-<div class="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white">
+<div class="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-gray-200 bg-white">
 	<!-- View Switcher -->
-	<div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+	<div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1 flex-shrink-0">
 		{#each viewOptions as option}
 			<button
 				onclick={() => handleViewChange(option.value)}
-				class="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors
+				class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-md text-sm transition-colors
 					{view === option.value ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'}"
 			>
 				{@html option.icon}
-				<span class="hidden sm:inline">{option.label}</span>
+				<span>{option.label}</span>
 			</button>
 		{/each}
 	</div>
 
 	<!-- Center Actions -->
-	<div class="flex items-center gap-2">
+	<div class="flex items-center gap-2 flex-shrink-0">
 		<!-- Filter Dropdown -->
 		<DropdownMenu.Root bind:open={filterOpen}>
 			<DropdownMenu.Trigger
@@ -112,8 +113,7 @@
 				<DropdownMenu.Content
 					class="z-50 w-64 bg-white border border-gray-200 rounded-xl shadow-lg p-3"
 					sideOffset={4}
-					transition={fly}
-					transitionConfig={{ y: -10, duration: 150 }}
+					{...dropdownTransitionProps}
 				>
 					<div class="space-y-4">
 						<!-- Status -->
@@ -171,8 +171,7 @@
 					<DropdownMenu.Content
 						class="z-50 min-w-[160px] bg-white border border-gray-200 rounded-xl shadow-lg p-1"
 						sideOffset={4}
-						transition={fly}
-						transitionConfig={{ y: -10, duration: 150 }}
+						{...dropdownTransitionProps}
 					>
 						{#each groupByOptions as option}
 							<DropdownMenu.Item
@@ -197,7 +196,7 @@
 	</div>
 
 	<!-- Search -->
-	<div class="relative">
+	<div class="relative flex-1 sm:flex-none min-w-0 sm:min-w-[200px]">
 		<svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
 		</svg>
@@ -206,7 +205,7 @@
 			placeholder="Search tasks..."
 			value={searchQuery}
 			oninput={handleSearchInput}
-			class="w-64 pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+			class="w-full sm:w-64 pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
 		/>
 	</div>
 </div>

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Auth is now handled by Better Auth on the frontend
-from app.routers import chat_router, projects_router, contexts_router, mcp_router, team_router, dashboard_router, daily_logs_router, settings_router, artifacts_router, nodes_router
+from app.routers import chat_router, projects_router, contexts_router, mcp_router, team_router, dashboard_router, daily_logs_router, settings_router, artifacts_router, nodes_router, profile_router, clients_router, deals_router
 from app.config import get_settings
 
 settings = get_settings()
@@ -34,6 +34,9 @@ app.include_router(daily_logs_router)
 app.include_router(settings_router)
 app.include_router(artifacts_router)
 app.include_router(nodes_router)
+app.include_router(profile_router)
+app.include_router(clients_router)
+app.include_router(deals_router)
 
 
 @app.get("/")

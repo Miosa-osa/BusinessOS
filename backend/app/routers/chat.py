@@ -104,6 +104,8 @@ async def save_artifacts(
     user_id: str,
     conversation_id: UUID,
     artifacts: list[dict],
+    context_id: UUID | None = None,
+    project_id: UUID | None = None,
 ) -> list[Artifact]:
     """Save parsed artifacts to the database."""
     saved = []
@@ -118,6 +120,8 @@ async def save_artifacts(
         artifact = Artifact(
             user_id=user_id,
             conversation_id=conversation_id,
+            context_id=context_id,
+            project_id=project_id,
             title=artifact_data['title'],
             content=artifact_data['content'],
             type=artifact_type,
@@ -298,6 +302,10 @@ async def send_message(
     # Add artifact creation instruction to system prompt
     system_prompt = system_prompt + ARTIFACT_INSTRUCTION
 
+    # Add context profile if provided
+    if data.context_profile:
+        system_prompt = system_prompt + f"\n\n{data.context_profile}"
+
     # Add node context if provided
     if data.node_context:
         system_prompt = system_prompt + f"\n\n## Active Node Context\n{data.node_context}"
@@ -331,12 +339,15 @@ async def send_message(
         cleaned_response, artifacts = parse_artifacts_from_response(full_response)
 
         # Save artifacts if any were created
+        # Link artifacts to the context profile that was active during the chat
         if artifacts:
+            active_context_id = data.context_id or conversation.context_id
             await save_artifacts(
                 db=db,
                 user_id=current_user.id,
                 conversation_id=conversation.id,
                 artifacts=artifacts,
+                context_id=active_context_id,
             )
 
         # Save assistant message after streaming completes
@@ -393,3 +404,147 @@ async def search_conversations(
         }
         for msg in messages
     ]
+
+
+# Document AI Assistant endpoint
+DOCUMENT_AI_SYSTEM_PROMPT = """You are a helpful AI writing assistant embedded in a document editor. Your job is to help users write, edit, and improve their documents.
+
+Guidelines:
+- Be concise and direct in your responses
+- When asked to write content, provide well-structured, professional text
+- When asked to improve or edit, explain what you changed and why
+- For summaries, capture the key points clearly
+- For grammar checks, list issues and corrections
+- Match the tone and style of the existing document when possible
+- Use markdown formatting when appropriate (headers, lists, bold, etc.)
+
+You have access to the document's title and content to provide context-aware assistance."""
+
+
+from pydantic import BaseModel
+from typing import Optional
+
+
+class DocumentAIRequest(BaseModel):
+    message: str
+    context: Optional[dict] = None  # Contains documentTitle, documentContent, contextType
+
+
+@router.post("/ai/document")
+async def document_ai_chat(
+    data: DocumentAIRequest,
+    current_user: CurrentUser,
+):
+    """Simple AI endpoint for document writing assistance."""
+
+    # Build context-aware system prompt
+    system_prompt = DOCUMENT_AI_SYSTEM_PROMPT
+
+    if data.context:
+        doc_title = data.context.get("documentTitle", "Untitled")
+        doc_content = data.context.get("documentContent", "")
+        context_type = data.context.get("contextType", "document")
+
+        system_prompt += f"\n\n## Current Document\nTitle: {doc_title}\nType: {context_type}\n"
+        if doc_content:
+            # Limit content to avoid token issues
+            truncated = doc_content[:3000] + "..." if len(doc_content) > 3000 else doc_content
+            system_prompt += f"\nContent:\n{truncated}"
+
+    # Get Ollama service
+    ollama = get_ollama_service()
+
+    # Build messages
+    messages = [
+        {"role": "user", "content": data.message}
+    ]
+
+    # Get full response (non-streaming for simplicity)
+    full_response = ""
+    async for chunk in ollama.chat(messages, system_prompt=system_prompt):
+        full_response += chunk
+
+    return {"response": full_response}
+
+
+# Task extraction from artifacts
+TASK_EXTRACTION_PROMPT = """You are a project management AI assistant. Your job is to analyze plans, proposals, and documents to extract actionable tasks.
+
+Given an artifact (plan, proposal, framework, etc.), extract clear, actionable tasks that can be assigned to team members.
+
+For each task, provide:
+1. title: A clear, concise task title (action-oriented)
+2. description: Brief description of what needs to be done
+3. priority: "low", "medium", or "high" based on importance/urgency
+4. estimated_hours: Rough estimate of hours needed (optional)
+
+If team members are provided, suggest appropriate assignees based on their roles.
+
+IMPORTANT: Return ONLY a valid JSON array of tasks. Do not include any markdown formatting or code blocks.
+
+Example output format:
+[
+  {"title": "Set up project repository", "description": "Create GitHub repo with initial structure", "priority": "high", "estimated_hours": 2},
+  {"title": "Design database schema", "description": "Create ERD and SQL migrations", "priority": "high", "estimated_hours": 4}
+]"""
+
+
+class TaskExtractionRequest(BaseModel):
+    artifact_title: str
+    artifact_content: str
+    artifact_type: str
+    team_members: Optional[list] = None
+
+
+@router.post("/ai/extract-tasks")
+async def extract_tasks_from_artifact(
+    data: TaskExtractionRequest,
+    current_user: CurrentUser,
+):
+    """Extract actionable tasks from an artifact using AI."""
+
+    # Build the prompt
+    team_info = ""
+    if data.team_members:
+        team_info = "\n\nAvailable team members:\n"
+        for member in data.team_members:
+            team_info += f"- {member.get('name', 'Unknown')} (Role: {member.get('role', 'Member')}, ID: {member.get('id', '')})\n"
+
+    user_message = f"""Analyze this {data.artifact_type} titled "{data.artifact_title}" and extract actionable tasks:
+
+{data.artifact_content}
+{team_info}
+Extract all actionable tasks from this document. Return ONLY a JSON array."""
+
+    # Get Ollama service
+    ollama = get_ollama_service()
+
+    # Build messages
+    messages = [
+        {"role": "user", "content": user_message}
+    ]
+
+    # Get full response
+    full_response = ""
+    async for chunk in ollama.chat(messages, system_prompt=TASK_EXTRACTION_PROMPT):
+        full_response += chunk
+
+    # Parse JSON from response
+    import json
+    try:
+        # Try to extract JSON from the response
+        # Handle cases where response might be wrapped in markdown code blocks
+        response_text = full_response.strip()
+        if response_text.startswith("```"):
+            # Remove markdown code block
+            lines = response_text.split("\n")
+            response_text = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+
+        tasks = json.loads(response_text)
+        if not isinstance(tasks, list):
+            tasks = []
+    except json.JSONDecodeError:
+        # If parsing fails, return empty list
+        tasks = []
+
+    return {"tasks": tasks}

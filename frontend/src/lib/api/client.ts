@@ -111,9 +111,15 @@ class ApiClient {
 	}
 
 	// Contexts
-	async getContexts(type?: string) {
-		const params = type ? `?type_filter=${type}` : '';
-		return this.request<Context[]>(`/contexts${params}`);
+	async getContexts(filters?: { type?: string; includeArchived?: boolean; templatesOnly?: boolean; parentId?: string; search?: string }) {
+		const params = new URLSearchParams();
+		if (filters?.type) params.set('type_filter', filters.type);
+		if (filters?.includeArchived) params.set('include_archived', 'true');
+		if (filters?.templatesOnly) params.set('templates_only', 'true');
+		if (filters?.parentId) params.set('parent_id', filters.parentId);
+		if (filters?.search) params.set('search', filters.search);
+		const query = params.toString();
+		return this.request<ContextListItem[]>(`/contexts${query ? `?${query}` : ''}`);
 	}
 
 	async getContext(id: string) {
@@ -124,12 +130,44 @@ class ApiClient {
 		return this.request<Context>('/contexts', { method: 'POST', body: data });
 	}
 
-	async updateContext(id: string, data: Partial<CreateContextData>) {
+	async updateContext(id: string, data: UpdateContextData) {
 		return this.request<Context>(`/contexts/${id}`, { method: 'PUT', body: data });
+	}
+
+	async updateContextBlocks(id: string, data: BlocksUpdateData) {
+		return this.request<Context>(`/contexts/${id}/blocks`, { method: 'PATCH', body: data });
+	}
+
+	async enableContextSharing(id: string) {
+		return this.request<ShareResponse>(`/contexts/${id}/share`, { method: 'POST' });
+	}
+
+	async disableContextSharing(id: string) {
+		return this.request(`/contexts/${id}/share`, { method: 'DELETE' });
+	}
+
+	async getPublicContext(shareId: string) {
+		return this.request<Context>(`/contexts/public/${shareId}`);
+	}
+
+	async duplicateContext(id: string) {
+		return this.request<Context>(`/contexts/${id}/duplicate`, { method: 'POST' });
+	}
+
+	async archiveContext(id: string) {
+		return this.request(`/contexts/${id}/archive`, { method: 'PATCH' });
+	}
+
+	async unarchiveContext(id: string) {
+		return this.request(`/contexts/${id}/unarchive`, { method: 'PATCH' });
 	}
 
 	async deleteContext(id: string) {
 		return this.request(`/contexts/${id}`, { method: 'DELETE' });
+	}
+
+	async aggregateContext(data: AggregateContextRequest) {
+		return this.request<AggregateContextResponse>('/contexts/aggregate', { method: 'POST', body: data });
 	}
 
 	// MCP Tools
@@ -263,13 +301,19 @@ class ApiClient {
 	}
 
 	// Artifacts
-	async getArtifacts(filters?: { type?: string; conversationId?: string; projectId?: string }) {
+	async getArtifacts(filters?: { type?: string; conversationId?: string; projectId?: string; contextId?: string; unassignedOnly?: boolean }) {
 		const params = new URLSearchParams();
 		if (filters?.type) params.set('type', filters.type);
 		if (filters?.conversationId) params.set('conversation_id', filters.conversationId);
 		if (filters?.projectId) params.set('project_id', filters.projectId);
+		if (filters?.contextId) params.set('context_id', filters.contextId);
+		if (filters?.unassignedOnly) params.set('unassigned_only', 'true');
 		const query = params.toString();
 		return this.request<ArtifactListItem[]>(`/artifacts${query ? `?${query}` : ''}`);
+	}
+
+	async linkArtifact(id: string, data: { project_id?: string; context_id?: string }) {
+		return this.request<Artifact>(`/artifacts/${id}/link`, { method: 'PATCH', body: data });
 	}
 
 	async getArtifact(id: string) {
@@ -335,6 +379,94 @@ class ApiClient {
 	async reorderNode(id: string, newOrder: number) {
 		return this.request(`/nodes/${id}/reorder?new_order=${newOrder}`, { method: 'POST' });
 	}
+
+	// Clients
+	async getClients(filters?: { status?: ClientStatus; type?: ClientType; search?: string; tags?: string[] }) {
+		const params = new URLSearchParams();
+		if (filters?.status) params.set('status_filter', filters.status);
+		if (filters?.type) params.set('type_filter', filters.type);
+		if (filters?.search) params.set('search', filters.search);
+		if (filters?.tags) {
+			filters.tags.forEach(tag => params.append('tags', tag));
+		}
+		const query = params.toString();
+		return this.request<ClientListResponse[]>(`/clients${query ? `?${query}` : ''}`);
+	}
+
+	async getClient(id: string) {
+		return this.request<ClientDetailResponse>(`/clients/${id}`);
+	}
+
+	async createClient(data: CreateClientData) {
+		return this.request<ClientResponse>('/clients', { method: 'POST', body: data });
+	}
+
+	async updateClient(id: string, data: UpdateClientData) {
+		return this.request<ClientResponse>(`/clients/${id}`, { method: 'PUT', body: data });
+	}
+
+	async updateClientStatus(id: string, status: ClientStatus) {
+		return this.request<ClientResponse>(`/clients/${id}/status`, {
+			method: 'PATCH',
+			body: { status }
+		});
+	}
+
+	async deleteClient(id: string) {
+		return this.request(`/clients/${id}`, { method: 'DELETE' });
+	}
+
+	// Client Contacts
+	async getClientContacts(clientId: string) {
+		return this.request<ContactResponse[]>(`/clients/${clientId}/contacts`);
+	}
+
+	async createContact(clientId: string, data: CreateContactData) {
+		return this.request<ContactResponse>(`/clients/${clientId}/contacts`, { method: 'POST', body: data });
+	}
+
+	async updateContact(clientId: string, contactId: string, data: UpdateContactData) {
+		return this.request<ContactResponse>(`/clients/${clientId}/contacts/${contactId}`, { method: 'PUT', body: data });
+	}
+
+	async deleteContact(clientId: string, contactId: string) {
+		return this.request(`/clients/${clientId}/contacts/${contactId}`, { method: 'DELETE' });
+	}
+
+	// Client Interactions
+	async getClientInteractions(clientId: string, skip = 0, limit = 50) {
+		return this.request<InteractionResponse[]>(`/clients/${clientId}/interactions?skip=${skip}&limit=${limit}`);
+	}
+
+	async createInteraction(clientId: string, data: CreateInteractionData) {
+		return this.request<InteractionResponse>(`/clients/${clientId}/interactions`, { method: 'POST', body: data });
+	}
+
+	// Client Deals
+	async getClientDeals(clientId: string) {
+		return this.request<DealResponse[]>(`/clients/${clientId}/deals`);
+	}
+
+	async createDeal(clientId: string, data: CreateDealData) {
+		return this.request<DealResponse>(`/clients/${clientId}/deals`, { method: 'POST', body: data });
+	}
+
+	async updateDeal(clientId: string, dealId: string, data: UpdateDealData) {
+		return this.request<DealResponse>(`/clients/${clientId}/deals/${dealId}`, { method: 'PUT', body: data });
+	}
+
+	// Deals (standalone for pipeline view)
+	async getAllDeals(stage?: DealStage) {
+		const params = stage ? `?stage_filter=${stage}` : '';
+		return this.request<DealResponse[]>(`/deals${params}`);
+	}
+
+	async updateDealStage(dealId: string, stage: DealStage) {
+		return this.request<DealResponse>(`/deals/${dealId}/stage`, {
+			method: 'PATCH',
+			body: { stage }
+		});
+	}
 }
 
 // Types
@@ -394,23 +526,136 @@ export interface CreateProjectData {
 	project_metadata?: Record<string, unknown>;
 }
 
+export type ContextType = 'person' | 'business' | 'project' | 'custom' | 'document';
+
+export interface Block {
+	id: string;
+	type: string;
+	content: string | null;
+	properties?: Record<string, unknown>;
+	children?: Block[];
+}
+
+export interface PropertySchema {
+	name: string;
+	type: 'text' | 'select' | 'multi_select' | 'date' | 'person' | 'relation' | 'number' | 'checkbox' | 'url' | 'email';
+	options?: string[];
+	relation_type?: 'context' | 'project' | 'client';
+}
+
 export interface Context {
 	id: string;
 	name: string;
-	type: 'person' | 'business' | 'project' | 'custom';
+	type: ContextType;
 	content: string | null;
 	structured_data: Record<string, unknown> | null;
 	system_prompt_template: string | null;
+	// Document editor fields
+	blocks: Block[] | null;
+	cover_image: string | null;
+	icon: string | null;
+	parent_id: string | null;
+	is_template: boolean;
+	is_archived: boolean;
+	last_edited_at: string | null;
+	word_count: number;
+	is_public: boolean;
+	share_id: string | null;
+	// Document properties (Notion-like)
+	property_schema: PropertySchema[] | null;
+	properties: Record<string, unknown> | null;
+	// Entity linking
+	client_id: string | null;
 	created_at: string;
+	updated_at: string;
+}
+
+export interface ContextListItem {
+	id: string;
+	name: string;
+	type: ContextType;
+	icon: string | null;
+	cover_image: string | null;
+	parent_id: string | null;
+	is_template: boolean;
+	is_archived: boolean;
+	word_count: number;
+	// Document properties (Notion-like)
+	property_schema: PropertySchema[] | null;
+	properties: Record<string, unknown> | null;
+	// Entity linking
+	client_id: string | null;
 	updated_at: string;
 }
 
 export interface CreateContextData {
 	name: string;
-	type?: 'person' | 'business' | 'project' | 'custom';
+	type?: ContextType;
 	content?: string;
 	structured_data?: Record<string, unknown>;
 	system_prompt_template?: string;
+	blocks?: Block[];
+	cover_image?: string;
+	icon?: string;
+	parent_id?: string;
+	is_template?: boolean;
+	property_schema?: PropertySchema[];
+	properties?: Record<string, unknown>;
+	client_id?: string;
+}
+
+export interface UpdateContextData {
+	name?: string;
+	type?: ContextType;
+	content?: string;
+	structured_data?: Record<string, unknown>;
+	system_prompt_template?: string;
+	blocks?: Block[];
+	cover_image?: string;
+	icon?: string;
+	parent_id?: string | null;
+	is_template?: boolean;
+	is_archived?: boolean;
+	is_public?: boolean;
+	property_schema?: PropertySchema[];
+	properties?: Record<string, unknown>;
+	client_id?: string | null;
+}
+
+export interface BlocksUpdateData {
+	blocks: Block[];
+	word_count?: number;
+}
+
+export interface ShareResponse {
+	share_id: string;
+	is_public: boolean;
+	share_url: string;
+}
+
+export interface AggregateContextRequest {
+	context_ids?: string[];
+	project_ids?: string[];
+	node_ids?: string[];
+	include_children?: boolean;
+	include_artifacts?: boolean;
+	include_tasks?: boolean;
+	max_depth?: number;
+}
+
+export interface AggregatedContextItem {
+	source_type: string;
+	source_id: string;
+	source_name: string;
+	content: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface AggregateContextResponse {
+	items: AggregatedContextItem[];
+	total_items: number;
+	total_characters: number;
+	formatted_context: string;
 }
 
 export interface Tool {
@@ -647,6 +892,8 @@ export interface ArtifactListItem {
 	summary: string | null;
 	conversation_id: string | null;
 	project_id: string | null;
+	context_id: string | null;
+	context_name: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -752,6 +999,191 @@ export interface UpdateNodeData {
 	is_archived?: boolean;
 	sort_order?: number;
 	context_id?: string;
+}
+
+// Client Types
+export type ClientType = 'company' | 'individual';
+export type ClientStatus = 'lead' | 'prospect' | 'active' | 'inactive' | 'churned';
+export type InteractionType = 'call' | 'email' | 'meeting' | 'note';
+export type DealStage = 'qualification' | 'proposal' | 'negotiation' | 'closed_won' | 'closed_lost';
+
+export interface ContactResponse {
+	id: string;
+	client_id: string;
+	name: string;
+	email: string | null;
+	phone: string | null;
+	role: string | null;
+	is_primary: boolean;
+	notes: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface InteractionResponse {
+	id: string;
+	client_id: string;
+	contact_id: string | null;
+	type: InteractionType;
+	subject: string;
+	description: string | null;
+	outcome: string | null;
+	occurred_at: string;
+	created_at: string;
+}
+
+export interface DealResponse {
+	id: string;
+	client_id: string;
+	name: string;
+	value: number;
+	stage: DealStage;
+	probability: number;
+	expected_close_date: string | null;
+	notes: string | null;
+	created_at: string;
+	updated_at: string;
+	closed_at: string | null;
+}
+
+export interface ClientResponse {
+	id: string;
+	user_id: string;
+	name: string;
+	type: ClientType;
+	email: string | null;
+	phone: string | null;
+	website: string | null;
+	industry: string | null;
+	company_size: string | null;
+	address: string | null;
+	city: string | null;
+	state: string | null;
+	zip_code: string | null;
+	country: string | null;
+	status: ClientStatus;
+	source: string | null;
+	assigned_to: string | null;
+	lifetime_value: number | null;
+	tags: string[] | null;
+	custom_fields: Record<string, unknown> | null;
+	notes: string | null;
+	created_at: string;
+	updated_at: string;
+	last_contacted_at: string | null;
+}
+
+export interface ClientDetailResponse extends ClientResponse {
+	contacts: ContactResponse[];
+	interactions: InteractionResponse[];
+	deals: DealResponse[];
+}
+
+export interface ClientListResponse {
+	id: string;
+	name: string;
+	type: ClientType;
+	email: string | null;
+	phone: string | null;
+	status: ClientStatus;
+	source: string | null;
+	assigned_to: string | null;
+	lifetime_value: number | null;
+	tags: string[] | null;
+	created_at: string;
+	last_contacted_at: string | null;
+	contacts_count: number;
+	interactions_count: number;
+	deals_count: number;
+	active_deals_value: number;
+}
+
+export interface CreateClientData {
+	name: string;
+	type?: ClientType;
+	email?: string;
+	phone?: string;
+	website?: string;
+	industry?: string;
+	company_size?: string;
+	address?: string;
+	city?: string;
+	state?: string;
+	zip_code?: string;
+	country?: string;
+	status?: ClientStatus;
+	source?: string;
+	assigned_to?: string;
+	tags?: string[];
+	custom_fields?: Record<string, unknown>;
+	notes?: string;
+}
+
+export interface UpdateClientData {
+	name?: string;
+	type?: ClientType;
+	email?: string;
+	phone?: string;
+	website?: string;
+	industry?: string;
+	company_size?: string;
+	address?: string;
+	city?: string;
+	state?: string;
+	zip_code?: string;
+	country?: string;
+	status?: ClientStatus;
+	source?: string;
+	assigned_to?: string;
+	lifetime_value?: number;
+	tags?: string[];
+	custom_fields?: Record<string, unknown>;
+	notes?: string;
+}
+
+export interface CreateContactData {
+	name: string;
+	email?: string;
+	phone?: string;
+	role?: string;
+	is_primary?: boolean;
+	notes?: string;
+}
+
+export interface UpdateContactData {
+	name?: string;
+	email?: string;
+	phone?: string;
+	role?: string;
+	is_primary?: boolean;
+	notes?: string;
+}
+
+export interface CreateInteractionData {
+	type: InteractionType;
+	subject: string;
+	description?: string;
+	outcome?: string;
+	contact_id?: string;
+	occurred_at?: string;
+}
+
+export interface CreateDealData {
+	name: string;
+	value?: number;
+	stage?: DealStage;
+	probability?: number;
+	expected_close_date?: string;
+	notes?: string;
+}
+
+export interface UpdateDealData {
+	name?: string;
+	value?: number;
+	stage?: DealStage;
+	probability?: number;
+	expected_close_date?: string;
+	notes?: string;
 }
 
 export const api = new ApiClient();

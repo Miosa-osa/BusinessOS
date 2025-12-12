@@ -25,6 +25,7 @@
 		assignee?: Assignee;
 		dueDate?: string;
 		tags?: string[];
+		// Allow TaskRow to receive projectId for navigation
 	}
 
 	interface Props {

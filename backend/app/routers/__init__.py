@@ -9,5 +9,7 @@ from app.routers.daily_logs import router as daily_logs_router
 from app.routers.settings import router as settings_router
 from app.routers.artifacts import router as artifacts_router
 from app.routers.nodes import router as nodes_router
+from app.routers.profile import router as profile_router
+from app.routers.clients import router as clients_router, deals_router
 
-__all__ = ["chat_router", "projects_router", "contexts_router", "mcp_router", "team_router", "dashboard_router", "daily_logs_router", "settings_router", "artifacts_router", "nodes_router"]
+__all__ = ["chat_router", "projects_router", "contexts_router", "mcp_router", "team_router", "dashboard_router", "daily_logs_router", "settings_router", "artifacts_router", "nodes_router", "profile_router", "clients_router", "deals_router"]

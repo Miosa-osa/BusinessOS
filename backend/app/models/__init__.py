@@ -8,6 +8,7 @@ from app.models.node import Node, NodeMetric
 from app.models.team_member import TeamMember, TeamMemberActivity
 from app.models.task import Task, FocusItem
 from app.models.user_settings import UserSettings
+from app.models.client import Client, ClientContact, ClientInteraction, ClientDeal
 
 __all__ = [
     "Conversation",
@@ -27,4 +28,8 @@ __all__ = [
     "Task",
     "FocusItem",
     "UserSettings",
+    "Client",
+    "ClientContact",
+    "ClientInteraction",
+    "ClientDeal",
 ]
