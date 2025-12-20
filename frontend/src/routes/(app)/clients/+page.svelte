@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { clients, type ViewMode } from '$lib/stores/clients';
-	import type { ClientListResponse, ClientStatus, ClientType, CreateClientData } from '$lib/api/client';
+	import type { ClientListResponse, ClientStatus, ClientType, CreateClientData } from '$lib/api';
 	import {
 		ClientViewSwitcher,
 		ClientTableView,

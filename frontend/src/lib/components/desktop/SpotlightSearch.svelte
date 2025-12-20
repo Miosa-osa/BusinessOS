@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { windowStore } from '$lib/stores/windowStore';
 	import { fade, scale, fly } from 'svelte/transition';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '$lib/api';
 
 	interface Props {
 		open: boolean;
@@ -12,7 +12,7 @@
 
 	let inputValue = $state('');
 	let selectedIndex = $state(0);
-	let inputElement: HTMLTextAreaElement;
+	let inputElement: HTMLTextAreaElement | undefined = $state(undefined);
 	let mode = $state<'search' | 'chat'>('chat');
 
 	// Voice recording state

@@ -14,7 +14,7 @@
 		CreateDealData,
 		InteractionType,
 		DealStage
-	} from '$lib/api/client';
+	} from '$lib/api';
 
 	// Check if we're in embed mode to propagate to links
 	const embedSuffix = $derived($page.url.searchParams.get('embed') === 'true' ? '?embed=true' : '');

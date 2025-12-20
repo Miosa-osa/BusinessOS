@@ -16,7 +16,7 @@ import {
 	type DealStage,
 	type CreateDealData,
 	type UpdateDealData
-} from '$lib/api/client';
+} from '$lib/api/clients';
 
 export type ViewMode = 'table' | 'cards' | 'kanban';
 

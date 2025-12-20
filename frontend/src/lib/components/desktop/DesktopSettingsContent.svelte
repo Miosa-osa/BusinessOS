@@ -10,10 +10,10 @@
 	// Data tab state
 	let importError = $state('');
 	let importSuccess = $state(false);
-	let configFileInput: HTMLInputElement;
+	let configFileInput: HTMLInputElement | undefined = $state(undefined);
 	let customImageUrl = $state('');
 	let companyNameInput = $state($desktopSettings.companyName);
-	let fileInput: HTMLInputElement;
+	let fileInput: HTMLInputElement | undefined = $state(undefined);
 
 	// Shortcut settings - will be loaded from Electron
 	let shortcuts = $state({
@@ -287,9 +287,9 @@
 	}
 
 	// Carousel scroll refs
-	let colorScrollContainer: HTMLDivElement;
-	let gradientScrollContainer: HTMLDivElement;
-	let patternScrollContainer: HTMLDivElement;
+	let colorScrollContainer: HTMLDivElement | undefined = $state(undefined);
+	let gradientScrollContainer: HTMLDivElement | undefined = $state(undefined);
+	let patternScrollContainer: HTMLDivElement | undefined = $state(undefined);
 
 	function scrollCarousel(container: HTMLDivElement | undefined, direction: 'left' | 'right') {
 		if (!container) return;

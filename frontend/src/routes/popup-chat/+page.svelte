@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '$lib/api';
 
 	// Types
 	interface LLMModel {
@@ -24,8 +24,8 @@
 	let isLoading = $state(false);
 	let isRecording = $state(false);
 	let isMeetingMode = $state(false);
-	let inputElement: HTMLTextAreaElement;
-	let messagesContainer: HTMLDivElement;
+	let inputElement: HTMLTextAreaElement | undefined = $state(undefined);
+	let messagesContainer: HTMLDivElement | undefined = $state(undefined);
 
 	// Model selection
 	let availableModels = $state<LLMModel[]>([]);

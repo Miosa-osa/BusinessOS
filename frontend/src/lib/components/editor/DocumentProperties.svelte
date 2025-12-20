@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Popover } from 'bits-ui';
-	import type { PropertySchema, Context, ContextListItem } from '$lib/api/client';
+	import type { PropertySchema, Context, ContextListItem } from '$lib/api';
 	import { contexts } from '$lib/stores/contexts';
 
 	interface Props {

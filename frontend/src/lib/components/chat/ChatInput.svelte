@@ -26,7 +26,7 @@
 		onAttach
 	}: Props = $props();
 
-	let textareaRef: HTMLTextAreaElement;
+	let textareaRef: HTMLTextAreaElement | undefined = $state(undefined);
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {

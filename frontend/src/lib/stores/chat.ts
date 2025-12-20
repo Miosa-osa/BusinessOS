@@ -1,5 +1,5 @@
 import { writable, derived } from 'svelte/store';
-import { api, type Conversation, type Message } from '$lib/api/client';
+import { api, type Conversation, type Message } from '$lib/api/conversations';
 
 interface ChatState {
 	conversations: Conversation[];

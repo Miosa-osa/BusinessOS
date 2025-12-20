@@ -4,7 +4,7 @@
 	import { contexts } from '$lib/stores/contexts';
 	import Block from './Block.svelte';
 	import BlockMenu from './BlockMenu.svelte';
-	import type { Context } from '$lib/api/client';
+	import type { Context } from '$lib/api';
 
 	interface Props {
 		context: Context;
@@ -13,8 +13,8 @@
 
 	let { context, readonly = false }: Props = $props();
 
-	let titleInput: HTMLInputElement;
-	let editorContainer: HTMLDivElement;
+	let titleInput: HTMLInputElement | undefined = $state(undefined);
+	let editorContainer: HTMLDivElement | undefined = $state(undefined);
 	let autoSaveTimer: ReturnType<typeof setTimeout>;
 	let title = $state(context.name);
 	let coverImage = $state(context.cover_image);

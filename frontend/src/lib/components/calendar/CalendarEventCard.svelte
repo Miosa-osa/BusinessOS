@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CalendarEvent, MeetingType } from '$lib/api/client';
+	import type { CalendarEvent, MeetingType } from '$lib/api/calendar';
 
 	interface Props {
 		event: CalendarEvent;

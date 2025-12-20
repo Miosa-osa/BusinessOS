@@ -7,7 +7,7 @@
 	import { isElectron as checkElectron, isMacOS } from '$lib/utils/platform';
 	import { desktopSettings } from '$lib/stores/desktopStore';
 	import { onMount } from 'svelte';
-	import { api } from '$lib/api/client';
+	import { api } from '$lib/api';
 
 	// Projects state for dropdown
 	let projects = $state<Array<{id: string, name: string, status: string}>>([]);

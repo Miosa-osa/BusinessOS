@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { api, type CalendarEvent } from '$lib/api/client';
+	import { getUpcomingEvents } from '$lib/api/calendar';
+	import type { CalendarEvent } from '$lib/api/calendar';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -20,7 +21,7 @@
 
 	async function loadEvents() {
 		try {
-			events = await api.getUpcomingEvents(limit);
+			events = await getUpcomingEvents(limit);
 		} catch (err) {
 			console.error('Error loading upcoming events:', err);
 			error = 'Failed to load events';

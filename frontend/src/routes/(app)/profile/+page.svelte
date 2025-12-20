@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { useSession, signOut } from '$lib/auth-client';
-	import { api } from '$lib/api/client';
+	import { api } from '$lib/api';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 
@@ -21,7 +21,7 @@
 	let bio = $state('');
 
 	// File input ref
-	let fileInput: HTMLInputElement;
+	let fileInput: HTMLInputElement | undefined = $state(undefined);
 
 	// Stats (to be loaded from API)
 	let stats = $state({

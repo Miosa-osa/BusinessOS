@@ -5,7 +5,7 @@ import {
 	type TeamMemberDetailResponse,
 	type CreateTeamMemberData,
 	type UpdateTeamMemberData
-} from '$lib/api/client';
+} from '$lib/api/team';
 
 interface TeamState {
 	members: TeamMemberListResponse[];

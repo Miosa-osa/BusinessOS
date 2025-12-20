@@ -4,8 +4,8 @@
 	import { goto } from '$app/navigation';
 	import { contexts } from '$lib/stores/contexts';
 	import { editor, wordCount, type EditorBlock, type BlockType, blockTypes, createEmptyBlock } from '$lib/stores/editor';
-	import type { Context, Block, VoiceNote } from '$lib/api/client';
-	import { api } from '$lib/api/client';
+	import type { Context, Block, VoiceNote } from '$lib/api';
+	import { api } from '$lib/api';
 	import BlockComponent from '$lib/components/editor/Block.svelte';
 	import BlockMenu from '$lib/components/editor/BlockMenu.svelte';
 	import ChatInput from '$lib/components/chat/ChatInput.svelte';
@@ -53,7 +53,7 @@
 	let aiMessages = $state<AIMessage[]>([]);
 	let aiInput = $state('');
 	let isAIStreaming = $state(false);
-	let aiMessagesContainer: HTMLDivElement;
+	let aiMessagesContainer: HTMLDivElement | undefined = $state(undefined);
 
 	// Voice Notes state
 	let showVoiceNotesPanel = $state(false);

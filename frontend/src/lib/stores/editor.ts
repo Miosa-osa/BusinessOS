@@ -1,5 +1,5 @@
 import { writable, derived } from 'svelte/store';
-import type { Block } from '$lib/api/client';
+import type { Block } from '$lib/api';
 
 export type BlockType =
 	| 'paragraph'

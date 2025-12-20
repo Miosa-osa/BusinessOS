@@ -3,9 +3,9 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { contexts } from '$lib/stores/contexts';
-	import { api, type Block, type Conversation, type ArtifactListItem, type CalendarEvent } from '$lib/api/client';
+	import { api, type Block, type Conversation, type ArtifactListItem, type CalendarEvent } from '$lib/api';
 	import { Dialog, Popover } from 'bits-ui';
-	import type { ContextType, Context, ContextListItem } from '$lib/api/client';
+	import type { ContextType, Context, ContextListItem } from '$lib/api';
 	import { editor, wordCount, type EditorBlock } from '$lib/stores/editor';
 	import BlockComponent from '$lib/components/editor/Block.svelte';
 	import BlockMenu from '$lib/components/editor/BlockMenu.svelte';

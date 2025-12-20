@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { api, type UserSettings, type SystemInfo, type GoogleConnectionStatus, type UsageSummary, type ProviderUsage, type ModelUsage, type UsageTrendPoint } from '$lib/api/client';
+	import { api, type UserSettings, type SystemInfo, type GoogleConnectionStatus, type UsageSummary, type ProviderUsage, type ModelUsage, type UsageTrendPoint } from '$lib/api';
 	import { useSession, signOut } from '$lib/auth-client';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';

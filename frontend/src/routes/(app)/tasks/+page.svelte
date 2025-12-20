@@ -9,7 +9,7 @@
 		NewTaskModal,
 		TaskDetailSlideOver
 	} from '$lib/components/tasks';
-	import { api, type Task as APITask, type Project as APIProject } from '$lib/api/client';
+	import { api, type Task as APITask, type Project as APIProject } from '$lib/api';
 
 	type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'done' | 'blocked';
 	type Priority = 'critical' | 'high' | 'medium' | 'low';

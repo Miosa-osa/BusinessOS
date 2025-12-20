@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ClientListResponse, ClientStatus } from '$lib/api/client';
+	import type { ClientListResponse, ClientStatus } from '$lib/api';
 	import { statusColors, statusLabels } from '$lib/stores/clients';
 
 	interface Props {

@@ -5,7 +5,7 @@
 		TeamMemberListResponse,
 		TeamMemberDetailResponse,
 		TeamMemberStatus
-	} from '$lib/api/client';
+	} from '$lib/api';
 	import {
 		TeamDirectoryView,
 		TeamOrgChartView,

@@ -88,7 +88,7 @@
 	const menuBarHeight = $derived(needsTrafficLightSpace ? 52 : 26);
 
 	// Workspace dimensions (excluding menu bar and dock)
-	let workspaceElement: HTMLDivElement;
+	let workspaceElement: HTMLDivElement | undefined = $state(undefined);
 	let workspaceWidth = $state(0);
 	let workspaceHeight = $state(0);
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { api, apiClient, type CalendarEvent, type GoogleConnectionStatus, type MeetingType, type ActionItem } from '$lib/api/client';
+	import { api, apiClient, type CalendarEvent, type GoogleConnectionStatus, type MeetingType, type ActionItem } from '$lib/api';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import CalendarEventCard from '$lib/components/calendar/CalendarEventCard.svelte';

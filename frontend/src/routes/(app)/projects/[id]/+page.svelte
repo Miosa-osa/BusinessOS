@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { api, type Project, type Task, type CreateTaskData, type ContextListItem, type ClientListResponse, type TeamMemberListResponse, type Context } from '$lib/api/client';
+	import { api, type Project, type Task, type CreateTaskData, type ContextListItem, type ClientListResponse, type TeamMemberListResponse, type Context } from '$lib/api';
 	import { onMount, onDestroy } from 'svelte';
 	import { Dialog, Popover } from 'bits-ui';
 	import { editor, wordCount, type EditorBlock } from '$lib/stores/editor';

@@ -132,7 +132,7 @@
 		closeMenus();
 	}
 
-	let fileInput: HTMLInputElement;
+	let fileInput: HTMLInputElement | undefined = $state(undefined);
 
 	function handleCustomBackgroundClick() {
 		fileInput?.click();

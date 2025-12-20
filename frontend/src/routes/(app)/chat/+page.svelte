@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick, onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
-	import { api, apiClient, type ArtifactListItem, type Artifact, type Node, type ContextListItem } from '$lib/api/client';
+	import { api, apiClient, type ArtifactListItem, type Artifact, type Node, type ContextListItem } from '$lib/api';
 	import FocusModeSelector from '$lib/components/chat/FocusModeSelector.svelte';
 	import ProgressPanel, { type DelegatedTask } from '$lib/components/chat/ProgressPanel.svelte';
 	import ContextPanel, { type ActiveResource } from '$lib/components/chat/ContextPanel.svelte';

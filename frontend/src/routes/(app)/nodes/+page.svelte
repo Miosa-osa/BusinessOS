@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fly, slide } from 'svelte/transition';
-	import { api, type NodeTree, type Node, type NodeType, type NodeHealth, type CreateNodeData } from '$lib/api/client';
+	import { api, type NodeTree, type Node, type NodeType, type NodeHealth, type CreateNodeData } from '$lib/api';
 
 	// State
 	let nodes: NodeTree[] = $state([]);

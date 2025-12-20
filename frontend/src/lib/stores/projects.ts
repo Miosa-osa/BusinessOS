@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { api, type Project, type CreateProjectData } from '$lib/api/client';
+import { api, type Project, type CreateProjectData } from '$lib/api/projects';
 
 interface ProjectsState {
 	projects: Project[];

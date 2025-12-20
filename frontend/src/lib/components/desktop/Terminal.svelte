@@ -37,8 +37,8 @@
 	]);
 
 	let currentInput = $state('');
-	let inputElement: HTMLInputElement;
-	let terminalContent: HTMLDivElement;
+	let inputElement: HTMLInputElement | undefined = $state(undefined);
+	let terminalContent: HTMLDivElement | undefined = $state(undefined);
 
 	const availableCommands: Record<string, { description: string; response: string[] }> = {
 		help: {

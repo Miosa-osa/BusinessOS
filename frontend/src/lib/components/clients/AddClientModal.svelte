@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CreateClientData, ClientType, ClientStatus } from '$lib/api/client';
+	import type { CreateClientData, ClientType, ClientStatus } from '$lib/api';
 
 	interface Props {
 		open: boolean;

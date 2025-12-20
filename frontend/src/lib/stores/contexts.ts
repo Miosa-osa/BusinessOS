@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { api, type Context, type ContextListItem, type CreateContextData, type UpdateContextData, type Block, type ShareResponse } from '$lib/api/client';
+import { api, type Context, type ContextListItem, type CreateContextData, type UpdateContextData, type Block, type ShareResponse } from '$lib/api/contexts';
 
 interface ContextsState {
 	contexts: ContextListItem[];
@@ -41,9 +41,9 @@ function createContextsStore() {
 		async loadContext(id: string) {
 			update((s) => ({ ...s, loading: true }));
 			try {
-				const context = await api.getContext(id);
-				update((s) => ({ ...s, currentContext: context, loading: false }));
-				return context;
+				const ctx = await api.getContext(id);
+				update((s) => ({ ...s, currentContext: ctx, loading: false }));
+				return ctx;
 			} catch (error) {
 				console.error('Failed to load context:', error);
 				update((s) => ({ ...s, loading: false }));
@@ -53,23 +53,26 @@ function createContextsStore() {
 
 		async createContext(data: CreateContextData) {
 			try {
-				const context = await api.createContext(data);
+				const ctx = await api.createContext(data);
 				update((s) => ({
 					...s,
 					contexts: [{
-						id: context.id,
-						name: context.name,
-						type: context.type,
-						icon: context.icon,
-						cover_image: context.cover_image,
-						parent_id: context.parent_id,
-						is_template: context.is_template,
-						is_archived: context.is_archived,
-						word_count: context.word_count,
-						updated_at: context.updated_at
+						id: ctx.id,
+						name: ctx.name,
+						type: ctx.type,
+						icon: ctx.icon,
+						cover_image: ctx.cover_image,
+						parent_id: ctx.parent_id,
+						is_template: ctx.is_template,
+						is_archived: ctx.is_archived,
+						word_count: ctx.word_count,
+						property_schema: ctx.property_schema,
+						properties: ctx.properties,
+						client_id: ctx.client_id,
+						updated_at: ctx.updated_at
 					}, ...s.contexts]
 				}));
-				return context;
+				return ctx;
 			} catch (error) {
 				console.error('Failed to create context:', error);
 				throw error;
@@ -78,24 +81,27 @@ function createContextsStore() {
 
 		async updateContext(id: string, data: UpdateContextData) {
 			try {
-				const context = await api.updateContext(id, data);
+				const ctx = await api.updateContext(id, data);
 				update((s) => ({
 					...s,
 					contexts: s.contexts.map((c) => (c.id === id ? {
-						id: context.id,
-						name: context.name,
-						type: context.type,
-						icon: context.icon,
-						cover_image: context.cover_image,
-						parent_id: context.parent_id,
-						is_template: context.is_template,
-						is_archived: context.is_archived,
-						word_count: context.word_count,
-						updated_at: context.updated_at
+						id: ctx.id,
+						name: ctx.name,
+						type: ctx.type,
+						icon: ctx.icon,
+						cover_image: ctx.cover_image,
+						parent_id: ctx.parent_id,
+						is_template: ctx.is_template,
+						is_archived: ctx.is_archived,
+						word_count: ctx.word_count,
+						property_schema: ctx.property_schema,
+						properties: ctx.properties,
+						client_id: ctx.client_id,
+						updated_at: ctx.updated_at
 					} : c)),
-					currentContext: s.currentContext?.id === id ? context : s.currentContext
+					currentContext: s.currentContext?.id === id ? ctx : s.currentContext
 				}));
-				return context;
+				return ctx;
 			} catch (error) {
 				console.error('Failed to update context:', error);
 				throw error;
@@ -104,12 +110,12 @@ function createContextsStore() {
 
 		async updateBlocks(id: string, blocks: Block[], wordCount?: number) {
 			try {
-				const context = await api.updateContextBlocks(id, { blocks, word_count: wordCount });
+				const ctx = await api.updateContextBlocks(id, { blocks, word_count: wordCount });
 				update((s) => ({
 					...s,
-					currentContext: s.currentContext?.id === id ? context : s.currentContext
+					currentContext: s.currentContext?.id === id ? ctx : s.currentContext
 				}));
-				return context;
+				return ctx;
 			} catch (error) {
 				console.error('Failed to update blocks:', error);
 				throw error;
@@ -149,23 +155,26 @@ function createContextsStore() {
 
 		async duplicateContext(id: string) {
 			try {
-				const context = await api.duplicateContext(id);
+				const ctx = await api.duplicateContext(id);
 				update((s) => ({
 					...s,
 					contexts: [{
-						id: context.id,
-						name: context.name,
-						type: context.type,
-						icon: context.icon,
-						cover_image: context.cover_image,
-						parent_id: context.parent_id,
-						is_template: context.is_template,
-						is_archived: context.is_archived,
-						word_count: context.word_count,
-						updated_at: context.updated_at
+						id: ctx.id,
+						name: ctx.name,
+						type: ctx.type,
+						icon: ctx.icon,
+						cover_image: ctx.cover_image,
+						parent_id: ctx.parent_id,
+						is_template: ctx.is_template,
+						is_archived: ctx.is_archived,
+						word_count: ctx.word_count,
+						property_schema: ctx.property_schema,
+						properties: ctx.properties,
+						client_id: ctx.client_id,
+						updated_at: ctx.updated_at
 					}, ...s.contexts]
 				}));
-				return context;
+				return ctx;
 			} catch (error) {
 				console.error('Failed to duplicate context:', error);
 				throw error;

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { api, type DailyLog } from '$lib/api/client';
+	import { api, type DailyLog } from '$lib/api';
 	import { onMount } from 'svelte';
 
 	let todayEntry = $state('');

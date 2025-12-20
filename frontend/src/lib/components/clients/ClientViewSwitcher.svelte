@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ViewMode } from '$lib/stores/clients';
-	import type { ClientStatus, ClientType } from '$lib/api/client';
+	import type { ClientStatus, ClientType } from '$lib/api';
 
 	interface Props {
 		view: ViewMode;

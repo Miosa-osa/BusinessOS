@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { windowStore } from '$lib/stores/windowStore';
 	import { desktopSettings } from '$lib/stores/desktopStore';
-	import { api, apiClient } from '$lib/api/client';
+	import { api, apiClient } from '$lib/api';
 
 	const iconStyle = $derived($desktopSettings.iconStyle);
 
@@ -18,7 +18,7 @@
 	let isLoading = $state(false);
 	let lastResponse = $state('');
 	let showResponse = $state(false);
-	let chatInputElement: HTMLTextAreaElement;
+	let chatInputElement: HTMLTextAreaElement | undefined = $state(undefined);
 
 	// Context/Project selection
 	let selectedProject = $state<{ id: string; name: string } | null>(null);
@@ -66,7 +66,7 @@
 	// File upload state
 	let isDraggingFile = $state(false);
 	let attachedFiles = $state<File[]>([]);
-	let fileInputElement: HTMLInputElement;
+	let fileInputElement: HTMLInputElement | undefined = $state(undefined);
 
 	// Content size detection for dynamic width
 	let contentSize = $derived(() => {

@@ -19,7 +19,7 @@
 	let assigneeId = $state<string | undefined>(undefined);
 	let dueDate = $state<string | undefined>(undefined);
 	let isExpanded = $state(false);
-	let inputRef: HTMLInputElement;
+	let inputRef: HTMLInputElement | undefined = $state(undefined);
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && title.trim()) {

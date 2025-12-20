@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { fly, slide } from 'svelte/transition';
-	import { api, type NodeDetail, type Node, type NodeType, type NodeHealth, type DecisionItem, type DelegationItem } from '$lib/api/client';
+	import { api, type NodeDetail, type Node, type NodeType, type NodeHealth, type DecisionItem, type DelegationItem } from '$lib/api';
 
 	// State
 	let node: NodeDetail | null = $state(null);

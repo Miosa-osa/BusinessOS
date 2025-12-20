@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { api } from '$lib/api/client';
+	import { api } from '$lib/api';
 	import { onMount } from 'svelte';
 
 	interface VoiceNote {

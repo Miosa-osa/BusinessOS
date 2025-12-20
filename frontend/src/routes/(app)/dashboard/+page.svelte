@@ -15,7 +15,7 @@
 		type DashboardProject,
 		type DashboardTask,
 		type DashboardActivity
-	} from '$lib/api/client';
+	} from '$lib/api';
 
 	const session = useSession();
 

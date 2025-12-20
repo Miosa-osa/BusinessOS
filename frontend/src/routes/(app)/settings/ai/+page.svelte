@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '$lib/api';
 
 	// Types
 	interface LLMModel {

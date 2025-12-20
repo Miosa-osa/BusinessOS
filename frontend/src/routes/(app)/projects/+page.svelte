@@ -2,9 +2,9 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { projects } from '$lib/stores/projects';
-	import { api, type ClientListResponse } from '$lib/api/client';
+	import { api, type ClientListResponse } from '$lib/api';
 	import { Dialog, Popover } from 'bits-ui';
-	import type { Project } from '$lib/api/client';
+	import type { Project } from '$lib/api';
 
 	const embedSuffix = $derived($page.url.searchParams.get('embed') === 'true' ? '?embed=true' : '');
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { api, type UsageSummary, type ProviderUsage, type ModelUsage, type UsageTrendPoint, type AgentUsage, type MCPToolUsage } from '$lib/api/client';
+	import { api, type UsageSummary, type ProviderUsage, type ModelUsage, type UsageTrendPoint, type AgentUsage, type MCPToolUsage } from '$lib/api';
 	import { onMount } from 'svelte';
 
 	// Usage analytics state
