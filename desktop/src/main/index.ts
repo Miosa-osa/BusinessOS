@@ -1,11 +1,12 @@
 import { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, protocol, net } from 'electron';
 import path from 'path';
 import { createMainWindow, getMainWindow } from './window';
-import { setupIpcHandlers } from './ipc';
+import { setupIpcHandlers, initializeDatabaseSystem, startSync, stopSync } from './ipc';
 import { BackendManager } from './backend/manager';
 import { setupAutoUpdater } from './updater/auto-update';
 import { initializePopupSystem, cleanupPopupSystem } from './popup/chat-popup';
 import { initializeMeetingRecorder } from './audio/meeting-recorder';
+import { closeDatabase } from './database/sqlite';
 import { pathToFileURL } from 'url';
 
 // Handle Squirrel events for Windows installer (only on Windows)
@@ -276,6 +277,10 @@ async function initialize(): Promise<void> {
   console.log(`App path: ${appPath}`);
   console.log(`Resources path: ${resourcesPath}`);
 
+  // Initialize local SQLite database and sync engine
+  initializeDatabaseSystem();
+  console.log('Local database initialized');
+
   // Register the app:// protocol handler for serving static files
   if (!isDev) {
     protocol.handle('app', (request) => {
@@ -332,6 +337,10 @@ async function initialize(): Promise<void> {
   if (!isDev) {
     setupAutoUpdater();
   }
+
+  // Start sync engine
+  startSync();
+  console.log('Sync engine started');
 }
 
 // App lifecycle events
@@ -360,8 +369,14 @@ app.on('activate', () => {
 app.on('before-quit', async () => {
   console.log('BusinessOS Desktop shutting down...');
 
+  // Stop sync engine
+  stopSync();
+
   // Cleanup popup system (shortcuts, tray)
   cleanupPopupSystem();
+
+  // Close SQLite database
+  closeDatabase();
 
   // Stop the Go backend
   if (backendManager) {

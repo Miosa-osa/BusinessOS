@@ -1,3 +1,7 @@
+// Backend URLs
+const LOCAL_BACKEND_URL = 'http://localhost:8080';
+const CLOUD_RUN_URL = 'https://businessos-api-460433387676.us-central1.run.app';
+
 // Shared fetch logic copied from the original ApiClient.request implementation
 function getApiBase(): string {
   if (typeof window === 'undefined') {
@@ -5,20 +9,31 @@ function getApiBase(): string {
   }
 
   const isElectron = 'electron' in window;
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   if (isElectron) {
     const mode = localStorage.getItem('businessos_mode');
-    const cloudUrl = localStorage.getItem('businessos_cloud_url');
+    let cloudUrl = localStorage.getItem('businessos_cloud_url');
+
+    // Auto-configure URL if not set
+    if (!cloudUrl) {
+      cloudUrl = isDev ? LOCAL_BACKEND_URL : CLOUD_RUN_URL;
+      localStorage.setItem('businessos_cloud_url', cloudUrl);
+    }
 
     if (mode === 'cloud' && cloudUrl) {
       return `${cloudUrl}/api`;
     } else if (mode === 'local') {
       return 'http://localhost:18080/api';
     }
-    return 'http://localhost:8080/api';
+    return `${cloudUrl}/api`;
   }
 
-  return import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8080/api' : '/api');
+  // Web app: use env var, or auto-detect based on environment
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  return isDev ? `${LOCAL_BACKEND_URL}/api` : `${CLOUD_RUN_URL}/api`;
 }
 
 export const getApiBaseUrl = () => getApiBase();

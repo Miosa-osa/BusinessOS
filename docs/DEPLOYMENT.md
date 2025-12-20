@@ -1,6 +1,8 @@
 # Business OS - Production Deployment Guide
 
-> Last Updated: December 18, 2025
+> Last Updated: December 21, 2025
+
+> **See also**: [CLOUD-INFRASTRUCTURE.md](./CLOUD-INFRASTRUCTURE.md) for detailed GCP setup and sync architecture.
 
 This guide covers deploying Business OS in two modes:
 
@@ -50,21 +52,21 @@ This guide covers deploying Business OS in two modes:
 ### Create PostgreSQL Instance
 
 ```bash
-# Set your project
-gcloud config set project YOUR_PROJECT_ID
+# Set your project (BusinessOS uses miosa-460433)
+gcloud config set project miosa-460433
 
-# Create Cloud SQL instance
+# Create Cloud SQL instance (already created)
 gcloud sql instances create businessos-db \
   --database-version=POSTGRES_15 \
   --tier=db-f1-micro \
   --region=us-central1 \
   --root-password=YOUR_STRONG_PASSWORD
 
-# Create database
-gcloud sql databases create business_os \
+# Create database (already created as 'businessos')
+gcloud sql databases create businessos \
   --instance=businessos-db
 
-# Create user (optional, can use postgres user)
+# Create user (optional, using postgres user)
 gcloud sql users create businessos_user \
   --instance=businessos-db \
   --password=YOUR_USER_PASSWORD
@@ -75,8 +77,13 @@ gcloud sql users create businessos_user \
 ```bash
 # Get instance connection name
 gcloud sql instances describe businessos-db --format='value(connectionName)'
-# Output: YOUR_PROJECT:us-central1:businessos-db
+# Output: miosa-460433:us-central1:businessos-db
 ```
+
+**Current Production Values:**
+- Instance: `businessos-db`
+- Database: `businessos`
+- Connection: `miosa-460433:us-central1:businessos-db`
 
 ---
 
@@ -95,19 +102,21 @@ gcloud builds submit --config backend-go/cloudbuild.yaml
 ### Option B: Manual Deploy
 
 ```bash
-# Build and push image
-cd backend-go
-gcloud builds submit --tag gcr.io/YOUR_PROJECT/businessos-api
+# Build and push image (using Artifact Registry)
+cd desktop/backend-go
+docker build -t us-central1-docker.pkg.dev/miosa-460433/businessos-repo/businessos-api:latest .
+docker push us-central1-docker.pkg.dev/miosa-460433/businessos-repo/businessos-api:latest
 
 # Deploy to Cloud Run
 gcloud run deploy businessos-api \
-  --image gcr.io/YOUR_PROJECT/businessos-api \
+  --image us-central1-docker.pkg.dev/miosa-460433/businessos-repo/businessos-api:latest \
   --platform managed \
   --region us-central1 \
-  --allow-unauthenticated \
-  --add-cloudsql-instances YOUR_PROJECT:us-central1:businessos-db \
+  --add-cloudsql-instances miosa-460433:us-central1:businessos-db \
   --set-env-vars "ENVIRONMENT=production"
 ```
+
+**Note**: The service uses IAM authentication (not `--allow-unauthenticated`) due to organization policy.
 
 ### Set Environment Variables
 
@@ -132,8 +141,10 @@ ENABLE_LOCAL_MODELS=false"
 gcloud run services describe businessos-api \
   --region us-central1 \
   --format='value(status.url)'
-# Output: https://businessos-api-xxxxx-uc.a.run.app
+# Output: https://businessos-api-460433387676.us-central1.run.app
 ```
+
+**Current Production URL**: `https://businessos-api-460433387676.us-central1.run.app`
 
 ---
 

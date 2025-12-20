@@ -5,6 +5,13 @@ import { contextBridge, ipcRenderer } from 'electron';
  * This maintains security by not exposing full Node.js/Electron APIs
  */
 
+// Database operation result type
+interface DbResult<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 // Type definitions for the exposed API
 export interface ElectronAPI {
   // App info
@@ -35,10 +42,46 @@ export interface ElectronAPI {
   sync: {
     getStatus: () => Promise<{
       status: string;
-      lastSync: string;
+      lastSync: string | null;
       pendingChanges: number;
     }>;
-    trigger: () => Promise<boolean>;
+    trigger: () => Promise<DbResult>;
+    getPending: () => Promise<DbResult<{ table: string; count: number }[]>>;
+  };
+
+  // Database - Local SQLite with Cloud Sync
+  db: {
+    getAll: <T = any>(table: string, where?: Record<string, any>) => Promise<DbResult<T[]>>;
+    getById: <T = any>(table: string, id: string) => Promise<DbResult<T | null>>;
+    create: <T = any>(table: string, data: Record<string, any>) => Promise<DbResult<T>>;
+    update: <T = any>(table: string, id: string, data: Record<string, any>) => Promise<DbResult<T>>;
+    delete: (table: string, id: string) => Promise<DbResult>;
+    query: <T = any>(sql: string, params?: any[]) => Promise<DbResult<T[]>>;
+    contexts: {
+      getWithChildren: (parentId?: string) => Promise<DbResult<any[]>>;
+    };
+    conversations: {
+      getWithMessages: (conversationId: string) => Promise<DbResult<any>>;
+    };
+    tasks: {
+      getByStatus: (status?: string) => Promise<DbResult<any[]>>;
+    };
+    projects: {
+      getWithTasks: (projectId: string) => Promise<DbResult<any>>;
+    };
+    calendar: {
+      getByRange: (startDate: string, endDate: string) => Promise<DbResult<any[]>>;
+    };
+    dailyLog: {
+      getToday: (userId: string) => Promise<DbResult<any | null>>;
+    };
+    clients: {
+      getWithDeals: (clientId: string) => Promise<DbResult<any>>;
+    };
+    settings: {
+      get: (userId: string) => Promise<DbResult<any | null>>;
+      upsert: (userId: string, settings: Record<string, any>) => Promise<DbResult>;
+    };
   };
 
   // Updates
@@ -83,6 +126,8 @@ const ALLOWED_INVOKE_CHANNELS = [
   'network:get-status',
   'sync:get-status',
   'sync:trigger',
+  'sync:getStatus',
+  'sync:getPending',
   'updates:check',
   'updates:download',
   'updates:install',
@@ -92,6 +137,23 @@ const ALLOWED_INVOKE_CHANNELS = [
   'dialog:show-save',
   'dialog:show-message',
   'window:get-state',
+  // Database operations
+  'db:getAll',
+  'db:getById',
+  'db:create',
+  'db:update',
+  'db:delete',
+  'db:query',
+  // Domain-specific database operations
+  'db:contexts:getWithChildren',
+  'db:conversations:getWithMessages',
+  'db:tasks:getByStatus',
+  'db:projects:getWithTasks',
+  'db:calendar:getByRange',
+  'db:dailyLog:getToday',
+  'db:clients:getWithDeals',
+  'db:settings:get',
+  'db:settings:upsert',
   // Meeting recorder
   'meeting:get-sources',
   'meeting:start',
@@ -158,8 +220,62 @@ contextBridge.exposeInMainWorld('electron', {
 
   // Sync
   sync: {
-    getStatus: () => ipcRenderer.invoke('sync:get-status'),
+    getStatus: () => ipcRenderer.invoke('sync:getStatus'),
     trigger: () => ipcRenderer.invoke('sync:trigger'),
+    getPending: () => ipcRenderer.invoke('sync:getPending'),
+  },
+
+  // Database - Local SQLite with Cloud Sync
+  db: {
+    // Generic CRUD operations
+    getAll: (table: string, where?: Record<string, any>) =>
+      ipcRenderer.invoke('db:getAll', table, where),
+    getById: (table: string, id: string) =>
+      ipcRenderer.invoke('db:getById', table, id),
+    create: (table: string, data: Record<string, any>) =>
+      ipcRenderer.invoke('db:create', table, data),
+    update: (table: string, id: string, data: Record<string, any>) =>
+      ipcRenderer.invoke('db:update', table, id, data),
+    delete: (table: string, id: string) =>
+      ipcRenderer.invoke('db:delete', table, id),
+    query: (sql: string, params?: any[]) =>
+      ipcRenderer.invoke('db:query', sql, params),
+
+    // Domain-specific helpers
+    contexts: {
+      getWithChildren: (parentId?: string) =>
+        ipcRenderer.invoke('db:contexts:getWithChildren', parentId),
+    },
+    conversations: {
+      getWithMessages: (conversationId: string) =>
+        ipcRenderer.invoke('db:conversations:getWithMessages', conversationId),
+    },
+    tasks: {
+      getByStatus: (status?: string) =>
+        ipcRenderer.invoke('db:tasks:getByStatus', status),
+    },
+    projects: {
+      getWithTasks: (projectId: string) =>
+        ipcRenderer.invoke('db:projects:getWithTasks', projectId),
+    },
+    calendar: {
+      getByRange: (startDate: string, endDate: string) =>
+        ipcRenderer.invoke('db:calendar:getByRange', startDate, endDate),
+    },
+    dailyLog: {
+      getToday: (userId: string) =>
+        ipcRenderer.invoke('db:dailyLog:getToday', userId),
+    },
+    clients: {
+      getWithDeals: (clientId: string) =>
+        ipcRenderer.invoke('db:clients:getWithDeals', clientId),
+    },
+    settings: {
+      get: (userId: string) =>
+        ipcRenderer.invoke('db:settings:get', userId),
+      upsert: (userId: string, settings: Record<string, any>) =>
+        ipcRenderer.invoke('db:settings:upsert', userId, settings),
+    },
   },
 
   // Updates

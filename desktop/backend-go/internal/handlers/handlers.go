@@ -311,6 +311,30 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		calendar.GET("/upcoming", calendarHandler.GetUpcomingEvents)
 	}
 
+	// Sync routes - /api/sync
+	syncRoutes := api.Group("/sync")
+	syncRoutes.Use(auth)
+	{
+		syncRoutes.GET("/status", h.GetSyncStatus)
+		syncRoutes.GET("/full", h.FullSync)
+		syncRoutes.GET("/:table", h.GetSyncChanges)
+	}
+
+	// Also add sync endpoints on individual tables for the sync engine
+	// These return changes since a given timestamp
+	api.GET("/contexts/sync", auth, h.createTableSyncHandler("contexts"))
+	api.GET("/conversations/sync", auth, h.createTableSyncHandler("conversations"))
+	api.GET("/projects/sync", auth, h.createTableSyncHandler("projects"))
+	api.GET("/tasks/sync", auth, h.createTableSyncHandler("tasks"))
+	api.GET("/nodes/sync", auth, h.createTableSyncHandler("nodes"))
+	api.GET("/clients/sync", auth, h.createTableSyncHandler("clients"))
+	api.GET("/calendar_events/sync", auth, h.createTableSyncHandler("calendar_events"))
+	api.GET("/daily_logs/sync", auth, h.createTableSyncHandler("daily_logs"))
+	api.GET("/team_members/sync", auth, h.createTableSyncHandler("team_members"))
+	api.GET("/artifacts/sync", auth, h.createTableSyncHandler("artifacts"))
+	api.GET("/focus_items/sync", auth, h.createTableSyncHandler("focus_items"))
+	api.GET("/user_settings/sync", auth, h.createTableSyncHandler("user_settings"))
+
 	// Authentication routes - /api/auth
 	googleAuthHandler := NewGoogleAuthHandler(h.pool, h.cfg)
 	emailAuthHandler := NewEmailAuthHandler(h.pool, h.cfg)

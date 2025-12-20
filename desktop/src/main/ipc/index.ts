@@ -1,11 +1,17 @@
 import { ipcMain, app, shell, dialog, desktopCapturer, screen } from 'electron';
 import { BackendManager } from '../backend/manager';
 import { getMainWindow } from '../window';
+import { setupDatabaseHandlers, initializeDatabaseSystem, startSync, stopSync } from './database';
+
+// Re-export database functions for use in main process
+export { initializeDatabaseSystem, startSync, stopSync };
 
 /**
  * Set up all IPC handlers for communication with the renderer process
  */
 export function setupIpcHandlers(backendManager: BackendManager | null): void {
+  // Set up database IPC handlers
+  setupDatabaseHandlers();
   // App info
   ipcMain.handle('app:get-version', () => {
     return app.getVersion();

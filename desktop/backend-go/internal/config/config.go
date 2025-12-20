@@ -110,16 +110,12 @@ func Load() (*Config, error) {
 	viper.SetDefault("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/integrations/google/callback")
 	viper.SetDefault("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:3000,app://localhost")
 
-	// Read config file
-	if err := viper.ReadInConfig(); err != nil {
-		// It's okay if there's no config file, we'll use environment variables
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, err
-		}
-	}
-
-	// Also read from environment
+	// Read from environment variables first (takes priority in production)
 	viper.AutomaticEnv()
+
+	// Try to read config file (optional - for local development)
+	// Ignore all errors - we can run without a config file in production
+	_ = viper.ReadInConfig()
 
 	config := &Config{}
 	if err := viper.Unmarshal(config); err != nil {

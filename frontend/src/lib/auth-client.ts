@@ -7,8 +7,9 @@ const isElectron = typeof window !== 'undefined' && 'electron' in window;
 const isDev = typeof window !== 'undefined' &&
 	(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-// Local backend URL for development
+// Backend URLs
 const LOCAL_BACKEND_URL = 'http://localhost:8080';
+const CLOUD_RUN_URL = 'https://businessos-api-460433387676.us-central1.run.app';
 
 // App mode store - 'cloud' or 'local'
 export const appMode = writable<'cloud' | 'local' | null>(null);
@@ -19,11 +20,12 @@ if (typeof window !== 'undefined') {
 	let savedMode = localStorage.getItem('businessos_mode') as 'cloud' | 'local' | null;
 	let savedUrl = localStorage.getItem('businessos_cloud_url') || '';
 
-	// In dev mode, automatically use local backend if no URL is configured
-	if (isDev && !savedUrl) {
-		savedUrl = LOCAL_BACKEND_URL;
+	// Auto-configure backend URL based on environment
+	if (!savedUrl) {
+		// In dev mode, use local backend; in production, use Cloud Run
+		savedUrl = isDev ? LOCAL_BACKEND_URL : CLOUD_RUN_URL;
 		localStorage.setItem('businessos_cloud_url', savedUrl);
-		// Auto-set to cloud mode pointing to local backend for dev
+		// Auto-set to cloud mode
 		if (!savedMode) {
 			savedMode = 'cloud';
 			localStorage.setItem('businessos_mode', 'cloud');
