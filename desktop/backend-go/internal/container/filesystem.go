@@ -298,6 +298,11 @@ func listFilesFromTar(reader io.ReadCloser, basePath string) ([]FileInfo, error)
 	tarReader := tar.NewReader(reader)
 	var files []FileInfo
 
+	// Docker's CopyFromContainer returns tar entries relative to the PARENT of basePath
+	// e.g., copying /workspace returns entries like "workspace/file.txt"
+	// So we need the parent path to construct full paths correctly
+	parentPath := filepath.Dir(basePath)
+
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
@@ -312,8 +317,19 @@ func listFilesFromTar(reader io.ReadCloser, basePath string) ([]FileInfo, error)
 			continue
 		}
 
-		// Build full path
-		fullPath := filepath.Join(basePath, header.Name)
+		// Build full path using parent directory
+		// header.Name is relative to parent, e.g., "workspace/file.txt"
+		fullPath := filepath.Join(parentPath, header.Name)
+
+		// Only include direct children of basePath (not the directory itself or nested items)
+		relPath, err := filepath.Rel(basePath, fullPath)
+		if err != nil || relPath == "." {
+			continue
+		}
+		// Skip nested items (items with "/" in relative path)
+		if strings.Contains(relPath, string(filepath.Separator)) {
+			continue
+		}
 
 		files = append(files, FileInfo{
 			Name:    filepath.Base(header.Name),

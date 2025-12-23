@@ -116,8 +116,12 @@ func (m *ContainerManager) CreateContainer(userID string, sessionID string, imag
 			"seccomp=" + SeccompProfile,       // Custom profile blocking escape syscalls (embedded)
 		},
 
-		// Network isolation
-		NetworkMode: "none",
+		// Network: Bridge mode for terminal containers (allows npm, git, curl, etc.)
+		// Security is maintained via: capability dropping, seccomp, no-new-privileges, readonly root
+		NetworkMode: "bridge",
+
+		// DNS configuration for reliable resolution
+		DNS: []string{"8.8.8.8", "8.8.4.4", "1.1.1.1"},
 
 		// Read-only root filesystem with tmpfs for required writable paths
 		ReadonlyRootfs: true,
