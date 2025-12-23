@@ -4,21 +4,24 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/config"
+	"github.com/rhl/businessos-backend/internal/container"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	"github.com/rhl/businessos-backend/internal/services"
 )
 
 // Handlers contains all HTTP handlers
 type Handlers struct {
-	pool *pgxpool.Pool
-	cfg  *config.Config
+	pool         *pgxpool.Pool
+	cfg          *config.Config
+	containerMgr *container.ContainerManager
 }
 
 // NewHandlers creates a new Handlers instance
-func NewHandlers(pool *pgxpool.Pool, cfg *config.Config) *Handlers {
+func NewHandlers(pool *pgxpool.Pool, cfg *config.Config, containerMgr *container.ContainerManager) *Handlers {
 	return &Handlers{
-		pool: pool,
-		cfg:  cfg,
+		pool:         pool,
+		cfg:          cfg,
+		containerMgr: containerMgr,
 	}
 }
 
@@ -312,7 +315,7 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	}
 
 	// Terminal routes - /api/terminal
-	terminalHandler := NewTerminalHandler()
+	terminalHandler := NewTerminalHandler(h.containerMgr)
 	terminalRoutes := api.Group("/terminal")
 	terminalRoutes.Use(auth)
 	{

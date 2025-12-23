@@ -5,22 +5,26 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rhl/businessos-backend/internal/container"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	"github.com/rhl/businessos-backend/internal/terminal"
 )
 
 // TerminalHandler handles terminal-related HTTP requests
 type TerminalHandler struct {
-	wsHandler *terminal.WebSocketHandler
-	manager   *terminal.Manager
+	wsHandler    *terminal.WebSocketHandler
+	manager      *terminal.Manager
+	containerMgr *container.ContainerManager
 }
 
 // NewTerminalHandler creates a new terminal handler
-func NewTerminalHandler() *TerminalHandler {
-	manager := terminal.NewManager()
+func NewTerminalHandler(containerMgr *container.ContainerManager) *TerminalHandler {
+	manager := terminal.NewManager(containerMgr)
+	wsHandler := terminal.NewWebSocketHandler(manager)
 	return &TerminalHandler{
-		wsHandler: terminal.NewWebSocketHandler(manager),
-		manager:   manager,
+		wsHandler:    wsHandler,
+		manager:      manager,
+		containerMgr: containerMgr,
 	}
 }
 

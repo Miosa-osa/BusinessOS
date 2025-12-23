@@ -3,21 +3,92 @@ package terminal
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/rhl/businessos-backend/internal/logging"
 )
+
+// AllowedOrigins contains the list of allowed origins for WebSocket connections
+var AllowedOrigins = []string{
+	"http://localhost:5173",   // Vite dev server
+	"http://localhost:3000",   // Alternative dev server
+	"https://localhost:5173",  // HTTPS dev server
+	"https://app.businessos.com", // Production domain (update as needed)
+}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  4096,
 	WriteBufferSize: 4096,
-	CheckOrigin: func(r *http.Request) bool {
-		// Allow all origins for now (CORS is handled elsewhere)
-		return true
-	},
+	CheckOrigin: checkWebSocketOrigin,
+}
+
+// MaxMessageSize sets the maximum message size for WebSocket connections
+const MaxMessageSize = 16384 // 16KB
+
+// checkWebSocketOrigin validates the origin of WebSocket connections
+// This prevents Cross-Site WebSocket Hijacking (CSWSH) attacks
+func checkWebSocketOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	maskedIP := logging.MaskIP(getClientIP(r))
+
+	if origin == "" {
+		// Log security event - missing origin header
+		logging.Security("WebSocket connection denied - missing Origin header from %s", maskedIP)
+		return false
+	}
+
+	// Parse origin URL
+	originURL, err := url.Parse(origin)
+	if err != nil {
+		logging.Security("WebSocket connection denied - invalid Origin: %s from %s", origin, maskedIP)
+		return false
+	}
+
+	// Check against allowed origins
+	for _, allowedOrigin := range AllowedOrigins {
+		allowedURL, err := url.Parse(allowedOrigin)
+		if err != nil {
+			continue // Skip malformed allowed origins
+		}
+
+		// Compare scheme, host, and port
+		if originURL.Scheme == allowedURL.Scheme &&
+		   originURL.Host == allowedURL.Host {
+			logging.Debug("WebSocket connection allowed from origin: %s", origin)
+			return true
+		}
+	}
+
+	// Log security event - unauthorized origin
+	logging.Security("WebSocket connection denied - unauthorized origin: %s from %s", origin, maskedIP)
+	return false
+}
+
+// getClientIP extracts the client IP address from the request
+func getClientIP(r *http.Request) string {
+	// Check X-Forwarded-For header (from proxies/load balancers)
+	xff := r.Header.Get("X-Forwarded-For")
+	if xff != "" {
+		// Take the first IP in the chain
+		ips := strings.Split(xff, ",")
+		if len(ips) > 0 {
+			return strings.TrimSpace(ips[0])
+		}
+	}
+
+	// Check X-Real-IP header (from Nginx)
+	xri := r.Header.Get("X-Real-IP")
+	if xri != "" {
+		return xri
+	}
+
+	// Fall back to RemoteAddr
+	return r.RemoteAddr
 }
 
 // WebSocketHandler handles terminal WebSocket connections
@@ -34,16 +105,31 @@ func NewWebSocketHandler(manager *Manager) *WebSocketHandler {
 
 // HandleConnection handles a WebSocket terminal connection
 func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Request, userID string) {
-	log.Printf("[Terminal] HandleConnection starting for user: %s", userID)
+	logging.Info("[Terminal] HandleConnection starting for user: %s", logging.MaskSessionID(userID))
+
+	// Check connection limit before upgrading
+	rateLimiter := GetRateLimiter()
+	if !rateLimiter.AddConnection(userID) {
+		HTTP429Handler(w, "Too many concurrent connections")
+		return
+	}
 
 	// Upgrade to WebSocket
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("[Terminal] Failed to upgrade WebSocket connection: %v", err)
+		logging.Error("[Terminal] Failed to upgrade WebSocket connection: %v", err)
+		rateLimiter.RemoveConnection(userID)
 		return
 	}
-	log.Printf("[Terminal] WebSocket upgraded successfully")
-	defer conn.Close()
+
+	// Set message size limit (prevents DoS via large frames)
+	conn.SetReadLimit(MaxMessageSize)
+
+	logging.Debug("[Terminal] WebSocket upgraded successfully")
+	defer func() {
+		conn.Close()
+		rateLimiter.RemoveConnection(userID)
+	}()
 
 	// Parse query parameters for terminal configuration
 	query := r.URL.Query()
@@ -54,54 +140,58 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		shell = "zsh" // Default to zsh on macOS
 	}
 	workingDir := query.Get("cwd")
-	log.Printf("[Terminal] Config: cols=%d, rows=%d, shell=%s, cwd=%s", cols, rows, shell, workingDir)
+	logging.Debug("[Terminal] Config: cols=%d, rows=%d, shell=%s", cols, rows, shell)
 
-	// Create terminal session
-	log.Printf("[Terminal] Creating session...")
-	session, err := h.manager.CreateSession(userID, cols, rows, shell, workingDir)
+	// Get client IP for session binding (hijacking protection)
+	clientIP := getClientIP(r)
+
+	// Create terminal session with security binding
+	session, err := h.manager.CreateSession(userID, cols, rows, shell, workingDir, clientIP)
 	if err != nil {
-		log.Printf("[Terminal] CreateSession error: %v", err)
+		logging.Error("[Terminal] CreateSession error: %v", err)
 		h.sendError(conn, err.Error())
 		return
 	}
-	log.Printf("[Terminal] Session created: %s", session.ID)
+	maskedSessionID := logging.MaskSessionID(session.ID)
+	maskedUserID := logging.MaskSessionID(userID)
+	logging.Info("[Terminal] Session created: %s for user %s", maskedSessionID, maskedUserID)
 	defer h.manager.CloseSession(session.ID)
 
 	// Send connected status with session ID
-	log.Printf("[Terminal] Session created: %s for user %s", session.ID, userID)
-	log.Printf("[Terminal] Sending connected status...")
 	h.sendStatus(conn, "connected", map[string]interface{}{
-		"session_id": session.ID,
-		"cols":       cols,
-		"rows":       rows,
-		"shell":      shell,
+		"session_id":     session.ID,
+		"cols":           cols,
+		"rows":           rows,
+		"shell":          shell,
+		"containerized":  session.IsContainerized(),
 	})
-	log.Printf("[Terminal] Status message sent")
 
 	// Send welcome banner via WebSocket (not PTY!)
-	log.Printf("[Terminal] Sending welcome banner via WebSocket...")
 	banner := GetWelcomeBanner()
 	h.sendOutput(conn, session.ID, banner)
-	log.Printf("[Terminal] Banner sent")
 
 	// Start bi-directional streaming
 	errChan := make(chan error, 2)
 
-	// Read from WebSocket, write to PTY (user input)
+	// Read from WebSocket, write to PTY or Docker (user input)
 	go h.handleInput(conn, session, errChan)
 
-	// Read from PTY, write to WebSocket (terminal output)
+	// Read from PTY or Docker, write to WebSocket (terminal output)
 	go h.handleOutput(conn, session, errChan)
 
 	// Wait for error or disconnect
 	err = <-errChan
 	if err != nil && err != io.EOF {
-		log.Printf("Terminal session %s ended: %v", session.ID, err)
+		logging.Info("Terminal session %s ended: %v", logging.MaskSessionID(session.ID), err)
 	}
 }
 
-// handleInput reads from WebSocket and writes to PTY
+// handleInput reads from WebSocket and writes to PTY or Docker container
 func (h *WebSocketHandler) handleInput(conn *websocket.Conn, session *Session, errChan chan error) {
+	// Get sanitizer and rate limiter instances (singleton, thread-safe)
+	sanitizer := GetSanitizer()
+	rateLimiter := GetRateLimiter()
+
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -109,24 +199,80 @@ func (h *WebSocketHandler) handleInput(conn *websocket.Conn, session *Session, e
 			return
 		}
 
+		// Check message rate limit
+		if !rateLimiter.AllowMessage(session.UserID) {
+			logging.Security("Rate limit exceeded for user %s", logging.MaskSessionID(session.UserID))
+			h.sendError(conn, "Rate limit exceeded - please slow down")
+			continue // Don't terminate session, just skip this message
+		}
+
 		var msg TerminalMessage
 		if err := json.Unmarshal(message, &msg); err != nil {
-			// Treat as raw input if not JSON
-			_, writeErr := WritePTY(session, message)
-			if writeErr != nil {
-				errChan <- writeErr
-				return
+			// Treat as raw input if not JSON - validate raw bytes
+			inputStr := string(message)
+
+			// Fast-path check first, then full validation if needed
+			if !QuickValidate(inputStr) {
+				result := sanitizer.ValidateInput(inputStr, session.UserID)
+				if result.Blocked {
+					// Send error to client but don't terminate session
+					h.sendError(conn, "Input blocked: "+result.Reason)
+					continue
+				}
+				// Use sanitized input
+				message = []byte(result.Sanitized)
+			}
+
+			if session.IsContainerized() {
+				// Write to Docker container exec connection
+				_, writeErr := session.ExecConn.Conn.Write(message)
+				if writeErr != nil {
+					errChan <- writeErr
+					return
+				}
+			} else {
+				// Write to local PTY
+				_, writeErr := WritePTY(session, message)
+				if writeErr != nil {
+					errChan <- writeErr
+					return
+				}
 			}
 			continue
 		}
 
 		switch msg.Type {
 		case MsgTypeInput:
-			// Write user input to PTY
-			_, err := WritePTY(session, []byte(msg.Data))
-			if err != nil {
-				errChan <- err
-				return
+			// Validate and sanitize user input before execution
+			inputData := msg.Data
+
+			// Fast-path check first, then full validation if needed
+			if !QuickValidate(inputData) {
+				result := sanitizer.ValidateInput(inputData, session.UserID)
+				if result.Blocked {
+					// Send error to client but don't terminate session
+					h.sendError(conn, "Input blocked: "+result.Reason)
+					continue
+				}
+				// Use sanitized input
+				inputData = result.Sanitized
+			}
+
+			// Write validated input to PTY or Docker container
+			if session.IsContainerized() {
+				// Write to Docker container exec connection
+				_, err := session.ExecConn.Conn.Write([]byte(inputData))
+				if err != nil {
+					errChan <- err
+					return
+				}
+			} else {
+				// Write to local PTY
+				_, err := WritePTY(session, []byte(inputData))
+				if err != nil {
+					errChan <- err
+					return
+				}
 			}
 			h.manager.UpdateActivity(session.ID)
 
@@ -144,12 +290,22 @@ func (h *WebSocketHandler) handleInput(conn *websocket.Conn, session *Session, e
 	}
 }
 
-// handleOutput reads from PTY and writes to WebSocket
+// handleOutput reads from PTY or Docker container and writes to WebSocket
 func (h *WebSocketHandler) handleOutput(conn *websocket.Conn, session *Session, errChan chan error) {
 	buffer := make([]byte, 4096)
 
 	for {
-		n, err := ReadPTY(session, buffer)
+		var n int
+		var err error
+
+		if session.IsContainerized() {
+			// Read from Docker container exec connection
+			n, err = session.ExecConn.Reader.Read(buffer)
+		} else {
+			// Read from local PTY
+			n, err = ReadPTY(session, buffer)
+		}
+
 		if err != nil {
 			errChan <- err
 			return
@@ -191,7 +347,7 @@ func (h *WebSocketHandler) sendOutput(conn *websocket.Conn, sessionID string, da
 	}
 	msgBytes, _ := json.Marshal(msg)
 	if err := conn.WriteMessage(websocket.TextMessage, msgBytes); err != nil {
-		log.Printf("[Terminal] ERROR writing output message: %v", err)
+		logging.Error("[Terminal] ERROR writing output message: %v", err)
 	}
 }
 
@@ -200,12 +356,12 @@ func (h *WebSocketHandler) sendStatus(conn *websocket.Conn, status string, metad
 	msg := TerminalMessage{
 		Type:     MsgTypeStatus,
 		Data:     status,
-		Metadata: metadata,
+		Metadata: logging.SafeLogFields(metadata),
 	}
 	msgBytes, _ := json.Marshal(msg)
-	log.Printf("[Terminal] Sending status message: %s", string(msgBytes))
+	logging.Debug("[Terminal] Sending status: %s", status)
 	if err := conn.WriteMessage(websocket.TextMessage, msgBytes); err != nil {
-		log.Printf("[Terminal] ERROR writing status message: %v", err)
+		logging.Error("[Terminal] ERROR writing status message: %v", err)
 	}
 }
 

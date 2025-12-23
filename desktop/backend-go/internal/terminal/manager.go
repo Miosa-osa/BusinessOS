@@ -2,30 +2,48 @@ package terminal
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/rhl/businessos-backend/internal/container"
 )
 
 // Manager handles terminal session lifecycle
 type Manager struct {
-	sessions      map[string]*Session
-	mu            sync.RWMutex
-	maxSessions   int
-	idleTimeout   time.Duration
-	cleanupTicker *time.Ticker
-	stopCleanup   chan struct{}
+	sessions       map[string]*Session
+	mu             sync.RWMutex
+	maxSessions    int
+	cleanupTicker  *time.Ticker
+	stopCleanup    chan struct{}
+	containerMgr   *container.ContainerManager
+	useContainers  bool
+	securityConfig *SessionSecurityConfig
 }
 
 // NewManager creates a new terminal session manager
-func NewManager() *Manager {
+// If containerMgr is provided, sessions will use Docker containers instead of local PTY
+func NewManager(containerMgr *container.ContainerManager) *Manager {
+	securityConfig := DefaultSessionSecurityConfig()
+
 	m := &Manager{
-		sessions:    make(map[string]*Session),
-		maxSessions: 100,
-		idleTimeout: 30 * time.Minute,
-		stopCleanup: make(chan struct{}),
+		sessions:       make(map[string]*Session),
+		maxSessions:    100,
+		stopCleanup:    make(chan struct{}),
+		containerMgr:   containerMgr,
+		useContainers:  containerMgr != nil,
+		securityConfig: securityConfig,
 	}
+
+	if m.useContainers {
+		log.Printf("[Terminal] Manager initialized with Docker container support")
+	} else {
+		log.Printf("[Terminal] Manager initialized with local PTY support")
+	}
+
+	log.Printf("[Terminal] Security: max_duration=%v, idle_timeout=%v, ip_binding=%v",
+		securityConfig.MaxSessionDuration, securityConfig.IdleTimeout, securityConfig.EnableIPBinding)
 
 	// Start cleanup goroutine
 	m.startCleanup()
@@ -33,8 +51,21 @@ func NewManager() *Manager {
 	return m
 }
 
+// GetSecurityConfig returns the current security configuration
+func (m *Manager) GetSecurityConfig() *SessionSecurityConfig {
+	return m.securityConfig
+}
+
+// UpdateSecurityConfig updates the security configuration
+func (m *Manager) UpdateSecurityConfig(config *SessionSecurityConfig) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.securityConfig = config
+}
+
 // CreateSession creates a new terminal session
-func (m *Manager) CreateSession(userID string, cols, rows int, shell, workingDir string) (*Session, error) {
+// clientIP is optional but recommended for session hijacking protection
+func (m *Manager) CreateSession(userID string, cols, rows int, shell, workingDir string, clientIP ...string) (*Session, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -51,26 +82,53 @@ func (m *Manager) CreateSession(userID string, cols, rows int, shell, workingDir
 
 	// Determine working directory
 	if workingDir == "" {
-		workingDir = getDefaultWorkingDir()
+		if m.useContainers {
+			workingDir = "/workspace"
+		} else {
+			workingDir = getDefaultWorkingDir()
+		}
 	}
 
-	// Create session
+	// Calculate session expiration
+	now := time.Now()
+	var expiresAt time.Time
+	if m.securityConfig.MaxSessionDuration > 0 {
+		expiresAt = now.Add(m.securityConfig.MaxSessionDuration)
+	}
+
+	// Extract client IP for binding
+	var ip, subnet string
+	if len(clientIP) > 0 && clientIP[0] != "" {
+		ip = clientIP[0]
+		subnet = extractSubnet(ip)
+	}
+
+	// Create session with security fields
 	session := &Session{
 		ID:           uuid.New().String(),
 		UserID:       userID,
-		CreatedAt:    time.Now(),
-		LastActivity: time.Now(),
+		CreatedAt:    now,
+		LastActivity: now,
 		Cols:         cols,
 		Rows:         rows,
 		Shell:        shell,
 		WorkingDir:   workingDir,
 		Status:       StatusActive,
 		Environment:  m.buildEnvironment(userID),
+		ClientIP:     ip,
+		ClientSubnet: subnet,
+		ExpiresAt:    expiresAt,
 	}
 
-	// Start PTY
-	if err := startPTY(session); err != nil {
-		return nil, fmt.Errorf("failed to start PTY: %w", err)
+	// Start container or PTY based on configuration
+	if m.useContainers && m.containerMgr != nil {
+		if err := m.startContainer(session); err != nil {
+			return nil, fmt.Errorf("failed to start container: %w", err)
+		}
+	} else {
+		if err := startPTY(session); err != nil {
+			return nil, fmt.Errorf("failed to start PTY: %w", err)
+		}
 	}
 
 	// Store session
@@ -79,7 +137,8 @@ func (m *Manager) CreateSession(userID string, cols, rows int, shell, workingDir
 	return session, nil
 }
 
-// GetSession retrieves a session by ID
+// GetSession retrieves a session by ID (without ownership validation)
+// WARNING: Use GetSessionSecure for user-facing APIs to prevent unauthorized access
 func (m *Manager) GetSession(sessionID string) (*Session, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -90,6 +149,82 @@ func (m *Manager) GetSession(sessionID string) (*Session, error) {
 	}
 
 	return session, nil
+}
+
+// GetSessionSecure retrieves a session with full security validation
+// Checks: ownership, expiration, and optionally IP binding
+func (m *Manager) GetSessionSecure(sessionID, userID, clientIP string) (*Session, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	session, exists := m.sessions[sessionID]
+	if !exists {
+		return nil, fmt.Errorf("session not found")
+	}
+
+	// Validate ownership
+	if session.UserID != userID {
+		log.Printf("[Security] Session %s ownership mismatch: expected %s, got %s",
+			sessionID[:8], session.UserID[:8], userID[:8])
+		return nil, fmt.Errorf("session access denied")
+	}
+
+	// Check expiration
+	if session.IsExpired() {
+		log.Printf("[Security] Session %s has expired", sessionID[:8])
+		return nil, fmt.Errorf("session expired")
+	}
+
+	// Check idle timeout
+	if session.IsIdle(m.securityConfig.IdleTimeout) {
+		log.Printf("[Security] Session %s is idle (timeout: %v)", sessionID[:8], m.securityConfig.IdleTimeout)
+		return nil, fmt.Errorf("session timed out due to inactivity")
+	}
+
+	// Validate IP binding
+	if clientIP != "" {
+		valid, reason := session.ValidateIP(clientIP, m.securityConfig)
+		if !valid {
+			log.Printf("[Security] Session %s IP validation failed: %s (expected %s, got %s)",
+				sessionID[:8], reason, session.ClientIP, clientIP)
+			return nil, fmt.Errorf("session security violation: %s", reason)
+		}
+	}
+
+	return session, nil
+}
+
+// ValidateSessionAccess performs security validation without retrieving the full session
+// Returns (valid bool, reason string)
+func (m *Manager) ValidateSessionAccess(sessionID, userID, clientIP string) (bool, string) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	session, exists := m.sessions[sessionID]
+	if !exists {
+		return false, "session not found"
+	}
+
+	if session.UserID != userID {
+		return false, "unauthorized access"
+	}
+
+	if session.IsExpired() {
+		return false, "session expired"
+	}
+
+	if session.IsIdle(m.securityConfig.IdleTimeout) {
+		return false, "session timed out"
+	}
+
+	if clientIP != "" {
+		valid, reason := session.ValidateIP(clientIP, m.securityConfig)
+		if !valid {
+			return false, reason
+		}
+	}
+
+	return true, ""
 }
 
 // GetUserSessions retrieves all sessions for a user
@@ -127,8 +262,12 @@ func (m *Manager) CloseSession(sessionID string) error {
 		return fmt.Errorf("session not found")
 	}
 
-	// Close PTY and kill process
-	closePTY(session)
+	// Close container or PTY based on session type
+	if session.IsContainerized() {
+		m.closeContainer(session)
+	} else {
+		closePTY(session)
+	}
 
 	// Update status
 	session.Status = StatusClosed
@@ -152,6 +291,14 @@ func (m *Manager) ResizeSession(sessionID string, cols, rows int) error {
 	session.Cols = cols
 	session.Rows = rows
 
+	// Resize container exec or PTY based on session type
+	if session.IsContainerized() {
+		if session.ExecID == "" {
+			return fmt.Errorf("exec ID not set for containerized session")
+		}
+		return m.containerMgr.ResizeExec(session.ExecID, uint(rows), uint(cols))
+	}
+
 	return resizePTY(session, cols, rows)
 }
 
@@ -167,7 +314,11 @@ func (m *Manager) Shutdown() {
 
 	// Close all sessions
 	for sessionID, session := range m.sessions {
-		closePTY(session)
+		if session.IsContainerized() {
+			m.closeContainer(session)
+		} else {
+			closePTY(session)
+		}
 		delete(m.sessions, sessionID)
 	}
 }
@@ -210,11 +361,125 @@ func (m *Manager) cleanupIdleSessions() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	now := time.Now()
+	var expiredCount, idleCount int
+
 	for sessionID, session := range m.sessions {
-		if now.Sub(session.LastActivity) > m.idleTimeout {
-			closePTY(session)
+		shouldClose := false
+		reason := ""
+
+		// Check for hard expiration
+		if session.IsExpired() {
+			shouldClose = true
+			reason = "expired"
+			expiredCount++
+		} else if session.IsIdle(m.securityConfig.IdleTimeout) {
+			// Check for idle timeout
+			shouldClose = true
+			reason = "idle"
+			idleCount++
+		}
+
+		if shouldClose {
+			log.Printf("[Terminal] Closing session %s (reason: %s)", sessionID[:8], reason)
+			if session.IsContainerized() {
+				m.closeContainer(session)
+			} else {
+				closePTY(session)
+			}
 			delete(m.sessions, sessionID)
 		}
 	}
+
+	if expiredCount > 0 || idleCount > 0 {
+		log.Printf("[Terminal] Cleanup completed: %d expired, %d idle sessions closed",
+			expiredCount, idleCount)
+	}
+}
+
+// startContainer creates and starts a Docker container for the session
+func (m *Manager) startContainer(session *Session) error {
+	log.Printf("[Terminal] Starting container for session %s (user: %s)", session.ID, session.UserID)
+
+	// Create volume for user workspace
+	volumeName, err := m.containerMgr.CreateVolume(session.UserID)
+	if err != nil {
+		return fmt.Errorf("failed to create volume: %w", err)
+	}
+	log.Printf("[Terminal] Volume created/verified: %s", volumeName)
+
+	// Create container with the default image (include session ID for unique naming)
+	containerID, err := m.containerMgr.CreateContainer(session.UserID, session.ID, m.containerMgr.GetDefaultImage())
+	if err != nil {
+		return fmt.Errorf("failed to create container: %w", err)
+	}
+	log.Printf("[Terminal] Container created: %s", containerID[:12])
+
+	// Start container
+	if err := m.containerMgr.StartContainer(containerID); err != nil {
+		return fmt.Errorf("failed to start container: %w", err)
+	}
+	log.Printf("[Terminal] Container started: %s", containerID[:12])
+
+	// Determine shell command
+	shellCmd := []string{"/bin/bash"}
+	if session.Shell != "" {
+		shellCmd = []string{session.Shell}
+	}
+
+	// Create and start exec session with shell
+	execID, hijacked, err := m.containerMgr.StartExec(containerID, shellCmd, true)
+	if err != nil {
+		// If exec fails, try to stop the container
+		m.containerMgr.StopContainer(containerID, 10)
+		return fmt.Errorf("failed to start exec: %w", err)
+	}
+	log.Printf("[Terminal] Exec started: %s", execID)
+
+	// Store container information in session
+	session.ContainerID = containerID
+	session.VolumeID = volumeName
+	session.ExecID = execID
+	session.ExecConn = &hijacked
+
+	// Set initial terminal size
+	if err := m.containerMgr.ResizeExec(execID, uint(session.Rows), uint(session.Cols)); err != nil {
+		log.Printf("[Terminal] Warning: Failed to set initial terminal size: %v", err)
+	}
+
+	log.Printf("[Terminal] Container session ready: container=%s exec=%s", containerID[:12], execID[:12])
+	return nil
+}
+
+// closeContainer closes the container session and removes the container
+func (m *Manager) closeContainer(session *Session) {
+	log.Printf("[Terminal] Closing container session %s", session.ID)
+
+	// Close exec connection first
+	if session.ExecConn != nil {
+		session.ExecConn.Close()
+		log.Printf("[Terminal] Exec connection closed for session %s", session.ID)
+	}
+
+	// Stop and remove container for immediate cleanup
+	// The ContainerMonitor acts as a safety net for any missed containers
+	if session.ContainerID != "" {
+		containerID := session.ContainerID[:12]
+
+		// Stop container first (with graceful timeout)
+		if err := m.containerMgr.StopContainer(session.ContainerID, 5); err != nil {
+			log.Printf("[Terminal] Warning: Failed to stop container %s: %v", containerID, err)
+		} else {
+			log.Printf("[Terminal] Container stopped: %s", containerID)
+		}
+
+		// Remove container immediately (force=true handles any remaining state)
+		if err := m.containerMgr.RemoveContainer(session.ContainerID, true); err != nil {
+			// Not critical - ContainerMonitor will clean up orphaned containers
+			log.Printf("[Terminal] Warning: Failed to remove container %s: %v (will be cleaned by monitor)", containerID, err)
+		} else {
+			log.Printf("[Terminal] Container removed: %s", containerID)
+		}
+	}
+
+	log.Printf("[Terminal] Container session closed: %s", session.ID)
 }

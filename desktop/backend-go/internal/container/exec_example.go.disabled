@@ -1,0 +1,167 @@
+package container
+
+import (
+	"context"
+	"io"
+	"log"
+)
+
+// Example: Using ContainerManager exec methods with WebSocket terminal
+//
+// This file demonstrates how to use the exec attachment methods for
+// connecting a WebSocket terminal to a Docker container.
+//
+// USAGE PATTERN:
+//
+// 1. Create a container manager
+//
+//	ctx := context.Background()
+//	manager, err := NewContainerManager(ctx, "ubuntu:22.04")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	defer manager.Close()
+//
+// 2. Create a container for the user
+//
+//	containerID, err := manager.CreateContainer(userID, "ubuntu:22.04")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+// 3. Start the container
+//
+//	if err := manager.StartContainer(containerID); err != nil {
+//		log.Fatal(err)
+//	}
+//
+// 4. When WebSocket connects, create exec session
+//
+//	// Create exec with interactive shell
+//	execID, err := manager.CreateExec(
+//		containerID,
+//		[]string{"/bin/bash"},
+//		true, // TTY enabled
+//	)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+// 5. Attach to exec to get I/O connection
+//
+//	hijacked, err := manager.AttachExec(execID)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	defer hijacked.Close()
+//
+// 6. Proxy data between WebSocket and container
+//
+//	// Read from WebSocket, write to container
+//	go func() {
+//		for {
+//			_, message, err := wsConn.ReadMessage()
+//			if err != nil {
+//				return
+//			}
+//			hijacked.Conn.Write(message)
+//		}
+//	}()
+//
+//	// Read from container, write to WebSocket
+//	go func() {
+//		buffer := make([]byte, 4096)
+//		for {
+//			n, err := hijacked.Reader.Read(buffer)
+//			if err != nil {
+//				return
+//			}
+//			wsConn.WriteMessage(websocket.TextMessage, buffer[:n])
+//		}
+//	}()
+//
+// 7. Handle terminal resize events
+//
+//	// When client sends resize event
+//	if err := manager.ResizeExec(execID, rows, cols); err != nil {
+//		log.Printf("Failed to resize: %v", err)
+//	}
+//
+// 8. Check exec status
+//
+//	info, err := manager.GetExecInfo(execID)
+//	if err != nil {
+//		log.Printf("Failed to get info: %v", err)
+//	}
+//	log.Printf("Running: %t, ExitCode: %d", info.Running, info.ExitCode)
+//
+// CONVENIENCE METHOD:
+//
+// Alternatively, use StartExec for a one-step create+attach:
+//
+//	execID, hijacked, err := manager.StartExec(
+//		containerID,
+//		[]string{"/bin/bash"},
+//		true,
+//	)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	defer hijacked.Close()
+//
+// INTEGRATION WITH TERMINAL WEBSOCKET:
+//
+// The terminal WebSocket handler should:
+// 1. Parse connection params (cols, rows, containerID)
+// 2. Create or reuse container
+// 3. Create exec session with CreateExec
+// 4. Attach with AttachExec to get HijackedResponse
+// 5. Start bidirectional streaming:
+//    - WebSocket -> hijacked.Conn (user input)
+//    - hijacked.Reader -> WebSocket (container output)
+// 6. Handle resize events with ResizeExec
+// 7. Clean up on disconnect (hijacked.Close())
+//
+// SECURITY NOTES:
+//
+// - Containers created with CreateContainer have security hardening:
+//   * Capability dropping (only essential caps)
+//   * Memory/CPU/PID limits
+//   * Network isolation (NetworkMode: "none")
+//   * User-specific workspace volumes
+//
+// - Exec sessions run with container's security context
+// - WorkingDir is set to /workspace (user's isolated volume)
+// - Environment variables are set for terminal compatibility
+
+// ExampleWebSocketIntegration shows how to integrate exec with WebSocket
+func ExampleWebSocketIntegration() {
+	// This is a conceptual example showing the integration pattern
+	// See internal/terminal/websocket.go for the actual implementation
+
+	ctx := context.Background()
+	manager, _ := NewContainerManager(ctx, "ubuntu:22.04")
+	defer manager.Close()
+
+	// Create and start container
+	containerID, _ := manager.CreateContainer("user123", "ubuntu:22.04")
+	manager.StartContainer(containerID)
+
+	// Create exec session
+	execID, _ := manager.CreateExec(containerID, []string{"/bin/bash"}, true)
+
+	// Attach to get I/O connection
+	hijacked, _ := manager.AttachExec(execID)
+	defer hijacked.Close()
+
+	// Example: Copy data (in real code, use goroutines)
+	go io.Copy(hijacked.Conn, /* WebSocket reader */)
+	go io.Copy(/* WebSocket writer */, hijacked.Reader)
+
+	// Handle resize
+	manager.ResizeExec(execID, 80, 24)
+
+	// Check status
+	info, _ := manager.GetExecInfo(execID)
+	log.Printf("Exec running: %t", info.Running)
+}

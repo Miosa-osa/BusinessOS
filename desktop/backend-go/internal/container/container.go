@@ -1,0 +1,402 @@
+package container
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/go-connections/nat"
+)
+
+const (
+	// Container naming convention
+	containerPrefix = "terminal"
+
+	// Security and resource limits
+	defaultMemoryLimit  = 512 * 1024 * 1024 // 512MB
+	defaultCPUQuota     = 50000              // 50% of one CPU core
+	defaultCPUPeriod    = 100000             // Standard period: 100ms
+	defaultPidsLimit    = 100                // Max 100 processes
+	defaultStopTimeout  = 10                 // Default graceful stop timeout in seconds
+
+	// Container configuration
+	defaultWorkspaceMount = "/workspace"
+)
+
+// CreateContainer creates a new isolated container for a user with security hardening
+//
+// Parameters:
+//   - userID: Unique identifier for the user
+//   - sessionID: Unique identifier for the terminal session (used in container name)
+//   - image: Docker image to use (e.g., "ubuntu:22.04")
+//
+// Returns:
+//   - containerID: Unique identifier for the created container
+//   - error: Error if container creation fails
+//
+// Security features:
+//   - Capability dropping: All capabilities dropped, only essential ones added
+//   - Resource limits: Memory, CPU, and PID limits enforced
+//   - Network isolation: No network access by default
+//   - Volume isolation: User-specific workspace volume
+func (m *ContainerManager) CreateContainer(userID string, sessionID string, image string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Use default image if not specified
+	if image == "" {
+		image = m.defaultImage
+		log.Printf("[Container] Using default image: %s", image)
+	}
+
+	// Generate container name with session ID for uniqueness
+	// Use first 8 chars of sessionID to keep names readable
+	shortSessionID := sessionID
+	if len(sessionID) > 8 {
+		shortSessionID = sessionID[:8]
+	}
+	containerName := fmt.Sprintf("%s-%s-%s", containerPrefix, userID, shortSessionID)
+	volumeName := fmt.Sprintf("workspace_%s", userID)
+
+	log.Printf("[Container] Creating container '%s' for user '%s' with image '%s'",
+		containerName, userID, image)
+
+	// Create volume if it doesn't exist
+	if err := m.ensureVolume(volumeName, userID); err != nil {
+		return "", fmt.Errorf("failed to ensure volume: %w", err)
+	}
+
+	// Configure container with security hardening
+	config := &container.Config{
+		Image: image,
+		Tty:   true,
+		Env: []string{
+			"TERM=xterm-256color",
+			"LANG=en_US.UTF-8",
+		},
+		Labels: map[string]string{
+			"app":     "businessos",
+			"type":    "terminal",
+			"user_id": userID,
+		},
+		// Keep container running
+		Cmd: strslice.StrSlice{"/bin/sh", "-c", "while true; do sleep 3600; done"},
+	}
+
+	// Host configuration with security and resource limits
+	hostConfig := &container.HostConfig{
+		// Resource limits
+		Resources: container.Resources{
+			Memory:   defaultMemoryLimit,
+			NanoCPUs: 0, // Set via CPUQuota/CPUPeriod instead
+			CPUQuota: defaultCPUQuota,
+			CPUPeriod: defaultCPUPeriod,
+			PidsLimit: newInt64(defaultPidsLimit),
+		},
+
+		// Security: Drop ALL capabilities, add only essential ones
+		// CRITICAL: Removed DAC_OVERRIDE (file permission bypass), SETUID/SETGID (privilege escalation)
+		CapDrop: strslice.StrSlice{"ALL"},
+		CapAdd: strslice.StrSlice{
+			"CHOWN",      // Allow changing file ownership in /workspace
+			"FOWNER",     // Allow operations on files regardless of owner (needed for workspace)
+		},
+
+		// Security options: Custom Seccomp profile + no new privileges
+		// Seccomp profile blocks: mount, pivot_root, setns, ptrace, kernel modules, bpf
+		SecurityOpt: []string{
+			"no-new-privileges:true",          // Prevent privilege escalation via setuid binaries
+			"seccomp=" + SeccompProfile,       // Custom profile blocking escape syscalls (embedded)
+		},
+
+		// Network isolation
+		NetworkMode: "none",
+
+		// Read-only root filesystem with tmpfs for required writable paths
+		ReadonlyRootfs: true,
+		Tmpfs: map[string]string{
+			"/tmp":     "rw,noexec,nosuid,size=64m",  // Temp files, no execution
+			"/var/tmp": "rw,noexec,nosuid,size=32m",  // Var temp
+			"/run":     "rw,noexec,nosuid,size=16m",  // Runtime files (pid, sockets)
+		},
+
+		// Mount user workspace volume
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeVolume,
+				Source: volumeName,
+				Target: defaultWorkspaceMount,
+			},
+		},
+
+		// Auto-remove container on exit (optional, set to false for debugging)
+		AutoRemove: false,
+
+		// Logging configuration
+		LogConfig: container.LogConfig{
+			Type: "json-file",
+			Config: map[string]string{
+				"max-size": "10m",
+				"max-file": "3",
+			},
+		},
+	}
+
+	// Create container with timeout
+	ctx, cancel := context.WithTimeout(m.ctx, 30*time.Second)
+	defer cancel()
+
+	resp, err := m.cli.ContainerCreate(ctx, config, hostConfig, nil, nil, containerName)
+	if err != nil {
+		return "", fmt.Errorf("failed to create container: %w", err)
+	}
+
+	// Track container in manager
+	m.containers[resp.ID] = &ContainerInfo{
+		ID:           resp.ID,
+		UserID:       userID,
+		Image:        image,
+		Status:       "created",
+		CreatedAt:    time.Now(),
+		LastActivity: time.Now(),
+	}
+
+	log.Printf("[Container] Container created successfully: %s (ID: %s)",
+		containerName, resp.ID[:12])
+
+	// Log any warnings
+	for _, warning := range resp.Warnings {
+		log.Printf("[Container] Warning: %s", warning)
+	}
+
+	return resp.ID, nil
+}
+
+// StartContainer starts an existing container
+//
+// Parameters:
+//   - containerID: Unique identifier of the container to start
+//
+// Returns:
+//   - error: Error if container start fails
+func (m *ContainerManager) StartContainer(containerID string) error {
+	ctx, cancel := context.WithTimeout(m.ctx, 10*time.Second)
+	defer cancel()
+
+	log.Printf("[Container] Starting container: %s", containerID[:12])
+
+	if err := m.cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
+		return fmt.Errorf("failed to start container: %w", err)
+	}
+
+	// Update container status
+	m.mu.Lock()
+	if info, exists := m.containers[containerID]; exists {
+		info.Status = "running"
+		info.LastActivity = time.Now()
+	}
+	m.mu.Unlock()
+
+	log.Printf("[Container] Container started: %s", containerID[:12])
+	return nil
+}
+
+// StopContainer stops a running container with graceful shutdown
+//
+// Parameters:
+//   - containerID: Unique identifier of the container to stop
+//   - timeout: Seconds to wait before forcefully killing the container
+//
+// Returns:
+//   - error: Error if container stop fails
+func (m *ContainerManager) StopContainer(containerID string, timeout int) error {
+	ctx, cancel := context.WithTimeout(m.ctx, time.Duration(timeout+5)*time.Second)
+	defer cancel()
+
+	log.Printf("[Container] Stopping container: %s (timeout: %ds)", containerID[:12], timeout)
+
+	// Use timeout for graceful shutdown
+	timeoutPtr := &timeout
+	stopOptions := container.StopOptions{
+		Timeout: timeoutPtr,
+	}
+
+	if err := m.cli.ContainerStop(ctx, containerID, stopOptions); err != nil {
+		return fmt.Errorf("failed to stop container: %w", err)
+	}
+
+	// Update container status
+	m.mu.Lock()
+	if info, exists := m.containers[containerID]; exists {
+		info.Status = "stopped"
+		info.LastActivity = time.Now()
+	}
+	m.mu.Unlock()
+
+	log.Printf("[Container] Container stopped: %s", containerID[:12])
+	return nil
+}
+
+// RemoveContainer removes a container and cleans up resources
+//
+// Parameters:
+//   - containerID: Unique identifier of the container to remove
+//   - force: If true, forcefully remove even if container is running
+//
+// Returns:
+//   - error: Error if container removal fails
+func (m *ContainerManager) RemoveContainer(containerID string, force bool) error {
+	ctx, cancel := context.WithTimeout(m.ctx, 10*time.Second)
+	defer cancel()
+
+	log.Printf("[Container] Removing container: %s (force: %v)", containerID[:12], force)
+
+	removeOptions := container.RemoveOptions{
+		Force:         force,
+		RemoveVolumes: false, // Keep volumes for data persistence
+		RemoveLinks:   false,
+	}
+
+	if err := m.cli.ContainerRemove(ctx, containerID, removeOptions); err != nil {
+		return fmt.Errorf("failed to remove container: %w", err)
+	}
+
+	// Remove from tracking map
+	m.mu.Lock()
+	delete(m.containers, containerID)
+	m.mu.Unlock()
+
+	log.Printf("[Container] Container removed: %s", containerID[:12])
+	return nil
+}
+
+// GetContainerStatus retrieves the current status of a container
+//
+// Parameters:
+//   - containerID: Unique identifier of the container
+//
+// Returns:
+//   - status: Current container status (e.g., "running", "exited", "created")
+//   - error: Error if status retrieval fails
+func (m *ContainerManager) GetContainerStatus(containerID string) (string, error) {
+	ctx, cancel := context.WithTimeout(m.ctx, 5*time.Second)
+	defer cancel()
+
+	inspectData, err := m.cli.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect container: %w", err)
+	}
+
+	status := inspectData.State.Status
+	log.Printf("[Container] Container %s status: %s", containerID[:12], status)
+
+	// Update internal tracking
+	m.mu.Lock()
+	if info, exists := m.containers[containerID]; exists {
+		info.Status = status
+	}
+	m.mu.Unlock()
+
+	return status, nil
+}
+
+// ListUserContainers lists all containers belonging to a specific user
+//
+// Parameters:
+//   - userID: Unique identifier of the user
+//
+// Returns:
+//   - containers: List of containers with the user_id label
+//   - error: Error if listing fails
+func (m *ContainerManager) ListUserContainers(userID string) ([]types.Container, error) {
+	ctx, cancel := context.WithTimeout(m.ctx, 10*time.Second)
+	defer cancel()
+
+	log.Printf("[Container] Listing containers for user: %s", userID)
+
+	// Build filter to find containers by user label
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=businessos")
+	filterArgs.Add("label", fmt.Sprintf("user_id=%s", userID))
+
+	listOptions := container.ListOptions{
+		All:     true, // Include stopped containers
+		Filters: filterArgs,
+	}
+
+	containers, err := m.cli.ContainerList(ctx, listOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	log.Printf("[Container] Found %d container(s) for user %s", len(containers), userID)
+
+	return containers, nil
+}
+
+// ensureVolume creates a volume if it doesn't exist
+func (m *ContainerManager) ensureVolume(volumeName, userID string) error {
+	ctx, cancel := context.WithTimeout(m.ctx, 10*time.Second)
+	defer cancel()
+
+	// Check if volume exists
+	_, err := m.cli.VolumeInspect(ctx, volumeName)
+	if err == nil {
+		log.Printf("[Container] Volume '%s' already exists", volumeName)
+		return nil
+	}
+
+	// Create volume
+	log.Printf("[Container] Creating volume: %s", volumeName)
+
+	volumeConfig := volume.CreateOptions{
+		Name:   volumeName,
+		Driver: "local",
+		Labels: map[string]string{
+			"app":     "businessos",
+			"user_id": userID,
+		},
+	}
+
+	_, err = m.cli.VolumeCreate(ctx, volumeConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create volume: %w", err)
+	}
+
+	log.Printf("[Container] Volume created: %s", volumeName)
+	return nil
+}
+
+// newInt64 is a helper function to create a pointer to an int64
+func newInt64(i int64) *int64 {
+	return &i
+}
+
+// Helper type for port bindings (not used currently, but useful for future)
+type PortBinding struct {
+	HostIP   string
+	HostPort string
+}
+
+// buildPortMap creates port mappings for container networking
+// Currently unused due to NetworkMode: "none", but kept for future use
+func buildPortMap(bindings []PortBinding) nat.PortMap {
+	portMap := nat.PortMap{}
+	for _, binding := range bindings {
+		port, _ := nat.NewPort("tcp", binding.HostPort)
+		portMap[port] = []nat.PortBinding{
+			{
+				HostIP:   binding.HostIP,
+				HostPort: binding.HostPort,
+			},
+		}
+	}
+	return portMap
+}

@@ -106,6 +106,12 @@ The terminal is a **real shell** powered by:
 - **Features**: Resize support, session management, heartbeat keepalive
 - **Auth**: Session-cookie authenticated via Better Auth
 
+**🔒 Security Features (Phase 2 Complete):**
+- **Container Hardening**: Read-only root filesystem with tmpfs, custom Seccomp profile blocking 15+ escape syscalls
+- **Input Sanitization**: 28+ dangerous command patterns blocked (fork bombs, rm -rf /, container escapes)
+- **Rate Limiting**: Token bucket algorithm with 100 msg/sec limit, 5 concurrent connections per user
+- **Session Security**: IP binding, 8-hour max + 30-minute idle timeout, WebSocket origin validation
+
 ---
 
 ## Tech Stack
@@ -131,6 +137,8 @@ The terminal is a **real shell** powered by:
 | WebSocket | gorilla/websocket |
 | Terminal | creack/pty |
 | Config | Viper |
+| **Security** | **Docker containers + hardening** |
+| **Testing** | **80 tests, 2,097 lines, 15+ benchmarks** |
 
 ### AI Integration
 
@@ -151,11 +159,13 @@ BusinessOS/
 │   │   ├── cmd/server/          # Entry point
 │   │   ├── internal/
 │   │   │   ├── config/          # Viper configuration
+│   │   │   ├── container/       # Docker management + security hardening
 │   │   │   ├── database/        # PostgreSQL + SQLC
 │   │   │   ├── handlers/        # HTTP/WebSocket handlers
+│   │   │   ├── logging/         # Sanitized logger with PII masking
 │   │   │   ├── middleware/      # Auth middleware
 │   │   │   ├── services/        # LLM + MCP services
-│   │   │   └── terminal/        # PTY terminal package
+│   │   │   └── terminal/        # PTY + rate limiting + input sanitization
 │   │   └── go.mod
 │   └── src/                     # Electron app (optional)
 │
@@ -208,6 +218,41 @@ GOOGLE_CLIENT_SECRET=your-client-secret
 | Backend | 8001 | Go API + WebSocket |
 | PostgreSQL | 5432 | Database |
 | Ollama | 11434 | Local LLM (optional) |
+
+---
+
+## Security Implementation
+
+**Phase 2 Security Hardening Complete** — Production-ready container isolation and input validation.
+
+### Container Security
+
+| Feature | Implementation |
+|---------|----------------|
+| **Isolation** | Read-only root filesystem with tmpfs for /tmp, /var/tmp, /run |
+| **Capabilities** | ALL capabilities dropped, only CHOWN + FOWNER allowed |
+| **Syscalls** | Custom Seccomp profile blocks 15+ escape vectors (mount, setns, ptrace, bpf) |
+| **Privileges** | no-new-privileges prevents setuid escalation |
+| **Resources** | Memory: 512MB, CPU: 50%, PIDs: 100 max |
+| **Network** | None (network isolation enabled) |
+
+### Input Protection
+
+| Layer | Coverage |
+|-------|----------|
+| **Command Filtering** | 28+ dangerous patterns: fork bombs, rm -rf /, container escapes |
+| **Escape Sequences** | OSC 8 hyperlink injection, clipboard access, cursor manipulation |
+| **Injection Prevention** | Null byte detection, length limits (4KB default) |
+| **Rate Limiting** | Token bucket: 100 msg/sec, 20 burst, 5 connections/user |
+| **Session Security** | IP binding, 8-hour max + 30-min idle timeout |
+
+### Test Coverage
+
+- **80 tests** across 8 test files (2,097 lines total)
+- **15+ benchmarks** for performance validation
+- **Container integration tests** with real Docker
+- **Concurrency testing** (20-100 parallel operations)
+- **Security pattern validation** for all 28+ dangerous commands
 
 ---
 
