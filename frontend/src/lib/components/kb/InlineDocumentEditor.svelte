@@ -61,9 +61,9 @@
 
 	// Page settings (loaded from document properties)
 	let pageSettings = $derived({
-		fullWidth: fullDocument?.properties?.fullWidth ?? false,
-		smallText: fullDocument?.properties?.smallText ?? false,
-		locked: fullDocument?.properties?.locked ?? false
+		fullWidth: Boolean(fullDocument?.properties?.fullWidth),
+		smallText: Boolean(fullDocument?.properties?.smallText),
+		locked: Boolean(fullDocument?.properties?.locked)
 	});
 
 	// Solid color covers
@@ -241,8 +241,10 @@
 	// Helper to extract text content from a block
 	function extractBlockText(block: EditorBlock): string {
 		if (typeof block.content === 'string') return block.content;
-		if (Array.isArray(block.content)) {
-			return block.content.map((c: { text?: string }) => c.text || '').join(' ');
+		// Handle legacy array format if it exists at runtime
+		const content = block.content as unknown;
+		if (Array.isArray(content)) {
+			return (content as Array<{ text?: string }>).map((c) => c.text || '').join(' ');
 		}
 		return '';
 	}
@@ -377,7 +379,7 @@
 		showIconPicker = false;
 		if (fullDocument) {
 			try {
-				await contexts.updateContext(fullDocument.id, { icon: newIcon });
+				await contexts.updateContext(fullDocument.id, { icon: newIcon ?? undefined });
 				fullDocument = { ...fullDocument, icon: newIcon };
 				// Refresh contexts list so sidebar updates immediately
 				await contexts.loadContexts();
@@ -393,7 +395,7 @@
 		showCoverPicker = false;
 		if (fullDocument) {
 			try {
-				await contexts.updateContext(fullDocument.id, { cover_image: newCover });
+				await contexts.updateContext(fullDocument.id, { cover_image: newCover ?? undefined });
 				fullDocument = { ...fullDocument, cover_image: newCover };
 				// Refresh contexts list so sidebar updates immediately
 				await contexts.loadContexts();

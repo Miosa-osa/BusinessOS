@@ -179,6 +179,7 @@
 		}
 	});
 
+	// Menu item type definitions - cast items as any to avoid complex union type issues
 	const menus = $derived([
 		{
 			id: 'file',
@@ -312,32 +313,33 @@
 				{#if activeMenu === menu.id}
 					<div class="menu-dropdown">
 						{#each menu.items as item}
-							{#if item.type === 'separator'}
+							{@const menuItem = item as { type?: string; label?: string; shortcut?: string; action?: string; disabled?: boolean; checked?: boolean }}
+							{#if menuItem.type === 'separator'}
 								<div class="menu-separator"></div>
 							{:else}
 								<button
 									class="menu-item"
-									class:disabled={item.disabled}
-									class:checked={item.checked}
-									disabled={item.disabled}
+									class:disabled={menuItem.disabled}
+									class:checked={menuItem.checked}
+									disabled={menuItem.disabled}
 									onclick={() => {
-										if (item.action?.startsWith('window:')) {
-											handleWindowSelect(item.action.replace('window:', ''));
-										} else {
-											handleMenuAction(item.action);
+										if (menuItem.action?.startsWith('window:')) {
+											handleWindowSelect(menuItem.action.replace('window:', ''));
+										} else if (menuItem.action) {
+											handleMenuAction(menuItem.action);
 										}
 									}}
 								>
 									<span class="menu-item-check">
-										{#if item.checked}
+										{#if menuItem.checked}
 											<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
 												<polyline points="20 6 9 17 4 12"></polyline>
 											</svg>
 										{/if}
 									</span>
-									<span class="menu-item-label">{item.label}</span>
-									{#if item.shortcut}
-										<span class="menu-item-shortcut">{item.shortcut}</span>
+									<span class="menu-item-label">{menuItem.label}</span>
+									{#if menuItem.shortcut}
+										<span class="menu-item-shortcut">{menuItem.shortcut}</span>
 									{/if}
 								</button>
 							{/if}

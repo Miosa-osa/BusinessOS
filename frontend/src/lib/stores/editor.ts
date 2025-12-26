@@ -41,7 +41,7 @@ export interface EditorBlock extends Block {
 	children?: EditorBlock[];
 }
 
-interface EditorState {
+export interface EditorState {
 	blocks: EditorBlock[];
 	focusedBlockId: string | null;
 	focusedBlockIndex: number;
@@ -90,6 +90,7 @@ function createEditorStore() {
 
 	return {
 		subscribe,
+		update,
 
 		initialize(blocks: Block[] | null) {
 			const editorBlocks: EditorBlock[] =

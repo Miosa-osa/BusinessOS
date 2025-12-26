@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
-	import { fly } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 	import TaskCheckbox from './TaskCheckbox.svelte';
 	import PriorityBadge from './PriorityBadge.svelte';
@@ -181,10 +180,8 @@
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Portal>
 				<DropdownMenu.Content
-					class="z-50 min-w-[180px] bg-white border border-gray-200 rounded-xl shadow-lg p-1"
+					class="z-50 min-w-[180px] bg-white border border-gray-200 rounded-xl shadow-lg p-1 animate-in fade-in-0 zoom-in-95"
 					sideOffset={4}
-					transition={fly}
-					transitionConfig={{ y: -10, duration: 150 }}
 				>
 					<DropdownMenu.Item
 						class="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors"

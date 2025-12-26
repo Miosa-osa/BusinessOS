@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
-	import { fly, fade } from 'svelte/transition';
 
 	type Priority = 'critical' | 'high' | 'medium' | 'low';
 
@@ -58,7 +57,7 @@
 	];
 </script>
 
-<div class="px-4 py-2" in:fade={{ duration: 150 }}>
+<div class="px-4 py-2 animate-in fade-in-0">
 	<div class="border border-gray-200 rounded-xl bg-white overflow-hidden focus-within:border-gray-300 focus-within:shadow-sm transition-all">
 		<input
 			bind:this={inputRef}
@@ -71,7 +70,7 @@
 		/>
 
 		{#if isExpanded}
-			<div class="flex items-center justify-between px-3 py-2 border-t border-gray-100 bg-gray-50" in:fly={{ y: -10, duration: 150 }}>
+			<div class="flex items-center justify-between px-3 py-2 border-t border-gray-100 bg-gray-50 animate-in slide-in-from-top-2">
 				<div class="flex items-center gap-2">
 					<!-- Project (if not already set) -->
 					{#if !projectId}
@@ -84,10 +83,8 @@
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Portal>
 								<DropdownMenu.Content
-									class="z-50 min-w-[160px] bg-white border border-gray-200 rounded-xl shadow-lg p-1"
+									class="z-50 min-w-[160px] bg-white border border-gray-200 rounded-xl shadow-lg p-1 animate-in fade-in-0 zoom-in-95"
 									sideOffset={4}
-									transition={fly}
-									transitionConfig={{ y: -10, duration: 150 }}
 								>
 									<DropdownMenu.Item class="px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer">
 										No projects yet
@@ -105,10 +102,8 @@
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Portal>
 							<DropdownMenu.Content
-								class="z-50 min-w-[140px] bg-white border border-gray-200 rounded-xl shadow-lg p-1"
+								class="z-50 min-w-[140px] bg-white border border-gray-200 rounded-xl shadow-lg p-1 animate-in fade-in-0 zoom-in-95"
 								sideOffset={4}
-								transition={fly}
-								transitionConfig={{ y: -10, duration: 150 }}
 							>
 								{#each priorityOptions as option}
 									<DropdownMenu.Item
@@ -133,10 +128,8 @@
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Portal>
 							<DropdownMenu.Content
-								class="z-50 min-w-[160px] bg-white border border-gray-200 rounded-xl shadow-lg p-1"
+								class="z-50 min-w-[160px] bg-white border border-gray-200 rounded-xl shadow-lg p-1 animate-in fade-in-0 zoom-in-95"
 								sideOffset={4}
-								transition={fly}
-								transitionConfig={{ y: -10, duration: 150 }}
 							>
 								<DropdownMenu.Item class="px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer">
 									Unassigned

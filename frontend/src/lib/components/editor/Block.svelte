@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { editor, type EditorBlock, type BlockType } from '$lib/stores/editor';
+	import { editor, type EditorBlock, type BlockType, type EditorState } from '$lib/stores/editor';
 	import { contexts } from '$lib/stores/contexts';
 	import Block from './Block.svelte';
 
@@ -81,9 +81,9 @@
 		wrapper.classList.remove('drag-over-above', 'drag-over-below');
 
 		// Get source and target indices
-		editor.update((s) => {
-			const sourceIdx = s.blocks.findIndex(b => b.id === sourceBlockId);
-			const targetIdx = s.blocks.findIndex(b => b.id === block.id);
+		editor.update((s: EditorState) => {
+			const sourceIdx = s.blocks.findIndex((b: EditorBlock) => b.id === sourceBlockId);
+			const targetIdx = s.blocks.findIndex((b: EditorBlock) => b.id === block.id);
 			if (sourceIdx === -1 || targetIdx === -1) return s;
 
 			const newBlocks = [...s.blocks];
@@ -859,9 +859,9 @@
 										const content = target.innerText || '';
 										if (content.trim()) {
 											// For now, just add a paragraph child
-											editor.update((s) => ({
+											editor.update((s: EditorState) => ({
 												...s,
-												blocks: s.blocks.map((b) =>
+												blocks: s.blocks.map((b: EditorBlock) =>
 													b.id === block.id
 														? {
 															...b,

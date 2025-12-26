@@ -66,6 +66,9 @@ function createContextsStore() {
 						is_template: context.is_template,
 						is_archived: context.is_archived,
 						word_count: context.word_count,
+						property_schema: context.property_schema,
+						properties: context.properties,
+						client_id: context.client_id,
 						updated_at: context.updated_at
 					}, ...s.contexts]
 				}));
@@ -91,6 +94,9 @@ function createContextsStore() {
 						is_template: context.is_template,
 						is_archived: context.is_archived,
 						word_count: context.word_count,
+						property_schema: context.property_schema,
+						properties: context.properties,
+						client_id: context.client_id,
 						updated_at: context.updated_at
 					} : c)),
 					currentContext: s.currentContext?.id === id ? context : s.currentContext
@@ -162,6 +168,9 @@ function createContextsStore() {
 						is_template: context.is_template,
 						is_archived: context.is_archived,
 						word_count: context.word_count,
+						property_schema: context.property_schema,
+						properties: context.properties,
+						client_id: context.client_id,
 						updated_at: context.updated_at
 					}, ...s.contexts]
 				}));
