@@ -231,12 +231,12 @@
 			// Start Web Speech API for live transcript
 			const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 			if (SpeechRecognitionAPI) {
-				speechRecognition = new SpeechRecognitionAPI();
-				speechRecognition.continuous = true;
-				speechRecognition.interimResults = true;
-				speechRecognition.lang = 'en-US';
+				const recognition = new SpeechRecognitionAPI() as SpeechRecognition;
+				recognition.continuous = true;
+				recognition.interimResults = true;
+				recognition.lang = 'en-US';
 
-				speechRecognition.onresult = (event: SpeechRecognitionEvent) => {
+				recognition.onresult = (event: SpeechRecognitionEvent) => {
 					let interimTranscript = '';
 					let finalTranscript = '';
 					for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -250,7 +250,8 @@
 					liveTranscript = finalTranscript || interimTranscript;
 				};
 
-				speechRecognition.start();
+				recognition.start();
+				speechRecognition = recognition;
 			}
 
 			updateWaveform();

@@ -106,10 +106,8 @@
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Portal>
 				<DropdownMenu.Content
-					class="z-50 min-w-[180px] bg-white border border-gray-200 rounded-xl shadow-lg p-1"
+					class="z-50 min-w-[180px] bg-white border border-gray-200 rounded-xl shadow-lg p-1 animate-in fade-in-0 zoom-in-95"
 					sideOffset={4}
-					transition={fly}
-					transitionConfig={{ y: -10, duration: 150 }}
 				>
 					{#if onRename}
 						<DropdownMenu.Item

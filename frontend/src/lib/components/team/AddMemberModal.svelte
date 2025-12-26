@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Dialog, DropdownMenu } from 'bits-ui';
-	import { fly, fade } from 'svelte/transition';
 
 	interface Manager {
 		id: string;
@@ -92,14 +91,10 @@
 <Dialog.Root bind:open>
 	<Dialog.Portal>
 		<Dialog.Overlay
-			class="fixed inset-0 bg-black/50 z-50"
-			transition={fade}
-			transitionConfig={{ duration: 150 }}
+			class="fixed inset-0 bg-black/50 z-50 animate-in fade-in-0"
 		/>
 		<Dialog.Content
-			class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg bg-white rounded-2xl shadow-xl"
-			transition={fly}
-			transitionConfig={{ y: 20, duration: 200 }}
+			class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg bg-white rounded-2xl shadow-xl animate-in fade-in-0 zoom-in-95"
 		>
 			<!-- Header -->
 			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -176,10 +171,8 @@
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Portal>
 							<DropdownMenu.Content
-								class="z-[60] min-w-[200px] bg-white border border-gray-200 rounded-xl shadow-lg p-1"
+								class="z-[60] min-w-[200px] bg-white border border-gray-200 rounded-xl shadow-lg p-1 animate-in fade-in-0 zoom-in-95"
 								sideOffset={4}
-								transition={fly}
-								transitionConfig={{ y: -10, duration: 150 }}
 							>
 								<DropdownMenu.Item
 									class="px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer"

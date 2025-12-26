@@ -199,6 +199,7 @@ const localSession = writable({
 			id: 'local-user',
 			email: 'local@businessos.app',
 			name: 'Local User',
+			image: undefined as string | undefined,
 		},
 		session: {
 			id: 'local-session',
@@ -246,7 +247,7 @@ function getBaseURL(): string {
 // Cloud session store - fetched from server
 const cloudSession = writable<{
 	isPending: boolean;
-	data: { user: { id: string; email: string; name: string }; session: { id: string } } | null;
+	data: { user: { id: string; email: string; name: string; image?: string }; session: { id: string } } | null;
 	error: string | null;
 }>({
 	isPending: true,

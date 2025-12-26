@@ -230,7 +230,7 @@
 	}
 
 	// Icon data for each module
-	const moduleIcons: Record<string, { path: string; color: string; bgColor: string; isTerminal?: boolean; isFolder?: boolean }> = {
+	const moduleIcons: Record<string, { path: string; color: string; bgColor: string; isTerminal?: boolean; isFolder?: boolean; isFinder?: boolean }> = {
 		platform: {
 			path: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
 			color: '#333333',

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
-	import { fly, fade } from 'svelte/transition';
 	import TaskCheckbox from './TaskCheckbox.svelte';
 	import PriorityBadge from './PriorityBadge.svelte';
 
@@ -148,15 +147,13 @@
 {#if open && task}
 	<!-- Overlay -->
 	<div
-		class="fixed inset-0 bg-black/30 z-40"
-		transition:fade={{ duration: 200 }}
+		class="fixed inset-0 bg-black/30 z-40 animate-in fade-in-0"
 		onclick={handleClose}
 	></div>
 
 	<!-- Slide-over Panel -->
 	<div
-		class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-xl z-50 flex flex-col"
-		transition:fly={{ x: 400, duration: 300 }}
+		class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-xl z-50 flex flex-col animate-in slide-in-from-right"
 	>
 		<!-- Header -->
 		<div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -204,10 +201,8 @@
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Portal>
 								<DropdownMenu.Content
-									class="z-[60] min-w-[160px] bg-white border border-gray-200 rounded-xl shadow-lg p-1"
+									class="z-[60] min-w-[160px] bg-white border border-gray-200 rounded-xl shadow-lg p-1 animate-in fade-in-0 zoom-in-95"
 									sideOffset={4}
-									transition={fly}
-									transitionConfig={{ y: -10, duration: 150 }}
 								>
 									{#each statusOptions as option}
 										<DropdownMenu.Item
@@ -239,10 +234,8 @@
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Portal>
 								<DropdownMenu.Content
-									class="z-[60] min-w-[140px] bg-white border border-gray-200 rounded-xl shadow-lg p-1"
+									class="z-[60] min-w-[140px] bg-white border border-gray-200 rounded-xl shadow-lg p-1 animate-in fade-in-0 zoom-in-95"
 									sideOffset={4}
-									transition={fly}
-									transitionConfig={{ y: -10, duration: 150 }}
 								>
 									{#each priorityOptions as option}
 										<DropdownMenu.Item

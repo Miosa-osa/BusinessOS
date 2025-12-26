@@ -3,7 +3,7 @@
 
 	interface Props {
 		activeFilter?: QuickFilter;
-		counts?: Record<QuickFilter, number>;
+		counts?: Partial<Record<QuickFilter, number>>;
 		onFilterChange?: (filter: QuickFilter) => void;
 	}
 
