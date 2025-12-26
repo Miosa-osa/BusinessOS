@@ -402,6 +402,16 @@ func (h *Handlers) SendMessage(c *gin.Context) {
 		model = *req.Model
 	}
 
+	// Normalize cloud model names - some old preferences may be missing the -cloud suffix
+	cloudModelMigrations := map[string]string{
+		"qwen3-coder:480b": "qwen3-coder:480b-cloud",
+		"qwen3-coder:30b":  "qwen3-coder:30b-cloud",
+	}
+	if corrected, ok := cloudModelMigrations[model]; ok {
+		fmt.Printf("[Chat] Normalizing model name: %s -> %s\n", model, corrected)
+		model = corrected
+	}
+
 	agentType := agents.AgentTypeOrchestrator // default
 
 	// Focus mode takes precedence over agent type if provided

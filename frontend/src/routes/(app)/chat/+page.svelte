@@ -806,8 +806,23 @@ Use this context to inform your responses.`;
 				}
 				// Load preferred model from settings
 				if (settings.default_model) {
-					console.log('[Chat] Loaded preferred model from settings:', settings.default_model);
-					selectedModel = settings.default_model;
+					let savedModel = settings.default_model;
+					console.log('[Chat] Loaded preferred model from settings:', savedModel);
+
+					// Migration: fix old model names that are missing the -cloud suffix
+					// These cloud models require the -cloud suffix to route correctly
+					const cloudModelMigrations: Record<string, string> = {
+						'qwen3-coder:480b': 'qwen3-coder:480b-cloud',
+						'qwen3-coder:30b': 'qwen3-coder:30b-cloud',
+					};
+					if (cloudModelMigrations[savedModel]) {
+						console.log('[Chat] Migrating old model name:', savedModel, '->', cloudModelMigrations[savedModel]);
+						savedModel = cloudModelMigrations[savedModel];
+						// Save the corrected model preference
+						saveModelPreference(savedModel);
+					}
+
+					selectedModel = savedModel;
 				}
 				// Load AI model settings (temperature, max_tokens, top_p)
 				if (settings.model_settings) {
@@ -1158,6 +1173,7 @@ Use this context to inform your responses.`;
 
 	// Dynamic model state
 	let installedModels = $state<ModelOption[]>([]);
+	let ollamaCloudModels = $state<ModelOption[]>([]); // Models with -cloud suffix (routed via local Ollama)
 	let loadingModels = $state(false);
 	let activeProvider = $state('ollama_local');
 	// Track which cloud providers are configured (have API keys set)
@@ -1321,25 +1337,28 @@ Use this context to inform your responses.`;
 			const localRes = await apiClient.get('/ai/models/local');
 			if (localRes.ok) {
 				const data = await localRes.json();
-				// Filter out cloud reference models (they have "cloud" in the name and are tiny stubs)
-				installedModels = (data.models || [])
+				const allOllamaModels = (data.models || [])
 					.filter((m: any) => {
-						const nameOrId = (m.id || '') + (m.name || '');
-						const isCloudRef = nameOrId.toLowerCase().includes('cloud') &&
-							(m.size === '< 1 KB' || m.size === '0 B' || !m.size);
-						return !isCloudRef;
+						// Filter out tiny stub models (cloud reference stubs that are empty)
+						const size = m.size || '';
+						const isTinyStub = size === '< 1 KB' || size === '0 B';
+						return !isTinyStub;
 					})
 					.map((m: any) => ({
 						id: m.id,
 						name: m.name,
 						description: getModelDescription(m.id, m.family),
-						type: 'local' as const,
+						type: m.id.toLowerCase().includes('-cloud') ? 'cloud' as const : 'local' as const,
 						size: m.size
 					}));
+
+				// Separate local and cloud models
+				installedModels = allOllamaModels.filter((m: ModelOption) => m.type === 'local');
+				ollamaCloudModels = allOllamaModels.filter((m: ModelOption) => m.type === 'cloud');
 			}
 
-			// Build the combined list of all available models (local + configured cloud)
-			const allAvailableModels: ModelOption[] = [...installedModels];
+			// Build the combined list of all available models (local + ollama cloud + configured cloud providers)
+			const allAvailableModels: ModelOption[] = [...installedModels, ...ollamaCloudModels];
 			for (const provider of configuredProviders) {
 				const providerModels = cloudModelsMap[provider] || [];
 				allAvailableModels.push(...providerModels);
@@ -1381,8 +1400,8 @@ Use this context to inform your responses.`;
 
 	// Derived: combine local models with cloud models from all configured providers
 	let models = $derived.by(() => {
-		// Always include installed local models
-		const allModels: ModelOption[] = [...installedModels];
+		// Include installed local models and Ollama cloud models
+		const allModels: ModelOption[] = [...installedModels, ...ollamaCloudModels];
 
 		// Add cloud models from all configured providers
 		for (const provider of configuredProviders) {
@@ -2905,40 +2924,90 @@ Use this context to inform your responses.`;
 						>
 							{#if loadingModels}
 								<div class="px-4 py-3 text-sm text-gray-500 text-center">Loading models...</div>
-							{:else if installedModels.length === 0 && configuredProviders.size === 0}
+							{:else if installedModels.length === 0 && ollamaCloudModels.length === 0 && configuredProviders.size === 0}
 								<div class="px-4 py-3 text-center">
 									<p class="text-sm text-gray-500 mb-2">No models available</p>
 									<a href="/settings/ai" class="text-xs text-blue-600 hover:underline">Configure in AI Settings</a>
 								</div>
 							{:else}
-								<!-- Local Models Section -->
-								{#if installedModels.length > 0}
+								<!-- Selected Model at Top -->
+								{@const selectedModelObj = models.find(m => m.id === selectedModel)}
+								{#if selectedModelObj}
 									<div class="px-3 py-1.5">
-										<span class="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+										<span class="text-xs font-semibold text-blue-500 uppercase tracking-wider flex items-center gap-1">
 											<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 											</svg>
-											Local (Ollama)
+											Selected
 										</span>
 									</div>
-									{#each installedModels as model}
+									{@const caps = selectedModelObj.capabilities || getModelCapabilities(selectedModelObj.id)}
+									{@const isCloud = selectedModelObj.type === 'cloud' || selectedModelObj.id.toLowerCase().includes('-cloud')}
+									<button
+										onclick={() => { showModelDropdown = false; }}
+										class="w-full px-4 py-2.5 text-left bg-blue-50 transition-colors"
+									>
+										<div class="flex items-start gap-2">
+											<svg class="w-4 h-4 {isCloud ? 'text-blue-500' : 'text-green-500'} mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												{#if isCloud}
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+												{:else}
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+												{/if}
+											</svg>
+											<div class="flex-1 min-w-0">
+												<div class="flex items-center gap-1.5 flex-wrap">
+													<span class="text-sm font-medium text-blue-600">{selectedModelObj.name}</span>
+													<span class="text-[10px] px-1.5 py-0.5 rounded {isCloud ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}">{isCloud ? 'Cloud' : 'Local'}</span>
+												</div>
+												{#if selectedModelObj.size}
+													<div class="text-xs text-gray-400 mt-0.5">{selectedModelObj.size}</div>
+												{/if}
+												{#if caps.length > 0}
+													<div class="flex flex-wrap gap-1 mt-1">
+														{#each caps.slice(0, 4) as cap}
+															<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-medium rounded {capabilityInfo[cap].color}">
+																<span>{capabilityInfo[cap].icon}</span>
+																<span>{capabilityInfo[cap].label}</span>
+															</span>
+														{/each}
+													</div>
+												{/if}
+											</div>
+											<svg class="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+											</svg>
+										</div>
+									</button>
+								{/if}
+
+								<!-- Cloud (Ollama Remote) Section -->
+								{#if ollamaCloudModels.length > 0}
+									<div class="px-3 py-1.5 border-t border-gray-100 mt-1 pt-1">
+										<span class="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+											<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+											</svg>
+											Cloud (Ollama Remote)
+										</span>
+									</div>
+									{#each ollamaCloudModels.filter(m => m.id !== selectedModel) as model}
 									{@const caps = model.capabilities || getModelCapabilities(model.id)}
 										<button
 											onclick={() => { selectModel(model.id); showModelDropdown = false; }}
-											class="w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors {selectedModel === model.id ? 'bg-blue-50' : ''}"
+											class="w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
 										>
 											<div class="flex items-start gap-2">
-												<svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+												<svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
 												</svg>
 												<div class="flex-1 min-w-0">
 													<div class="flex items-center gap-1.5 flex-wrap">
-														<span class="text-sm font-medium {selectedModel === model.id ? 'text-blue-600' : 'text-gray-700'}">{model.name}</span>
+														<span class="text-sm font-medium text-gray-700">{model.name}</span>
 													</div>
 													{#if model.size}
 														<div class="text-xs text-gray-400 mt-0.5">{model.size}</div>
 													{/if}
-													<!-- Capability badges -->
 													{#if caps.length > 0}
 														<div class="flex flex-wrap gap-1 mt-1">
 															{#each caps.slice(0, 4) as cap}
@@ -2953,11 +3022,52 @@ Use this context to inform your responses.`;
 														</div>
 													{/if}
 												</div>
-												{#if selectedModel === model.id}
-													<svg class="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-													</svg>
-												{/if}
+											</div>
+										</button>
+									{/each}
+								{/if}
+
+								<!-- Local Models Section -->
+								{#if installedModels.length > 0}
+									<div class="px-3 py-1.5 {ollamaCloudModels.length > 0 ? 'border-t border-gray-100 mt-1 pt-1' : ''}">
+										<span class="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+											<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+											</svg>
+											Local (Ollama)
+										</span>
+									</div>
+									{#each installedModels.filter(m => m.id !== selectedModel) as model}
+									{@const caps = model.capabilities || getModelCapabilities(model.id)}
+										<button
+											onclick={() => { selectModel(model.id); showModelDropdown = false; }}
+											class="w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
+										>
+											<div class="flex items-start gap-2">
+												<svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+												</svg>
+												<div class="flex-1 min-w-0">
+													<div class="flex items-center gap-1.5 flex-wrap">
+														<span class="text-sm font-medium text-gray-700">{model.name}</span>
+													</div>
+													{#if model.size}
+														<div class="text-xs text-gray-400 mt-0.5">{model.size}</div>
+													{/if}
+													{#if caps.length > 0}
+														<div class="flex flex-wrap gap-1 mt-1">
+															{#each caps.slice(0, 4) as cap}
+																<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-medium rounded {capabilityInfo[cap].color}">
+																	<span>{capabilityInfo[cap].icon}</span>
+																	<span>{capabilityInfo[cap].label}</span>
+																</span>
+															{/each}
+															{#if caps.length > 4}
+																<span class="text-[9px] text-gray-400">+{caps.length - 4}</span>
+															{/if}
+														</div>
+													{/if}
+												</div>
 											</div>
 										</button>
 									{/each}
@@ -3516,7 +3626,7 @@ Use this context to inform your responses.`;
 												</span>
 												<span title="Total tokens">{message.usage.total_tokens} tokens</span>
 												<span class="text-gray-300 dark:text-gray-600">•</span>
-												<span title="Provider">{message.usage.provider === 'ollama_local' ? 'Local' : message.usage.provider}</span>
+												<span title="Provider">{message.usage.model?.toLowerCase().includes('-cloud') ? 'Cloud' : (message.usage.provider === 'ollama_local' ? 'Local' : message.usage.provider)}</span>
 											</div>
 										{/if}
 									</div>

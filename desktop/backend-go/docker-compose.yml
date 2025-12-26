@@ -37,26 +37,26 @@ services:
     networks:
       - businessos-network
 
-  # PostgreSQL database (optional - use if not using external DB)
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: businessos-postgres
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5432:5432"
-  #   environment:
-  #     POSTGRES_USER: postgres
-  #     POSTGRES_PASSWORD: password
-  #     POSTGRES_DB: business_os
-  #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   networks:
-  #     - businessos-network
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    container_name: businessos-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: business_os
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - businessos-network
 
   # BusinessOS Go Backend (optional - for containerized deployment)
   # backend:
@@ -85,8 +85,8 @@ services:
 volumes:
   redis-data:
     driver: local
-  # postgres-data:
-  #   driver: local
+  postgres-data:
+    driver: local
 
 networks:
   businessos-network:

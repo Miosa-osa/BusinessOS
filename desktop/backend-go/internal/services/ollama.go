@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/rhl/businessos-backend/internal/config"
@@ -62,12 +62,15 @@ func NewOllamaService(cfg *config.Config, model string) *OllamaService {
 		baseURL = "http://localhost:11434"
 	}
 
+	log.Printf("[OllamaService] Creating service with model: %s (input model: %s, default: %s)", model, model, cfg.DefaultModel)
+
 	if model == "" {
 		model = cfg.DefaultModel
+		log.Printf("[OllamaService] Using default model: %s", model)
 	}
 
-	// Remove -cloud suffix if present (legacy support)
-	model = strings.TrimSuffix(model, "-cloud")
+	// Note: Keep -cloud suffix for remote models served through local Ollama
+	// e.g., qwen3-coder:480b-cloud routes to ollama.com
 
 	return &OllamaService{
 		baseURL: baseURL,
@@ -94,6 +97,8 @@ func (s *OllamaService) GetOptions() LLMOptions {
 func (s *OllamaService) StreamChat(ctx context.Context, messages []ChatMessage, systemPrompt string) (<-chan string, <-chan error) {
 	chunks := make(chan string, 100)
 	errs := make(chan error, 1)
+
+	log.Printf("[OllamaService] StreamChat called with model: %s", s.model)
 
 	go func() {
 		defer close(chunks)

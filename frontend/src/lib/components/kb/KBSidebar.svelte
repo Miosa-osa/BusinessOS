@@ -12,8 +12,8 @@
 		// State
 		selectedPageId?: string | null;
 		expandedSections?: Set<string>;
-		expandedPages?: Set<string>;
-		favoriteIds?: Set<string>;
+		expandedPages?: string[]; // Array for better Svelte 5 reactivity
+		favoriteIds?: string[]; // Array for better Svelte 5 reactivity
 		searchQuery?: string;
 		width?: number;
 		isCollapsed?: boolean;
@@ -24,6 +24,7 @@
 		onPageExpand: (pageId: string) => void;
 		onPageAddChild: (page: ContextListItem) => void;
 		onPageOpenPeek: (page: ContextListItem) => void;
+		onPageOpenCenterPeek?: (page: ContextListItem) => void;
 		onPageDuplicate: (page: ContextListItem) => void;
 		onPageRename: (page: ContextListItem, newName: string) => void;
 		onPageMove: (page: ContextListItem) => void;
@@ -48,8 +49,8 @@
 		recentPages,
 		selectedPageId = null,
 		expandedSections = new Set(['favorites', 'context-profiles', 'documents']),
-		expandedPages = new Set(),
-		favoriteIds = new Set(),
+		expandedPages = [],
+		favoriteIds = [],
 		searchQuery = '',
 		width = 280,
 		isCollapsed = false,
@@ -58,6 +59,7 @@
 		onPageExpand,
 		onPageAddChild,
 		onPageOpenPeek,
+		onPageOpenCenterPeek,
 		onPageDuplicate,
 		onPageRename,
 		onPageMove,
@@ -122,6 +124,7 @@
 	// Section expand states
 	const showContextProfiles = $derived(expandedSections.has('context-profiles'));
 	const showDocuments = $derived(expandedSections.has('documents'));
+
 
 	// Resize handling
 	let isResizing = $state(false);
@@ -204,7 +207,7 @@
 				<!-- New Page Button with Native Dropdown -->
 			<div class="relative new-page-menu-container">
 				<button
-					onclick={() => { newPageMenuOpen = !newPageMenuOpen; console.log('[KBSidebar] Menu toggled:', newPageMenuOpen); }}
+					onclick={() => newPageMenuOpen = !newPageMenuOpen}
 					class="w-full flex items-center gap-3 px-2.5 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -228,7 +231,7 @@
 
 						<button
 							class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer text-left"
-							onclick={() => { console.log('[KBSidebar] Business clicked'); newPageMenuOpen = false; onAddProfile?.('business'); }}
+							onclick={() => { newPageMenuOpen = false; onAddProfile?.('business'); }}
 						>
 							<svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -238,7 +241,7 @@
 
 						<button
 							class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer text-left"
-							onclick={() => { console.log('[KBSidebar] Person clicked'); newPageMenuOpen = false; onAddProfile?.('person'); }}
+							onclick={() => { newPageMenuOpen = false; onAddProfile?.('person'); }}
 						>
 							<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -248,7 +251,7 @@
 
 						<button
 							class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer text-left"
-							onclick={() => { console.log('[KBSidebar] Project clicked'); newPageMenuOpen = false; onAddProfile?.('project'); }}
+							onclick={() => { newPageMenuOpen = false; onAddProfile?.('project'); }}
 						>
 							<svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
@@ -258,7 +261,7 @@
 
 						<button
 							class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer text-left"
-							onclick={() => { console.log('[KBSidebar] Custom clicked'); newPageMenuOpen = false; onAddProfile?.('custom'); }}
+							onclick={() => { newPageMenuOpen = false; onAddProfile?.('custom'); }}
 						>
 							<svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
@@ -274,7 +277,7 @@
 
 						<button
 							class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer text-left"
-							onclick={() => { console.log('[KBSidebar] Blank Document clicked'); newPageMenuOpen = false; onAddPage(); }}
+							onclick={() => { newPageMenuOpen = false; onAddPage(); }}
 						>
 							<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -299,13 +302,14 @@
 							{page}
 							depth={0}
 							isSelected={selectedPageId === page.id}
-							isExpanded={expandedPages.has(page.id)}
+							isExpanded={expandedPages.includes(page.id)}
 							hasChildren={hasChildren(page)}
-							isFavorite={favoriteIds.has(page.id)}
+							isFavorite={favoriteIds.includes(page.id)}
 							onSelect={() => onPageSelect(page)}
 							onExpand={() => onPageExpand(page.id)}
 							onAddChild={() => onPageAddChild(page)}
 							onOpenPeek={() => onPageOpenPeek(page)}
+							onOpenCenterPeek={() => onPageOpenCenterPeek?.(page)}
 							onDuplicate={() => onPageDuplicate(page)}
 							onRename={() => onPageRename(page, page.name)}
 							onMove={() => onPageMove(page)}
@@ -343,13 +347,14 @@
 										{page}
 										depth={0}
 										isSelected={selectedPageId === page.id}
-										isExpanded={expandedPages.has(page.id)}
+										isExpanded={expandedPages.includes(page.id)}
 										hasChildren={hasChildren(page)}
 										isFavorite={true}
 										onSelect={() => onPageSelect(page)}
 										onExpand={() => onPageExpand(page.id)}
 										onAddChild={() => onPageAddChild(page)}
 										onOpenPeek={() => onPageOpenPeek(page)}
+										onOpenCenterPeek={() => onPageOpenCenterPeek?.(page)}
 										onDuplicate={() => onPageDuplicate(page)}
 										onRename={() => onPageRename(page, page.name)}
 										onMove={() => onPageMove(page)}
@@ -385,13 +390,14 @@
 									page={profile}
 									depth={0}
 									isSelected={selectedPageId === profile.id}
-									isExpanded={expandedPages.has(profile.id)}
+									isExpanded={expandedPages.includes(profile.id)}
 									hasChildren={hasChildren(profile)}
-									isFavorite={favoriteIds.has(profile.id)}
+									isFavorite={favoriteIds.includes(profile.id)}
 									onSelect={() => onPageSelect(profile)}
 									onExpand={() => onPageExpand(profile.id)}
 									onAddChild={() => onPageAddChild(profile)}
 									onOpenPeek={() => onPageOpenPeek(profile)}
+									onOpenCenterPeek={() => onPageOpenCenterPeek?.(profile)}
 									onDuplicate={() => onPageDuplicate(profile)}
 									onRename={() => onPageRename(profile, profile.name)}
 									onMove={() => onPageMove(profile)}
@@ -400,20 +406,26 @@
 									onCopyLink={() => onPageCopyLink(profile)}
 								/>
 								<!-- Children of profile (documents inside) -->
-								{#if expandedPages.has(profile.id)}
+								{#if expandedPages.includes(profile.id)}
 									{@const profileChildren = getChildPages(profile.id)}
-									{#each profileChildren as child (child.id)}
+									{#if profileChildren.length === 0}
+										<div class="py-1.5 text-xs text-gray-400 dark:text-gray-500 italic" style="padding-left: 40px;">
+											No pages inside
+										</div>
+									{:else}
+										{#each profileChildren as child (child.id)}
 										<SidebarPageItem
 											page={child}
 											depth={1}
 											isSelected={selectedPageId === child.id}
-											isExpanded={expandedPages.has(child.id)}
+											isExpanded={expandedPages.includes(child.id)}
 											hasChildren={hasChildren(child)}
-											isFavorite={favoriteIds.has(child.id)}
+											isFavorite={favoriteIds.includes(child.id)}
 											onSelect={() => onPageSelect(child)}
 											onExpand={() => onPageExpand(child.id)}
 											onAddChild={() => onPageAddChild(child)}
 											onOpenPeek={() => onPageOpenPeek(child)}
+											onOpenCenterPeek={() => onPageOpenCenterPeek?.(child)}
 											onDuplicate={() => onPageDuplicate(child)}
 											onRename={() => onPageRename(child, child.name)}
 											onMove={() => onPageMove(child)}
@@ -421,7 +433,8 @@
 											onToggleFavorite={() => onPageToggleFavorite(child)}
 											onCopyLink={() => onPageCopyLink(child)}
 										/>
-									{/each}
+										{/each}
+									{/if}
 								{/if}
 							{/each}
 							{#if contextProfiles.length === 0}
@@ -455,13 +468,14 @@
 									page={doc}
 									depth={0}
 									isSelected={selectedPageId === doc.id}
-									isExpanded={expandedPages.has(doc.id)}
+									isExpanded={expandedPages.includes(doc.id)}
 									hasChildren={hasChildren(doc)}
-									isFavorite={favoriteIds.has(doc.id)}
+									isFavorite={favoriteIds.includes(doc.id)}
 									onSelect={() => onPageSelect(doc)}
 									onExpand={() => onPageExpand(doc.id)}
 									onAddChild={() => onPageAddChild(doc)}
 									onOpenPeek={() => onPageOpenPeek(doc)}
+									onOpenCenterPeek={() => onPageOpenCenterPeek?.(doc)}
 									onDuplicate={() => onPageDuplicate(doc)}
 									onRename={() => onPageRename(doc, doc.name)}
 									onMove={() => onPageMove(doc)}
@@ -469,6 +483,68 @@
 									onToggleFavorite={() => onPageToggleFavorite(doc)}
 									onCopyLink={() => onPageCopyLink(doc)}
 								/>
+								<!-- Nested children of document (recursive) -->
+								{#if expandedPages.includes(doc.id)}
+									{@const docChildren = getChildPages(doc.id)}
+									{#if docChildren.length === 0}
+										<div class="py-1.5 text-xs text-gray-400 dark:text-gray-500 italic" style="padding-left: 40px;">
+											No pages inside
+										</div>
+									{:else}
+										{#each docChildren as child (child.id)}
+											<SidebarPageItem
+												page={child}
+												depth={1}
+												isSelected={selectedPageId === child.id}
+												isExpanded={expandedPages.includes(child.id)}
+												hasChildren={hasChildren(child)}
+												isFavorite={favoriteIds.includes(child.id)}
+												onSelect={() => onPageSelect(child)}
+												onExpand={() => onPageExpand(child.id)}
+												onAddChild={() => onPageAddChild(child)}
+												onOpenPeek={() => onPageOpenPeek(child)}
+												onOpenCenterPeek={() => onPageOpenCenterPeek?.(child)}
+												onDuplicate={() => onPageDuplicate(child)}
+												onRename={() => onPageRename(child, child.name)}
+												onMove={() => onPageMove(child)}
+												onDelete={() => onPageDelete(child)}
+												onToggleFavorite={() => onPageToggleFavorite(child)}
+												onCopyLink={() => onPageCopyLink(child)}
+											/>
+											<!-- Level 2 children -->
+											{#if expandedPages.includes(child.id)}
+												{@const grandChildren = getChildPages(child.id)}
+												{#if grandChildren.length === 0}
+													<div class="py-1.5 text-xs text-gray-400 dark:text-gray-500 italic" style="padding-left: 56px;">
+														No pages inside
+													</div>
+												{:else}
+													{#each grandChildren as grandChild (grandChild.id)}
+														<SidebarPageItem
+															page={grandChild}
+															depth={2}
+															isSelected={selectedPageId === grandChild.id}
+															isExpanded={expandedPages.includes(grandChild.id)}
+															hasChildren={hasChildren(grandChild)}
+															isFavorite={favoriteIds.includes(grandChild.id)}
+															onSelect={() => onPageSelect(grandChild)}
+															onExpand={() => onPageExpand(grandChild.id)}
+															onAddChild={() => onPageAddChild(grandChild)}
+															onOpenPeek={() => onPageOpenPeek(grandChild)}
+															onOpenCenterPeek={() => onPageOpenCenterPeek?.(grandChild)}
+															onDuplicate={() => onPageDuplicate(grandChild)}
+															onRename={() => onPageRename(grandChild, grandChild.name)}
+															onMove={() => onPageMove(grandChild)}
+															onDelete={() => onPageDelete(grandChild)}
+															onToggleFavorite={() => onPageToggleFavorite(grandChild)}
+															onCopyLink={() => onPageCopyLink(grandChild)}
+														/>
+													{/each}
+												{/if}
+											{/if}
+										{/each}
+									{/if}
+								{/if}
 							{/each}
 							{#if documents.length === 0}
 								<div class="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 italic">

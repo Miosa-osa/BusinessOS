@@ -66,22 +66,28 @@ func (h *Handlers) CreateProject(c *gin.Context) {
 
 	queries := sqlc.New(h.pool)
 
-	// Parse status
-	var status sqlc.NullProjectstatus
+	// Parse status with default
+	status := sqlc.NullProjectstatus{
+		Projectstatus: sqlc.ProjectstatusACTIVE, // Default to "active"
+		Valid:         true,
+	}
 	if req.Status != nil {
-		status = sqlc.NullProjectstatus{
-			Projectstatus: stringToProjectStatus(*req.Status),
-			Valid:         true,
-		}
+		status.Projectstatus = stringToProjectStatus(*req.Status)
 	}
 
-	// Parse priority
-	var priority sqlc.NullProjectpriority
+	// Parse priority with default
+	priority := sqlc.NullProjectpriority{
+		Projectpriority: sqlc.ProjectpriorityMEDIUM, // Default to "medium"
+		Valid:           true,
+	}
 	if req.Priority != nil {
-		priority = sqlc.NullProjectpriority{
-			Projectpriority: stringToProjectPriority(*req.Priority),
-			Valid:           true,
-		}
+		priority.Projectpriority = stringToProjectPriority(*req.Priority)
+	}
+
+	// Handle project_type with default
+	projectType := "general"
+	if req.ProjectType != nil {
+		projectType = *req.ProjectType
 	}
 
 	// Handle metadata
@@ -97,11 +103,12 @@ func (h *Handlers) CreateProject(c *gin.Context) {
 		Status:          status,
 		Priority:        priority,
 		ClientName:      req.ClientName,
-		ProjectType:     req.ProjectType,
+		ProjectType:     &projectType,
 		ProjectMetadata: metadata,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create project"})
+		log.Printf("CreateProject error for user %s: %v", user.ID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create project", "details": err.Error()})
 		return
 	}
 

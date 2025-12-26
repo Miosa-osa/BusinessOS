@@ -9,6 +9,7 @@ export type BlockType =
 	| 'bulletList'
 	| 'numberedList'
 	| 'todo'
+	| 'toggle'
 	| 'quote'
 	| 'code'
 	| 'divider'
@@ -17,7 +18,10 @@ export type BlockType =
 	| 'table'
 	| 'embed'
 	| 'artifact'
-	| 'page';
+	| 'page'
+	| 'tableOfContents'
+	| 'columns'
+	| 'bookmark';
 
 export interface EditorBlock extends Block {
 	id: string;
@@ -25,11 +29,13 @@ export interface EditorBlock extends Block {
 	content: string;
 	properties?: {
 		checked?: boolean;
+		expanded?: boolean;
 		language?: string;
 		artifactId?: string;
 		url?: string;
 		caption?: string;
 		calloutType?: 'info' | 'warning' | 'success' | 'error';
+		pageId?: string;
 		[key: string]: unknown;
 	};
 	children?: EditorBlock[];
@@ -48,6 +54,8 @@ interface EditorState {
 	slashMenuPosition: { x: number; y: number } | null;
 	slashMenuQuery: string;
 	showAIPanel: boolean;
+	// Pending block type selection from BlockMenu - Block.svelte handles this
+	pendingBlockTypeSelection: { type: BlockType; blockId: string } | null;
 }
 
 function generateBlockId(): string {
@@ -76,7 +84,8 @@ function createEditorStore() {
 		showSlashMenu: false,
 		slashMenuPosition: null,
 		slashMenuQuery: '',
-		showAIPanel: false
+		showAIPanel: false,
+		pendingBlockTypeSelection: null
 	});
 
 	return {
@@ -265,6 +274,22 @@ function createEditorStore() {
 			update((s) => ({ ...s, slashMenuQuery: query }));
 		},
 
+		// Set pending block type selection (BlockMenu calls this, Block.svelte handles it)
+		selectBlockType(type: BlockType) {
+			update((s) => ({
+				...s,
+				pendingBlockTypeSelection: s.focusedBlockId ? { type, blockId: s.focusedBlockId } : null,
+				showSlashMenu: false,
+				slashMenuPosition: null,
+				slashMenuQuery: ''
+			}));
+		},
+
+		// Clear pending selection after Block.svelte handles it
+		clearPendingBlockTypeSelection() {
+			update((s) => ({ ...s, pendingBlockTypeSelection: null }));
+		},
+
 		toggleAIPanel() {
 			update((s) => ({ ...s, showAIPanel: !s.showAIPanel }));
 		},
@@ -297,6 +322,18 @@ function createEditorStore() {
 			}));
 		},
 
+		toggleToggleBlock(id: string) {
+			update((s) => ({
+				...s,
+				blocks: s.blocks.map((b) =>
+					b.id === id && b.type === 'toggle'
+						? { ...b, properties: { ...b.properties, expanded: !b.properties?.expanded } }
+						: b
+				),
+				isDirty: true
+			}));
+		},
+
 		getBlocks(): EditorBlock[] {
 			let currentBlocks: EditorBlock[] = [];
 			subscribe((s) => {
@@ -318,7 +355,8 @@ function createEditorStore() {
 				showSlashMenu: false,
 				slashMenuPosition: null,
 				slashMenuQuery: '',
-				showAIPanel: false
+				showAIPanel: false,
+				pendingBlockTypeSelection: null
 			});
 		}
 	};
@@ -336,90 +374,220 @@ export const wordCount = derived(editor, ($editor) => {
 	}, 0);
 });
 
-// Block type definitions for slash menu
-export const blockTypes: {
+// Block type definitions for slash menu with sections
+export interface BlockTypeDefinition {
 	type: BlockType;
 	label: string;
 	description: string;
 	icon: string;
-	shortcut?: string;
-}[] = [
-	{ type: 'paragraph', label: 'Text', description: 'Plain text', icon: 'T', shortcut: '/text' },
+	keyboardShortcut?: string;
+	searchAliases?: string[];
+	section: 'suggested' | 'basic';
+}
+
+export const blockTypes: BlockTypeDefinition[] = [
+	// SUGGESTED SECTION
 	{
-		type: 'heading1',
-		label: 'Heading 1',
-		description: 'Large heading',
-		icon: 'H1',
-		shortcut: '/h1'
-	},
-	{
-		type: 'heading2',
-		label: 'Heading 2',
-		description: 'Medium heading',
-		icon: 'H2',
-		shortcut: '/h2'
-	},
-	{
-		type: 'heading3',
-		label: 'Heading 3',
-		description: 'Small heading',
-		icon: 'H3',
-		shortcut: '/h3'
-	},
-	{
-		type: 'bulletList',
-		label: 'Bullet List',
-		description: 'Unordered list',
-		icon: '•',
-		shortcut: '/bullet'
-	},
-	{
-		type: 'numberedList',
-		label: 'Numbered List',
-		description: 'Ordered list',
-		icon: '1.',
-		shortcut: '/numbered'
-	},
-	{
-		type: 'todo',
-		label: 'To-do',
-		description: 'Checkbox item',
-		icon: '☐',
-		shortcut: '/todo'
-	},
-	{
-		type: 'quote',
-		label: 'Quote',
-		description: 'Block quote',
-		icon: '"',
-		shortcut: '/quote'
-	},
-	{
-		type: 'code',
-		label: 'Code',
-		description: 'Code block',
-		icon: '</>',
-		shortcut: '/code'
+		type: 'page',
+		label: 'Page',
+		description: 'Embed a sub-page',
+		icon: 'file-text',
+		section: 'suggested',
+		searchAliases: ['subpage', 'nested', 'link']
 	},
 	{
 		type: 'divider',
 		label: 'Divider',
-		description: 'Horizontal line',
-		icon: '—',
-		shortcut: '/divider'
+		description: 'Visual separator',
+		icon: 'minus',
+		keyboardShortcut: '---',
+		section: 'suggested',
+		searchAliases: ['line', 'hr', 'separator']
 	},
 	{
 		type: 'callout',
 		label: 'Callout',
-		description: 'Highlighted box',
-		icon: '!',
-		shortcut: '/callout'
+		description: 'Highlighted info box',
+		icon: 'alert-circle',
+		section: 'suggested',
+		searchAliases: ['highlight', 'box', 'notice', 'info']
+	},
+
+	// BASIC BLOCKS SECTION
+	{
+		type: 'paragraph',
+		label: 'Text',
+		description: 'Plain text block',
+		icon: 'type',
+		section: 'basic',
+		searchAliases: ['paragraph', 'p']
 	},
 	{
-		type: 'page',
-		label: 'Page',
-		description: 'Create a nested sub-page',
-		icon: '📄',
-		shortcut: '/page'
+		type: 'heading1',
+		label: 'Heading 1',
+		description: 'Large section heading',
+		icon: 'heading-1',
+		keyboardShortcut: '#',
+		section: 'basic',
+		searchAliases: ['h1', 'title']
+	},
+	{
+		type: 'heading2',
+		label: 'Heading 2',
+		description: 'Medium section heading',
+		icon: 'heading-2',
+		keyboardShortcut: '##',
+		section: 'basic',
+		searchAliases: ['h2', 'subtitle']
+	},
+	{
+		type: 'heading3',
+		label: 'Heading 3',
+		description: 'Small section heading',
+		icon: 'heading-3',
+		keyboardShortcut: '###',
+		section: 'basic',
+		searchAliases: ['h3']
+	},
+	{
+		type: 'bulletList',
+		label: 'Bulleted list',
+		description: 'Simple bullet points',
+		icon: 'list',
+		keyboardShortcut: '-',
+		section: 'basic',
+		searchAliases: ['ul', 'bullet', 'unordered']
+	},
+	{
+		type: 'numberedList',
+		label: 'Numbered list',
+		description: 'Ordered list with numbers',
+		icon: 'list-ordered',
+		keyboardShortcut: '1.',
+		section: 'basic',
+		searchAliases: ['ol', 'ordered', 'number']
+	},
+	{
+		type: 'todo',
+		label: 'To-do list',
+		description: 'Checklist with checkboxes',
+		icon: 'check-square',
+		keyboardShortcut: '[]',
+		section: 'basic',
+		searchAliases: ['checkbox', 'task', 'checklist']
+	},
+	{
+		type: 'toggle',
+		label: 'Toggle list',
+		description: 'Collapsible content',
+		icon: 'chevron-right',
+		keyboardShortcut: '>',
+		section: 'basic',
+		searchAliases: ['collapse', 'expand', 'accordion', 'dropdown']
+	},
+	{
+		type: 'quote',
+		label: 'Quote',
+		description: 'Block quote for citations',
+		icon: 'quote',
+		keyboardShortcut: '"',
+		section: 'basic',
+		searchAliases: ['blockquote', 'citation']
+	},
+	{
+		type: 'code',
+		label: 'Code',
+		description: 'Code snippet with syntax',
+		icon: 'code',
+		keyboardShortcut: '```',
+		section: 'basic',
+		searchAliases: ['snippet', 'programming', 'pre']
+	},
+	// ADVANCED BLOCKS (in suggested section)
+	{
+		type: 'tableOfContents',
+		label: 'Table of contents',
+		description: 'Auto-generated from headings',
+		icon: 'list',
+		section: 'suggested',
+		searchAliases: ['toc', 'outline', 'navigation', 'index']
+	},
+	{
+		type: 'columns',
+		label: 'Columns',
+		description: 'Side-by-side layout',
+		icon: 'columns',
+		section: 'suggested',
+		searchAliases: ['layout', 'side', 'grid', 'split']
+	},
+	{
+		type: 'bookmark',
+		label: 'Bookmark',
+		description: 'Embed a link preview',
+		icon: 'link',
+		section: 'suggested',
+		searchAliases: ['link', 'url', 'embed', 'preview']
 	}
 ];
+
+// Priority-based filtering for slash menu
+// Prioritizes: exact match > starts with > contains
+export function filterBlockTypes(
+	query: string,
+	types: BlockTypeDefinition[] = blockTypes
+): BlockTypeDefinition[] {
+	if (!query || query.trim() === '') return types;
+	const q = query.toLowerCase().trim();
+
+	const scored = types
+		.map((bt) => {
+			const label = bt.label.toLowerCase();
+			const type = bt.type.toLowerCase();
+			const aliases = bt.searchAliases?.map((a) => a.toLowerCase()) || [];
+
+			let score = 0;
+
+			// Priority 1: Exact match (highest)
+			if (label === q || type === q) {
+				score = 100;
+			}
+			// Priority 2: Label starts with query
+			else if (label.startsWith(q)) {
+				score = 80;
+			}
+			// Priority 3: Type starts with query
+			else if (type.startsWith(q)) {
+				score = 70;
+			}
+			// Priority 4: Any alias starts with query
+			else if (aliases.some((a) => a.startsWith(q))) {
+				score = 60;
+			}
+			// Priority 5: Label contains query
+			else if (label.includes(q)) {
+				score = 40;
+			}
+			// Priority 6: Any alias contains query
+			else if (aliases.some((a) => a.includes(q))) {
+				score = 30;
+			}
+			// No match
+			else {
+				score = 0;
+			}
+
+			return { bt, score };
+		})
+		.filter((r) => r.score > 0)
+		.sort((a, b) => b.score - a.score);
+
+	return scored.map((r) => r.bt);
+}
+
+// Helper to get block types by section
+export function getBlockTypesBySection(types: BlockTypeDefinition[] = blockTypes) {
+	return {
+		suggested: types.filter((bt) => bt.section === 'suggested'),
+		basic: types.filter((bt) => bt.section === 'basic')
+	};
+}

@@ -31,6 +31,12 @@
 	let peekIsNew = $state(false);
 	let peekParentId = $state<string | undefined>(undefined);
 
+	// Center peek modal state
+	let showCenterPeek = $state(false);
+	let centerPeekDocument = $state<Context | null>(null);
+	let centerPeekIsNew = $state(false);
+	let centerPeekParentId = $state<string | undefined>(undefined);
+
 	// View mode: 'all' | 'profile' | 'loose'
 	let viewMode = $state<'all' | 'profile' | 'loose'>('all');
 
@@ -49,8 +55,9 @@
 	let kbActiveSection = $state<KBSection>($kbPreferences.activeSection);
 	let kbViewMode = $state<KBViewMode>($kbPreferences.viewMode);
 	let kbExpandedSections = $derived(new Set($kbPreferences.expandedSections));
-	let kbExpandedPages = $derived(new Set($kbPreferences.expandedPages));
-	let kbFavoriteIds = $derived(new Set($kbPreferences.favorites));
+	// Pass arrays directly for better reactivity - Svelte 5 tracks array changes more reliably than Set.has()
+	let kbExpandedPagesArray = $derived($kbPreferences.expandedPages);
+	let kbFavoriteIdsArray = $derived($kbPreferences.favorites);
 	let kbSidebarWidth = $state($kbPreferences.sidebarWidth);
 	let kbSidebarCollapsed = $state($kbPreferences.sidebarCollapsed);
 	let showCommandPalette = $state(false);
@@ -65,22 +72,28 @@
 		return PROFILE_TYPES.includes(type || '');
 	}
 
+	// Filter out archived contexts for sidebar display
+	let activeContexts = $derived($contexts.contexts.filter(c => !c.is_archived));
+
+	// Archived contexts for trash view
+	let archivedContexts = $derived($contexts.contexts.filter(c => c.is_archived));
+
 	// Get children of selected profile
 	let profileChildren = $derived(
 		kbSelectedProfile
-			? $contexts.contexts.filter(c => c.parent_id === kbSelectedProfile.id)
+			? activeContexts.filter(c => c.parent_id === kbSelectedProfile.id)
 			: []
 	);
 
 	// Get favorite pages
 	let favoritePages = $derived(
-		$contexts.contexts.filter(c => kbFavoriteIds.has(c.id))
+		activeContexts.filter(c => kbFavoriteIdsArray.includes(c.id))
 	);
 
 	// Get recent pages
 	let recentPages = $derived(
 		$kbPreferences.recentPages
-			.map(id => $contexts.contexts.find(c => c.id === id))
+			.map(id => activeContexts.find(c => c.id === id))
 			.filter((c): c is ContextListItem => c !== undefined)
 	);
 
@@ -362,8 +375,8 @@
 	async function openDocument(docId: string) {
 		try {
 			const doc = await contexts.loadContext(docId);
-			// Clear profile view to show document editor
-			kbSelectedProfile = null;
+			// DON'T clear inline document - side peek should overlay on top
+			// Keep whatever is currently showing in main content
 			peekDocument = doc;
 			peekIsNew = false;
 			peekParentId = doc.parent_id || undefined;
@@ -397,6 +410,39 @@
 				selectedProfile = p;
 			});
 		}
+	}
+
+	// Open document in center peek modal
+	async function openCenterPeek(docId: string) {
+		try {
+			const doc = await contexts.loadContext(docId);
+			centerPeekDocument = doc;
+			centerPeekIsNew = false;
+			centerPeekParentId = doc.parent_id || undefined;
+			showCenterPeek = true;
+		} catch (error) {
+			console.error('Failed to load document for center peek:', error);
+		}
+	}
+
+	// Close center peek modal
+	function closeCenterPeek() {
+		showCenterPeek = false;
+		centerPeekDocument = null;
+		centerPeekIsNew = false;
+		centerPeekParentId = undefined;
+		// Refresh the contexts list
+		contexts.loadContexts();
+	}
+
+	// Handle document saved from center peek
+	function handleCenterPeekSaved(doc: Context) {
+		if (centerPeekIsNew) {
+			centerPeekDocument = doc;
+			centerPeekIsNew = false;
+		}
+		// Refresh contexts list
+		contexts.loadContexts();
 	}
 
 	function toggleSection(section: string) {
@@ -526,15 +572,32 @@
 	async function confirmDelete() {
 		if (!itemToDelete) return;
 		try {
-			await contexts.deleteContext(itemToDelete.id);
+			// Use archive instead of hard delete (soft delete / move to trash)
+			await contexts.archiveContext(itemToDelete.id);
 			showDeleteConfirm = false;
 			// If we deleted the selected profile, close it
 			if (itemToDelete.id === selectedProfileId) {
 				closeProfile();
 			}
+			// Also close inline document if it's the one being deleted
+			if (itemToDelete.id === inlineDocument?.id) {
+				inlineDocument = null;
+			}
+			// Close side peek if it's showing the deleted item
+			if (itemToDelete.id === peekDocument?.id) {
+				showDocumentPeek = false;
+				peekDocument = null;
+			}
+			// Close center peek if showing deleted item
+			if (itemToDelete.id === centerPeekDocument?.id) {
+				showCenterPeek = false;
+				centerPeekDocument = null;
+			}
 			itemToDelete = null;
+			// Refresh contexts to update sidebar
+			await contexts.loadContexts();
 		} catch (error) {
-			console.error('Failed to delete:', error);
+			console.error('Failed to move to trash:', error);
 		}
 	}
 
@@ -572,9 +635,6 @@
 	}
 
 	function handleKBPageSelect(page: ContextListItem) {
-		console.log('[KB] handleKBPageSelect called with page:', page.id, page.name, 'type:', page.type);
-		console.log('[KB] BEFORE - kbSelectedProfile:', kbSelectedProfile?.name, 'inlineDocument:', inlineDocument?.name);
-
 		// Add to recent
 		kbPreferences.addToRecent(page.id);
 		// Hide home view when selecting a page
@@ -583,37 +643,53 @@
 		// Check if this is a profile type (business, person, project, custom)
 		if (isProfileType(page.type)) {
 			// Show profile database view
-			console.log('[KB] Opening PROFILE view for:', page.name, page.type);
 			kbSelectedProfile = page;
 			inlineDocument = null;
 			showDocumentPeek = false;
 			peekDocument = null;
 		} else {
 			// Open document INLINE (in main content area, not side peek)
-			console.log('[KB] Opening DOCUMENT view for:', page.name, page.type);
 			kbSelectedProfile = null;
 			inlineDocument = page;
 			showDocumentPeek = false;
 			peekDocument = null;
 		}
-		console.log('[KB] AFTER - kbSelectedProfile:', kbSelectedProfile?.name, 'inlineDocument:', inlineDocument?.name);
 	}
 
 	function handleKBPageExpand(pageId: string) {
 		kbPreferences.togglePageExpanded(pageId);
 	}
 
-	function handleKBPageAddChild(page: ContextListItem) {
-		// Create new document as child of this page
+	async function handleKBPageAddChild(page: ContextListItem) {
+		// Create new document as child of this page - open INLINE, not in side peek
 		kbSelectedProfile = null;
-		peekParentId = page.id;
-		peekIsNew = true;
+		showDocumentPeek = false;
 		peekDocument = null;
-		showDocumentPeek = true;
+		showHome = false;
+
+		try {
+			const newDoc = await contexts.createContext({
+				name: 'New page',
+				type: 'document',
+				parent_id: page.id,
+				blocks: []
+			});
+
+			inlineDocument = newDoc;
+			// Auto-expand parent so user can see the new child
+			kbPreferences.expandPage(page.id);
+			await contexts.loadContexts();
+		} catch (error) {
+			console.error('[KB] Failed to create child page:', error);
+		}
 	}
 
 	function handleKBPageOpenPeek(page: ContextListItem) {
 		openDocument(page.id);
+	}
+
+	function handleKBPageOpenCenterPeek(page: ContextListItem) {
+		openCenterPeek(page.id);
 	}
 
 	async function handleKBPageDuplicate(page: ContextListItem) {
@@ -655,8 +731,6 @@
 	}
 
 	async function handleKBAddPage(parentId?: string) {
-		console.log('[KB] handleKBAddPage called, parentId:', parentId);
-
 		// Clear profile view and home view
 		kbSelectedProfile = null;
 		showDocumentPeek = false;
@@ -664,39 +738,32 @@
 
 		// Create a new blank page immediately
 		try {
-			console.log('[KB] Creating new context via API...');
 			const createData: any = {
-				name: 'Untitled',
+				name: 'New page',
 				type: 'document'
 			};
 			if (parentId) {
 				createData.parent_id = parentId;
 			}
-			console.log('[KB] Create data:', createData);
 			const newDoc = await contexts.createContext(createData);
-			console.log('[KB] New document created successfully:', newDoc);
 
 			// Show the new document inline for editing
 			inlineDocument = newDoc;
-			console.log('[KB] inlineDocument set to:', inlineDocument?.id, inlineDocument?.name);
 
 			// Refresh sidebar
 			await contexts.loadContexts();
-			console.log('[KB] Contexts refreshed');
 
 			// Switch to list view if in graph view
 			if (kbViewMode === 'graph') {
 				handleKBViewModeChange('list');
 			}
 		} catch (error) {
-			console.error('[KB] Failed to create new page:', error);
+			console.error('Failed to create new page:', error);
 			alert('Failed to create page: ' + (error instanceof Error ? error.message : 'Unknown error'));
 		}
 	}
 
 	async function handleKBAddProfile(type: 'business' | 'person' | 'project' | 'custom') {
-		console.log('[KB] handleKBAddProfile called with type:', type);
-
 		const icon = type === 'business' ? '🏢' : type === 'person' ? '👤' : type === 'project' ? '📁' : '✨';
 		const defaultName = type === 'business' ? 'New Business' : type === 'person' ? 'New Person' : type === 'project' ? 'New Project' : 'New Profile';
 
@@ -710,7 +777,6 @@
 				system_prompt_template: '',
 				client_id: undefined
 			});
-			console.log('[KB] Profile created:', newProfile);
 
 			// Clear other views and show the new profile
 			inlineDocument = null;
@@ -720,9 +786,8 @@
 
 			// Open the new profile
 			kbSelectedProfile = newProfile;
-			console.log('[KB] Opened new profile:', kbSelectedProfile?.name);
 		} catch (error) {
-			console.error('[KB] Failed to create profile:', error);
+			console.error('Failed to create profile:', error);
 		}
 	}
 
@@ -823,13 +888,13 @@
 	<div class="flex-1 flex min-h-0">
 		<!-- Notion-style Sidebar -->
 		<KBSidebar
-			pages={$contexts.contexts}
+			pages={activeContexts}
 			favorites={favoritePages}
 			{recentPages}
 			selectedPageId={inlineDocument?.id || kbSelectedProfile?.id || null}
 			expandedSections={kbExpandedSections}
-			expandedPages={kbExpandedPages}
-			favoriteIds={kbFavoriteIds}
+			expandedPages={kbExpandedPagesArray}
+			favoriteIds={kbFavoriteIdsArray}
 			searchQuery={searchQuery}
 			width={kbSidebarWidth}
 			isCollapsed={kbSidebarCollapsed}
@@ -838,6 +903,7 @@
 			onPageExpand={handleKBPageExpand}
 			onPageAddChild={handleKBPageAddChild}
 			onPageOpenPeek={handleKBPageOpenPeek}
+			onPageOpenCenterPeek={handleKBPageOpenCenterPeek}
 			onPageDuplicate={handleKBPageDuplicate}
 			onPageRename={handleKBPageRename}
 			onPageMove={handleKBPageMove}
@@ -871,7 +937,7 @@
 			{:else if showHome}
 				<!-- Home Dashboard View -->
 				<HomeView
-					pages={$contexts.contexts}
+					pages={activeContexts}
 					recentPages={recentPages}
 					onSelectPage={(page) => handleKBPageSelect(page)}
 					onCreatePage={() => handleKBAddPage()}
@@ -909,6 +975,7 @@
 				<div class="flex-1 overflow-hidden">
 					<InlineDocumentEditor
 						document={inlineDocument}
+						allPages={$contexts.contexts}
 						onSaved={(doc) => {
 							// Refresh the context list
 							contexts.loadContexts();
@@ -917,6 +984,13 @@
 							// Update the context list item name
 							if (inlineDocument) {
 								inlineDocument = { ...inlineDocument, name: title };
+							}
+						}}
+						onPageClick={(pageId) => {
+							// Navigate to the page within KB module (not via URL)
+							const page = $contexts.contexts.find(c => c.id === pageId);
+							if (page) {
+								handleKBPageSelect(page);
 							}
 						}}
 					/>
@@ -964,11 +1038,76 @@
 
 	<!-- Command Palette (Cmd+K) -->
 	<CommandPalette
-		pages={$contexts.contexts}
+		pages={activeContexts}
 		isOpen={showCommandPalette}
 		onClose={() => showCommandPalette = false}
 		onSelect={(page) => handleKBPageSelect(page)}
 	/>
+
+	<!-- Center Peek Modal -->
+	<Dialog.Root bind:open={showCenterPeek}>
+		<Dialog.Portal>
+			<Dialog.Overlay class="fixed inset-0 z-[100] bg-black/50" />
+			<Dialog.Content class="fixed left-1/2 top-1/2 z-[101] -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-[900px] h-[85vh] bg-white dark:bg-[#1c1c1e] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+				{#if centerPeekDocument}
+					<!-- Header -->
+					<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+						<div class="flex items-center gap-3">
+							{#if centerPeekDocument.icon}
+								<span class="text-2xl">{centerPeekDocument.icon}</span>
+							{:else}
+								<div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+									<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+									</svg>
+								</div>
+							{/if}
+							<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+								{centerPeekDocument.name || 'New page'}
+							</h2>
+						</div>
+						<div class="flex items-center gap-2">
+							<button
+								onclick={() => { goto(`/contexts/${centerPeekDocument?.id}${embedSuffix}`); closeCenterPeek(); }}
+								class="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
+							>
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+								</svg>
+								Open full page
+							</button>
+							<Dialog.Close
+								class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+								aria-label="Close"
+							>
+								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+								</svg>
+							</Dialog.Close>
+						</div>
+					</div>
+					<!-- Content using InlineDocumentEditor -->
+					<div class="flex-1 overflow-hidden">
+						<InlineDocumentEditor
+							document={centerPeekDocument}
+							allPages={$contexts.contexts}
+							onSaved={(doc) => {
+								centerPeekDocument = doc;
+								contexts.loadContexts();
+							}}
+							onPageClick={(pageId) => {
+								// Navigate to the clicked page in center peek
+								const page = $contexts.contexts.find(c => c.id === pageId);
+								if (page) {
+									centerPeekDocument = page;
+								}
+							}}
+						/>
+					</div>
+				{/if}
+			</Dialog.Content>
+		</Dialog.Portal>
+	</Dialog.Root>
 </div>
 
 {:else}
@@ -1924,9 +2063,9 @@
 					</svg>
 				</div>
 				<div>
-					<Dialog.Title class="text-lg font-semibold text-gray-900">Delete {itemToDelete?.type === 'document' ? 'Document' : 'Profile'}?</Dialog.Title>
+					<Dialog.Title class="text-lg font-semibold text-gray-900">Move to Trash?</Dialog.Title>
 					<Dialog.Description class="text-sm text-gray-500">
-						This cannot be undone.
+						This item will be moved to trash and can be restored later.
 					</Dialog.Description>
 				</div>
 			</div>
@@ -1935,7 +2074,7 @@
 				<div class="bg-gray-50 rounded-lg p-3 mb-4">
 					<div class="flex items-center gap-2">
 						<span class="text-lg">{itemToDelete.icon || (itemToDelete.type === 'document' ? '📄' : '👤')}</span>
-						<span class="font-medium text-gray-900">{itemToDelete.name}</span>
+						<span class="font-medium text-gray-900">{itemToDelete.name || 'New page'}</span>
 					</div>
 				</div>
 			{/if}
@@ -1953,7 +2092,7 @@
 					onclick={confirmDelete}
 					class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
 				>
-					Delete
+					Move to Trash
 				</button>
 			</div>
 		</Dialog.Content>

@@ -3,10 +3,12 @@
 	import { editor, wordCount, type EditorBlock, createEmptyBlock } from '$lib/stores/editor';
 	import BlockComponent from '$lib/components/editor/Block.svelte';
 	import BlockMenu from '$lib/components/editor/BlockMenu.svelte';
+	import PageMenu from '$lib/components/kb/PageMenu.svelte';
 	import { markdownToBlocks, blocksToMarkdown } from '$lib/utils/markdown-blocks';
 	import { contexts } from '$lib/stores/contexts';
 	import type { Context, ContextListItem } from '$lib/api/client';
 	import { embeddings } from '$lib/api/embeddings';
+	import { getBackgroundCSS } from '$lib/stores/desktopStore';
 
 	interface Props {
 		document: Context | ContextListItem | null;
@@ -14,9 +16,32 @@
 		parentId?: string;
 		onSaved?: (doc: Context) => void;
 		onTitleChange?: (title: string) => void;
+		onPageClick?: (pageId: string) => void;
+		allPages?: ContextListItem[];
 	}
 
-	let { document: contextDoc, isNew = false, parentId, onSaved, onTitleChange }: Props = $props();
+	let { document: contextDoc, isNew = false, parentId, onSaved, onTitleChange, onPageClick, allPages = [] }: Props = $props();
+
+	// Build breadcrumb chain from current page to root
+	const breadcrumbChain = $derived.by(() => {
+		if (!contextDoc || !allPages.length) return [];
+
+		const chain: ContextListItem[] = [];
+		let currentId = contextDoc.parent_id;
+
+		// Walk up the parent chain
+		while (currentId) {
+			const parent = allPages.find(p => p.id === currentId);
+			if (parent) {
+				chain.unshift(parent);
+				currentId = parent.parent_id;
+			} else {
+				break;
+			}
+		}
+
+		return chain;
+	});
 
 	// Default to empty string for new pages, shows "New page" placeholder
 	let title = $state(contextDoc?.name || '');
@@ -32,18 +57,77 @@
 	let showCoverPicker = $state(false);
 	let showIconPicker = $state(false);
 	let showCoverHoverControls = $state(false);
+	let showPageMenuButton = $state(false);
 
-	// Preset cover images
+	// Page settings (loaded from document properties)
+	let pageSettings = $derived({
+		fullWidth: fullDocument?.properties?.fullWidth ?? false,
+		smallText: fullDocument?.properties?.smallText ?? false,
+		locked: fullDocument?.properties?.locked ?? false
+	});
+
+	// Solid color covers
+	const solidColors = [
+		{ value: '#f3f4f6', label: 'Light Gray' },
+		{ value: '#e5e7eb', label: 'Gray' },
+		{ value: '#d1d5db', label: 'Dark Gray' },
+		{ value: '#fef3c7', label: 'Warm Yellow' },
+		{ value: '#fde68a', label: 'Yellow' },
+		{ value: '#fed7aa', label: 'Orange' },
+		{ value: '#fecaca', label: 'Light Red' },
+		{ value: '#fbcfe8', label: 'Pink' },
+		{ value: '#e9d5ff', label: 'Light Purple' },
+		{ value: '#ddd6fe', label: 'Purple' },
+		{ value: '#c7d2fe', label: 'Indigo' },
+		{ value: '#bfdbfe', label: 'Light Blue' },
+		{ value: '#a5f3fc', label: 'Cyan' },
+		{ value: '#99f6e4', label: 'Teal' },
+		{ value: '#bbf7d0', label: 'Light Green' },
+		{ value: '#a7f3d0', label: 'Green' },
+	];
+
+	// Gradient covers (CSS gradients)
+	const gradientCovers = [
+		{ value: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', label: 'Violet' },
+		{ value: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', label: 'Pink Red' },
+		{ value: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', label: 'Blue Cyan' },
+		{ value: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', label: 'Green Teal' },
+		{ value: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', label: 'Pink Yellow' },
+		{ value: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)', label: 'Purple Pink' },
+		{ value: 'linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%)', label: 'Coral' },
+		{ value: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)', label: 'Peach' },
+		{ value: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)', label: 'Mint Blue' },
+		{ value: 'linear-gradient(135deg, #cfd9df 0%, #e2ebf0 100%)', label: 'Silver' },
+		{ value: 'linear-gradient(135deg, #0c0c0c 0%, #3a3a3a 100%)', label: 'Dark' },
+		{ value: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)', label: 'Midnight' },
+	];
+
+	// Preset cover images (Unsplash)
 	const coverPresets = [
+		// Nature
 		{ url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&h=400&fit=crop', label: 'Mountain' },
 		{ url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&h=400&fit=crop', label: 'Beach' },
 		{ url: 'https://images.unsplash.com/photo-1476820865390-c52aeebb9891?w=1200&h=400&fit=crop', label: 'Forest' },
+		{ url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200&h=400&fit=crop', label: 'Fog Mountains' },
+		{ url: 'https://images.unsplash.com/photo-1500534623283-312aade485b7?w=1200&h=400&fit=crop', label: 'Aurora' },
+		{ url: 'https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?w=1200&h=400&fit=crop', label: 'Desert' },
+		// Abstract
 		{ url: 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1200&h=400&fit=crop', label: 'Gradient Purple' },
 		{ url: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=1200&h=400&fit=crop', label: 'Gradient Blue' },
 		{ url: 'https://images.unsplash.com/photo-1557682224-5b8590cd9ec5?w=1200&h=400&fit=crop', label: 'Gradient Pink' },
+		{ url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop', label: 'Waves' },
+		{ url: 'https://images.unsplash.com/photo-1550684376-efcbd6e3f031?w=1200&h=400&fit=crop', label: 'Abstract Dark' },
+		// Work
 		{ url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=400&fit=crop', label: 'Office' },
 		{ url: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=1200&h=400&fit=crop', label: 'Workspace' },
+		{ url: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=1200&h=400&fit=crop', label: 'Meeting' },
+		// City
+		{ url: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1200&h=400&fit=crop', label: 'City' },
+		{ url: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1200&h=400&fit=crop', label: 'Night City' },
 	];
+
+	// Currently selected cover tab
+	let coverTab = $state<'colors' | 'gradients' | 'images'>('colors');
 
 	// Preset SVG icons (paths for SVG icons)
 	const iconPresets = [
@@ -112,14 +196,19 @@
 		}
 	});
 
-	// Reload when document changes
+	// Track the current document ID to detect actual document changes
+	let currentDocId = $state<string | null>(null);
+
+	// Reload when document ID changes (not just any prop change)
 	$effect(() => {
-		if (contextDoc?.id) {
-			console.log('[InlineDocumentEditor] Document changed to:', contextDoc.id, contextDoc.name);
+		const newId = contextDoc?.id || null;
+		if (newId && newId !== currentDocId) {
+			console.log('[InlineDocumentEditor] Document changed from', currentDocId, 'to:', newId, contextDoc?.name);
+			currentDocId = newId;
 			// Reset state for new document
-			title = contextDoc.name || '';
-			icon = contextDoc.icon || null;
-			coverImage = contextDoc.cover_image || null;
+			title = contextDoc?.name || '';
+			icon = contextDoc?.icon || null;
+			coverImage = contextDoc?.cover_image || null;
 			hasUnsavedChanges = false;
 			// Clear editor and reload
 			editor.initialize([]);
@@ -267,10 +356,119 @@
 	function formatTime(date: Date) {
 		return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 	}
+
+	function getCoverStyle(cover: string | null): string {
+		if (!cover) return '';
+		if (cover.startsWith('preset:')) {
+			const bgId = cover.replace('preset:', '');
+			const cssObj = getBackgroundCSS(bgId);
+			let style = `background: ${cssObj.background};`;
+			if (cssObj.backgroundSize) {
+				style += ` background-size: ${cssObj.backgroundSize};`;
+			}
+			return style;
+		}
+		return `background-image: url(${cover}); background-size: cover; background-position: center;`;
+	}
+
+	// Save icon change to database
+	async function updateIcon(newIcon: string | null) {
+		icon = newIcon;
+		showIconPicker = false;
+		if (fullDocument) {
+			try {
+				await contexts.updateContext(fullDocument.id, { icon: newIcon });
+				fullDocument = { ...fullDocument, icon: newIcon };
+				// Refresh contexts list so sidebar updates immediately
+				await contexts.loadContexts();
+			} catch (error) {
+				console.error('Failed to update icon:', error);
+			}
+		}
+	}
+
+	// Save cover image change to database
+	async function updateCoverImage(newCover: string | null) {
+		coverImage = newCover;
+		showCoverPicker = false;
+		if (fullDocument) {
+			try {
+				await contexts.updateContext(fullDocument.id, { cover_image: newCover });
+				fullDocument = { ...fullDocument, cover_image: newCover };
+				// Refresh contexts list so sidebar updates immediately
+				await contexts.loadContexts();
+			} catch (error) {
+				console.error('Failed to update cover image:', error);
+			}
+		}
+	}
 </script>
 
 <!-- Full-width Inline Editor -->
-<div class="inline-document-editor h-full flex flex-col bg-white dark:bg-[#1c1c1e]">
+<div
+	class="inline-document-editor h-full flex flex-col bg-white dark:bg-[#1c1c1e] relative"
+	onmouseenter={() => showPageMenuButton = true}
+	onmouseleave={() => showPageMenuButton = false}
+>
+	<!-- Breadcrumb Navigation Bar (like Notion) -->
+	{#if breadcrumbChain.length > 0}
+		<div class="flex-shrink-0 px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-1 text-sm">
+			{#each breadcrumbChain as crumb, idx}
+				<button
+					onclick={() => onPageClick?.(crumb.id)}
+					class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors max-w-[180px] group"
+					title={crumb.name}
+				>
+					{#if crumb.icon && getIconPath(crumb.icon)}
+						<svg class="w-4 h-4 flex-shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={getIconPath(crumb.icon)} />
+						</svg>
+					{:else}
+						<svg class="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+						</svg>
+					{/if}
+					<span class="truncate">{crumb.name || 'New page'}</span>
+				</button>
+				<svg class="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+				</svg>
+			{/each}
+			<!-- Current page (non-clickable) -->
+			<span class="flex items-center gap-1.5 px-2 py-1 text-gray-900 dark:text-white font-medium max-w-[180px]">
+				{#if contextDoc?.icon && getIconPath(contextDoc.icon)}
+					<svg class="w-4 h-4 flex-shrink-0 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={getIconPath(contextDoc.icon)} />
+					</svg>
+				{:else}
+					<svg class="w-4 h-4 flex-shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+					</svg>
+				{/if}
+				<span class="truncate">{title || 'New page'}</span>
+			</span>
+		</div>
+	{/if}
+
+	<!-- Floating Page Header with Menu -->
+	<div class="absolute top-3 right-4 z-40 flex items-center gap-2 transition-opacity {showPageMenuButton ? 'opacity-100' : 'opacity-0'}" style="top: {breadcrumbChain.length > 0 ? '48px' : '12px'};">
+		<!-- Page settings menu (three dots) -->
+		<PageMenu
+			document={fullDocument}
+			onSettingsChange={(newSettings) => {
+				if (fullDocument) {
+					fullDocument = {
+						...fullDocument,
+						properties: { ...fullDocument.properties, ...newSettings }
+					};
+				}
+			}}
+			on:delete={() => {
+				// Navigate back or to parent
+				window.history.back();
+			}}
+		/>
+	</div>
 	<!-- Cover Image (if set) -->
 	{#if coverImage}
 		<div
@@ -278,7 +476,17 @@
 			onmouseenter={() => showCoverHoverControls = true}
 			onmouseleave={() => showCoverHoverControls = false}
 		>
-			<img src={coverImage} alt="Cover" class="w-full h-full object-cover" />
+			{#if coverImage.startsWith('preset:')}
+				<div class="w-full h-full" style={getCoverStyle(coverImage)}></div>
+			{:else if coverImage.startsWith('#')}
+				<!-- Solid color cover -->
+				<div class="w-full h-full" style="background-color: {coverImage};"></div>
+			{:else if coverImage.startsWith('linear-gradient')}
+				<!-- Gradient cover -->
+				<div class="w-full h-full" style="background: {coverImage};"></div>
+			{:else}
+				<img src={coverImage} alt="Cover" class="w-full h-full object-cover" />
+			{/if}
 			<!-- Cover hover controls -->
 			<div class="absolute inset-0 flex items-end justify-end p-4 gap-2 transition-opacity {showCoverHoverControls ? 'opacity-100' : 'opacity-0'}">
 				<button
@@ -288,65 +496,111 @@
 					Change cover
 				</button>
 				<button
-					onclick={() => coverImage = null}
+					onclick={() => updateCoverImage(null)}
 					class="px-3 py-1.5 text-sm bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-white dark:hover:bg-gray-800 transition-colors shadow-sm"
 				>
 					Remove
 				</button>
 			</div>
-			<!-- Cover picker dropdown -->
+			<!-- Cover picker dropdown with tabs -->
 			{#if showCoverPicker}
-				<div class="absolute bottom-full right-4 mb-2 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 z-50">
-					<!-- Upload option -->
-					<div class="mb-4">
-						<label class="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer group">
-							<svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-							</svg>
-							<span class="text-sm text-gray-500 dark:text-gray-400 group-hover:text-blue-500">Upload image</span>
-							<input type="file" accept="image/*" class="hidden" onchange={(e) => {
-								const file = (e.target as HTMLInputElement).files?.[0];
-								if (file) {
-									const reader = new FileReader();
-									reader.onload = (ev) => {
-										coverImage = ev.target?.result as string;
-										showCoverPicker = false;
-									};
-									reader.readAsDataURL(file);
-								}
-							}} />
-						</label>
-					</div>
-					<p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Gallery</p>
-					<div class="grid grid-cols-4 gap-2">
-						{#each coverPresets as preset}
-							<button
-								onclick={() => { coverImage = preset.url; showCoverPicker = false; }}
-								class="aspect-video rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
-								title={preset.label}
-							>
-								<img src={preset.url} alt={preset.label} class="w-full h-full object-cover" />
-							</button>
-						{/each}
-					</div>
-					<!-- Link option -->
-					<div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+				<div class="absolute bottom-full right-4 mb-2 w-[420px] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 z-50">
+					<!-- Tabs -->
+					<div class="flex gap-1 mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
 						<button
-							onclick={() => {
-								const url = prompt('Enter image URL:');
-								if (url) {
-									coverImage = url;
-									showCoverPicker = false;
-								}
-							}}
-							class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
+							onclick={() => coverTab = 'colors'}
+							class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {coverTab === 'colors' ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
 						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-							</svg>
-							<span>Add from URL</span>
+							Colors
+						</button>
+						<button
+							onclick={() => coverTab = 'gradients'}
+							class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {coverTab === 'gradients' ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
+						>
+							Gradients
+						</button>
+						<button
+							onclick={() => coverTab = 'images'}
+							class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {coverTab === 'images' ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
+						>
+							Images
 						</button>
 					</div>
+
+					{#if coverTab === 'colors'}
+						<!-- Solid Colors -->
+						<div class="grid grid-cols-8 gap-2">
+							{#each solidColors as color}
+								<button
+									onclick={() => updateCoverImage(color.value)}
+									class="w-10 h-10 rounded-lg hover:ring-2 hover:ring-blue-500 hover:ring-offset-2 dark:hover:ring-offset-gray-800 transition-all"
+									style="background-color: {color.value};"
+									title={color.label}
+								></button>
+							{/each}
+						</div>
+					{:else if coverTab === 'gradients'}
+						<!-- Gradient Covers -->
+						<div class="grid grid-cols-4 gap-2">
+							{#each gradientCovers as gradient}
+								<button
+									onclick={() => updateCoverImage(gradient.value)}
+									class="aspect-video rounded-lg hover:ring-2 hover:ring-blue-500 transition-all"
+									style="background: {gradient.value};"
+									title={gradient.label}
+								></button>
+							{/each}
+						</div>
+					{:else}
+						<!-- Upload option -->
+						<div class="mb-4">
+							<label class="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer group">
+								<svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+								</svg>
+								<span class="text-sm text-gray-500 dark:text-gray-400 group-hover:text-blue-500">Upload image</span>
+								<input type="file" accept="image/*" class="hidden" onchange={(e) => {
+									const file = (e.target as HTMLInputElement).files?.[0];
+									if (file) {
+										const reader = new FileReader();
+										reader.onload = (ev) => {
+											updateCoverImage(ev.target?.result as string);
+										};
+										reader.readAsDataURL(file);
+									}
+								}} />
+							</label>
+						</div>
+						<p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Gallery</p>
+						<div class="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+							{#each coverPresets as preset}
+								<button
+									onclick={() => updateCoverImage(preset.url)}
+									class="aspect-video rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
+									title={preset.label}
+								>
+									<img src={preset.url} alt={preset.label} class="w-full h-full object-cover" />
+								</button>
+							{/each}
+						</div>
+						<!-- Link option -->
+						<div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+							<button
+								onclick={() => {
+									const url = prompt('Enter image URL:');
+									if (url) {
+										updateCoverImage(url);
+									}
+								}}
+								class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
+							>
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+								</svg>
+								<span>Add from URL</span>
+							</button>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -354,7 +608,7 @@
 
 	<!-- Editor Content -->
 	<div class="flex-1 overflow-y-auto">
-		<div class="max-w-3xl mx-auto px-8 {coverImage ? 'pt-8' : 'pt-24'} pb-12">
+		<div class="{pageSettings.fullWidth ? 'max-w-5xl' : 'max-w-3xl'} mx-auto px-8 {coverImage ? 'pt-8' : 'pt-24'} pb-12 {pageSettings.smallText ? 'small-text-mode' : ''}">
 			<!-- Hover controls for icon/cover -->
 			<div
 				class="relative mb-4"
@@ -377,7 +631,7 @@
 								<span class="text-xs">Change icon</span>
 							</button>
 							<button
-								onclick={() => icon = null}
+								onclick={() => updateIcon(null)}
 								class="ml-1 px-2 py-1 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
 							>
 								Remove
@@ -401,7 +655,7 @@
 									<div class="grid grid-cols-6 gap-1">
 										{#each iconPresets as iconPreset}
 											<button
-												onclick={() => { icon = iconPreset.id; showIconPicker = false; }}
+												onclick={() => updateIcon(iconPreset.id)}
 												class="w-10 h-10 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors group"
 												title={iconPreset.label}
 											>
@@ -427,59 +681,105 @@
 								</svg>
 								<span>Add cover</span>
 							</button>
-							<!-- Cover picker dropdown (when no cover yet) -->
+							<!-- Cover picker dropdown with tabs (when no cover yet) -->
 							{#if showCoverPicker}
-								<div class="absolute top-full left-0 mt-1 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 z-50">
-									<!-- Upload option -->
-									<div class="mb-4">
-										<label class="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer group">
-											<svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-											</svg>
-											<span class="text-sm text-gray-500 dark:text-gray-400 group-hover:text-blue-500">Upload image</span>
-											<input type="file" accept="image/*" class="hidden" onchange={(e) => {
-												const file = (e.target as HTMLInputElement).files?.[0];
-												if (file) {
-													const reader = new FileReader();
-													reader.onload = (ev) => {
-														coverImage = ev.target?.result as string;
-														showCoverPicker = false;
-													};
-													reader.readAsDataURL(file);
-												}
-											}} />
-										</label>
-									</div>
-									<p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Gallery</p>
-									<div class="grid grid-cols-4 gap-2">
-										{#each coverPresets as preset}
-											<button
-												onclick={() => { coverImage = preset.url; showCoverPicker = false; }}
-												class="aspect-video rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
-												title={preset.label}
-											>
-												<img src={preset.url} alt={preset.label} class="w-full h-full object-cover" />
-											</button>
-										{/each}
-									</div>
-									<!-- Link option -->
-									<div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+								<div class="absolute top-full left-0 mt-1 w-[420px] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 z-50">
+									<!-- Tabs -->
+									<div class="flex gap-1 mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
 										<button
-											onclick={() => {
-												const url = prompt('Enter image URL:');
-												if (url) {
-													coverImage = url;
-													showCoverPicker = false;
-												}
-											}}
-											class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
+											onclick={() => coverTab = 'colors'}
+											class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {coverTab === 'colors' ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
 										>
-											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-											</svg>
-											<span>Add from URL</span>
+											Colors
+										</button>
+										<button
+											onclick={() => coverTab = 'gradients'}
+											class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {coverTab === 'gradients' ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
+										>
+											Gradients
+										</button>
+										<button
+											onclick={() => coverTab = 'images'}
+											class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {coverTab === 'images' ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
+										>
+											Images
 										</button>
 									</div>
+
+									{#if coverTab === 'colors'}
+										<!-- Solid Colors -->
+										<div class="grid grid-cols-8 gap-2">
+											{#each solidColors as color}
+												<button
+													onclick={() => updateCoverImage(color.value)}
+													class="w-10 h-10 rounded-lg hover:ring-2 hover:ring-blue-500 hover:ring-offset-2 dark:hover:ring-offset-gray-800 transition-all"
+													style="background-color: {color.value};"
+													title={color.label}
+												></button>
+											{/each}
+										</div>
+									{:else if coverTab === 'gradients'}
+										<!-- Gradient Covers -->
+										<div class="grid grid-cols-4 gap-2">
+											{#each gradientCovers as gradient}
+												<button
+													onclick={() => updateCoverImage(gradient.value)}
+													class="aspect-video rounded-lg hover:ring-2 hover:ring-blue-500 transition-all"
+													style="background: {gradient.value};"
+													title={gradient.label}
+												></button>
+											{/each}
+										</div>
+									{:else}
+										<!-- Upload option -->
+										<div class="mb-4">
+											<label class="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer group">
+												<svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+												</svg>
+												<span class="text-sm text-gray-500 dark:text-gray-400 group-hover:text-blue-500">Upload image</span>
+												<input type="file" accept="image/*" class="hidden" onchange={(e) => {
+													const file = (e.target as HTMLInputElement).files?.[0];
+													if (file) {
+														const reader = new FileReader();
+														reader.onload = (ev) => {
+															updateCoverImage(ev.target?.result as string);
+														};
+														reader.readAsDataURL(file);
+													}
+												}} />
+											</label>
+										</div>
+										<p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Gallery</p>
+										<div class="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+											{#each coverPresets as preset}
+												<button
+													onclick={() => updateCoverImage(preset.url)}
+													class="aspect-video rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
+													title={preset.label}
+												>
+													<img src={preset.url} alt={preset.label} class="w-full h-full object-cover" />
+												</button>
+											{/each}
+										</div>
+										<!-- Link option -->
+										<div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+											<button
+												onclick={() => {
+													const url = prompt('Enter image URL:');
+													if (url) {
+														updateCoverImage(url);
+													}
+												}}
+												class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
+											>
+												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+												</svg>
+												<span>Add from URL</span>
+											</button>
+										</div>
+									{/if}
 								</div>
 							{/if}
 						</div>
@@ -514,7 +814,7 @@
 								{/each}
 							</div>
 							<button
-								onclick={() => { icon = null; showIconPicker = false; }}
+								onclick={() => updateIcon(null)}
 								class="w-full mt-2 px-3 py-1.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
 							>
 								Remove icon
@@ -531,26 +831,41 @@
 				value={title}
 				oninput={handleTitleChange}
 				onkeydown={handleTitleKeydown}
-				class="w-full text-4xl font-bold text-gray-900 dark:text-gray-100 bg-transparent border-0 focus:ring-0 focus:outline-none p-0 mb-8 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+				readonly={pageSettings.locked}
+				class="w-full text-4xl font-bold text-gray-900 dark:text-gray-100 bg-transparent border-0 focus:ring-0 focus:outline-none p-0 mb-8 placeholder:text-gray-400 dark:placeholder:text-gray-500 {pageSettings.locked ? 'cursor-default' : ''}"
 				placeholder="New page"
 			/>
 
+			<!-- Locked page indicator -->
+			{#if pageSettings.locked}
+				<div class="mb-4 flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-lg">
+					<svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+					</svg>
+					<span class="text-sm text-amber-700 dark:text-amber-300">This page is locked and cannot be edited</span>
+				</div>
+			{/if}
+
 			<!-- Blocks -->
-			<div class="blocks-container" role="textbox" tabindex="-1">
+			<div class="blocks-container {pageSettings.locked ? 'locked-indicator pointer-events-none' : ''}" role="textbox" tabindex="-1">
 				{#each $editor.blocks as block, index (block.id)}
-					<BlockComponent {block} {index} readonly={false} />
+					<BlockComponent {block} {index} readonly={pageSettings.locked} parentContextId={fullDocument?.id} {onPageClick} />
 				{/each}
 			</div>
 
-			<!-- Click area to add new blocks -->
-			<button
-				onclick={addNewBlockAtEnd}
-				class="w-full min-h-32 mt-4 text-left cursor-text group"
-			>
-				<span class="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity text-sm">
-					Click to add a block, or press / for commands
-				</span>
-			</button>
+			<!-- Click area to add new blocks (hidden when locked) -->
+			{#if !pageSettings.locked}
+				<button
+					onclick={addNewBlockAtEnd}
+					class="w-full min-h-32 mt-4 text-left cursor-text group"
+				>
+					<span class="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity text-sm">
+						Click to add a block, or press / for commands
+					</span>
+				</button>
+			{:else}
+				<div class="h-32"></div>
+			{/if}
 		</div>
 	</div>
 
@@ -671,5 +986,47 @@
 
 	:global(.dark) .blocks-container :global(.block-wrapper hr) {
 		border-color: #374151;
+	}
+
+	/* Small text mode */
+	.small-text-mode :global(.block-wrapper) {
+		font-size: 14px;
+	}
+
+	.small-text-mode :global(.block-wrapper h1) {
+		font-size: 1.75rem;
+	}
+
+	.small-text-mode :global(.block-wrapper h2) {
+		font-size: 1.375rem;
+	}
+
+	.small-text-mode :global(.block-wrapper h3) {
+		font-size: 1.125rem;
+	}
+
+	.small-text-mode input[type="text"] {
+		font-size: 2.25rem;
+	}
+
+	/* Locked page overlay indicator */
+	.locked-indicator {
+		background: repeating-linear-gradient(
+			45deg,
+			transparent,
+			transparent 10px,
+			rgba(0, 0, 0, 0.02) 10px,
+			rgba(0, 0, 0, 0.02) 20px
+		);
+	}
+
+	:global(.dark) .locked-indicator {
+		background: repeating-linear-gradient(
+			45deg,
+			transparent,
+			transparent 10px,
+			rgba(255, 255, 255, 0.01) 10px,
+			rgba(255, 255, 255, 0.01) 20px
+		);
 	}
 </style>

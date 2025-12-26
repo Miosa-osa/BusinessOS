@@ -45,7 +45,7 @@
 		document.removeEventListener('mouseup', stopResize);
 	}
 
-	let title = $state(contextDoc?.name || 'Untitled');
+	let title = $state(contextDoc?.name || '');
 	let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 	let isSaving = $state(false);
 	let lastSaved = $state<Date | null>(null);
@@ -195,27 +195,20 @@
 	}
 </script>
 
-<!-- Backdrop -->
-<button
-	class="fixed inset-0 bg-black/10 dark:bg-black/30 z-40"
-	onclick={handleClose}
-	aria-label="Close document peek"
-	type="button"
-	transition:fly={{ duration: 200 }}
-></button>
-
-<!-- Side Peek Panel -->
+<!-- Side Peek Panel (no backdrop - true split view like Notion) -->
 <div
-	class="document-peek fixed top-0 right-0 h-full bg-white dark:bg-[#1c1c1e] shadow-2xl z-50 flex flex-col border-l border-gray-200 dark:border-gray-700"
+	class="document-peek relative h-full bg-white dark:bg-[#1c1c1e] flex flex-col border-l border-gray-200 dark:border-gray-700 flex-shrink-0"
 	style="width: {width}px;"
-	transition:fly={{ x: width, duration: 300 }}
 >
-	<!-- Resize Handle -->
-	<button
-		class="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500/50 active:bg-blue-500 z-50 transition-colors"
+	<!-- Resize Handle (on left edge for dragging) -->
+	<div
+		class="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-blue-500/50 active:bg-blue-500 z-10 transition-colors group"
 		onmousedown={startResize}
+		role="separator"
 		aria-label="Resize panel"
-	></button>
+	>
+		<div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-gray-300 dark:bg-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+	</div>
 	<!-- Header -->
 	<div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700/50 flex items-center gap-3">
 		<button
@@ -235,7 +228,7 @@
 			oninput={handleTitleChange}
 			onkeydown={handleTitleKeydown}
 			class="flex-1 text-lg font-semibold text-gray-900 dark:text-gray-100 bg-transparent border-0 focus:ring-0 focus:outline-none p-0 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-			placeholder="Untitled"
+			placeholder="New page"
 		/>
 
 		<div class="flex items-center gap-2">

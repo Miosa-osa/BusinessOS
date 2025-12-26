@@ -116,6 +116,17 @@ function createKBPreferencesStore() {
 			});
 		},
 
+		// Expand a page (without toggling - only adds)
+		expandPage(pageId: string) {
+			update((p) => {
+				const pages = new Set(p.expandedPages);
+				if (!pages.has(pageId)) {
+					pages.add(pageId);
+				}
+				return { ...p, expandedPages: Array.from(pages) };
+			});
+		},
+
 		// Favorites
 		addToFavorites(pageId: string) {
 			update((p) => {

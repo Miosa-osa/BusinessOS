@@ -35,8 +35,8 @@ func (q *Queries) AddProjectNote(ctx context.Context, arg AddProjectNoteParams) 
 }
 
 const createProject = `-- name: CreateProject :one
-INSERT INTO projects (user_id, name, description, status, priority, client_name, project_type, project_metadata)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO projects (id, user_id, name, description, status, priority, client_name, project_type, project_metadata, created_at, updated_at)
+VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
 RETURNING id, user_id, name, description, status, priority, client_name, project_type, project_metadata, created_at, updated_at
 `
 

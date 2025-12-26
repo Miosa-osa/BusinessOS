@@ -394,7 +394,7 @@
 				x,
 				y,
 				visible,
-				name: context.name || 'Untitled',
+				name: context.name || 'New page',
 				type: context.type || 'document'
 			});
 		});
@@ -490,7 +490,7 @@
 					<span class="text-xs font-medium text-gray-300 capitalize">{getTypeLabel(tooltipContext.type)}</span>
 				</div>
 				<div class="text-sm font-semibold text-white truncate">
-					{tooltipContext.name || 'Untitled'}
+					{tooltipContext.name || 'New page'}
 				</div>
 				{#if tooltipContext.word_count > 0}
 					<div class="text-xs text-gray-400 mt-1">
