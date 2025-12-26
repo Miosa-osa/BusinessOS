@@ -23,7 +23,7 @@ func (h *Handlers) GetDashboardSummary(c *gin.Context) {
 	queries := sqlc.New(h.pool)
 
 	// Get data for various entities
-	projects, _ := queries.ListProjects(c.Request.Context(), sqlc.ListProjectsParams{UserID: user.ID})
+	projectRows, _ := queries.ListProjects(c.Request.Context(), sqlc.ListProjectsParams{UserID: user.ID})
 	clients, _ := queries.ListClients(c.Request.Context(), sqlc.ListClientsParams{UserID: user.ID})
 	contexts, _ := queries.ListContexts(c.Request.Context(), sqlc.ListContextsParams{UserID: user.ID})
 	artifacts, _ := queries.ListArtifacts(c.Request.Context(), sqlc.ListArtifactsParams{UserID: user.ID})
@@ -37,8 +37,8 @@ func (h *Handlers) GetDashboardSummary(c *gin.Context) {
 	})
 
 	// Ensure arrays are not nil (return empty arrays instead)
-	if projects == nil {
-		projects = []sqlc.Project{}
+	if projectRows == nil {
+		projectRows = []sqlc.ListProjectsRow{}
 	}
 	if clients == nil {
 		clients = []sqlc.Client{}
@@ -57,7 +57,7 @@ func (h *Handlers) GetDashboardSummary(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"projects":       TransformProjects(projects),
+		"projects":       TransformProjectRows(projectRows),
 		"clients":        TransformClients(clients),
 		"contexts":       TransformContexts(contexts),
 		"artifacts":      TransformArtifacts(artifacts),
@@ -65,7 +65,7 @@ func (h *Handlers) GetDashboardSummary(c *gin.Context) {
 		"focus_items":    TransformFocusItems(focusItems),
 		"activities":     []interface{}{}, // Placeholder for activities
 		"energy_level":   3,               // Default energy level (1-5 scale)
-		"project_count":  len(projects),
+		"project_count":  len(projectRows),
 		"client_count":   len(clients),
 		"context_count":  len(contexts),
 		"artifact_count": len(artifacts),

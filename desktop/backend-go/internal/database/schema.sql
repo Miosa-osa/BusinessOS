@@ -89,13 +89,24 @@ CREATE TABLE projects (
     status projectstatus DEFAULT 'ACTIVE',
     priority projectpriority DEFAULT 'MEDIUM',
     client_name VARCHAR(255),
+    client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
     project_type VARCHAR(100) DEFAULT 'internal',
     project_metadata JSONB,
+    -- Date tracking
+    start_date DATE,
+    due_date DATE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    -- Visibility/sharing
+    visibility VARCHAR(20) DEFAULT 'private',
+    owner_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_projects_user_id ON projects(user_id);
+CREATE INDEX idx_projects_client ON projects(client_id);
+CREATE INDEX idx_projects_status ON projects(status);
+CREATE INDEX idx_projects_due_date ON projects(due_date);
 
 -- Project notes
 CREATE TABLE project_notes (
@@ -374,6 +385,57 @@ CREATE TABLE google_oauth_tokens (
 
 CREATE INDEX idx_google_oauth_user_id ON google_oauth_tokens(user_id);
 
+-- Slack OAuth tokens for workspace integration
+CREATE TABLE slack_oauth_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) UNIQUE NOT NULL,
+    -- Workspace info
+    workspace_id VARCHAR(255) NOT NULL,
+    workspace_name VARCHAR(255),
+    -- Tokens - Slack provides both bot and user tokens
+    bot_token TEXT NOT NULL,
+    user_token TEXT,
+    -- Token metadata
+    bot_user_id VARCHAR(255),
+    authed_user_id VARCHAR(255),
+    -- Scopes granted
+    bot_scopes TEXT[],
+    user_scopes TEXT[],
+    -- Webhook URL (if configured)
+    incoming_webhook_url TEXT,
+    incoming_webhook_channel VARCHAR(255),
+    -- Metadata
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_slack_oauth_user_id ON slack_oauth_tokens(user_id);
+CREATE INDEX idx_slack_oauth_workspace ON slack_oauth_tokens(workspace_id);
+
+-- Notion OAuth tokens for workspace integration
+CREATE TABLE notion_oauth_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) UNIQUE NOT NULL,
+    -- Workspace info
+    workspace_id VARCHAR(255) NOT NULL,
+    workspace_name VARCHAR(255),
+    workspace_icon TEXT,
+    -- Token - Notion provides a single access token (no refresh needed)
+    access_token TEXT NOT NULL,
+    bot_id VARCHAR(255),
+    -- Owner info
+    owner_type VARCHAR(50), -- 'user' or 'workspace'
+    owner_user_id VARCHAR(255),
+    owner_user_name VARCHAR(255),
+    owner_user_email VARCHAR(255),
+    -- Metadata
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_notion_oauth_user_id ON notion_oauth_tokens(user_id);
+CREATE INDEX idx_notion_oauth_workspace ON notion_oauth_tokens(workspace_id);
+
 -- Meeting types enum
 CREATE TYPE meetingtype AS ENUM (
     'team', 'sales', 'onboarding', 'kickoff', 'implementation',
@@ -619,3 +681,78 @@ CREATE INDEX idx_voice_notes_user_id ON voice_notes(user_id);
 CREATE INDEX idx_voice_notes_date ON voice_notes(created_at);
 CREATE INDEX idx_voice_notes_context ON voice_notes(context_id);
 CREATE INDEX idx_voice_notes_project ON voice_notes(project_id);
+
+-- ===== PROJECT MANAGEMENT ENHANCEMENTS =====
+
+-- Project role type for team assignment
+CREATE TYPE projectrole AS ENUM ('owner', 'admin', 'member', 'viewer');
+
+-- Project members (team assignment)
+CREATE TABLE project_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL,
+    team_member_id UUID REFERENCES team_members(id) ON DELETE CASCADE,
+    role projectrole DEFAULT 'member',
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    assigned_by VARCHAR(255),
+    UNIQUE(project_id, user_id),
+    UNIQUE(project_id, team_member_id)
+);
+
+CREATE INDEX idx_project_members_project ON project_members(project_id);
+CREATE INDEX idx_project_members_user ON project_members(user_id);
+CREATE INDEX idx_project_members_team_member ON project_members(team_member_id);
+
+-- Project tags (user-defined labels)
+CREATE TABLE project_tags (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(50) NOT NULL,
+    color VARCHAR(7) DEFAULT '#6366f1',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, name)
+);
+
+CREATE INDEX idx_project_tags_user ON project_tags(user_id);
+
+-- Project tag assignments (many-to-many)
+CREATE TABLE project_tag_assignments (
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    tag_id UUID NOT NULL REFERENCES project_tags(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (project_id, tag_id)
+);
+
+CREATE INDEX idx_tag_assignments_project ON project_tag_assignments(project_id);
+CREATE INDEX idx_tag_assignments_tag ON project_tag_assignments(tag_id);
+
+-- Project documents (linking projects to contexts/documents)
+CREATE TABLE project_documents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    document_id UUID NOT NULL REFERENCES contexts(id) ON DELETE CASCADE,
+    linked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    linked_by VARCHAR(255),
+    UNIQUE(project_id, document_id)
+);
+
+CREATE INDEX idx_project_docs_project ON project_documents(project_id);
+CREATE INDEX idx_project_docs_document ON project_documents(document_id);
+
+-- Project templates
+CREATE TABLE project_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    default_status projectstatus DEFAULT 'ACTIVE',
+    default_priority projectpriority DEFAULT 'MEDIUM',
+    template_data JSONB DEFAULT '{}',
+    is_public BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_templates_user ON project_templates(user_id);
+CREATE INDEX idx_templates_public ON project_templates(is_public) WHERE is_public = TRUE;

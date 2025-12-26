@@ -11,31 +11,33 @@ import (
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 )
 
-// MCPTool represents a tool available via MCP
 type MCPTool struct {
 	Name        string                 `json:"name"`
 	Description string                 `json:"description"`
 	Parameters  map[string]interface{} `json:"parameters"`
-	Source      string                 `json:"source"` // "builtin" or "custom"
+	Source      string                 `json:"source"`
 }
 
-// MCPService handles Model Context Protocol operations
 type MCPService struct {
-	pool   *pgxpool.Pool
-	userID string
+	pool            *pgxpool.Pool
+	userID          string
+	calendarService *GoogleCalendarService
+	slackService    *SlackService
+	notionService   *NotionService
 }
 
-// NewMCPService creates a new MCP service
-func NewMCPService(pool *pgxpool.Pool, userID string) *MCPService {
+func NewMCPService(pool *pgxpool.Pool, userID string, calendarService *GoogleCalendarService, slackService *SlackService, notionService *NotionService) *MCPService {
 	return &MCPService{
-		pool:   pool,
-		userID: userID,
+		pool:            pool,
+		userID:          userID,
+		calendarService: calendarService,
+		slackService:    slackService,
+		notionService:   notionService,
 	}
 }
 
-// GetBuiltinTools returns the list of built-in MCP tools
 func (m *MCPService) GetBuiltinTools() []MCPTool {
-	return []MCPTool{
+	tools := []MCPTool{
 		{
 			Name:        "search_conversations",
 			Description: "Search through past conversations",
@@ -148,17 +150,32 @@ func (m *MCPService) GetBuiltinTools() []MCPTool {
 			Source: "builtin",
 		},
 	}
-}
 
-// GetAllTools returns all available tools (builtin + custom)
-func (m *MCPService) GetAllTools() []MCPTool {
-	tools := m.GetBuiltinTools()
-	// TODO: Add custom tools from database/config
+	tools = append(tools, GetCalendarTools()...)
+	tools = append(tools, GetSlackTools()...)
+	tools = append(tools, GetNotionTools()...)
+
 	return tools
 }
 
-// ExecuteTool executes a tool and returns the result
+func (m *MCPService) GetAllTools() []MCPTool {
+	tools := m.GetBuiltinTools()
+	return tools
+}
+
 func (m *MCPService) ExecuteTool(ctx context.Context, toolName string, arguments map[string]interface{}) (interface{}, error) {
+	if IsCalendarTool(toolName) {
+		return m.ExecuteCalendarTool(ctx, toolName, arguments)
+	}
+
+	if IsSlackTool(toolName) {
+		return m.ExecuteSlackTool(ctx, toolName, arguments)
+	}
+
+	if IsNotionTool(toolName) {
+		return m.ExecuteNotionTool(ctx, m.userID, toolName, arguments)
+	}
+
 	queries := sqlc.New(m.pool)
 
 	switch toolName {
@@ -181,7 +198,6 @@ func (m *MCPService) ExecuteTool(ctx context.Context, toolName string, arguments
 		if projectName == "" {
 			return nil, fmt.Errorf("project_name is required")
 		}
-		// Search for project by name
 		projects, err := queries.ListProjects(ctx, sqlc.ListProjectsParams{
 			UserID: m.userID,
 		})
@@ -252,10 +268,8 @@ func (m *MCPService) ExecuteTool(ctx context.Context, toolName string, arguments
 			return nil, fmt.Errorf("content is required")
 		}
 
-		// Get or create today's log
 		log, err := queries.GetTodayLog(ctx, m.userID)
 		if err != nil {
-			// Create new log for today
 			log, err = queries.CreateDailyLog(ctx, sqlc.CreateDailyLogParams{
 				UserID:  m.userID,
 				Content: content,
@@ -264,7 +278,6 @@ func (m *MCPService) ExecuteTool(ctx context.Context, toolName string, arguments
 				return nil, err
 			}
 		} else {
-			// Append to existing log
 			newContent := log.Content + "\n\n" + content
 			log, err = queries.UpdateDailyLog(ctx, sqlc.UpdateDailyLogParams{
 				ID:      log.ID,
@@ -282,7 +295,6 @@ func (m *MCPService) ExecuteTool(ctx context.Context, toolName string, arguments
 			return nil, fmt.Errorf("name is required")
 		}
 
-		// Search for context by name
 		contexts, err := queries.ListContexts(ctx, sqlc.ListContextsParams{
 			UserID: m.userID,
 			Search: &name,
@@ -358,14 +370,12 @@ func (m *MCPService) ExecuteTool(ctx context.Context, toolName string, arguments
 	}
 }
 
-// ToolResponse represents the response from a tool execution
 type ToolResponse struct {
 	Success bool        `json:"success"`
 	Result  interface{} `json:"result,omitempty"`
 	Error   string      `json:"error,omitempty"`
 }
 
-// ExecuteToolJSON executes a tool and returns JSON response
 func (m *MCPService) ExecuteToolJSON(ctx context.Context, toolName string, argumentsJSON string) ([]byte, error) {
 	var arguments map[string]interface{}
 	if err := json.Unmarshal([]byte(argumentsJSON), &arguments); err != nil {
@@ -380,7 +390,6 @@ func (m *MCPService) ExecuteToolJSON(ctx context.Context, toolName string, argum
 	return json.Marshal(ToolResponse{Success: true, Result: result})
 }
 
-// Helper to convert pgtype.UUID to uuid.UUID
 func pgtypeToUUID(p pgtype.UUID) uuid.UUID {
 	if !p.Valid {
 		return uuid.Nil

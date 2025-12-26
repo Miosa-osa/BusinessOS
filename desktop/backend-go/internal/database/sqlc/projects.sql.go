@@ -35,9 +35,9 @@ func (q *Queries) AddProjectNote(ctx context.Context, arg AddProjectNoteParams) 
 }
 
 const createProject = `-- name: CreateProject :one
-INSERT INTO projects (user_id, name, description, status, priority, client_name, project_type, project_metadata)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, user_id, name, description, status, priority, client_name, project_type, project_metadata, created_at, updated_at
+INSERT INTO projects (user_id, name, description, status, priority, client_name, client_id, project_type, project_metadata, start_date, due_date, visibility, owner_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+RETURNING id, user_id, name, description, status, priority, client_name, client_id, project_type, project_metadata, start_date, due_date, completed_at, visibility, owner_id, created_at, updated_at
 `
 
 type CreateProjectParams struct {
@@ -47,8 +47,13 @@ type CreateProjectParams struct {
 	Status          NullProjectstatus   `json:"status"`
 	Priority        NullProjectpriority `json:"priority"`
 	ClientName      *string             `json:"client_name"`
+	ClientID        pgtype.UUID         `json:"client_id"`
 	ProjectType     *string             `json:"project_type"`
 	ProjectMetadata []byte              `json:"project_metadata"`
+	StartDate       pgtype.Date         `json:"start_date"`
+	DueDate         pgtype.Date         `json:"due_date"`
+	Visibility      *string             `json:"visibility"`
+	OwnerID         *string             `json:"owner_id"`
 }
 
 func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error) {
@@ -59,8 +64,13 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		arg.Status,
 		arg.Priority,
 		arg.ClientName,
+		arg.ClientID,
 		arg.ProjectType,
 		arg.ProjectMetadata,
+		arg.StartDate,
+		arg.DueDate,
+		arg.Visibility,
+		arg.OwnerID,
 	)
 	var i Project
 	err := row.Scan(
@@ -71,8 +81,14 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		&i.Status,
 		&i.Priority,
 		&i.ClientName,
+		&i.ClientID,
 		&i.ProjectType,
 		&i.ProjectMetadata,
+		&i.StartDate,
+		&i.DueDate,
+		&i.CompletedAt,
+		&i.Visibility,
+		&i.OwnerID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -94,9 +110,57 @@ func (q *Queries) DeleteProject(ctx context.Context, arg DeleteProjectParams) er
 	return err
 }
 
+const getOverdueProjects = `-- name: GetOverdueProjects :many
+SELECT id, user_id, name, description, status, priority, client_name, client_id, project_type, project_metadata, start_date, due_date, completed_at, visibility, owner_id, created_at, updated_at FROM projects
+WHERE user_id = $1
+  AND due_date < CURRENT_DATE
+  AND status NOT IN ('COMPLETED', 'ARCHIVED')
+ORDER BY due_date ASC
+`
+
+func (q *Queries) GetOverdueProjects(ctx context.Context, userID string) ([]Project, error) {
+	rows, err := q.db.Query(ctx, getOverdueProjects, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Project{}
+	for rows.Next() {
+		var i Project
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.Description,
+			&i.Status,
+			&i.Priority,
+			&i.ClientName,
+			&i.ClientID,
+			&i.ProjectType,
+			&i.ProjectMetadata,
+			&i.StartDate,
+			&i.DueDate,
+			&i.CompletedAt,
+			&i.Visibility,
+			&i.OwnerID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getProject = `-- name: GetProject :one
-SELECT id, user_id, name, description, status, priority, client_name, project_type, project_metadata, created_at, updated_at FROM projects
-WHERE id = $1 AND user_id = $2
+SELECT p.id, p.user_id, p.name, p.description, p.status, p.priority, p.client_name, p.client_id, p.project_type, p.project_metadata, p.start_date, p.due_date, p.completed_at, p.visibility, p.owner_id, p.created_at, p.updated_at, c.name as client_company_name
+FROM projects p
+LEFT JOIN clients c ON p.client_id = c.id
+WHERE p.id = $1 AND p.user_id = $2
 `
 
 type GetProjectParams struct {
@@ -104,9 +168,30 @@ type GetProjectParams struct {
 	UserID string      `json:"user_id"`
 }
 
-func (q *Queries) GetProject(ctx context.Context, arg GetProjectParams) (Project, error) {
+type GetProjectRow struct {
+	ID                pgtype.UUID         `json:"id"`
+	UserID            string              `json:"user_id"`
+	Name              string              `json:"name"`
+	Description       *string             `json:"description"`
+	Status            NullProjectstatus   `json:"status"`
+	Priority          NullProjectpriority `json:"priority"`
+	ClientName        *string             `json:"client_name"`
+	ClientID          pgtype.UUID         `json:"client_id"`
+	ProjectType       *string             `json:"project_type"`
+	ProjectMetadata   []byte              `json:"project_metadata"`
+	StartDate         pgtype.Date         `json:"start_date"`
+	DueDate           pgtype.Date         `json:"due_date"`
+	CompletedAt       pgtype.Timestamptz  `json:"completed_at"`
+	Visibility        *string             `json:"visibility"`
+	OwnerID           *string             `json:"owner_id"`
+	CreatedAt         pgtype.Timestamp    `json:"created_at"`
+	UpdatedAt         pgtype.Timestamp    `json:"updated_at"`
+	ClientCompanyName *string             `json:"client_company_name"`
+}
+
+func (q *Queries) GetProject(ctx context.Context, arg GetProjectParams) (GetProjectRow, error) {
 	row := q.db.QueryRow(ctx, getProject, arg.ID, arg.UserID)
-	var i Project
+	var i GetProjectRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -115,10 +200,17 @@ func (q *Queries) GetProject(ctx context.Context, arg GetProjectParams) (Project
 		&i.Status,
 		&i.Priority,
 		&i.ClientName,
+		&i.ClientID,
 		&i.ProjectType,
 		&i.ProjectMetadata,
+		&i.StartDate,
+		&i.DueDate,
+		&i.CompletedAt,
+		&i.Visibility,
+		&i.OwnerID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClientCompanyName,
 	)
 	return i, err
 }
@@ -154,20 +246,46 @@ func (q *Queries) GetProjectNotes(ctx context.Context, projectID pgtype.UUID) ([
 	return items, nil
 }
 
-const listProjects = `-- name: ListProjects :many
-SELECT id, user_id, name, description, status, priority, client_name, project_type, project_metadata, created_at, updated_at FROM projects
+const getProjectStats = `-- name: GetProjectStats :one
+SELECT
+    COUNT(*) as total,
+    COUNT(*) FILTER (WHERE status = 'ACTIVE') as active,
+    COUNT(*) FILTER (WHERE status = 'COMPLETED') as completed,
+    COUNT(*) FILTER (WHERE status = 'PAUSED') as paused,
+    COUNT(*) FILTER (WHERE status = 'ARCHIVED') as archived
+FROM projects
 WHERE user_id = $1
-  AND ($2::projectstatus IS NULL OR status = $2)
+`
+
+type GetProjectStatsRow struct {
+	Total     int64 `json:"total"`
+	Active    int64 `json:"active"`
+	Completed int64 `json:"completed"`
+	Paused    int64 `json:"paused"`
+	Archived  int64 `json:"archived"`
+}
+
+func (q *Queries) GetProjectStats(ctx context.Context, userID string) (GetProjectStatsRow, error) {
+	row := q.db.QueryRow(ctx, getProjectStats, userID)
+	var i GetProjectStatsRow
+	err := row.Scan(
+		&i.Total,
+		&i.Active,
+		&i.Completed,
+		&i.Paused,
+		&i.Archived,
+	)
+	return i, err
+}
+
+const getProjectsByClient = `-- name: GetProjectsByClient :many
+SELECT id, user_id, name, description, status, priority, client_name, client_id, project_type, project_metadata, start_date, due_date, completed_at, visibility, owner_id, created_at, updated_at FROM projects
+WHERE client_id = $1
 ORDER BY updated_at DESC
 `
 
-type ListProjectsParams struct {
-	UserID string            `json:"user_id"`
-	Status NullProjectstatus `json:"status"`
-}
-
-func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]Project, error) {
-	rows, err := q.db.Query(ctx, listProjects, arg.UserID, arg.Status)
+func (q *Queries) GetProjectsByClient(ctx context.Context, clientID pgtype.UUID) ([]Project, error) {
+	rows, err := q.db.Query(ctx, getProjectsByClient, clientID)
 	if err != nil {
 		return nil, err
 	}
@@ -183,8 +301,14 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]P
 			&i.Status,
 			&i.Priority,
 			&i.ClientName,
+			&i.ClientID,
 			&i.ProjectType,
 			&i.ProjectMetadata,
+			&i.StartDate,
+			&i.DueDate,
+			&i.CompletedAt,
+			&i.Visibility,
+			&i.OwnerID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -198,11 +322,141 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]P
 	return items, nil
 }
 
+const getUpcomingProjects = `-- name: GetUpcomingProjects :many
+SELECT id, user_id, name, description, status, priority, client_name, client_id, project_type, project_metadata, start_date, due_date, completed_at, visibility, owner_id, created_at, updated_at FROM projects
+WHERE user_id = $1
+  AND due_date >= CURRENT_DATE
+  AND due_date <= CURRENT_DATE + INTERVAL '7 days'
+  AND status NOT IN ('COMPLETED', 'ARCHIVED')
+ORDER BY due_date ASC
+`
+
+func (q *Queries) GetUpcomingProjects(ctx context.Context, userID string) ([]Project, error) {
+	rows, err := q.db.Query(ctx, getUpcomingProjects, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Project{}
+	for rows.Next() {
+		var i Project
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.Description,
+			&i.Status,
+			&i.Priority,
+			&i.ClientName,
+			&i.ClientID,
+			&i.ProjectType,
+			&i.ProjectMetadata,
+			&i.StartDate,
+			&i.DueDate,
+			&i.CompletedAt,
+			&i.Visibility,
+			&i.OwnerID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProjects = `-- name: ListProjects :many
+SELECT p.id, p.user_id, p.name, p.description, p.status, p.priority, p.client_name, p.client_id, p.project_type, p.project_metadata, p.start_date, p.due_date, p.completed_at, p.visibility, p.owner_id, p.created_at, p.updated_at, c.name as client_company_name
+FROM projects p
+LEFT JOIN clients c ON p.client_id = c.id
+WHERE p.user_id = $1
+  AND ($2::projectstatus IS NULL OR p.status = $2)
+  AND ($3::projectpriority IS NULL OR p.priority = $3)
+  AND ($4::uuid IS NULL OR p.client_id = $4)
+ORDER BY p.updated_at DESC
+`
+
+type ListProjectsParams struct {
+	UserID   string              `json:"user_id"`
+	Status   NullProjectstatus   `json:"status"`
+	Priority NullProjectpriority `json:"priority"`
+	ClientID pgtype.UUID         `json:"client_id"`
+}
+
+type ListProjectsRow struct {
+	ID                pgtype.UUID         `json:"id"`
+	UserID            string              `json:"user_id"`
+	Name              string              `json:"name"`
+	Description       *string             `json:"description"`
+	Status            NullProjectstatus   `json:"status"`
+	Priority          NullProjectpriority `json:"priority"`
+	ClientName        *string             `json:"client_name"`
+	ClientID          pgtype.UUID         `json:"client_id"`
+	ProjectType       *string             `json:"project_type"`
+	ProjectMetadata   []byte              `json:"project_metadata"`
+	StartDate         pgtype.Date         `json:"start_date"`
+	DueDate           pgtype.Date         `json:"due_date"`
+	CompletedAt       pgtype.Timestamptz  `json:"completed_at"`
+	Visibility        *string             `json:"visibility"`
+	OwnerID           *string             `json:"owner_id"`
+	CreatedAt         pgtype.Timestamp    `json:"created_at"`
+	UpdatedAt         pgtype.Timestamp    `json:"updated_at"`
+	ClientCompanyName *string             `json:"client_company_name"`
+}
+
+func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]ListProjectsRow, error) {
+	rows, err := q.db.Query(ctx, listProjects,
+		arg.UserID,
+		arg.Status,
+		arg.Priority,
+		arg.ClientID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProjectsRow{}
+	for rows.Next() {
+		var i ListProjectsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.Description,
+			&i.Status,
+			&i.Priority,
+			&i.ClientName,
+			&i.ClientID,
+			&i.ProjectType,
+			&i.ProjectMetadata,
+			&i.StartDate,
+			&i.DueDate,
+			&i.CompletedAt,
+			&i.Visibility,
+			&i.OwnerID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ClientCompanyName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateProject = `-- name: UpdateProject :one
 UPDATE projects
-SET name = $2, description = $3, status = $4, priority = $5, client_name = $6, project_type = $7, project_metadata = $8, updated_at = NOW()
+SET name = $2, description = $3, status = $4, priority = $5, client_name = $6, client_id = $7, project_type = $8, project_metadata = $9, start_date = $10, due_date = $11, visibility = $12, updated_at = NOW()
 WHERE id = $1
-RETURNING id, user_id, name, description, status, priority, client_name, project_type, project_metadata, created_at, updated_at
+RETURNING id, user_id, name, description, status, priority, client_name, client_id, project_type, project_metadata, start_date, due_date, completed_at, visibility, owner_id, created_at, updated_at
 `
 
 type UpdateProjectParams struct {
@@ -212,8 +466,12 @@ type UpdateProjectParams struct {
 	Status          NullProjectstatus   `json:"status"`
 	Priority        NullProjectpriority `json:"priority"`
 	ClientName      *string             `json:"client_name"`
+	ClientID        pgtype.UUID         `json:"client_id"`
 	ProjectType     *string             `json:"project_type"`
 	ProjectMetadata []byte              `json:"project_metadata"`
+	StartDate       pgtype.Date         `json:"start_date"`
+	DueDate         pgtype.Date         `json:"due_date"`
+	Visibility      *string             `json:"visibility"`
 }
 
 func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error) {
@@ -224,8 +482,12 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		arg.Status,
 		arg.Priority,
 		arg.ClientName,
+		arg.ClientID,
 		arg.ProjectType,
 		arg.ProjectMetadata,
+		arg.StartDate,
+		arg.DueDate,
+		arg.Visibility,
 	)
 	var i Project
 	err := row.Scan(
@@ -236,8 +498,51 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		&i.Status,
 		&i.Priority,
 		&i.ClientName,
+		&i.ClientID,
 		&i.ProjectType,
 		&i.ProjectMetadata,
+		&i.StartDate,
+		&i.DueDate,
+		&i.CompletedAt,
+		&i.Visibility,
+		&i.OwnerID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateProjectStatus = `-- name: UpdateProjectStatus :one
+UPDATE projects
+SET status = $2, completed_at = CASE WHEN $2 = 'COMPLETED' THEN NOW() ELSE NULL END, updated_at = NOW()
+WHERE id = $1
+RETURNING id, user_id, name, description, status, priority, client_name, client_id, project_type, project_metadata, start_date, due_date, completed_at, visibility, owner_id, created_at, updated_at
+`
+
+type UpdateProjectStatusParams struct {
+	ID     pgtype.UUID       `json:"id"`
+	Status NullProjectstatus `json:"status"`
+}
+
+func (q *Queries) UpdateProjectStatus(ctx context.Context, arg UpdateProjectStatusParams) (Project, error) {
+	row := q.db.QueryRow(ctx, updateProjectStatus, arg.ID, arg.Status)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.Status,
+		&i.Priority,
+		&i.ClientName,
+		&i.ClientID,
+		&i.ProjectType,
+		&i.ProjectMetadata,
+		&i.StartDate,
+		&i.DueDate,
+		&i.CompletedAt,
+		&i.Visibility,
+		&i.OwnerID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

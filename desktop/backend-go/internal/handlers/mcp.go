@@ -8,7 +8,13 @@ import (
 	"github.com/rhl/businessos-backend/internal/services"
 )
 
-// ListMCPTools returns all available MCP tools
+func (h *Handlers) createMCPService(userID string) *services.MCPService {
+	calendarService := services.NewGoogleCalendarService(h.pool)
+	slackService := services.NewSlackService(h.pool)
+	notionService := services.NewNotionService(h.pool)
+	return services.NewMCPService(h.pool, userID, calendarService, slackService, notionService)
+}
+
 func (h *Handlers) ListMCPTools(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	if user == nil {
@@ -16,13 +22,12 @@ func (h *Handlers) ListMCPTools(c *gin.Context) {
 		return
 	}
 
-	mcpService := services.NewMCPService(h.pool, user.ID)
+	mcpService := h.createMCPService(user.ID)
 	tools := mcpService.GetAllTools()
 
 	c.JSON(http.StatusOK, tools)
 }
 
-// ExecuteMCPTool executes an MCP tool
 func (h *Handlers) ExecuteMCPTool(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	if user == nil {
@@ -39,7 +44,7 @@ func (h *Handlers) ExecuteMCPTool(c *gin.Context) {
 		return
 	}
 
-	mcpService := services.NewMCPService(h.pool, user.ID)
+	mcpService := h.createMCPService(user.ID)
 	result, err := mcpService.ExecuteTool(c.Request.Context(), req.Tool, req.Arguments)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{

@@ -89,10 +89,18 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	{
 		projects.GET("", h.ListProjects)
 		projects.POST("", h.CreateProject)
+		projects.GET("/stats", h.GetProjectStats)
+		projects.GET("/overdue", h.GetOverdueProjects)
+		projects.GET("/upcoming", h.GetUpcomingProjects)
 		projects.GET("/:id", h.GetProject)
 		projects.PUT("/:id", h.UpdateProject)
 		projects.DELETE("/:id", h.DeleteProject)
 		projects.POST("/:id/notes", h.AddProjectNote)
+		// Project members (team assignment)
+		projects.GET("/:id/members", h.ListProjectMembers)
+		projects.POST("/:id/members", h.AddProjectMember)
+		projects.PUT("/:id/members/:memberId", h.UpdateProjectMemberRole)
+		projects.DELETE("/:id/members/:memberId", h.RemoveProjectMember)
 	}
 
 	// Clients routes - /api/clients
@@ -283,9 +291,17 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	googleOAuthHandler := NewGoogleOAuthHandler(calendarService)
 	calendarHandler := NewCalendarHandler(h, calendarService)
 
-	// Google OAuth integration routes - /api/integrations/google
+	slackService := services.NewSlackService(h.pool)
+	slackOAuthHandler := NewSlackOAuthHandler(slackService)
+
+	// Initialize Notion service and handlers
+	notionService := services.NewNotionService(h.pool)
+	notionOAuthHandler := NewNotionOAuthHandler(notionService)
+
+	// Integration routes - /api/integrations
 	integrations := api.Group("/integrations")
 	{
+		// Google OAuth integration routes - /api/integrations/google
 		google := integrations.Group("/google")
 		google.Use(auth)
 		{
@@ -295,6 +311,31 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		}
 		// Callback doesn't need auth (user redirected from Google)
 		integrations.GET("/google/callback", googleOAuthHandler.HandleGoogleCallback)
+
+		// Slack OAuth integration routes - /api/integrations/slack
+		slackRoutes := integrations.Group("/slack")
+		slackRoutes.Use(auth)
+		{
+			slackRoutes.GET("/auth", slackOAuthHandler.InitiateSlackAuth)
+			slackRoutes.GET("/status", slackOAuthHandler.GetSlackConnectionStatus)
+			slackRoutes.DELETE("", slackOAuthHandler.DisconnectSlack)
+		}
+		// Callback doesn't need auth (user redirected from Slack)
+		integrations.GET("/slack/callback", slackOAuthHandler.HandleSlackCallback)
+
+		// Notion OAuth integration routes - /api/integrations/notion
+		notionRoutes := integrations.Group("/notion")
+		notionRoutes.Use(auth)
+		{
+			notionRoutes.GET("/auth", notionOAuthHandler.InitiateNotionAuth)
+			notionRoutes.GET("/status", notionOAuthHandler.GetNotionConnectionStatus)
+			notionRoutes.GET("/databases", notionOAuthHandler.GetNotionDatabases)
+			notionRoutes.GET("/pages", notionOAuthHandler.GetNotionPages)
+			notionRoutes.GET("/search", notionOAuthHandler.SearchNotion)
+			notionRoutes.DELETE("", notionOAuthHandler.DisconnectNotion)
+		}
+		// Callback doesn't need auth (user redirected from Notion)
+		integrations.GET("/notion/callback", notionOAuthHandler.HandleNotionCallback)
 	}
 
 	// Calendar routes - /api/calendar

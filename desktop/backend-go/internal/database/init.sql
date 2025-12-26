@@ -407,6 +407,27 @@ CREATE TABLE IF NOT EXISTS google_oauth_tokens (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Slack OAuth tokens for workspace integration
+CREATE TABLE IF NOT EXISTS slack_oauth_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) UNIQUE NOT NULL,
+    workspace_id VARCHAR(255) NOT NULL,
+    workspace_name VARCHAR(255),
+    bot_token TEXT NOT NULL,
+    user_token TEXT,
+    bot_user_id VARCHAR(255),
+    authed_user_id VARCHAR(255),
+    bot_scopes TEXT[],
+    user_scopes TEXT[],
+    incoming_webhook_url TEXT,
+    incoming_webhook_channel VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_slack_oauth_user_id ON slack_oauth_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_slack_oauth_workspace ON slack_oauth_tokens(workspace_id);
+
 -- Calendar events
 CREATE TABLE IF NOT EXISTS calendar_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

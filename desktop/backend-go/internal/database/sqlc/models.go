@@ -555,6 +555,50 @@ func (ns NullProjectpriority) Value() (driver.Value, error) {
 	return string(ns.Projectpriority), nil
 }
 
+type Projectrole string
+
+const (
+	ProjectroleOwner  Projectrole = "owner"
+	ProjectroleAdmin  Projectrole = "admin"
+	ProjectroleMember Projectrole = "member"
+	ProjectroleViewer Projectrole = "viewer"
+)
+
+func (e *Projectrole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Projectrole(s)
+	case string:
+		*e = Projectrole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Projectrole: %T", src)
+	}
+	return nil
+}
+
+type NullProjectrole struct {
+	Projectrole Projectrole `json:"projectrole"`
+	Valid       bool        `json:"valid"` // Valid is true if Projectrole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProjectrole) Scan(value interface{}) error {
+	if value == nil {
+		ns.Projectrole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Projectrole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProjectrole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Projectrole), nil
+}
+
 type Projectstatus string
 
 const (
@@ -960,6 +1004,22 @@ type NodeMetric struct {
 	RecordedAt  pgtype.Timestamp `json:"recorded_at"`
 }
 
+type NotionOauthToken struct {
+	ID             pgtype.UUID        `json:"id"`
+	UserID         string             `json:"user_id"`
+	WorkspaceID    string             `json:"workspace_id"`
+	WorkspaceName  *string            `json:"workspace_name"`
+	WorkspaceIcon  *string            `json:"workspace_icon"`
+	AccessToken    string             `json:"access_token"`
+	BotID          *string            `json:"bot_id"`
+	OwnerType      *string            `json:"owner_type"`
+	OwnerUserID    *string            `json:"owner_user_id"`
+	OwnerUserName  *string            `json:"owner_user_name"`
+	OwnerUserEmail *string            `json:"owner_user_email"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Project struct {
 	ID              pgtype.UUID         `json:"id"`
 	UserID          string              `json:"user_id"`
@@ -968,8 +1028,14 @@ type Project struct {
 	Status          NullProjectstatus   `json:"status"`
 	Priority        NullProjectpriority `json:"priority"`
 	ClientName      *string             `json:"client_name"`
+	ClientID        pgtype.UUID         `json:"client_id"`
 	ProjectType     *string             `json:"project_type"`
 	ProjectMetadata []byte              `json:"project_metadata"`
+	StartDate       pgtype.Date         `json:"start_date"`
+	DueDate         pgtype.Date         `json:"due_date"`
+	CompletedAt     pgtype.Timestamptz  `json:"completed_at"`
+	Visibility      *string             `json:"visibility"`
+	OwnerID         *string             `json:"owner_id"`
 	CreatedAt       pgtype.Timestamp    `json:"created_at"`
 	UpdatedAt       pgtype.Timestamp    `json:"updated_at"`
 }
@@ -980,11 +1046,73 @@ type ProjectConversation struct {
 	LinkedAt       pgtype.Timestamp `json:"linked_at"`
 }
 
+type ProjectDocument struct {
+	ID         pgtype.UUID        `json:"id"`
+	ProjectID  pgtype.UUID        `json:"project_id"`
+	DocumentID pgtype.UUID        `json:"document_id"`
+	LinkedAt   pgtype.Timestamptz `json:"linked_at"`
+	LinkedBy   *string            `json:"linked_by"`
+}
+
+type ProjectMember struct {
+	ID           pgtype.UUID        `json:"id"`
+	ProjectID    pgtype.UUID        `json:"project_id"`
+	UserID       string             `json:"user_id"`
+	TeamMemberID pgtype.UUID        `json:"team_member_id"`
+	Role         NullProjectrole    `json:"role"`
+	AssignedAt   pgtype.Timestamptz `json:"assigned_at"`
+	AssignedBy   *string            `json:"assigned_by"`
+}
+
 type ProjectNote struct {
 	ID        pgtype.UUID      `json:"id"`
 	ProjectID pgtype.UUID      `json:"project_id"`
 	Content   string           `json:"content"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
+}
+
+type ProjectTag struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    string             `json:"user_id"`
+	Name      string             `json:"name"`
+	Color     *string            `json:"color"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type ProjectTagAssignment struct {
+	ProjectID  pgtype.UUID        `json:"project_id"`
+	TagID      pgtype.UUID        `json:"tag_id"`
+	AssignedAt pgtype.Timestamptz `json:"assigned_at"`
+}
+
+type ProjectTemplate struct {
+	ID              pgtype.UUID         `json:"id"`
+	UserID          string              `json:"user_id"`
+	Name            string              `json:"name"`
+	Description     *string             `json:"description"`
+	DefaultStatus   NullProjectstatus   `json:"default_status"`
+	DefaultPriority NullProjectpriority `json:"default_priority"`
+	TemplateData    []byte              `json:"template_data"`
+	IsPublic        *bool               `json:"is_public"`
+	CreatedAt       pgtype.Timestamptz  `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz  `json:"updated_at"`
+}
+
+type SlackOauthToken struct {
+	ID                     pgtype.UUID        `json:"id"`
+	UserID                 string             `json:"user_id"`
+	WorkspaceID            string             `json:"workspace_id"`
+	WorkspaceName          *string            `json:"workspace_name"`
+	BotToken               string             `json:"bot_token"`
+	UserToken              *string            `json:"user_token"`
+	BotUserID              *string            `json:"bot_user_id"`
+	AuthedUserID           *string            `json:"authed_user_id"`
+	BotScopes              []string           `json:"bot_scopes"`
+	UserScopes             []string           `json:"user_scopes"`
+	IncomingWebhookUrl     *string            `json:"incoming_webhook_url"`
+	IncomingWebhookChannel *string            `json:"incoming_webhook_channel"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
 }
 
 type SystemEventLog struct {

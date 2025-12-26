@@ -57,6 +57,16 @@ type Config struct {
 	GoogleClientSecret string `mapstructure:"GOOGLE_CLIENT_SECRET"`
 	GoogleRedirectURI  string `mapstructure:"GOOGLE_REDIRECT_URI"`
 
+	// Slack OAuth
+	SlackClientID     string `mapstructure:"SLACK_CLIENT_ID"`
+	SlackClientSecret string `mapstructure:"SLACK_CLIENT_SECRET"`
+	SlackRedirectURI  string `mapstructure:"SLACK_REDIRECT_URI"`
+
+	// Notion OAuth
+	NotionClientID     string `mapstructure:"NOTION_CLIENT_ID"`
+	NotionClientSecret string `mapstructure:"NOTION_CLIENT_SECRET"`
+	NotionRedirectURI  string `mapstructure:"NOTION_REDIRECT_URI"`
+
 	// CORS
 	AllowedOrigins []string `mapstructure:"ALLOWED_ORIGINS"`
 
@@ -108,6 +118,12 @@ func Load() (*Config, error) {
 	viper.SetDefault("GOOGLE_CLIENT_ID", "")
 	viper.SetDefault("GOOGLE_CLIENT_SECRET", "")
 	viper.SetDefault("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/integrations/google/callback")
+	viper.SetDefault("SLACK_CLIENT_ID", "")
+	viper.SetDefault("SLACK_CLIENT_SECRET", "")
+	viper.SetDefault("SLACK_REDIRECT_URI", "http://localhost:8000/api/integrations/slack/callback")
+	viper.SetDefault("NOTION_CLIENT_ID", "")
+	viper.SetDefault("NOTION_CLIENT_SECRET", "")
+	viper.SetDefault("NOTION_REDIRECT_URI", "http://localhost:8000/api/integrations/notion/callback")
 	viper.SetDefault("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:3000,app://localhost")
 
 	// Read from environment variables first (takes priority in production)
