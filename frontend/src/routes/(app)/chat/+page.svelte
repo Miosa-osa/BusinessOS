@@ -1597,7 +1597,7 @@ Use this context to inform your responses.`;
 	// Calculate selected context tokens (from word count, ~1.3 tokens per word)
 	let contextDocTokens = $derived(() => {
 		if (selectedContexts.length === 0) return 0;
-		const totalWords = selectedContexts.reduce((sum, ctx) => sum + (ctx.word_count || 0), 0);
+		const totalWords = selectedContexts.reduce((sum, ctx) => sum + (Number(ctx.word_count) || 0), 0);
 		return Math.ceil(totalWords * 1.3);
 	});
 

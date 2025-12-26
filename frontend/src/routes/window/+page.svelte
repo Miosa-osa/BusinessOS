@@ -441,6 +441,7 @@
 		// Only start selection on left click directly on desktop
 		if (event.button !== 0) return;
 		if (!(event.target as HTMLElement).classList.contains('desktop-workspace')) return;
+		if (!workspaceElement) return;
 
 		const rect = workspaceElement.getBoundingClientRect();
 		const x = event.clientX - rect.left;

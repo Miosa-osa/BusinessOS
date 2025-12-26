@@ -1000,7 +1000,7 @@
 											<div class="flex-1 min-w-0">
 												<h4 class="text-sm font-medium text-gray-900 group-hover:text-gray-700 truncate">{doc.name}</h4>
 												<p class="text-xs text-gray-400 mt-0.5">
-													{doc.word_count > 0 ? `${doc.word_count.toLocaleString()} words` : 'Empty'}
+													{Number(doc.word_count) > 0 ? `${Number(doc.word_count).toLocaleString()} words` : 'Empty'}
 												</p>
 												<p class="text-xs text-gray-400">Updated {formatDate(doc.updated_at)}</p>
 											</div>

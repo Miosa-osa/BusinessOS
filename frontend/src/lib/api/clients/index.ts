@@ -19,8 +19,6 @@ export const api = {
   getClientDeals: clientsApi.getClientDeals,
   createDeal: clientsApi.createDeal,
   updateDeal: clientsApi.updateDeal,
-  getAllDeals: clientsApi.getAllDeals,
-  updateDealStage: clientsApi.updateDealStage,
 };
 
 export default api;
