@@ -115,7 +115,7 @@
 				activeTasks: dashboard?.tasks.filter((t: any) => !t.completed).length || 0,
 				completedTasks: dashboard?.tasks.filter((t: any) => t.completed).length || 0,
 				conversationCount: 0, // Would need conversations endpoint
-				memberSince: $session.data?.user?.createdAt || new Date().toISOString()
+				memberSince: new Date().toISOString() // TODO: Get from API when available
 			};
 		} catch (error) {
 			console.error('Failed to load profile stats:', error);

@@ -14,7 +14,7 @@
 		description: '',
 		client_name: '',
 		project_type: 'internal',
-		priority: 'medium' as const,
+		priority: 'medium' as 'low' | 'medium' | 'high' | 'critical',
 		icon: '📁'
 	});
 	let statusFilter = $state('');
@@ -713,7 +713,7 @@
 						{#each ['low', 'medium', 'high', 'critical'] as priority}
 							<button
 								type="button"
-								onclick={() => newProject.priority = priority}
+								onclick={() => newProject.priority = priority as 'low' | 'medium' | 'high' | 'critical'}
 								class="flex-1 py-2 px-3 rounded-lg border-2 transition-all text-center text-sm font-medium {newProject.priority === priority ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 hover:border-gray-300 text-gray-600'}"
 							>
 								<span class="mr-1">{getPriorityEmoji(priority)}</span>

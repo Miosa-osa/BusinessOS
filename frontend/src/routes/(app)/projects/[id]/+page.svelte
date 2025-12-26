@@ -56,8 +56,8 @@
 	let editForm = $state({
 		name: '',
 		description: '',
-		status: 'active' as const,
-		priority: 'medium' as const,
+		status: 'active' as 'active' | 'paused' | 'completed' | 'archived',
+		priority: 'medium' as 'critical' | 'high' | 'medium' | 'low',
 		client_name: '',
 		project_type: 'internal'
 	});
@@ -101,12 +101,13 @@
 	}
 
 	async function updateDocumentTitle() {
-		if (!selectedDocument || documentTitle === selectedDocument.name) return;
+		const doc = selectedDocument;
+		if (!doc || documentTitle === doc.name) return;
 		try {
-			await contexts.updateContext(selectedDocument.id, { name: documentTitle });
+			await contexts.updateContext(doc.id, { name: documentTitle });
 			// Update in available documents list
 			availableDocuments = availableDocuments.map(d =>
-				d.id === selectedDocument.id ? { ...d, name: documentTitle } : d
+				d.id === doc.id ? { ...d, name: documentTitle } : d
 			);
 		} catch (e) {
 			console.error('Failed to update title:', e);
@@ -175,6 +176,10 @@
 	}
 
 	async function loadProject() {
+		if (!projectId) {
+			error = 'No project ID provided';
+			return;
+		}
 		isLoading = true;
 		error = '';
 		try {
@@ -1274,7 +1279,7 @@
 				<div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
 					<button
 						onclick={() => documentPanelMode = 'side'}
-						class="p-1.5 transition-colors {documentPanelMode === 'side' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}"
+						class="p-1.5 transition-colors bg-gray-900 text-white"
 						title="Side panel"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1283,7 +1288,7 @@
 					</button>
 					<button
 						onclick={() => documentPanelMode = 'center'}
-						class="p-1.5 transition-colors {documentPanelMode === 'center' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}"
+						class="p-1.5 transition-colors text-gray-500 hover:bg-gray-100"
 						title="Center panel"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1292,7 +1297,7 @@
 					</button>
 					<button
 						onclick={() => documentPanelMode = 'full'}
-						class="p-1.5 transition-colors {documentPanelMode === 'full' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}"
+						class="p-1.5 transition-colors text-gray-500 hover:bg-gray-100"
 						title="Full screen"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

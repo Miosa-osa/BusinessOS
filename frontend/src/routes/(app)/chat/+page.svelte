@@ -215,9 +215,27 @@
 	let isArtifactFocused = $derived(viewingArtifactFromMessage !== null || generatingArtifact || selectedArtifact !== null);
 
 	// Derived: All artifacts combined (API + message artifacts)
-	let allArtifacts = $derived(() => {
+	// Type for combined artifacts
+	type CombinedArtifact = {
+		id: string;
+		title: string;
+		type: string;
+		content?: string;
+		summary?: string | null;
+		version?: number;
+		fromMessage?: boolean;
+		messageId?: string;
+		context_name?: string | null;
+		project_id?: string | null;
+		context_id?: string | null;
+		conversation_id?: string | null;
+		created_at?: string;
+		updated_at?: string;
+	};
+
+	let allArtifacts = $derived((): CombinedArtifact[] => {
 		// Get artifacts from messages
-		const messageArtifacts = messages.flatMap((m, msgIndex) =>
+		const messageArtifacts: CombinedArtifact[] = messages.flatMap((m) =>
 			(m.artifacts || []).map((a, artIndex) => ({
 				id: `msg-${m.id}-${artIndex}`,
 				title: a.title,
@@ -234,7 +252,7 @@
 		const apiArtifactTitles = new Set(artifacts.map(a => a.title));
 		const uniqueMessageArtifacts = messageArtifacts.filter(a => !apiArtifactTitles.has(a.title));
 
-		return [...uniqueMessageArtifacts, ...artifacts];
+		return [...uniqueMessageArtifacts, ...artifacts.map(a => ({ ...a } as CombinedArtifact))];
 	});
 
 	// Save to profile modal (artifacts become documents in profiles)

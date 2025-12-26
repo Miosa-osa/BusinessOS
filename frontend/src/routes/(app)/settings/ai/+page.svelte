@@ -462,10 +462,11 @@
 		return filtered;
 	}
 
-	onMount(async () => {
-		await loadConfig();
-		await loadSystemInfo();
-		await loadAgents();
+	onMount(() => {
+		// Load data
+		loadConfig();
+		loadSystemInfo();
+		loadAgents();
 
 		// Click outside handler for dropdowns
 		const handleClickOutside = (e: MouseEvent) => {
@@ -2158,7 +2159,8 @@
 						<div class="key-metrics-grid">
 							<div class="metric-card requests">
 								<div class="metric-sparkline">
-									{#if usageStats.recent.length > 0}
+									{#if usageStats && usageStats.recent.length > 0}
+										{@const recent = usageStats.recent}
 										<svg viewBox="0 0 100 30" preserveAspectRatio="none">
 											<polyline
 												fill="none"
@@ -2166,7 +2168,7 @@
 												stroke-width="2"
 												stroke-linecap="round"
 												stroke-linejoin="round"
-												points="{usageStats.recent.map((d, i) => `${i * (100 / (usageStats.recent.length - 1 || 1))},${30 - (d.requests / Math.max(...usageStats.recent.map(r => r.requests) || 1)) * 25}`).join(' ')}"
+												points="{recent.map((d, i) => `${i * (100 / (recent.length - 1 || 1))},${30 - (d.requests / Math.max(...recent.map(r => r.requests) || 1)) * 25}`).join(' ')}"
 											/>
 										</svg>
 									{/if}
@@ -2189,7 +2191,8 @@
 							</div>
 							<div class="metric-card tokens">
 								<div class="metric-sparkline">
-									{#if usageStats.recent.length > 0}
+									{#if usageStats && usageStats.recent.length > 0}
+										{@const recent = usageStats.recent}
 										<svg viewBox="0 0 100 30" preserveAspectRatio="none">
 											<polyline
 												fill="none"
@@ -2197,7 +2200,7 @@
 												stroke-width="2"
 												stroke-linecap="round"
 												stroke-linejoin="round"
-												points="{usageStats.recent.map((d, i) => `${i * (100 / (usageStats.recent.length - 1 || 1))},${30 - (d.tokens / Math.max(...usageStats.recent.map(r => r.tokens) || 1)) * 25}`).join(' ')}"
+												points="{recent.map((d, i) => `${i * (100 / (recent.length - 1 || 1))},${30 - (d.tokens / Math.max(...recent.map(r => r.tokens) || 1)) * 25}`).join(' ')}"
 											/>
 										</svg>
 									{/if}

@@ -558,7 +558,7 @@
 	function updateWaveform() {
 		if (!isRecording || !analyser || !audioDataArray) return;
 
-		analyser.getByteTimeDomainData(audioDataArray);
+		analyser.getByteTimeDomainData(audioDataArray as Uint8Array<ArrayBuffer>);
 
 		const newBars: number[] = [];
 		const step = Math.floor(audioDataArray.length / 20);
@@ -595,10 +595,10 @@
 				}
 			}
 
-			// Auto-save voice note in the background (don't wait for it)
-			apiClient.uploadVoiceNote(audioBlob).catch(err => {
-				console.warn('Voice note auto-save failed (non-critical):', err);
-			});
+			// TODO: Auto-save voice note when API endpoint is implemented
+			// apiClient.uploadVoiceNote(audioBlob).catch(err => {
+			// 	console.warn('Voice note auto-save failed (non-critical):', err);
+			// });
 		} catch (error) {
 			console.error('Transcription error:', error);
 		} finally {

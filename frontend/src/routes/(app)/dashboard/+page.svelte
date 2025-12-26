@@ -191,13 +191,9 @@
 		}
 	}
 
-	async function handleFocusEdit(id: string, newText: string) {
-		try {
-			await api.updateFocusItem(id, { text: newText });
-			focusItems = focusItems.map((item) => (item.id === id ? { ...item, text: newText } : item));
-		} catch (err) {
-			console.error('Failed to edit focus item:', err);
-		}
+	function handleFocusEdit() {
+		// TODO: Implement focus edit mode
+		console.log('Edit focus items');
 	}
 
 	// Task handlers

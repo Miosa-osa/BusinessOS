@@ -9,7 +9,7 @@
 		NewTaskModal,
 		TaskDetailSlideOver
 	} from '$lib/components/tasks';
-	import { api, type Task as APITask, type Project as APIProject } from '$lib/api';
+	import { api, type Task as APITask, type Project as APIProject, type TaskStatus as APITaskStatus } from '$lib/api';
 
 	type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'done' | 'blocked';
 	type Priority = 'critical' | 'high' | 'medium' | 'low';
@@ -126,7 +126,7 @@
 		}
 	}
 
-	function mapStatusToApi(status: TaskStatus): string {
+	function mapStatusToApi(status: TaskStatus): APITaskStatus {
 		switch (status) {
 			case 'todo': return 'todo';
 			case 'in_progress': return 'in_progress';
@@ -246,7 +246,6 @@
 				const newApiTask = await api.createTask({
 					title: `${task.title} (Copy)`,
 					description: task.description,
-					status: 'todo',
 					priority: task.priority,
 					project_id: task.projectId,
 					assignee_id: task.assignee?.id,
@@ -287,7 +286,8 @@
 		}
 	}
 
-	function handleAddTask(status?: TaskStatus) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	function handleAddTask(_arg?: any) {
 		showNewTaskModal = true;
 	}
 
@@ -296,7 +296,6 @@
 			const newApiTask = await api.createTask({
 				title: taskData.title,
 				description: taskData.description,
-				status: mapStatusToApi(taskData.status || 'todo'),
 				priority: taskData.priority,
 				project_id: taskData.projectId,
 				assignee_id: taskData.assigneeId,
@@ -427,36 +426,41 @@
 	}}
 	onStatusChange={(status) => selectedTask && handleTaskStatusChange(selectedTask.id, status)}
 	onPriorityChange={(priority) => {
-		if (selectedTask) {
-			tasks = tasks.map(t => t.id === selectedTask.id ? { ...t, priority } : t);
-			selectedTask = { ...selectedTask, priority };
+		const task = selectedTask;
+		if (task) {
+			tasks = tasks.map(t => t.id === task.id ? { ...t, priority } : t);
+			selectedTask = { ...task, priority };
 		}
 	}}
 	onDescriptionChange={(description) => {
-		if (selectedTask) {
-			tasks = tasks.map(t => t.id === selectedTask.id ? { ...t, description } : t);
-			selectedTask = { ...selectedTask, description };
+		const task = selectedTask;
+		if (task) {
+			tasks = tasks.map(t => t.id === task.id ? { ...t, description } : t);
+			selectedTask = { ...task, description };
 		}
 	}}
 	onSubtaskToggle={(subtaskId) => {
-		if (selectedTask) {
-			const updatedSubtasks = selectedTask.subtasks?.map(s =>
+		const task = selectedTask;
+		if (task) {
+			const updatedSubtasks = task.subtasks?.map(s =>
 				s.id === subtaskId ? { ...s, completed: !s.completed } : s
 			);
-			tasks = tasks.map(t => t.id === selectedTask.id ? { ...t, subtasks: updatedSubtasks } : t);
-			selectedTask = { ...selectedTask, subtasks: updatedSubtasks };
+			tasks = tasks.map(t => t.id === task.id ? { ...t, subtasks: updatedSubtasks } : t);
+			selectedTask = { ...task, subtasks: updatedSubtasks };
 		}
 	}}
 	onSubtaskAdd={(title) => {
-		if (selectedTask) {
+		const task = selectedTask;
+		if (task) {
 			const newSubtask = { id: `sub-${Date.now()}`, title, completed: false };
-			const updatedSubtasks = [...(selectedTask.subtasks || []), newSubtask];
-			tasks = tasks.map(t => t.id === selectedTask.id ? { ...t, subtasks: updatedSubtasks } : t);
-			selectedTask = { ...selectedTask, subtasks: updatedSubtasks };
+			const updatedSubtasks = [...(task.subtasks || []), newSubtask];
+			tasks = tasks.map(t => t.id === task.id ? { ...t, subtasks: updatedSubtasks } : t);
+			selectedTask = { ...task, subtasks: updatedSubtasks };
 		}
 	}}
 	onCommentAdd={(content) => {
-		if (selectedTask) {
+		const task = selectedTask;
+		if (task) {
 			const newComment = {
 				id: `com-${Date.now()}`,
 				authorId: 'user-1',
@@ -464,9 +468,9 @@
 				content,
 				createdAt: new Date().toISOString()
 			};
-			const updatedComments = [...(selectedTask.comments || []), newComment];
-			tasks = tasks.map(t => t.id === selectedTask.id ? { ...t, comments: updatedComments } : t);
-			selectedTask = { ...selectedTask, comments: updatedComments };
+			const updatedComments = [...(task.comments || []), newComment];
+			tasks = tasks.map(t => t.id === task.id ? { ...t, comments: updatedComments } : t);
+			selectedTask = { ...task, comments: updatedComments };
 		}
 	}}
 />

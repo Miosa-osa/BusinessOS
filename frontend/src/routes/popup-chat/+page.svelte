@@ -431,7 +431,7 @@
 					animationFrameId = requestAnimationFrame(updateWaveform);
 					return;
 				}
-				analyser.getByteTimeDomainData(audioDataArray);
+				analyser.getByteTimeDomainData(audioDataArray as Uint8Array<ArrayBuffer>);
 				const bars: number[] = [];
 				const step = Math.floor(audioDataArray.length / 30);
 				for (let i = 0; i < 30; i++) {
@@ -453,12 +453,12 @@
 			// Set up Web Speech API for live transcription
 			const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 			if (SpeechRecognitionAPI) {
-				speechRecognition = new SpeechRecognitionAPI();
-				speechRecognition.continuous = true;
-				speechRecognition.interimResults = true;
-				speechRecognition.lang = 'en-US';
+				const recognition = new SpeechRecognitionAPI() as SpeechRecognition;
+				recognition.continuous = true;
+				recognition.interimResults = true;
+				recognition.lang = 'en-US';
 
-				speechRecognition.onresult = (event: SpeechRecognitionEvent) => {
+				recognition.onresult = (event: SpeechRecognitionEvent) => {
 					let interimTranscript = '';
 					let finalTranscript = '';
 					for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -472,11 +472,12 @@
 					liveTranscript = finalTranscript || interimTranscript;
 				};
 
-				speechRecognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+				recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
 					console.log('Speech recognition error:', event.error);
 				};
 
-				speechRecognition.start();
+				recognition.start();
+				speechRecognition = recognition;
 			}
 
 			mediaRecorder.ondataavailable = (event) => {

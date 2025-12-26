@@ -285,7 +285,7 @@
 	};
 
 	const slug = $derived($page.params.slug);
-	const feature = $derived(features[slug] || null);
+	const feature = $derived(slug ? features[slug] || null : null);
 </script>
 
 <svelte:head>

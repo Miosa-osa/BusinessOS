@@ -79,11 +79,12 @@
 	let archivedContexts = $derived($contexts.contexts.filter(c => c.is_archived));
 
 	// Get children of selected profile
-	let profileChildren = $derived(
-		kbSelectedProfile
-			? activeContexts.filter(c => c.parent_id === kbSelectedProfile.id)
-			: []
-	);
+	let profileChildren = $derived(() => {
+		const profile = kbSelectedProfile;
+		return profile
+			? activeContexts.filter(c => c.parent_id === profile.id)
+			: [];
+	});
 
 	// Get favorite pages
 	let favoritePages = $derived(
@@ -947,9 +948,9 @@
 				<div class="flex-1 overflow-hidden">
 					<ContextProfileView
 						profile={kbSelectedProfile}
-						children={profileChildren}
+						children={profileChildren()}
 						allPages={$contexts.contexts}
-						onAddPage={() => handleKBAddPage(kbSelectedProfile.id)}
+						onAddPage={() => kbSelectedProfile && handleKBAddPage(kbSelectedProfile.id)}
 						onSelectPage={(page) => handleKBPageSelect(page)}
 						onPageAction={(action, page) => {
 							if (action === 'menu') {
@@ -1099,7 +1100,7 @@
 								// Navigate to the clicked page in center peek
 								const page = $contexts.contexts.find(c => c.id === pageId);
 								if (page) {
-									centerPeekDocument = page;
+									centerPeekDocument = page as unknown as Context;
 								}
 							}}
 						/>

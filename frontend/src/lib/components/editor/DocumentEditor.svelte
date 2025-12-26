@@ -65,7 +65,7 @@
 	async function updateCoverImage() {
 		if (readonly) return;
 		try {
-			await contexts.updateContext(context.id, { cover_image: coverInputValue || null });
+			await contexts.updateContext(context.id, { cover_image: coverInputValue || undefined });
 			coverImage = coverInputValue || null;
 			showCoverInput = false;
 			coverInputValue = '';
@@ -77,7 +77,7 @@
 	async function updateIcon(newIcon: string) {
 		if (readonly) return;
 		try {
-			await contexts.updateContext(context.id, { icon: newIcon || null });
+			await contexts.updateContext(context.id, { icon: newIcon || undefined });
 			icon = newIcon || null;
 		} catch (error) {
 			console.error('Failed to update icon:', error);

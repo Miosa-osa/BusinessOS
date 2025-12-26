@@ -49,6 +49,11 @@
 	const nodeId = $derived($page.params.id);
 
 	async function loadData() {
+		if (!nodeId) {
+			error = 'No node ID provided';
+			isLoading = false;
+			return;
+		}
 		isLoading = true;
 		error = null;
 		try {

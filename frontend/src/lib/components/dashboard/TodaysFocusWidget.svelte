@@ -4,7 +4,8 @@
 
 	interface FocusItem {
 		id: string;
-		title: string;
+		title?: string;
+		text?: string;
 		description?: string;
 		completed: boolean;
 	}
@@ -13,11 +14,12 @@
 		items?: FocusItem[];
 		onToggle?: (id: string) => void;
 		onAdd?: (title: string, description?: string) => void;
+		onRemove?: (id: string) => void;
 		onReorder?: (items: FocusItem[]) => void;
 		onEdit?: () => void;
 	}
 
-	let { items = [], onToggle, onAdd, onReorder, onEdit }: Props = $props();
+	let { items = [], onToggle, onAdd, onRemove, onReorder, onEdit }: Props = $props();
 
 	let isAdding = $state(false);
 	let newTitle = $state('');
@@ -113,7 +115,7 @@
 									? 'text-gray-400 line-through'
 									: 'text-gray-900'}"
 							>
-								{item.title}
+								{item.title || item.text}
 							</p>
 						</div>
 						{#if item.description}

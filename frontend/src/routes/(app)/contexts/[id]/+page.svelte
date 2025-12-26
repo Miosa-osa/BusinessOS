@@ -160,6 +160,11 @@
 	let showIconPicker = $state(false);
 
 	onMount(async () => {
+		if (!contextId) {
+			error = 'No document ID provided';
+			loading = false;
+			return;
+		}
 		try {
 			const ctx = await contexts.loadContext(contextId);
 			context = ctx;
@@ -231,7 +236,7 @@
 	async function updateIcon(newIcon: string) {
 		if (!context) return;
 		try {
-			await contexts.updateContext(context.id, { icon: newIcon || null });
+			await contexts.updateContext(context.id, { icon: newIcon || undefined });
 			icon = newIcon || null;
 		} catch (e) {
 			console.error('Failed to update icon:', e);
@@ -241,7 +246,7 @@
 	async function updateCoverImage() {
 		if (!context) return;
 		try {
-			await contexts.updateContext(context.id, { cover_image: coverInputValue || null });
+			await contexts.updateContext(context.id, { cover_image: coverInputValue || undefined });
 			coverImage = coverInputValue || null;
 			showCoverInput = false;
 			coverInputValue = '';
@@ -253,7 +258,7 @@
 	async function removeCoverImage() {
 		if (!context) return;
 		try {
-			await contexts.updateContext(context.id, { cover_image: null });
+			await contexts.updateContext(context.id, { cover_image: undefined });
 			coverImage = null;
 			showCoverPicker = false;
 		} catch (e) {
