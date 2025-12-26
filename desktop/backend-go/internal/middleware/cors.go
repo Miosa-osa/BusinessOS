@@ -30,13 +30,22 @@ func CORSMiddleware(cfg *config.Config) gin.HandlerFunc {
 		}
 	}
 
+	// Check if any origin is wildcard - can't use credentials with wildcard
+	hasWildcard := false
+	for _, o := range validOrigins {
+		if o == "*" {
+			hasWildcard = true
+			break
+		}
+	}
+
 	corsConfig := cors.Config{
 		AllowOrigins:     validOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "Cookie"},
 		ExposeHeaders:    []string{"X-Conversation-Id"},
-		AllowCredentials: len(validOrigins) == 1 && validOrigins[0] != "*", // Can't use credentials with wildcard
-		MaxAge:           86400,                                            // 24 hours
+		AllowCredentials: len(validOrigins) > 0 && !hasWildcard, // Can't use credentials with wildcard
+		MaxAge:           86400,                                 // 24 hours
 	}
 
 	return cors.New(corsConfig)

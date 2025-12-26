@@ -1,5 +1,5 @@
 // Backend URLs
-const LOCAL_BACKEND_URL = 'http://localhost:8080';
+const LOCAL_BACKEND_URL = 'http://localhost:8001';
 const CLOUD_RUN_URL = 'https://businessos-api-460433387676.us-central1.run.app';
 
 // Shared fetch logic copied from the original ApiClient.request implementation
