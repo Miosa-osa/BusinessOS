@@ -22,18 +22,19 @@ import (
 type SendMessageRequest struct {
 	Message        string            `json:"message" binding:"required"`
 	ConversationID *string           `json:"conversation_id"`
-	ContextID      *string           `json:"context_id"`       // Legacy: single context ID
-	ContextIDs     []string          `json:"context_ids"`      // NEW: Multiple context IDs for tiered context
+	ContextID      *string           `json:"context_id"`  // Legacy: single context ID
+	ContextIDs     []string          `json:"context_ids"` // NEW: Multiple context IDs for tiered context
 	ProjectID      *string           `json:"project_id"`
-	NodeID         *string           `json:"node_id"`          // NEW: Business node context
+	NodeID         *string           `json:"node_id"` // NEW: Business node context
 	Model          *string           `json:"model"`
-	AgentType      *string           `json:"agent_type"`       // orchestrator, document, analysis, planning
-	FocusMode      *string           `json:"focus_mode"`       // research, analyze, write, build, general
-	FocusOptions   map[string]string `json:"focus_options"`    // depth, output, searchScope, etc.
-	Command        *string           `json:"command"`          // slash command: analyze, summarize, explain, etc.
+	AgentType      *string           `json:"agent_type"`    // orchestrator, document, analysis, planning
+	FocusMode      *string           `json:"focus_mode"`    // research, analyze, write, build, general
+	FocusOptions   map[string]string `json:"focus_options"` // depth, output, searchScope, etc.
+	Command        *string           `json:"command"`       // slash command: analyze, summarize, explain, etc.
 	Temperature    *float64          `json:"temperature"`
 	MaxTokens      *int              `json:"max_tokens"`
 	TopP           *float64          `json:"top_p"`
+	UseCOT         *bool             `json:"use_cot"` // Enable Chain of Thought with multi-agent coordination
 }
 
 // ListConversations returns all conversations for the current user
