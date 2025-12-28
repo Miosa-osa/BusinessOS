@@ -55,7 +55,7 @@ export interface EditorState {
 	slashMenuQuery: string;
 	showAIPanel: boolean;
 	// Pending block type selection from BlockMenu - Block.svelte handles this
-	pendingBlockTypeSelection: { type: BlockType; blockId: string } | null;
+	pendingBlockTypeSelection: { type: BlockType; blockId: string; properties?: Record<string, unknown> } | null;
 }
 
 function generateBlockId(): string {
@@ -276,10 +276,10 @@ function createEditorStore() {
 		},
 
 		// Set pending block type selection (BlockMenu calls this, Block.svelte handles it)
-		selectBlockType(type: BlockType) {
+		selectBlockType(type: BlockType, properties?: Record<string, unknown>) {
 			update((s) => ({
 				...s,
-				pendingBlockTypeSelection: s.focusedBlockId ? { type, blockId: s.focusedBlockId } : null,
+				pendingBlockTypeSelection: s.focusedBlockId ? { type, blockId: s.focusedBlockId, properties } : null,
 				showSlashMenu: false,
 				slashMenuPosition: null,
 				slashMenuQuery: ''
