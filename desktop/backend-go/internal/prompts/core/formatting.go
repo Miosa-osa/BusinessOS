@@ -31,6 +31,7 @@ const OutputFormattingStandards = `## OUTPUT FORMATTING STANDARDS
 
 #### Lists
 - Use numbered lists ONLY for sequential steps
+- Use dash (-) for bullet points, NEVER use asterisk (*) or Unicode bullets
 - Use bullets ONLY for 3+ parallel, non-sequential items
 - Never start a response with a list
 - Maximum 2 levels of nesting

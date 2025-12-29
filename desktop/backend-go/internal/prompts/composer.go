@@ -108,7 +108,7 @@ func (c *PromptComposer) ComposeForAnalysis(agentPrompt string) string {
 
 // ComposeForProject creates a prompt optimized for project management
 func (c *PromptComposer) ComposeForProject(agentPrompt string) string {
-	return c.ComposePrompt(agentPrompt, LayerIdentity, LayerFormatting, LayerContext, LayerTools)
+	return c.ComposePrompt(agentPrompt, LayerIdentity, LayerFormatting, LayerArtifacts, LayerContext, LayerTools)
 }
 
 // ComposeForClient creates a prompt optimized for client management

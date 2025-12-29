@@ -7,12 +7,14 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUserSettings = `-- name: CreateUserSettings :one
 INSERT INTO user_settings (user_id, default_model, email_notifications, daily_summary, theme, sidebar_collapsed, share_analytics, custom_settings)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, user_id, default_model, email_notifications, daily_summary, theme, sidebar_collapsed, share_analytics, custom_settings, created_at, updated_at
+RETURNING id, user_id, default_model, email_notifications, daily_summary, theme, sidebar_collapsed, share_analytics, custom_settings, thinking_enabled, thinking_show_in_ui, thinking_save_traces, thinking_default_template_id, thinking_max_tokens, created_at, updated_at
 `
 
 type CreateUserSettingsParams struct {
@@ -48,14 +50,47 @@ func (q *Queries) CreateUserSettings(ctx context.Context, arg CreateUserSettings
 		&i.SidebarCollapsed,
 		&i.ShareAnalytics,
 		&i.CustomSettings,
+		&i.ThinkingEnabled,
+		&i.ThinkingShowInUi,
+		&i.ThinkingSaveTraces,
+		&i.ThinkingDefaultTemplateID,
+		&i.ThinkingMaxTokens,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
+const getThinkingSettings = `-- name: GetThinkingSettings :one
+SELECT thinking_enabled, thinking_show_in_ui, thinking_save_traces,
+       thinking_default_template_id, thinking_max_tokens
+FROM user_settings
+WHERE user_id = $1
+`
+
+type GetThinkingSettingsRow struct {
+	ThinkingEnabled           *bool       `json:"thinking_enabled"`
+	ThinkingShowInUi          *bool       `json:"thinking_show_in_ui"`
+	ThinkingSaveTraces        *bool       `json:"thinking_save_traces"`
+	ThinkingDefaultTemplateID pgtype.UUID `json:"thinking_default_template_id"`
+	ThinkingMaxTokens         *int32      `json:"thinking_max_tokens"`
+}
+
+func (q *Queries) GetThinkingSettings(ctx context.Context, userID string) (GetThinkingSettingsRow, error) {
+	row := q.db.QueryRow(ctx, getThinkingSettings, userID)
+	var i GetThinkingSettingsRow
+	err := row.Scan(
+		&i.ThinkingEnabled,
+		&i.ThinkingShowInUi,
+		&i.ThinkingSaveTraces,
+		&i.ThinkingDefaultTemplateID,
+		&i.ThinkingMaxTokens,
+	)
+	return i, err
+}
+
 const getUserSettings = `-- name: GetUserSettings :one
-SELECT id, user_id, default_model, email_notifications, daily_summary, theme, sidebar_collapsed, share_analytics, custom_settings, created_at, updated_at FROM user_settings
+SELECT id, user_id, default_model, email_notifications, daily_summary, theme, sidebar_collapsed, share_analytics, custom_settings, thinking_enabled, thinking_show_in_ui, thinking_save_traces, thinking_default_template_id, thinking_max_tokens, created_at, updated_at FROM user_settings
 WHERE user_id = $1
 `
 
@@ -72,6 +107,63 @@ func (q *Queries) GetUserSettings(ctx context.Context, userID string) (UserSetti
 		&i.SidebarCollapsed,
 		&i.ShareAnalytics,
 		&i.CustomSettings,
+		&i.ThinkingEnabled,
+		&i.ThinkingShowInUi,
+		&i.ThinkingSaveTraces,
+		&i.ThinkingDefaultTemplateID,
+		&i.ThinkingMaxTokens,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateThinkingSettings = `-- name: UpdateThinkingSettings :one
+UPDATE user_settings
+SET thinking_enabled = $2,
+    thinking_show_in_ui = $3,
+    thinking_save_traces = $4,
+    thinking_default_template_id = $5,
+    thinking_max_tokens = $6,
+    updated_at = NOW()
+WHERE user_id = $1
+RETURNING id, user_id, default_model, email_notifications, daily_summary, theme, sidebar_collapsed, share_analytics, custom_settings, thinking_enabled, thinking_show_in_ui, thinking_save_traces, thinking_default_template_id, thinking_max_tokens, created_at, updated_at
+`
+
+type UpdateThinkingSettingsParams struct {
+	UserID                    string      `json:"user_id"`
+	ThinkingEnabled           *bool       `json:"thinking_enabled"`
+	ThinkingShowInUi          *bool       `json:"thinking_show_in_ui"`
+	ThinkingSaveTraces        *bool       `json:"thinking_save_traces"`
+	ThinkingDefaultTemplateID pgtype.UUID `json:"thinking_default_template_id"`
+	ThinkingMaxTokens         *int32      `json:"thinking_max_tokens"`
+}
+
+func (q *Queries) UpdateThinkingSettings(ctx context.Context, arg UpdateThinkingSettingsParams) (UserSetting, error) {
+	row := q.db.QueryRow(ctx, updateThinkingSettings,
+		arg.UserID,
+		arg.ThinkingEnabled,
+		arg.ThinkingShowInUi,
+		arg.ThinkingSaveTraces,
+		arg.ThinkingDefaultTemplateID,
+		arg.ThinkingMaxTokens,
+	)
+	var i UserSetting
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.DefaultModel,
+		&i.EmailNotifications,
+		&i.DailySummary,
+		&i.Theme,
+		&i.SidebarCollapsed,
+		&i.ShareAnalytics,
+		&i.CustomSettings,
+		&i.ThinkingEnabled,
+		&i.ThinkingShowInUi,
+		&i.ThinkingSaveTraces,
+		&i.ThinkingDefaultTemplateID,
+		&i.ThinkingMaxTokens,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -82,7 +174,7 @@ const updateUserSettings = `-- name: UpdateUserSettings :one
 UPDATE user_settings
 SET default_model = $2, email_notifications = $3, daily_summary = $4, theme = $5, sidebar_collapsed = $6, share_analytics = $7, custom_settings = $8, updated_at = NOW()
 WHERE user_id = $1
-RETURNING id, user_id, default_model, email_notifications, daily_summary, theme, sidebar_collapsed, share_analytics, custom_settings, created_at, updated_at
+RETURNING id, user_id, default_model, email_notifications, daily_summary, theme, sidebar_collapsed, share_analytics, custom_settings, thinking_enabled, thinking_show_in_ui, thinking_save_traces, thinking_default_template_id, thinking_max_tokens, created_at, updated_at
 `
 
 type UpdateUserSettingsParams struct {
@@ -118,6 +210,11 @@ func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettings
 		&i.SidebarCollapsed,
 		&i.ShareAnalytics,
 		&i.CustomSettings,
+		&i.ThinkingEnabled,
+		&i.ThinkingShowInUi,
+		&i.ThinkingSaveTraces,
+		&i.ThinkingDefaultTemplateID,
+		&i.ThinkingMaxTokens,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -131,7 +228,7 @@ ON CONFLICT (user_id) DO UPDATE
 SET default_model = EXCLUDED.default_model, email_notifications = EXCLUDED.email_notifications,
     daily_summary = EXCLUDED.daily_summary, theme = EXCLUDED.theme, sidebar_collapsed = EXCLUDED.sidebar_collapsed,
     share_analytics = EXCLUDED.share_analytics, custom_settings = EXCLUDED.custom_settings, updated_at = NOW()
-RETURNING id, user_id, default_model, email_notifications, daily_summary, theme, sidebar_collapsed, share_analytics, custom_settings, created_at, updated_at
+RETURNING id, user_id, default_model, email_notifications, daily_summary, theme, sidebar_collapsed, share_analytics, custom_settings, thinking_enabled, thinking_show_in_ui, thinking_save_traces, thinking_default_template_id, thinking_max_tokens, created_at, updated_at
 `
 
 type UpsertUserSettingsParams struct {
@@ -167,6 +264,11 @@ func (q *Queries) UpsertUserSettings(ctx context.Context, arg UpsertUserSettings
 		&i.SidebarCollapsed,
 		&i.ShareAnalytics,
 		&i.CustomSettings,
+		&i.ThinkingEnabled,
+		&i.ThinkingShowInUi,
+		&i.ThinkingSaveTraces,
+		&i.ThinkingDefaultTemplateID,
+		&i.ThinkingMaxTokens,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

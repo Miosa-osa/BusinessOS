@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { tick, onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { api, apiClient, type ArtifactListItem, type Artifact, type Node, type ContextListItem } from '$lib/api';
@@ -9,9 +9,35 @@
 	import ArtifactEditor from '$lib/components/artifacts/ArtifactEditor.svelte';
 	import { markdownToBlocks } from '$lib/utils/markdown-blocks';
 
+	// Extract thinking content from message
+	// Uses flexible regex to match variations like <thinking>, <thinkingng>, <thinkingg>, etc.
+	function extractThinking(content: string): { thinking: string; mainContent: string } {
+		if (!content) return { thinking: '', mainContent: '' };
+
+		// Flexible regex that matches <think...> variations
+		const thinkingMatch = content.match(/<think[a-z]*\s*>([\s\S]*?)<\/think[a-z]*\s*>/);
+		if (thinkingMatch) {
+			const thinking = thinkingMatch[1].trim();
+			const mainContent = content.replace(/<think[a-z]*\s*>[\s\S]*?<\/think[a-z]*\s*>/, '').trim();
+			return { thinking, mainContent };
+		}
+		return { thinking: '', mainContent: content };
+	}
+
 	// Markdown rendering helper - ChatGPT-style formatting
+	// Strips thinking tags if they remain
 	function renderMarkdown(text: string): string {
 		if (!text) return '';
+
+		// Remove thinking tags (any variation) and their content if extractThinking missed them? 
+		// Actually extractThinking separates them. But if `renderMarkdown` receives text with tags (e.g. streaming chunks or leftover), we should strip the tags.
+		// If text contains <thinking>...</thinking>, we should probably hide it or render it? 
+		// The design is to show it in the separate box. So we strip it from the main markdown.
+		
+		// Remove robustly:
+		text = text.replace(/<think[a-z]*\s*>[\s\S]*?<\/think[a-z]*\s*>/gi, '').trim(); 
+		// Also strip orphan tags if they exist
+		text = text.replace(/<\/?[a-z]*think[a-z]*\s*>/gi, '');
 
 		let html = text
 			// Escape HTML first to prevent XSS
@@ -43,9 +69,9 @@
 			// Regular numbered lists
 			.replace(/^(\d+)\.\s+(.+)$/gm, '<div class="chat-list-item"><span class="chat-list-number">$1.</span><span class="chat-list-content">$2</span></div>')
 			// Nested bullet points (indented with spaces/tabs)
-			.replace(/^[\t\s]{2,}[•\-\*]\s+(.+)$/gm, '<div class="chat-nested-bullet"><span class="chat-bullet">•</span><span>$1</span></div>')
+			.replace(/^[\t\s]{2,}[â€¢\-\*]\s+(.+)$/gm, '<div class="chat-nested-bullet"><span class="chat-bullet">â€¢</span><span>$1</span></div>')
 			// Bullet points with asterisk or dash
-			.replace(/^[•\-\*]\s+(.+)$/gm, '<div class="chat-bullet-item"><span class="chat-bullet">•</span><span>$1</span></div>')
+			.replace(/^[â€¢\-\*]\s+(.+)$/gm, '<div class="chat-bullet-item"><span class="chat-bullet">â€¢</span><span>$1</span></div>')
 			// Horizontal rules
 			.replace(/^---+$/gm, '<div class="chat-section-divider"></div>')
 			// Links
@@ -104,6 +130,7 @@
 	let aiTemperature = $state(0.7);
 	let aiMaxTokens = $state(8192);
 	let aiTopP = $state(0.9);
+	let useCOT = $state(true); // Chain of Thought mode - always enabled
 
 	// Focus Mode state
 	let focusModeEnabled = $state(true); // Focus vs Classic mode
@@ -114,6 +141,11 @@
 	let delegatedTasks = $state<DelegatedTask[]>([]); // Tasks from AI
 	let activeResources = $state<ActiveResource[]>([]); // Loaded documents/contexts
 	let focusModeInitialInput = $state(''); // Voice transcript for Focus mode
+
+	// Chain of Thought (thinking) state
+	let currentThinking = $state(''); // Current thinking content being streamed
+	let thinkingExpanded = $state(true); // Whether thinking panel is expanded
+	let hasThinking = $state(false); // Whether current message has thinking
 
 	// File attachment state
 	interface AttachedFile {
@@ -370,11 +402,11 @@
 			const blocks = markdownToBlocks(viewingArtifactFromMessage.content);
 
 			// Determine icon based on artifact type
-			const icon = viewingArtifactFromMessage.type === 'plan' ? '📋' :
-					  viewingArtifactFromMessage.type === 'proposal' ? '📄' :
-					  viewingArtifactFromMessage.type === 'framework' ? '🏗️' :
-					  viewingArtifactFromMessage.type === 'sop' ? '📖' :
-					  viewingArtifactFromMessage.type === 'report' ? '📊' : '📝';
+			const icon = viewingArtifactFromMessage.type === 'plan' ? 'ðŸ“‹' :
+					  viewingArtifactFromMessage.type === 'proposal' ? 'ðŸ“„' :
+					  viewingArtifactFromMessage.type === 'framework' ? 'ðŸ—ï¸' :
+					  viewingArtifactFromMessage.type === 'sop' ? 'ðŸ“–' :
+					  viewingArtifactFromMessage.type === 'report' ? 'ðŸ“Š' : 'ðŸ“';
 
 			// Create a new context document with the artifact content as blocks
 			// If 'loose' is selected, don't set parent_id (will be a loose document)
@@ -431,6 +463,13 @@
 			console.log('[Artifact] Auto-saved successfully:', savedArtifact.id);
 			// Refresh artifacts list
 			loadArtifacts();
+
+			// Automatically select and view the saved artifact
+			selectedArtifact = savedArtifact;
+			viewingArtifactFromMessage = null; // Clear ephemeral view
+			artifactsPanelOpen = true; // Ensure panel is open
+			rightPanelOpen = true; // Ensure side panel is open regarding of tab
+			
 			return savedArtifact;
 		} catch (e) {
 			console.error('[Artifact] Failed to auto-save:', e);
@@ -528,7 +567,7 @@
 			messages = [...messages, {
 				id: confirmMsgId,
 				role: 'assistant',
-				content: `✅ Created ${taskCount} tasks from "${artifactTitle ?? 'the artifact'}". You can view them in the Tasks tab.`
+				content: `âœ… Created ${taskCount} tasks from "${artifactTitle ?? 'the artifact'}". You can view them in the Tasks tab.`
 			}];
 
 			// Close modal and reset state
@@ -642,19 +681,23 @@
 
 	// Confirm and create tasks inline
 	async function confirmInlineTasks() {
-		if (!selectedProjectId || inlineTasksForArtifact.length === 0) return;
+		if (inlineTasksForArtifact.length === 0) return;
 
 		creatingInlineTasks = true;
 		try {
 			// Create tasks via API
 			for (const task of inlineTasksForArtifact) {
-				await api.createTask({
+				const taskData: any = {
 					title: task.title,
 					description: task.description,
-					project_id: selectedProjectId,
 					priority: task.priority,
 					assignee_id: task.assignee_id
-				});
+				};
+				// Only include project_id if one is selected
+				if (selectedProjectId) {
+					taskData.project_id = selectedProjectId;
+				}
+				await api.createTask(taskData);
 			}
 
 			// Add confirmation message to chat
@@ -1180,13 +1223,13 @@ Use this context to inform your responses.`;
 
 	// Capability badge colors and labels
 	const capabilityInfo: Record<ModelCapability, { label: string; color: string; icon: string }> = {
-		vision: { label: 'Vision', color: 'bg-purple-100 text-purple-700', icon: '👁️' },
-		tools: { label: 'Tools', color: 'bg-blue-100 text-blue-700', icon: '🔧' },
-		coding: { label: 'Code', color: 'bg-green-100 text-green-700', icon: '💻' },
-		reasoning: { label: 'Reasoning', color: 'bg-orange-100 text-orange-700', icon: '🧠' },
-		rag: { label: 'RAG', color: 'bg-cyan-100 text-cyan-700', icon: '📚' },
-		multilingual: { label: 'Multi-lang', color: 'bg-pink-100 text-pink-700', icon: '🌐' },
-		fast: { label: 'Fast', color: 'bg-yellow-100 text-yellow-700', icon: '⚡' },
+		vision: { label: 'Vision', color: 'bg-purple-100 text-purple-700', icon: 'ðŸ‘ï¸' },
+		tools: { label: 'Tools', color: 'bg-blue-100 text-blue-700', icon: 'ðŸ”§' },
+		coding: { label: 'Code', color: 'bg-green-100 text-green-700', icon: 'ðŸ’»' },
+		reasoning: { label: 'Reasoning', color: 'bg-orange-100 text-orange-700', icon: 'ðŸ§ ' },
+		rag: { label: 'RAG', color: 'bg-cyan-100 text-cyan-700', icon: 'ðŸ“š' },
+		multilingual: { label: 'Multi-lang', color: 'bg-pink-100 text-pink-700', icon: 'ðŸŒ' },
+		fast: { label: 'Fast', color: 'bg-yellow-100 text-yellow-700', icon: 'âš¡' },
 	};
 
 	// Dynamic model state
@@ -2115,6 +2158,10 @@ Use this context to inform your responses.`;
 		artifactCompletedInStream = false;
 		showInlineTaskCreation = false;
 
+		// Reset thinking state for new message
+		currentThinking = '';
+		hasThinking = false;
+
 		// Parse slash commands (e.g., "/analyze what are the key trends?")
 		let command: string | undefined;
 		let messageContent = userMessage;
@@ -2162,7 +2209,14 @@ Use this context to inform your responses.`;
 				requestBody.node_context = nodeContextPrompt;
 			}
 
-			const response = await fetch('/api/chat/message', {
+			// Add COT flag if enabled
+			if (useCOT) {
+				requestBody.use_cot = true;
+			}
+
+			// Use v2 endpoint for COT mode (SSE with thinking events)
+			const endpoint = useCOT ? '/api/chat/v2/message' : '/api/chat/message';
+			const response = await fetch(endpoint, {
 				credentials: 'include',
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -2203,12 +2257,88 @@ Use this context to inform your responses.`;
 			let inArtifactBlock = false;
 
 			if (reader) {
+				let sseBuffer = ''; // Buffer for SSE parsing
+
 				while (true) {
 					const { done, value } = await reader.read();
 					if (done) break;
 
 					const chunk = decoder.decode(value, { stream: true });
-					fullContent += chunk;
+
+					// Always parse SSE events (V2 endpoint always sends SSE format)
+					sseBuffer += chunk;
+					const lines = sseBuffer.split('\n');
+					sseBuffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+					for (const line of lines) {
+						if (line.startsWith('data: ')) {
+							try {
+								const data = JSON.parse(line.slice(6));
+								// Handle thinking events (generic COT from backend)
+								if (data.type === 'thinking' && data.data) {
+									const thinkingData = data.data;
+									hasThinking = true;
+									thinkingExpanded = true;
+									// ThinkingStep struct: { step, content, agent, completed }
+									if (thinkingData.content) {
+										currentThinking += thinkingData.content + '\n';
+									}
+									if (typeof thinkingData === 'string') {
+										currentThinking += thinkingData + '\n';
+									}
+									console.log('[COT] Thinking event:', thinkingData);
+								}
+								// Handle thinking_start events (Chain of Thought)
+								if (data.type === 'thinking_start') {
+									hasThinking = true;
+									currentThinking = '';
+									thinkingExpanded = true;
+									console.log('[COT] Thinking started:', data.data);
+								}
+								// Handle thinking_chunk events (Chain of Thought)
+								if (data.type === 'thinking_chunk' && data.data) {
+									const thinkingData = data.data;
+									if (thinkingData.content) {
+										currentThinking += thinkingData.content;
+										hasThinking = true;
+									}
+								}
+								// Handle thinking_end events (Chain of Thought)
+								if (data.type === 'thinking_end' && data.data) {
+									console.log('[COT] Thinking completed:', data.data);
+									if (data.data.content && !currentThinking) {
+										currentThinking = data.data.content;
+									}
+								}
+								// Only process token events for display
+								if (data.type === 'token') {
+									const tokenContent = data.content || data.data || '';
+									if (tokenContent && !tokenContent.includes('Chain of Thought Summary')) {
+										fullContent += tokenContent;
+									}
+								}
+								// Handle artifact_complete events
+								if (data.type === 'artifact_complete' && data.data) {
+									const artifact = data.data;
+									if (artifact.title && artifact.type && artifact.content) {
+										viewingArtifactFromMessage = {
+											title: artifact.title,
+											type: artifact.type,
+											content: artifact.content
+										};
+										artifactsPanelOpen = true;
+										rightPanelOpen = true;
+										rightPanelTab = 'artifacts';
+										generatingArtifact = false;
+										artifactCompletedInStream = true;
+										autoSaveArtifact(artifact);
+									}
+								}
+							} catch {
+								// Ignore parse errors
+							}
+						}
+					}
 
 					// Track if we're inside artifact block to filter it from display
 					if (fullContent.includes('```artifact') && !artifactStarted) {
@@ -2216,6 +2346,8 @@ Use this context to inform your responses.`;
 						inArtifactBlock = true;
 						generatingArtifact = true;
 						artifactsPanelOpen = true;
+						rightPanelOpen = true;
+						rightPanelTab = 'artifacts';
 
 						// Set panel to 50% width when artifact is generated
 						const availableWidth = window.innerWidth - 256; // Subtract left sidebar
@@ -2263,6 +2395,9 @@ Use this context to inform your responses.`;
 											type: artifactData.type,
 											content: processedContent
 										};
+										artifactsPanelOpen = true;
+										rightPanelOpen = true;
+										rightPanelTab = 'artifacts';
 										generatingArtifactTitle = artifactData.title;
 										generatingArtifactType = artifactData.type;
 
@@ -2327,6 +2462,27 @@ Use this context to inform your responses.`;
 						);
 					}
 				}
+			}
+
+			// Persist thinking content by appending it to the message content
+			if (currentThinking && hasThinking) {
+				const thinkingBlock = `<thinking>${currentThinking}</thinking>\n\n`;
+				// If artifactStarted, we update displayContent
+				if (artifactStarted) {
+					displayContent = thinkingBlock + displayContent;
+				}
+				// Always update fullContent
+				fullContent = thinkingBlock + fullContent;
+
+				// Update message immediately with persistent thinking
+				messages = messages.map(msg =>
+					msg.id === assistantMsgId
+						? {
+							...msg,
+							content: artifactStarted ? displayContent : fullContent
+						}
+						: msg
+				);
 			}
 
 			// Parse and extract usage data from the response
@@ -3162,6 +3318,8 @@ Use this context to inform your responses.`;
 						</div>
 					{/if}
 				</div>
+
+				<!-- COT is always enabled - no toggle needed -->
 			</div>
 
 			<!-- Right group: Project, Node, Panel -->
@@ -3367,11 +3525,36 @@ Use this context to inform your responses.`;
 						{:else if message.role === 'assistant'}
 							<!-- Assistant message - left aligned -->
 							<div class="max-w-[95%] sm:max-w-[85%]">
-								{#if !message.content && !message.artifacts?.length && isStreaming && isLastMessage}
+								<!-- Live Thinking Panel - shown during streaming regardless of content -->
+								{#if isStreaming && isLastMessage && hasThinking && currentThinking}
+										<div class="mb-3 border border-amber-200 rounded-xl overflow-hidden bg-amber-50/50 shadow-sm">
+											<button
+												onclick={() => thinkingExpanded = !thinkingExpanded}
+												class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-amber-100/50 transition-colors"
+											>
+												<svg class="w-4 h-4 text-amber-600 transition-transform duration-200 {thinkingExpanded ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+												</svg>
+												<svg class="w-4 h-4 text-amber-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+												</svg>
+												<span class="text-sm font-medium text-amber-700">Thinking</span>
+												<span class="ml-2 w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
+												<span class="ml-auto text-xs text-amber-500">{Math.ceil(currentThinking.length / 4)} tokens</span>
+											</button>
+											{#if thinkingExpanded}
+												<div class="px-4 pb-3 text-sm text-amber-800/90 whitespace-pre-wrap border-t border-amber-200 bg-amber-50/30 max-h-72 overflow-y-auto font-mono text-xs leading-relaxed">
+													{currentThinking}<span class="inline-block w-1.5 h-4 bg-amber-500 animate-pulse ml-0.5"></span>
+												</div>
+											{/if}
+										</div>
+								{/if}
+
+								<!-- Loading indicator when waiting for first content -->
+								{#if !message.content && !message.artifacts?.length && isStreaming && isLastMessage && (!hasThinking || !currentThinking)}
 									{@const modelId = selectedModel.toLowerCase()}
 									{@const isLargeModel = modelId.includes(':30b') || modelId.includes(':32b') || modelId.includes(':70b') || modelId.includes(':72b') || modelId.includes(':235b')}
 									{@const isColdStart = (activeProvider === 'ollama_local' || activeProvider === 'ollama_cloud') && !warmedUpModels.has(selectedModel)}
-									<!-- Still loading, show initial indicator with model info -->
 									<div class="flex flex-col gap-1.5 p-3 bg-gray-50 rounded-xl border border-gray-100">
 										<div class="flex items-center gap-2 text-sm text-gray-600">
 											<svg class="w-4 h-4 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
@@ -3390,7 +3573,7 @@ Use this context to inform your responses.`;
 											<div class="text-xs text-gray-500 ml-6 space-y-0.5">
 												<p>Loading model into memory for first use</p>
 												{#if isLargeModel}
-													<p class="text-orange-600">⚠️ Large model ({currentModelName}) - this may take 30-60 seconds</p>
+													<p class="text-orange-600">âš ï¸ Large model ({currentModelName}) - this may take 30-60 seconds</p>
 												{:else}
 													<p>This usually takes 5-15 seconds</p>
 												{/if}
@@ -3401,11 +3584,41 @@ Use this context to inform your responses.`;
 											</div>
 										{/if}
 									</div>
-								{:else}
+								{/if}
+
+								<!-- Message content when available -->
+								{#if message.content || message.artifacts?.length}
+									<!-- Extract thinking from content -->
+									{@const extracted = extractThinking(message.content)}
+
+									<!-- Show thinking panel if present -->
+									{#if extracted.thinking}
+										<div class="mb-3 border border-amber-200 rounded-xl overflow-hidden bg-amber-50/50">
+											<button
+												onclick={() => thinkingExpanded = !thinkingExpanded}
+												class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-amber-100/50 transition-colors"
+											>
+												<svg class="w-4 h-4 text-amber-600 transition-transform duration-200 {thinkingExpanded ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+												</svg>
+												<svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+												</svg>
+												<span class="text-sm font-medium text-amber-700">Thinking</span>
+												<span class="ml-auto text-xs text-amber-500">{Math.ceil(extracted.thinking.length / 4)} tokens</span>
+											</button>
+											{#if thinkingExpanded}
+												<div class="px-4 pb-3 text-sm text-amber-800/90 whitespace-pre-wrap border-t border-amber-200 bg-amber-50/30 max-h-72 overflow-y-auto font-mono text-xs leading-relaxed">
+													{extracted.thinking}
+												</div>
+											{/if}
+										</div>
+									{/if}
+
 									<!-- Show text content if any -->
-									{#if message.content}
+									{#if extracted.mainContent}
 										<div class="text-sm sm:text-[15px] leading-relaxed text-gray-800 dark:text-gray-100 prose prose-sm dark:prose-invert max-w-none streaming-content">
-											{@html renderMarkdown(message.content)}{#if isLastMessage && isStreaming && !artifactCompletedInStream}<span class="streaming-cursor"></span>{/if}
+											{@html renderMarkdown(extracted.mainContent)}{#if isLastMessage && isStreaming && !artifactCompletedInStream}<span class="streaming-cursor"></span>{/if}
 										</div>
 									{/if}
 
@@ -3643,7 +3856,7 @@ Use this context to inform your responses.`;
 													{message.usage.tps.toFixed(1)} t/s
 												</span>
 												<span title="Total tokens">{message.usage.total_tokens} tokens</span>
-												<span class="text-gray-300 dark:text-gray-600">•</span>
+												<span class="text-gray-300 dark:text-gray-600">â€¢</span>
 												<span title="Provider">{message.usage.model?.toLowerCase().includes('-cloud') ? 'Cloud' : (message.usage.provider === 'ollama_local' ? 'Local' : message.usage.provider)}</span>
 											</div>
 										{/if}
@@ -3828,7 +4041,7 @@ Use this context to inform your responses.`;
 										</button>
 									</div>
 									<div class="px-3 py-1.5 bg-gray-100 border-t border-gray-200 text-xs text-gray-500">
-										↑↓ Navigate · Enter Select · Esc Cancel
+										â†‘â†“ Navigate Â· Enter Select Â· Esc Cancel
 									</div>
 								</div>
 							{/if}
@@ -3858,7 +4071,7 @@ Use this context to inform your responses.`;
 										{/each}
 									</div>
 									<div class="px-3 py-1.5 bg-gray-100 border-t border-gray-200 text-xs text-gray-500">
-										↑↓ Navigate · Enter/Tab Select · Esc Cancel
+										â†‘â†“ Navigate Â· Enter/Tab Select Â· Esc Cancel
 									</div>
 								</div>
 							{/if}
@@ -4005,7 +4218,7 @@ Use this context to inform your responses.`;
 															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 														</svg>
 													{:else}
-														<span class="text-base">{ctx.icon || '📄'}</span>
+														<span class="text-base">{ctx.icon || 'ðŸ“„'}</span>
 													{/if}
 													<span class="truncate">{ctx.name}</span>
 												</button>
@@ -4061,8 +4274,27 @@ Use this context to inform your responses.`;
 								{/if}
 							</div>
 
-							<!-- Right controls: Mic + Send/Stop -->
+							<!-- Right controls: COT Toggle + Mic + Send/Stop -->
 							<div class="flex items-center gap-2">
+								<!-- Chain of Thought (COT) Toggle -->
+								<button
+									type="button"
+									onclick={() => useCOT = !useCOT}
+									class="flex-shrink-0 group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 {useCOT ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'}"
+									aria-label="Toggle Chain of Thought reasoning"
+									title="{useCOT ? 'Thinking enabled' : 'Thinking disabled'}"
+								>
+									<svg class="w-4 h-4 {useCOT ? 'animate-pulse' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+									</svg>
+									<span class="text-xs font-medium">COT</span>
+									<!-- Tooltip -->
+									<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+										{useCOT ? 'Chain of Thought: ON' : 'Chain of Thought: OFF'}
+										<div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+									</div>
+								</button>
+
 								<!-- Voice Recording Button -->
 								{#if !isRecording && !isTranscribing}
 									<button
@@ -4290,7 +4522,7 @@ Use this context to inform your responses.`;
 										</button>
 									</div>
 									<div class="px-3 py-1.5 bg-gray-100 border-t border-gray-200 text-xs text-gray-500">
-										↑↓ Navigate · Enter Select · Esc Cancel
+										â†‘â†“ Navigate Â· Enter Select Â· Esc Cancel
 									</div>
 								</div>
 							{/if}
@@ -4320,7 +4552,7 @@ Use this context to inform your responses.`;
 										{/each}
 									</div>
 									<div class="px-3 py-1.5 bg-gray-100 border-t border-gray-200 text-xs text-gray-500">
-										↑↓ Navigate · Enter/Tab Select · Esc Cancel
+										â†‘â†“ Navigate Â· Enter/Tab Select Â· Esc Cancel
 									</div>
 								</div>
 							{/if}
@@ -4455,7 +4687,7 @@ Use this context to inform your responses.`;
 															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 														</svg>
 													{:else}
-														<span class="text-base">{ctx.icon || '📄'}</span>
+														<span class="text-base">{ctx.icon || 'ðŸ“„'}</span>
 													{/if}
 													<span class="truncate">{ctx.name}</span>
 												</button>
@@ -4971,7 +5203,7 @@ Use this context to inform your responses.`;
 						class="w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors text-left {selectedProfileForSave === 'loose' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}"
 					>
 						<div class="w-10 h-10 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center flex-shrink-0 text-lg">
-							📄
+							ðŸ“„
 						</div>
 						<div class="flex-1 min-w-0">
 							<p class="text-sm font-medium text-gray-900">Loose Documents</p>
@@ -4992,7 +5224,7 @@ Use this context to inform your responses.`;
 								class="w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors text-left {selectedProfileForSave === profile.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}"
 							>
 								<div class="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 text-lg">
-									{profile.icon || '📁'}
+									{profile.icon || 'ðŸ“'}
 								</div>
 								<div class="flex-1 min-w-0">
 									<p class="text-sm font-medium text-gray-900">{profile.name}</p>
@@ -5592,80 +5824,11 @@ Use this context to inform your responses.`;
 		--tw-prose-bullets: #9ca3af !important;
 	}
 
-	/* Explicit overrides for dark mode prose elements */
-	:global(.dark) .prose h1,
-	:global(.dark) .prose h2,
-	:global(.dark) .prose h3,
-	:global(.dark) .prose h4,
-	:global(.dark) .prose h5,
-	:global(.dark) .prose h6 {
-		color: #ffffff !important;
-	}
-
-	:global(.dark) .prose strong,
-	:global(.dark) .prose b {
-		color: #ffffff !important;
-		font-weight: 700 !important;
-	}
-
-	:global(.dark) .prose p,
-	:global(.dark) .prose li {
-		color: #f5f5f7 !important;
-	}
-
-	:global(.dark) .prose a {
-		color: #60a5fa !important;
-	}
-
-	:global(.dark) .prose code {
-		color: #e879f9 !important;
-		background-color: rgba(255, 255, 255, 0.1) !important;
-	}
-
-	:global(.dark) .prose blockquote {
-		color: #d1d5db !important;
-		border-left-color: #4b5563 !important;
-	}
-
-	/* NUCLEAR: Force ALL prose text to white in dark mode */
+	/* Explicit overrides removed for cleanup - handled by generic rule below */
+	
+	/* Generic dark mode override */
 	:global(.dark) .prose * {
 		color: #f5f5f7 !important;
-	}
-
-	:global(.dark) .prose strong *,
-	:global(.dark) .prose b *,
-	:global(.dark) .prose h1 *,
-	:global(.dark) .prose h2 *,
-	:global(.dark) .prose h3 *,
-	:global(.dark) .prose h4 * {
-		color: #ffffff !important;
-	}
-
-	/* Ultra-specific prose-invert dark mode overrides - fix amber/tan heading colors */
-	:global(.dark) .prose.dark\:prose-invert,
-	:global(.dark) .prose.dark\:prose-invert *,
-	:global(.dark .prose.dark\:prose-invert),
-	:global(.dark .prose.dark\:prose-invert *) {
-		color: #f5f5f7 !important;
-	}
-
-	:global(.dark) .prose.dark\:prose-invert h1,
-	:global(.dark) .prose.dark\:prose-invert h2,
-	:global(.dark) .prose.dark\:prose-invert h3,
-	:global(.dark) .prose.dark\:prose-invert h4,
-	:global(.dark) .prose.dark\:prose-invert h5,
-	:global(.dark) .prose.dark\:prose-invert h6,
-	:global(.dark) .prose.dark\:prose-invert strong,
-	:global(.dark) .prose.dark\:prose-invert b,
-	:global(.dark .prose.dark\:prose-invert h1),
-	:global(.dark .prose.dark\:prose-invert h2),
-	:global(.dark .prose.dark\:prose-invert h3),
-	:global(.dark .prose.dark\:prose-invert h4),
-	:global(.dark .prose.dark\:prose-invert h5),
-	:global(.dark .prose.dark\:prose-invert h6),
-	:global(.dark .prose.dark\:prose-invert strong),
-	:global(.dark .prose.dark\:prose-invert b) {
-		color: #ffffff !important;
 	}
 
 	/* Override Tailwind v4 prose colors directly */
@@ -5991,9 +6154,7 @@ Use this context to inform your responses.`;
 		font-weight: 600;
 	}
 
-	:global(.dark) .chat-label strong {
-		color: #9ca3af;
-	}
+	/* CSS Cleanup: Removed specific unused .dark selector for chat-label strong */
 
 	/* Links */
 	:global(.chat-link) {
@@ -6046,3 +6207,7 @@ Use this context to inform your responses.`;
 		margin-top: 0;
 	}
 </style>
+
+
+
+

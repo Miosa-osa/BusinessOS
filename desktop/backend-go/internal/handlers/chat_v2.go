@@ -7,12 +7,14 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/agents"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
@@ -158,6 +160,52 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 	if req.TopP != nil {
 		llmOptions.TopP = *req.TopP
 	}
+	if req.ThinkingEnabled != nil && *req.ThinkingEnabled {
+		llmOptions.ThinkingEnabled = true
+		fmt.Println("[ChatV2] ThinkingEnabled set to true from request.ThinkingEnabled")
+	}
+	// Also enable thinking if use_cot is true (frontend sends this)
+	if req.UseCOT != nil && *req.UseCOT {
+		llmOptions.ThinkingEnabled = true
+		fmt.Println("[ChatV2] ThinkingEnabled set to true from request.UseCOT")
+	}
+
+	// Apply reasoning template if thinking is enabled
+	var appliedTemplateID *uuid.UUID
+	if llmOptions.ThinkingEnabled {
+		// First check if a specific template is requested
+		if req.ReasoningTemplateID != nil && *req.ReasoningTemplateID != "" {
+			if templateUUID, err := uuid.Parse(*req.ReasoningTemplateID); err == nil {
+				template, err := queries.GetReasoningTemplate(ctx, sqlc.GetReasoningTemplateParams{
+					ID:     pgtype.UUID{Bytes: templateUUID, Valid: true},
+					UserID: user.ID,
+				})
+				if err == nil {
+					applyReasoningTemplate(&llmOptions, template)
+					appliedTemplateID = &templateUUID
+					fmt.Printf("[ChatV2] Applied requested reasoning template: %s\n", template.Name)
+				}
+			}
+		} else {
+			// Check for user's default template
+			defaultTemplate, err := queries.GetDefaultReasoningTemplate(ctx, user.ID)
+			if err == nil {
+				applyReasoningTemplate(&llmOptions, defaultTemplate)
+				if defaultTemplate.ID.Valid {
+					templateUUID := defaultTemplate.ID.Bytes
+					appliedTemplateID = (*uuid.UUID)(&templateUUID)
+				}
+				fmt.Printf("[ChatV2] Applied default reasoning template: %s\n", defaultTemplate.Name)
+			}
+		}
+
+		// Increment template usage counter
+		if appliedTemplateID != nil {
+			go func(templateID uuid.UUID) {
+				queries.IncrementTemplateUsage(context.Background(), pgtype.UUID{Bytes: templateID, Valid: true})
+			}(*appliedTemplateID)
+		}
+	}
 
 	// Build tiered context
 	var tieredCtx *services.TieredContext
@@ -210,7 +258,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 	}
 
 	// Set streaming headers
-	c.Header("Content-Type", "text/event-stream")
+	c.Header("Content-Type", "text/event-stream; charset=utf-8")
 	c.Header("X-Conversation-Id", uuidToString(conversationID))
 	c.Header("X-Agent-Type", string(agentType))
 	c.Header("X-Intent-Category", intent.Category)
@@ -244,7 +292,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 
 	if useCOT && cotOrchestrator != nil {
 		// Use Chain of Thought orchestration for multi-agent coordination
-		events, errs, _ = cotOrchestrator.ProcessWithCOT(streamCtx, input, user.ID, user.Name, convUUID)
+		events, errs, _ = cotOrchestrator.ProcessWithCOT(streamCtx, input, user.ID, user.Name, convUUID, llmOptions)
 		c.Header("X-COT-Enabled", "true")
 	} else {
 		// Standard single-agent execution with thinking events
@@ -262,8 +310,16 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 	// Track if we've sent the initial thinking event
 	var thinkingEventSent bool
 
+	// Thinking tag parsing state
+	var insideThinking bool
+	var thinkingStartSent bool
+	var thinkingEndSent bool // Prevent duplicate thinking_end events
+	var thinkingContent string // Accumulated thinking content for DB storage
+
 	// Stream the response
 	c.Stream(func(w io.Writer) bool {
+		fmt.Println("[ChatV2] Stream callback invoked, fullResponse so far:", len(fullResponse), "chars")
+
 		// Send initial thinking event at the start of stream
 		if !thinkingEventSent {
 			thinkingEventSent = true
@@ -281,6 +337,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 		select {
 		case event, ok := <-events:
 			if !ok {
+				fmt.Println("[ChatV2] Stream ended (!ok). fullResponse:", len(fullResponse), "chars")
 				// Stream ended - send artifact_complete if we have pending artifact from tool
 				if pendingArtifactTitle != "" && artifactContentStart > 0 {
 					artifactContent := fullResponse
@@ -347,7 +404,68 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 			// Process event
 			switch event.Type {
 			case streaming.EventTypeToken:
-				fullResponse += event.Content
+				tokenContent := event.Content
+				fullResponse += tokenContent
+
+				// Flexible thinking tag parsing using regex
+				// Only process thinking tags if we haven't finished thinking yet
+				if !thinkingEndSent {
+					// Use regex to find thinking tags (matches <think...> variations)
+					startRe := regexp.MustCompile(`<think[a-z]*\s*>`)
+					endRe := regexp.MustCompile(`</think[a-z]*\s*>`)
+
+					startMatch := startRe.FindStringIndex(fullResponse)
+					endMatch := endRe.FindStringIndex(fullResponse)
+
+					foundStart := startMatch != nil
+					foundEnd := endMatch != nil
+
+					// Check for thinking start
+					if !insideThinking && foundStart && !foundEnd {
+						insideThinking = true
+						if !thinkingStartSent {
+							thinkingStartSent = true
+							writeSSEEvent(w, streaming.StreamEvent{
+								Type: streaming.EventTypeThinkingStart,
+								Data: map[string]interface{}{
+									"step":  1,
+									"agent": string(agentType),
+								},
+							})
+							startTag := fullResponse[startMatch[0]:startMatch[1]]
+							fmt.Printf("[ChatV2] Thinking started (tag: %s)\n", startTag)
+						}
+					}
+
+					// Check for thinking end
+					if insideThinking && foundEnd {
+						insideThinking = false
+						thinkingEndSent = true
+						// Extract thinking content between tags
+						startTagEnd := startMatch[1]
+						endTagStart := endMatch[0]
+						if startTagEnd < endTagStart {
+							thinkingContent = fullResponse[startTagEnd:endTagStart]
+						}
+						writeSSEEvent(w, streaming.StreamEvent{
+							Type: streaming.EventTypeThinkingEnd,
+							Data: map[string]interface{}{
+								"step":    1,
+								"content": sanitizeContent(thinkingContent),
+							},
+						})
+						fmt.Printf("[ChatV2] Thinking ended (%d chars)\n", len(thinkingContent))
+					} else if insideThinking {
+						// Send thinking chunk (only the new token, not accumulated)
+						writeSSEEvent(w, streaming.StreamEvent{
+							Type: streaming.EventTypeThinkingChunk,
+							Data: map[string]interface{}{
+								"content": sanitizeContent(tokenContent),
+								"step":    1,
+							},
+						})
+					}
+				}
 
 				// Check for artifact start marker from tool call
 				if strings.Contains(fullResponse, "ARTIFACT_START::") && pendingArtifactTitle == "" {
@@ -373,9 +491,13 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 				}
 
 				// If we're in artifact mode, don't send tokens to chat - they go to artifact panel
-				if pendingArtifactTitle == "" {
-					// Only write token to chat if NOT in artifact mode
-					writeSSEEvent(w, event)
+				// Also don't send tokens that are inside thinking tags
+				if pendingArtifactTitle == "" && !insideThinking {
+					// Only write token to chat if NOT in artifact mode and NOT in thinking mode
+					// Skip tokens that contain thinking tags
+					if !strings.Contains(tokenContent, "<thinking>") && !strings.Contains(tokenContent, "</thinking>") {
+						writeSSEEvent(w, event)
+					}
 				}
 				// When in artifact mode, content goes to panel only (via artifact_complete event)
 
@@ -392,17 +514,60 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 				writeSSEEvent(w, event)
 
 			case streaming.EventTypeDone:
-				sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model)
-				return false
+			fmt.Println("[ChatV2] EventTypeDone received. fullResponse:", len(fullResponse), "chars")
+			// Send artifact_complete if we have pending artifact from tool
+			if pendingArtifactTitle != "" && artifactContentStart > 0 {
+				artifactContent := fullResponse
+				if artifactContentStart < len(fullResponse) {
+					artifactContent = fullResponse[artifactContentStart:]
+				}
+				artifactContent = strings.TrimPrefix(artifactContent, "Now write the complete document content below. Everything you write will be saved to the artifact.")
+				artifactContent = strings.TrimSpace(artifactContent)
+				if len(artifactContent) > 50 {
+					writeSSEEvent(w, streaming.StreamEvent{
+						Type: streaming.EventTypeArtifactComplete,
+						Data: streaming.Artifact{
+							Type:    pendingArtifactType,
+							Title:   pendingArtifactTitle,
+							Content: artifactContent,
+						},
+					})
+					fmt.Println("[ChatV2] Artifact complete sent on Done:", pendingArtifactTitle)
+				}
+			} else if len(detectedArtifacts) == 0 && len(fullResponse) > 800 {
+				// Auto-create artifact for long responses
+				title := extractDocumentTitle(fullResponse, req.Message)
+				docType := "document"
+				msgLower := strings.ToLower(req.Message)
+				if strings.Contains(msgLower, "plan") || strings.Contains(msgLower, "roadmap") {
+					docType = "plan"
+				} else if strings.Contains(msgLower, "proposal") {
+					docType = "proposal"
+				} else if strings.Contains(msgLower, "report") || strings.Contains(msgLower, "analysis") {
+					docType = "report"
+				}
+				writeSSEEvent(w, streaming.StreamEvent{
+					Type: streaming.EventTypeArtifactComplete,
+					Data: streaming.Artifact{
+						Type:    docType,
+						Title:   title,
+						Content: fullResponse,
+					},
+				})
+				fmt.Println("[ChatV2] Auto-artifact sent on Done:", title, docType, len(fullResponse))
+			}
+			sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model)
+			return false
 
-			default:
+		default:
 				writeSSEEvent(w, event)
 			}
 			return true
 
 		case err := <-errs:
+			fmt.Println("[ChatV2] Error channel received. err:", err, "fullResponse:", len(fullResponse), "chars")
 			if err != nil {
-				fmt.Printf("[ChatV2] Error: %v\n", err)
+				fmt.Printf("[ChatV2] Error details: %v\n", err)
 				writeSSEEvent(w, streaming.StreamEvent{
 					Type:    streaming.EventTypeError,
 					Content: err.Error(),
@@ -411,13 +576,21 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 			return false
 
 		case <-streamCtx.Done():
-			fmt.Println("[ChatV2] Context done")
+			fmt.Println("[ChatV2] Context done! Reason:", streamCtx.Err(), "fullResponse:", len(fullResponse), "chars")
 			return false
 		}
 	})
 
 	// Post-process: save artifacts and message
 	if fullResponse != "" {
+		// Strip thinking tags from the response for clean storage
+		cleanResponse := stripThinkingTags(fullResponse)
+
+		// Save thinking trace to database if thinking was present
+		if thinkingContent != "" && convUUID != nil {
+			saveThinkingTrace(ctx, h.pool, user.ID, *convUUID, thinkingContent, model, startTime)
+		}
+
 		// Save any detected artifacts
 		for _, artifact := range detectedArtifacts {
 			tools.CreateArtifact(ctx, h.pool, user.ID, convUUID, contextID, projectID, tools.ArtifactData{
@@ -451,9 +624,9 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 		}
 
 		// Also parse artifacts from response (fallback)
-		parsed, err := tools.SaveArtifactsFromResponse(ctx, h.pool, user.ID, convUUID, contextID, fullResponse)
+		parsed, err := tools.SaveArtifactsFromResponse(ctx, h.pool, user.ID, convUUID, contextID, cleanResponse)
 		if err == nil && len(parsed.Artifacts) > 0 {
-			fullResponse = parsed.CleanResponse
+			cleanResponse = parsed.CleanResponse
 
 			// Link to project
 			if projectID != nil {
@@ -470,11 +643,11 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 			}
 		}
 
-		// Save assistant message
+		// Save assistant message (without thinking tags)
 		queries.CreateMessage(ctx, sqlc.CreateMessageParams{
 			ConversationID:  conversationID,
 			Role:            sqlc.MessageroleASSISTANT,
-			Content:         fullResponse,
+			Content:         cleanResponse,
 			MessageMetadata: []byte("{}"),
 		})
 
@@ -492,8 +665,53 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 	}
 }
 
+// sanitizeContent replaces problematic Unicode characters with ASCII equivalents
+func sanitizeContent(content string) string {
+	// Replace Unicode bullet points with ASCII dashes
+	content = strings.ReplaceAll(content, "\u2022", "-")  // BULLET
+	content = strings.ReplaceAll(content, "\u25CF", "-")  // BLACK CIRCLE
+	content = strings.ReplaceAll(content, "\u25CB", "-")  // WHITE CIRCLE
+	content = strings.ReplaceAll(content, "\u25E6", "-")  // WHITE BULLET
+	content = strings.ReplaceAll(content, "\u25AA", "-")  // BLACK SMALL SQUARE
+	content = strings.ReplaceAll(content, "\u25B8", "-")  // BLACK RIGHT-POINTING SMALL TRIANGLE
+	content = strings.ReplaceAll(content, "\u25BA", "-")  // BLACK RIGHT-POINTING POINTER
+	content = strings.ReplaceAll(content, "\u2023", "-")  // TRIANGULAR BULLET
+	content = strings.ReplaceAll(content, "\u2043", "-")  // HYPHEN BULLET
+	content = strings.ReplaceAll(content, "\u2013", "-")  // EN DASH
+	content = strings.ReplaceAll(content, "\u2014", "-")  // EM DASH
+	content = strings.ReplaceAll(content, "\u201C", "\"") // LEFT DOUBLE QUOTATION MARK
+	content = strings.ReplaceAll(content, "\u201D", "\"") // RIGHT DOUBLE QUOTATION MARK
+	content = strings.ReplaceAll(content, "\u2018", "'")  // LEFT SINGLE QUOTATION MARK
+	content = strings.ReplaceAll(content, "\u2019", "'")  // RIGHT SINGLE QUOTATION MARK
+	content = strings.ReplaceAll(content, "\u2026", "...") // HORIZONTAL ELLIPSIS
+	return content
+}
+
 // writeSSEEvent writes a streaming event in SSE format
 func writeSSEEvent(w io.Writer, event streaming.StreamEvent) {
+	// Sanitize content in the event
+	if event.Content != "" {
+		event.Content = sanitizeContent(event.Content)
+	}
+	if str, ok := event.Data.(string); ok {
+		event.Data = sanitizeContent(str)
+	}
+	// Sanitize artifact content
+	if artifact, ok := event.Data.(streaming.Artifact); ok {
+		artifact.Content = sanitizeContent(artifact.Content)
+		artifact.Title = sanitizeContent(artifact.Title)
+		event.Data = artifact
+	}
+	// Sanitize map data (for thinking events)
+	if mapData, ok := event.Data.(map[string]interface{}); ok {
+		if content, exists := mapData["content"]; exists {
+			if contentStr, isStr := content.(string); isStr {
+				mapData["content"] = sanitizeContent(contentStr)
+				event.Data = mapData
+			}
+		}
+	}
+
 	data, err := json.Marshal(event)
 	if err != nil {
 		return
@@ -706,7 +924,7 @@ func (h *Handlers) handleSlashCommandV2(c *gin.Context, user *middleware.BetterA
 	agent.SetOptions(llmOptions)
 
 	// Set streaming headers
-	c.Header("Content-Type", "text/event-stream")
+	c.Header("Content-Type", "text/event-stream; charset=utf-8")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Conversation-Id", uuid.UUID(conversationID.Bytes).String())
@@ -812,4 +1030,72 @@ func normalizeModelName(model string) string {
 
 	// Return original if no mapping found
 	return model
+}
+
+// stripThinkingTags removes <thinking>...</thinking> tags and variations from the response
+func stripThinkingTags(content string) string {
+	// Use a more flexible regex that matches any tag starting with <think
+	re := regexp.MustCompile(`<think[^>]*>[\s\S]*?</think[^>]*>\s*`)
+	result := re.ReplaceAllString(content, "")
+	return strings.TrimSpace(result)
+}
+
+// saveThinkingTrace saves thinking content to the database
+func saveThinkingTrace(ctx context.Context, pool *pgxpool.Pool, userID string, conversationID uuid.UUID, thinkingContent string, model string, startTime time.Time) {
+	if thinkingContent == "" {
+		return
+	}
+
+	queries := sqlc.New(pool)
+
+	// Estimate token count (rough approximation)
+	thinkingTokens := int32(len(thinkingContent) / 4)
+	stepNumber := int32(1)
+
+	// Create thinking trace
+	_, err := queries.CreateThinkingTrace(ctx, sqlc.CreateThinkingTraceParams{
+		UserID:         userID,
+		ConversationID: pgtype.UUID{Bytes: conversationID, Valid: true},
+		MessageID:      pgtype.UUID{Valid: false}, // Will be set later if needed
+		ThinkingContent: thinkingContent,
+		ThinkingType: sqlc.NullThinkingtype{
+			Thinkingtype: sqlc.ThinkingtypeAnalysis,
+			Valid:        true,
+		},
+		StepNumber: &stepNumber,
+		StartedAt: pgtype.Timestamptz{
+			Time:  startTime,
+			Valid: true,
+		},
+		ThinkingTokens:      &thinkingTokens,
+		ModelUsed:           &model,
+		ReasoningTemplateID: pgtype.UUID{Valid: false},
+		Metadata:            []byte("{}"),
+	})
+
+	if err != nil {
+		fmt.Printf("[ChatV2] Failed to save thinking trace: %v\n", err)
+	} else {
+		fmt.Printf("[ChatV2] Saved thinking trace (%d chars, %d tokens)\n", len(thinkingContent), thinkingTokens)
+	}
+}
+
+// applyReasoningTemplate applies a reasoning template to LLM options
+func applyReasoningTemplate(opts *services.LLMOptions, template sqlc.ReasoningTemplate) {
+	// Apply thinking instruction from template
+	if template.ThinkingInstruction != nil && *template.ThinkingInstruction != "" {
+		opts.ThinkingInstruction = *template.ThinkingInstruction
+		fmt.Printf("[ChatV2] Applied template thinking instruction (%d chars)\n", len(*template.ThinkingInstruction))
+	}
+
+	// Apply max thinking tokens if set
+	if template.MaxThinkingTokens != nil && *template.MaxThinkingTokens > 0 {
+		opts.MaxThinkingTokens = int(*template.MaxThinkingTokens)
+	}
+
+	// Store template ID for tracing
+	if template.ID.Valid {
+		templateID := template.ID.Bytes
+		opts.ReasoningTemplateID = uuid.UUID(templateID).String()
+	}
 }

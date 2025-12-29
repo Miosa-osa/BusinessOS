@@ -168,6 +168,160 @@ func (a *BaseAgentV2) ExecuteTool(ctx context.Context, toolName string, input js
 	return a.toolRegistry.ExecuteTool(ctx, toolName, input)
 }
 
+// RunWithTools executes the agent with tool calling support (non-streaming)
+func (a *BaseAgentV2) RunWithTools(ctx context.Context, input AgentInput) (<-chan streaming.StreamEvent, <-chan error) {
+	events := make(chan streaming.StreamEvent, 100)
+	errs := make(chan error, 1)
+
+	go func() {
+		defer close(events)
+		defer close(errs)
+
+		// Build messages with context
+		messages := a.buildMessages(input)
+
+		// Check if we have tools enabled
+		if a.toolRegistry == nil || len(a.enabledTools) == 0 {
+			// No tools, fall back to regular streaming
+			a.runStreaming(ctx, input, events, errs)
+			return
+		}
+
+		// Get tool definitions for enabled tools
+		toolDefs := make([]services.ToolDefinition, 0)
+		for _, toolName := range a.enabledTools {
+			if tool, ok := a.toolRegistry.GetTool(toolName); ok {
+				toolDefs = append(toolDefs, services.ToolDefinition{
+					Name:        tool.Name(),
+					Description: tool.Description(),
+					Parameters:  tool.InputSchema(),
+				})
+			}
+		}
+
+		// Create Groq service for tool calling
+		groqService := services.NewGroqService(a.cfg, a.model)
+		groqService.SetOptions(a.llmOptions)
+
+		// Build system prompt with thinking instructions if enabled
+		systemPrompt := a.buildSystemPromptWithThinking()
+
+		// First call with tools
+		resp, err := groqService.ChatWithTools(ctx, messages, systemPrompt, toolDefs)
+		if err != nil {
+			errs <- err
+			return
+		}
+
+		// Process tool calls if any
+		if len(resp.ToolCalls) > 0 {
+			// Send thinking event
+			events <- streaming.StreamEvent{
+				Type: streaming.EventTypeThinking,
+				Data: "Executing tools...",
+			}
+
+			toolResults := make(map[string]string)
+			for _, tc := range resp.ToolCalls {
+				// Send tool execution event
+				events <- streaming.StreamEvent{
+					Type: streaming.EventTypeThinking,
+					Data: fmt.Sprintf("Running tool: %s", tc.Name),
+				}
+
+				// Execute the tool
+				result, err := a.toolRegistry.ExecuteTool(ctx, tc.Name, json.RawMessage(tc.Arguments))
+				if err != nil {
+					toolResults[tc.ID] = fmt.Sprintf("Error: %s", err.Error())
+				} else {
+					toolResults[tc.ID] = result
+				}
+
+				// Send tool result as event
+				events <- streaming.StreamEvent{
+					Type: streaming.EventTypeToken,
+					Data: fmt.Sprintf("\n\n**Tool Result (%s):**\n%s\n\n", tc.Name, toolResults[tc.ID]),
+				}
+			}
+
+			// Continue conversation with tool results
+			finalResponse, err := groqService.ContinueWithToolResults(ctx, messages, systemPrompt, toolResults)
+			if err != nil {
+				errs <- err
+				return
+			}
+
+			// Stream the final response
+			for _, chunk := range splitIntoChunks(finalResponse, 50) {
+				events <- streaming.StreamEvent{
+					Type: streaming.EventTypeToken,
+					Data: chunk,
+				}
+			}
+		} else {
+			// No tool calls, stream the response directly
+			for _, chunk := range splitIntoChunks(resp.Content, 50) {
+				events <- streaming.StreamEvent{
+					Type: streaming.EventTypeToken,
+					Data: chunk,
+				}
+			}
+		}
+
+		events <- streaming.StreamEvent{Type: streaming.EventTypeDone}
+	}()
+
+	return events, errs
+}
+
+// runStreaming handles regular streaming without tools
+func (a *BaseAgentV2) runStreaming(ctx context.Context, input AgentInput, events chan<- streaming.StreamEvent, errs chan<- error) {
+	messages := a.buildMessages(input)
+	llm := services.NewLLMService(a.cfg, a.model)
+	llm.SetOptions(a.llmOptions)
+	detector := streaming.NewArtifactDetector()
+
+	// Build system prompt with thinking instructions if enabled
+	systemPrompt := a.buildSystemPromptWithThinking()
+	chunks, llmErrs := llm.StreamChat(ctx, messages, systemPrompt)
+
+	for {
+		select {
+		case chunk, ok := <-chunks:
+			if !ok {
+				for _, event := range detector.Flush() {
+					events <- event
+				}
+				events <- streaming.StreamEvent{Type: streaming.EventTypeDone}
+				return
+			}
+			for _, event := range detector.ProcessChunk(chunk) {
+				events <- event
+			}
+		case err := <-llmErrs:
+			if err != nil {
+				errs <- err
+			}
+			return
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// splitIntoChunks splits a string into chunks for streaming
+func splitIntoChunks(s string, chunkSize int) []string {
+	var chunks []string
+	for i := 0; i < len(s); i += chunkSize {
+		end := i + chunkSize
+		if end > len(s) {
+			end = len(s)
+		}
+		chunks = append(chunks, s[i:end])
+	}
+	return chunks
+}
+
 // Run executes the agent with streaming output
 func (a *BaseAgentV2) Run(ctx context.Context, input AgentInput) (<-chan streaming.StreamEvent, <-chan error) {
 	events := make(chan streaming.StreamEvent, 100)
@@ -184,11 +338,14 @@ func (a *BaseAgentV2) Run(ctx context.Context, input AgentInput) (<-chan streami
 		llm := services.NewLLMService(a.cfg, a.model)
 		llm.SetOptions(a.llmOptions)
 
+		// Build system prompt with thinking instructions if enabled
+		systemPrompt := a.buildSystemPromptWithThinking()
+
 		// Create artifact detector for streaming
 		detector := streaming.NewArtifactDetector()
 
 		// Stream response
-		chunks, llmErrs := llm.StreamChat(ctx, messages, a.systemPrompt)
+		chunks, llmErrs := llm.StreamChat(ctx, messages, systemPrompt)
 
 		// Process chunks through artifact detector
 		for {
@@ -244,6 +401,23 @@ func (a *BaseAgentV2) buildMessages(input AgentInput) []services.ChatMessage {
 	return messages
 }
 
+// buildSystemPromptWithThinking returns the system prompt with thinking instructions if enabled
+func (a *BaseAgentV2) buildSystemPromptWithThinking() string {
+	if a.llmOptions.ThinkingEnabled {
+		// Use custom thinking instruction from template if provided, otherwise use default
+		thinkingInstruction := prompts.ThinkingInstruction
+		if a.llmOptions.ThinkingInstruction != "" {
+			thinkingInstruction = a.llmOptions.ThinkingInstruction
+			fmt.Printf("[Agent] ThinkingEnabled=true, using custom template instruction (%d chars)\n", len(thinkingInstruction))
+		} else {
+			fmt.Printf("[Agent] ThinkingEnabled=true, using default thinking instruction (%d chars)\n", len(thinkingInstruction))
+		}
+		return a.systemPrompt + "\n\n" + thinkingInstruction
+	}
+	fmt.Printf("[Agent] ThinkingEnabled=false, using base prompt\n")
+	return a.systemPrompt
+}
+
 // Pool returns the database pool
 func (a *BaseAgentV2) Pool() *pgxpool.Pool {
 	return a.pool
@@ -279,7 +453,7 @@ func (a *BaseAgentV2) Model() string {
 // NewOrchestratorV2 creates a new orchestrator agent
 func NewOrchestratorV2(ctx *AgentContextV2) AgentV2 {
 	systemPrompt := prompts.ComposeWithUserContext(
-		prompts_agents.OrchestratorAgentPrompt,
+		prompts_agents.OrchestratorAgentPrompt+prompts.ArtifactInstruction,
 		ctx.UserName, "", "",
 	)
 	return NewBaseAgentV2(BaseAgentV2Config{
@@ -301,7 +475,7 @@ func NewOrchestratorV2(ctx *AgentContextV2) AgentV2 {
 		EnabledTools: []string{
 			"search_documents", "get_project", "get_task", "get_client",
 			"create_task", "create_project", "create_client",
-			"log_activity",
+			"create_artifact", "log_activity",
 		},
 	})
 }
@@ -325,7 +499,7 @@ func NewDocumentAgentV2(ctx *AgentContextV2) AgentV2 {
 			NeedsClients:   true,
 		},
 		EnabledTools: []string{
-			"search_documents", "get_project", "get_client",
+			"create_artifact", "search_documents", "get_project", "get_client",
 			"log_activity",
 		},
 	})
@@ -354,7 +528,7 @@ func NewProjectAgentV2(ctx *AgentContextV2) AgentV2 {
 			"create_project", "update_project", "get_project", "list_projects",
 			"create_task", "bulk_create_tasks", "assign_task",
 			"get_team_capacity", "search_documents",
-			"log_activity",
+			"create_artifact", "log_activity",
 		},
 	})
 }
@@ -381,7 +555,7 @@ func NewClientAgentV2(ctx *AgentContextV2) AgentV2 {
 			"create_client", "update_client", "get_client",
 			"log_client_interaction", "update_client_pipeline",
 			"search_documents", "get_project",
-			"log_activity",
+			"create_artifact", "log_activity",
 		},
 	})
 }
@@ -408,7 +582,7 @@ func NewAnalystAgentV2(ctx *AgentContextV2) AgentV2 {
 		EnabledTools: []string{
 			"query_metrics", "get_team_capacity",
 			"list_projects", "list_tasks", "get_project",
-			"search_documents",
+			"search_documents", "create_artifact",
 			"log_activity",
 		},
 	})

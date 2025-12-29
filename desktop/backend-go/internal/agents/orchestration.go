@@ -197,6 +197,7 @@ func (o *OrchestratorCOT) ProcessWithCOT(
 	userID string,
 	userName string,
 	conversationID *uuid.UUID,
+	llmOptions services.LLMOptions,
 ) (<-chan streaming.StreamEvent, <-chan error, *ChainOfThought) {
 	events := make(chan streaming.StreamEvent, 100)
 	errs := make(chan error, 1)
@@ -271,19 +272,19 @@ func (o *OrchestratorCOT) ProcessWithCOT(
 		switch plan.Strategy {
 		case "direct":
 			// Orchestrator handles directly
-			o.executeDirectly(ctx, cot, input, events, errs)
+			o.executeDirectly(ctx, cot, input, llmOptions, events, errs)
 
 		case "delegate":
 			// Single agent delegation
-			o.executeDelegation(ctx, cot, plan, input, userID, userName, conversationID, events, errs)
+			o.executeDelegation(ctx, cot, plan, input, userID, userName, conversationID, llmOptions, events, errs)
 
 		case "multi-agent":
 			// Multiple agents in parallel
-			o.executeMultiAgent(ctx, cot, plan, input, userID, userName, conversationID, events, errs)
+			o.executeMultiAgent(ctx, cot, plan, input, userID, userName, conversationID, llmOptions, events, errs)
 
 		case "sequential":
 			// Agents in sequence
-			o.executeSequential(ctx, cot, plan, input, userID, userName, conversationID, events, errs)
+			o.executeSequential(ctx, cot, plan, input, userID, userName, conversationID, llmOptions, events, errs)
 		}
 
 		// Step 4: Synthesis (if multiple agents were involved)
@@ -414,6 +415,7 @@ func (o *OrchestratorCOT) executeDirectly(
 	ctx context.Context,
 	cot *ChainOfThought,
 	input AgentInput,
+	llmOptions services.LLMOptions,
 	events chan<- streaming.StreamEvent,
 	errs chan<- error,
 ) {
@@ -426,8 +428,9 @@ func (o *OrchestratorCOT) executeDirectly(
 	cot.AddStep(step)
 	step.Status = "running"
 
-	// Get orchestrator agent
+	// Get orchestrator agent and set LLM options
 	agent := o.registry.GetAgent(AgentTypeV2Orchestrator, input.UserID, input.UserName, &input.ConversationID, input.Context)
+	agent.SetOptions(llmOptions)
 	agentEvents, agentErrs := agent.Run(ctx, input)
 
 	var output strings.Builder
@@ -468,6 +471,7 @@ func (o *OrchestratorCOT) executeDelegation(
 	userID string,
 	userName string,
 	conversationID *uuid.UUID,
+	llmOptions services.LLMOptions,
 	events chan<- streaming.StreamEvent,
 	errs chan<- error,
 ) {
@@ -507,8 +511,9 @@ func (o *OrchestratorCOT) executeDelegation(
 		Data: fmt.Sprintf("🤖 **%s Agent**\n\n", targetAgent),
 	}
 
-	// Get and run the agent
+	// Get and run the agent with LLM options
 	agent := o.registry.GetAgent(targetAgent, userID, userName, conversationID, input.Context)
+	agent.SetOptions(llmOptions)
 	agentEvents, agentErrs := agent.Run(ctx, input)
 
 	var output strings.Builder
@@ -549,6 +554,7 @@ func (o *OrchestratorCOT) executeMultiAgent(
 	userID string,
 	userName string,
 	conversationID *uuid.UUID,
+	llmOptions services.LLMOptions,
 	events chan<- streaming.StreamEvent,
 	_ chan<- error, // errs - reserved for future error handling
 ) {
@@ -580,8 +586,9 @@ func (o *OrchestratorCOT) executeMultiAgent(
 			cot.AddStep(execStep)
 			execStep.Status = "running"
 
-			// Run agent
+			// Run agent with LLM options
 			agent := o.registry.GetAgent(s.Agent, userID, userName, conversationID, input.Context)
+			agent.SetOptions(llmOptions)
 			agentEvents, agentErrs := agent.Run(ctx, input)
 
 			var output strings.Builder
@@ -645,6 +652,7 @@ func (o *OrchestratorCOT) executeSequential(
 	userID string,
 	userName string,
 	conversationID *uuid.UUID,
+	llmOptions services.LLMOptions,
 	events chan<- streaming.StreamEvent,
 	errs chan<- error,
 ) {
@@ -681,8 +689,9 @@ func (o *OrchestratorCOT) executeSequential(
 			modifiedInput.Messages = append([]services.ChatMessage{contextMsg}, modifiedInput.Messages...)
 		}
 
-		// Run agent
+		// Run agent with LLM options
 		agent := o.registry.GetAgent(step.Agent, userID, userName, conversationID, input.Context)
+		agent.SetOptions(llmOptions)
 		agentEvents, agentErrs := agent.Run(ctx, modifiedInput)
 
 		var output strings.Builder

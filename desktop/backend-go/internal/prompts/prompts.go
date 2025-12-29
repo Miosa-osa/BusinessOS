@@ -268,7 +268,7 @@ func BuildOrchestratorPromptWithContext(userName string, projectName string, pro
 - Bold key terms for scannability
 - Never use filler phrases like "I'd be happy to help"`
 
-	return base + context + style
+	return base + context + style + ArtifactInstruction
 }
 
 // TaskExtractionPrompt is used for extracting tasks from artifacts
@@ -363,6 +363,72 @@ func GetPrompt(name string) string {
 // GetPromptWithArtifactInstruction returns a prompt with artifact creation instructions appended
 func GetPromptWithArtifactInstruction(name string) string {
 	return GetPrompt(name) + ArtifactInstruction
+}
+
+// ThinkingInstruction provides COT (Chain of Thought) instructions for the LLM
+const ThinkingInstruction = `
+
+## MANDATORY: Chain of Thought Format
+
+You MUST follow this EXACT format for EVERY response:
+
+STEP 1: Start with the opening tag (write it exactly like this):
+<thinking>
+
+STEP 2: Write your reasoning (2-5 bullet points analyzing the request)
+
+STEP 3: End with the closing tag (write it exactly like this):
+</thinking>
+
+STEP 4: Write your actual response
+
+CRITICAL RULES:
+- The <thinking> tag MUST be the FIRST thing you write
+- The </thinking> tag MUST appear BEFORE your main response
+- Write the tags EXACTLY as shown: <thinking> and </thinking>
+- Do NOT skip or abbreviate the tags
+- Do NOT write <think> or <thought> - only <thinking>
+
+EXAMPLE FORMAT:
+
+<thinking>
+- User wants X
+- I need to consider Y and Z
+- Best approach is to...
+- I will structure the response as...
+</thinking>
+
+[Your actual response starts here]
+
+NOW START YOUR RESPONSE WITH <thinking> TAG:`
+
+// GetPromptWithThinking returns a prompt with thinking instructions
+func GetPromptWithThinking(name string, thinkingEnabled bool) string {
+	prompt := GetPrompt(name)
+	if thinkingEnabled {
+		prompt += ThinkingInstruction
+	}
+	prompt += ArtifactInstruction
+	return prompt
+}
+
+// BuildPromptWithOptions builds a prompt with optional thinking and artifact instructions
+func BuildPromptWithOptions(baseName string, userName string, projectName string, projectDescription string, thinkingEnabled bool) string {
+	var prompt string
+
+	// Use orchestrator with context if we have user/project info
+	if userName != "" || projectName != "" {
+		prompt = BuildOrchestratorPromptWithContext(userName, projectName, projectDescription)
+	} else {
+		prompt = GetPrompt(baseName)
+	}
+
+	// Add thinking instructions if enabled
+	if thinkingEnabled {
+		prompt += ThinkingInstruction
+	}
+
+	return prompt
 }
 
 // FocusModePrefix returns a prompt prefix based on focus mode and options

@@ -22,10 +22,32 @@ type GroqService struct {
 	options LLMOptions
 }
 
+// GroqToolCall represents a tool call from the LLM
+type GroqToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
+}
+
+// GroqTool represents a tool definition for the LLM
+type GroqTool struct {
+	Type     string `json:"type"`
+	Function struct {
+		Name        string                 `json:"name"`
+		Description string                 `json:"description"`
+		Parameters  map[string]interface{} `json:"parameters"`
+	} `json:"function"`
+}
+
 // GroqMessage represents a message in the Groq format
 type GroqMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string         `json:"role"`
+	Content    string         `json:"content,omitempty"`
+	ToolCalls  []GroqToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string         `json:"tool_call_id,omitempty"`
 }
 
 // GroqRequest represents a request to the Groq API
@@ -35,6 +57,8 @@ type GroqRequest struct {
 	Temperature float64       `json:"temperature,omitempty"`
 	MaxTokens   int           `json:"max_tokens,omitempty"`
 	Stream      bool          `json:"stream"`
+	Tools       []GroqTool    `json:"tools,omitempty"`
+	ToolChoice  string        `json:"tool_choice,omitempty"`
 }
 
 // GroqResponse represents a non-streaming response from Groq
@@ -43,8 +67,9 @@ type GroqResponse struct {
 	Object  string `json:"object"`
 	Choices []struct {
 		Message struct {
-			Role    string `json:"role"`
-			Content string `json:"content"`
+			Role      string         `json:"role"`
+			Content   string         `json:"content"`
+			ToolCalls []GroqToolCall `json:"tool_calls,omitempty"`
 		} `json:"message"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
@@ -117,14 +142,27 @@ func (s *GroqService) StreamChat(ctx context.Context, messages []ChatMessage, sy
 		}
 
 		for _, msg := range messages {
-			if msg.Role == "system" {
+			role := strings.ToLower(msg.Role)
+			fmt.Printf("[Groq] Message role: original=%q, normalized=%q\n", msg.Role, role)
+			if role == "system" {
 				// Combine with existing system prompt
 				continue
 			}
+			// Ensure valid role for Groq API
+			if role != "user" && role != "assistant" {
+				fmt.Printf("[Groq] Invalid role %q, defaulting to 'user'\n", role)
+				role = "user" // Default to user for unknown roles
+			}
 			groqMsgs = append(groqMsgs, GroqMessage{
-				Role:    msg.Role,
+				Role:    role,
 				Content: msg.Content,
 			})
+		}
+		fmt.Printf("[Groq] Sending %d messages to API\n", len(groqMsgs))
+
+		// Debug: print the full request
+		for i, m := range groqMsgs {
+			fmt.Printf("[Groq] Final message[%d]: role=%q, content_len=%d\n", i, m.Role, len(m.Content))
 		}
 
 		reqBody := GroqRequest{
@@ -457,4 +495,194 @@ func (s *GroqService) ChatCompleteWithUsage(ctx context.Context, messages []Chat
 	}
 
 	return groqResp.Choices[0].Message.Content, usage, nil
+}
+
+// ToolDefinition represents a tool for the LLM
+type ToolDefinition struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Parameters  map[string]interface{} `json:"parameters"`
+}
+
+// ToolCallResult represents a tool call from the LLM
+type ToolCallResult struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
+
+// ChatWithToolsResponse represents the response from a chat with tools
+type ChatWithToolsResponse struct {
+	Content   string           `json:"content"`
+	ToolCalls []ToolCallResult `json:"tool_calls,omitempty"`
+	Usage     *TokenUsage      `json:"usage,omitempty"`
+}
+
+// ChatWithTools sends a chat request with tool definitions and returns tool calls if any
+func (s *GroqService) ChatWithTools(ctx context.Context, messages []ChatMessage, systemPrompt string, tools []ToolDefinition) (*ChatWithToolsResponse, error) {
+	groqMsgs := make([]GroqMessage, 0, len(messages)+1)
+	if systemPrompt != "" {
+		groqMsgs = append(groqMsgs, GroqMessage{
+			Role:    "system",
+			Content: systemPrompt,
+		})
+	}
+
+	for _, msg := range messages {
+		if msg.Role == "system" {
+			continue
+		}
+		groqMsgs = append(groqMsgs, GroqMessage{
+			Role:    strings.ToLower(msg.Role),
+			Content: msg.Content,
+		})
+	}
+
+	// Convert tool definitions to Groq format
+	groqTools := make([]GroqTool, 0, len(tools))
+	for _, t := range tools {
+		gt := GroqTool{Type: "function"}
+		gt.Function.Name = t.Name
+		gt.Function.Description = t.Description
+		gt.Function.Parameters = t.Parameters
+		groqTools = append(groqTools, gt)
+	}
+
+	reqBody := GroqRequest{
+		Model:       s.model,
+		Messages:    groqMsgs,
+		MaxTokens:   s.options.MaxTokens,
+		Temperature: s.options.Temperature,
+		Stream:      false,
+		Tools:       groqTools,
+		ToolChoice:  "auto",
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.groq.com/openai/v1/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.apiKey)
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("groq API error: %s - %s", resp.Status, string(body))
+	}
+
+	var groqResp GroqResponse
+	if err := json.NewDecoder(resp.Body).Decode(&groqResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(groqResp.Choices) == 0 {
+		return nil, fmt.Errorf("no response from Groq")
+	}
+
+	result := &ChatWithToolsResponse{
+		Content: groqResp.Choices[0].Message.Content,
+		Usage: &TokenUsage{
+			InputTokens:  groqResp.Usage.PromptTokens,
+			OutputTokens: groqResp.Usage.CompletionTokens,
+			TotalTokens:  groqResp.Usage.TotalTokens,
+			Model:        s.model,
+			Provider:     "groq",
+		},
+	}
+
+	// Extract tool calls if any
+	for _, tc := range groqResp.Choices[0].Message.ToolCalls {
+		result.ToolCalls = append(result.ToolCalls, ToolCallResult{
+			ID:        tc.ID,
+			Name:      tc.Function.Name,
+			Arguments: tc.Function.Arguments,
+		})
+	}
+
+	return result, nil
+}
+
+// ContinueWithToolResults continues the conversation after tool execution
+func (s *GroqService) ContinueWithToolResults(ctx context.Context, messages []ChatMessage, systemPrompt string, toolResults map[string]string) (string, error) {
+	groqMsgs := make([]GroqMessage, 0, len(messages)+len(toolResults)+1)
+	if systemPrompt != "" {
+		groqMsgs = append(groqMsgs, GroqMessage{
+			Role:    "system",
+			Content: systemPrompt,
+		})
+	}
+
+	for _, msg := range messages {
+		if msg.Role == "system" {
+			continue
+		}
+		groqMsgs = append(groqMsgs, GroqMessage{
+			Role:    strings.ToLower(msg.Role),
+			Content: msg.Content,
+		})
+	}
+
+	// Add tool results as tool messages
+	for toolCallID, result := range toolResults {
+		groqMsgs = append(groqMsgs, GroqMessage{
+			Role:       "tool",
+			Content:    result,
+			ToolCallID: toolCallID,
+		})
+	}
+
+	reqBody := GroqRequest{
+		Model:       s.model,
+		Messages:    groqMsgs,
+		MaxTokens:   s.options.MaxTokens,
+		Temperature: s.options.Temperature,
+		Stream:      false,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.groq.com/openai/v1/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.apiKey)
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("groq API error: %s - %s", resp.Status, string(body))
+	}
+
+	var groqResp GroqResponse
+	if err := json.NewDecoder(resp.Body).Decode(&groqResp); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(groqResp.Choices) == 0 {
+		return "", fmt.Errorf("no response from Groq")
+	}
+
+	return groqResp.Choices[0].Message.Content, nil
 }

@@ -12,8 +12,8 @@ import (
 )
 
 const createArtifact = `-- name: CreateArtifact :one
-INSERT INTO artifacts (user_id, conversation_id, message_id, project_id, context_id, title, type, language, content, summary)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+INSERT INTO artifacts (id, user_id, conversation_id, message_id, project_id, context_id, title, type, language, content, summary, version, created_at, updated_at)
+VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1, NOW(), NOW())
 RETURNING id, user_id, conversation_id, message_id, project_id, context_id, title, type, language, content, summary, version, created_at, updated_at
 `
 

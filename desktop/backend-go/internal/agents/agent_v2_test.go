@@ -171,17 +171,17 @@ var AgentToolMatrix = map[AgentTypeV2][]string{
 	AgentTypeV2Orchestrator: {
 		"search_documents", "get_project", "get_task", "get_client",
 		"create_task", "create_project", "create_client",
-		"log_activity",
+		"create_artifact", "log_activity",
 	},
 	AgentTypeV2Document: {
-		"search_documents", "get_project", "get_client",
+		"create_artifact", "search_documents", "get_project", "get_client",
 		"log_activity",
 	},
 	AgentTypeV2Project: {
 		"create_project", "update_project", "get_project", "list_projects",
 		"create_task", "bulk_create_tasks", "assign_task",
 		"get_team_capacity", "search_documents",
-		"log_activity",
+		"create_artifact", "log_activity",
 	},
 	AgentTypeV2Task: {
 		"create_task", "update_task", "get_task", "list_tasks",
@@ -193,12 +193,12 @@ var AgentToolMatrix = map[AgentTypeV2][]string{
 		"create_client", "update_client", "get_client",
 		"log_client_interaction", "update_client_pipeline",
 		"search_documents", "get_project",
-		"log_activity",
+		"create_artifact", "log_activity",
 	},
 	AgentTypeV2Analyst: {
 		"query_metrics", "get_team_capacity",
 		"list_projects", "list_tasks", "get_project",
-		"search_documents",
+		"search_documents", "create_artifact",
 		"log_activity",
 	},
 }

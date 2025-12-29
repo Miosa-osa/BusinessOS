@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/rhl/businessos-backend/internal/config"
@@ -12,15 +13,36 @@ type LLMOptions struct {
 	Temperature float64
 	MaxTokens   int
 	TopP        float64
+	// Thinking/COT options
+	ThinkingEnabled      bool
+	ThinkingInstruction  string
+	MaxThinkingTokens    int
+	ReasoningTemplateID  string
 }
 
 // DefaultLLMOptions returns sensible defaults
 func DefaultLLMOptions() LLMOptions {
 	return LLMOptions{
-		Temperature: 0.7,
-		MaxTokens:   8192,
-		TopP:        0.9,
+		Temperature:       0.7,
+		MaxTokens:         8192,
+		TopP:              0.9,
+		ThinkingEnabled:   false,
+		MaxThinkingTokens: 4096,
 	}
+}
+
+// ThinkingChunk represents a chunk of thinking/reasoning output
+type ThinkingChunk struct {
+	Step      int    `json:"step"`
+	Content   string `json:"content"`
+	Type      string `json:"type"` // analysis, planning, reflection, tool_use, reasoning, evaluation
+	Completed bool   `json:"completed"`
+}
+
+// StreamResultWithThinking extends StreamResult with thinking support
+type StreamResultWithThinking struct {
+	*StreamResult
+	ThinkingChunks <-chan ThinkingChunk
 }
 
 // TokenUsage tracks token consumption for LLM calls
@@ -34,13 +56,13 @@ type TokenUsage struct {
 
 // AgentTrace tracks the flow of an agent request
 type AgentTrace struct {
-	AgentName     string       `json:"agent_name"`
-	DelegatedTo   string       `json:"delegated_to,omitempty"`
-	TokenUsage    *TokenUsage  `json:"token_usage,omitempty"`
-	SubTraces     []AgentTrace `json:"sub_traces,omitempty"`
-	StartTime     int64        `json:"start_time"`
-	EndTime       int64        `json:"end_time,omitempty"`
-	DurationMs    int64        `json:"duration_ms,omitempty"`
+	AgentName   string       `json:"agent_name"`
+	DelegatedTo string       `json:"delegated_to,omitempty"`
+	TokenUsage  *TokenUsage  `json:"token_usage,omitempty"`
+	SubTraces   []AgentTrace `json:"sub_traces,omitempty"`
+	StartTime   int64        `json:"start_time"`
+	EndTime     int64        `json:"end_time,omitempty"`
+	DurationMs  int64        `json:"duration_ms,omitempty"`
 }
 
 // StreamResult wraps streaming results with token usage
@@ -80,7 +102,9 @@ type LLMService interface {
 
 // NewLLMService creates the appropriate LLM service based on configuration
 func NewLLMService(cfg *config.Config, model string) LLMService {
-	switch cfg.GetActiveProvider() {
+	provider := cfg.GetActiveProvider()
+	fmt.Printf("[LLM] Creating service for provider=%q, model=%q\n", provider, model)
+	switch provider {
 	case "ollama_cloud":
 		return NewOllamaCloudService(cfg, model)
 	case "anthropic":

@@ -34,7 +34,7 @@ SELECT $1, $2, $3, $4, $5,
   COALESCE((SELECT MAX(position) + 1 FROM project_statuses WHERE project_id = $1), 0)
 RETURNING *;
 
--- name: UpdateProjectStatus :one
+-- name: UpdateProjectCustomStatus :one
 UPDATE project_statuses
 SET name = $2, color = $3, is_done_state = $4, is_default = $5, updated_at = NOW()
 WHERE id = $1

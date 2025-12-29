@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -324,7 +325,8 @@ func (h *Handlers) CreateTask(c *gin.Context) {
 		AssigneeID:  assigneeID,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create task"})
+		log.Printf("[CreateTask] Error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create task: " + err.Error()})
 		return
 	}
 

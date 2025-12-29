@@ -557,10 +557,12 @@ func (t *CreateTaskTool) Execute(ctx context.Context, input json.RawMessage) (st
 		params.Priority = "medium"
 	}
 
+	// Generate UUID for task
+	taskID := uuid.New()
+
 	// Build query dynamically
-	query := `INSERT INTO tasks (user_id, title, description, status, priority, project_id, due_date, created_at, updated_at)
-	          VALUES ($1, $2, $3, 'todo', $4, $5, $6, NOW(), NOW())
-	          RETURNING id`
+	query := `INSERT INTO tasks (id, user_id, title, description, status, priority, project_id, due_date, created_at, updated_at)
+	          VALUES ($1, $2, $3, $4, 'todo', $5, $6, $7, NOW(), NOW())`
 
 	var projectID interface{} = nil
 	if params.ProjectID != "" {
@@ -581,8 +583,7 @@ func (t *CreateTaskTool) Execute(ctx context.Context, input json.RawMessage) (st
 		description = params.Description
 	}
 
-	var taskID uuid.UUID
-	err := t.pool.QueryRow(ctx, query, t.userID, params.Title, description, params.Priority, projectID, dueDate).Scan(&taskID)
+	_, err := t.pool.Exec(ctx, query, taskID, t.userID, params.Title, description, params.Priority, projectID, dueDate)
 	if err != nil {
 		return "", fmt.Errorf("failed to create task: %w", err)
 	}
@@ -887,7 +888,8 @@ func (t *CreateProjectTool) InputSchema() map[string]interface{} {
 		"properties": map[string]interface{}{
 			"name":        map[string]interface{}{"type": "string", "description": "Project name"},
 			"description": map[string]interface{}{"type": "string", "description": "Project description"},
-			"status":      map[string]interface{}{"type": "string", "enum": []string{"active", "planning", "on_hold", "completed"}, "description": "Project status"},
+			"status":      map[string]interface{}{"type": "string", "enum": []string{"ACTIVE", "PAUSED", "COMPLETED", "ARCHIVED"}, "description": "Project status (default: ACTIVE)"},
+			"priority":    map[string]interface{}{"type": "string", "enum": []string{"CRITICAL", "HIGH", "MEDIUM", "LOW"}, "description": "Project priority (default: MEDIUM)"},
 		},
 		"required": []string{"name"},
 	}
@@ -897,23 +899,28 @@ func (t *CreateProjectTool) Execute(ctx context.Context, input json.RawMessage) 
 		Name        string `json:"name"`
 		Description string `json:"description"`
 		Status      string `json:"status"`
+		Priority    string `json:"priority"`
 	}
 	if err := json.Unmarshal(input, &params); err != nil {
 		return "", err
 	}
 	if params.Status == "" {
-		params.Status = "active"
+		params.Status = "ACTIVE"
+	}
+	if params.Priority == "" {
+		params.Priority = "MEDIUM"
 	}
 
-	query := `INSERT INTO projects (user_id, name, description, status, created_at, updated_at) 
-	          VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id`
-	var projectID uuid.UUID
-	err := t.pool.QueryRow(ctx, query, t.userID, params.Name, params.Description, params.Status).Scan(&projectID)
+	// Generate UUID for project
+	projectID := uuid.New()
+	query := `INSERT INTO projects (id, user_id, name, description, status, priority, created_at, updated_at)
+	          VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`
+	_, err := t.pool.Exec(ctx, query, projectID, t.userID, params.Name, params.Description, params.Status, params.Priority)
 	if err != nil {
 		return "", fmt.Errorf("failed to create project: %w", err)
 	}
 
-	return fmt.Sprintf("✅ Project created!\n\n**Name:** %s\n**ID:** %s\n**Status:** %s", params.Name, projectID, params.Status), nil
+	return fmt.Sprintf("✅ Project created!\n\n**Name:** %s\n**ID:** %s\n**Status:** %s\n**Priority:** %s", params.Name, projectID, params.Status, params.Priority), nil
 }
 
 // UpdateProjectTool updates an existing project
@@ -1047,9 +1054,11 @@ func (t *BulkCreateTasksTool) Execute(ctx context.Context, input json.RawMessage
 			priority = "medium"
 		}
 
-		query := `INSERT INTO tasks (user_id, project_id, title, description, priority, status, created_at, updated_at) 
-		          VALUES ($1, $2, $3, $4, $5, 'todo', NOW(), NOW())`
-		_, err := t.pool.Exec(ctx, query, t.userID, projectUUID, task.Title, task.Description, priority)
+		// Generate UUID for each task
+		taskID := uuid.New()
+		query := `INSERT INTO tasks (id, user_id, project_id, title, description, priority, status, created_at, updated_at)
+		          VALUES ($1, $2, $3, $4, $5, $6, 'todo', NOW(), NOW())`
+		_, err := t.pool.Exec(ctx, query, taskID, t.userID, projectUUID, task.Title, task.Description, priority)
 		if err == nil {
 			created++
 		}
@@ -1500,10 +1509,13 @@ func (t *LogActivityTool) Execute(ctx context.Context, input json.RawMessage) (s
 		params.Type = "note"
 	}
 
-	query := `INSERT INTO daily_log (user_id, content, type, created_at) 
-	          VALUES ($1, $2, $3, NOW()) RETURNING id`
-	var logID uuid.UUID
-	err := t.pool.QueryRow(ctx, query, t.userID, params.Content, params.Type).Scan(&logID)
+	// Generate UUID for log entry
+	logID := uuid.New()
+
+	// daily_logs table requires date field
+	query := `INSERT INTO daily_logs (id, user_id, date, content, created_at, updated_at)
+	          VALUES ($1, $2, CURRENT_DATE, $3, NOW(), NOW())`
+	_, err := t.pool.Exec(ctx, query, logID, t.userID, params.Content)
 	if err != nil {
 		return "", fmt.Errorf("failed to log activity: %w", err)
 	}

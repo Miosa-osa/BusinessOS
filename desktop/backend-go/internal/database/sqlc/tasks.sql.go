@@ -41,7 +41,7 @@ func (q *Queries) CreateFocusItem(ctx context.Context, arg CreateFocusItemParams
 const createTask = `-- name: CreateTask :one
 INSERT INTO tasks (user_id, title, description, status, priority, due_date, project_id, assignee_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, user_id, title, description, status, priority, due_date, completed_at, project_id, assignee_id, created_at, updated_at
+RETURNING id, user_id, title, description, status, priority, due_date, start_date, completed_at, project_id, assignee_id, parent_task_id, custom_status_id, position, created_at, updated_at
 `
 
 type CreateTaskParams struct {
@@ -75,9 +75,13 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		&i.Status,
 		&i.Priority,
 		&i.DueDate,
+		&i.StartDate,
 		&i.CompletedAt,
 		&i.ProjectID,
 		&i.AssigneeID,
+		&i.ParentTaskID,
+		&i.CustomStatusID,
+		&i.Position,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -115,7 +119,7 @@ func (q *Queries) DeleteTask(ctx context.Context, arg DeleteTaskParams) error {
 }
 
 const getTask = `-- name: GetTask :one
-SELECT id, user_id, title, description, status, priority, due_date, completed_at, project_id, assignee_id, created_at, updated_at FROM tasks
+SELECT id, user_id, title, description, status, priority, due_date, start_date, completed_at, project_id, assignee_id, parent_task_id, custom_status_id, position, created_at, updated_at FROM tasks
 WHERE id = $1 AND user_id = $2
 `
 
@@ -135,9 +139,13 @@ func (q *Queries) GetTask(ctx context.Context, arg GetTaskParams) (Task, error) 
 		&i.Status,
 		&i.Priority,
 		&i.DueDate,
+		&i.StartDate,
 		&i.CompletedAt,
 		&i.ProjectID,
 		&i.AssigneeID,
+		&i.ParentTaskID,
+		&i.CustomStatusID,
+		&i.Position,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -185,7 +193,7 @@ func (q *Queries) ListFocusItems(ctx context.Context, arg ListFocusItemsParams) 
 }
 
 const listTasks = `-- name: ListTasks :many
-SELECT id, user_id, title, description, status, priority, due_date, completed_at, project_id, assignee_id, created_at, updated_at FROM tasks
+SELECT id, user_id, title, description, status, priority, due_date, start_date, completed_at, project_id, assignee_id, parent_task_id, custom_status_id, position, created_at, updated_at FROM tasks
 WHERE user_id = $1
   AND ($2::taskstatus IS NULL OR status = $2)
   AND ($3::taskpriority IS NULL OR priority = $3)
@@ -225,9 +233,13 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]Task, e
 			&i.Status,
 			&i.Priority,
 			&i.DueDate,
+			&i.StartDate,
 			&i.CompletedAt,
 			&i.ProjectID,
 			&i.AssigneeID,
+			&i.ParentTaskID,
+			&i.CustomStatusID,
+			&i.Position,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -247,7 +259,7 @@ SET status = CASE WHEN status = 'done' THEN 'todo'::task_status ELSE 'done'::tas
     completed_at = CASE WHEN status = 'done' THEN NULL ELSE NOW() END,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, user_id, title, description, status, priority, due_date, completed_at, project_id, assignee_id, created_at, updated_at
+RETURNING id, user_id, title, description, status, priority, due_date, start_date, completed_at, project_id, assignee_id, parent_task_id, custom_status_id, position, created_at, updated_at
 `
 
 func (q *Queries) ToggleTaskStatus(ctx context.Context, id pgtype.UUID) (Task, error) {
@@ -261,9 +273,13 @@ func (q *Queries) ToggleTaskStatus(ctx context.Context, id pgtype.UUID) (Task, e
 		&i.Status,
 		&i.Priority,
 		&i.DueDate,
+		&i.StartDate,
 		&i.CompletedAt,
 		&i.ProjectID,
 		&i.AssigneeID,
+		&i.ParentTaskID,
+		&i.CustomStatusID,
+		&i.Position,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -302,7 +318,7 @@ const updateTask = `-- name: UpdateTask :one
 UPDATE tasks
 SET title = $2, description = $3, status = $4, priority = $5, due_date = $6, project_id = $7, assignee_id = $8, updated_at = NOW()
 WHERE id = $1
-RETURNING id, user_id, title, description, status, priority, due_date, completed_at, project_id, assignee_id, created_at, updated_at
+RETURNING id, user_id, title, description, status, priority, due_date, start_date, completed_at, project_id, assignee_id, parent_task_id, custom_status_id, position, created_at, updated_at
 `
 
 type UpdateTaskParams struct {
@@ -336,9 +352,13 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, e
 		&i.Status,
 		&i.Priority,
 		&i.DueDate,
+		&i.StartDate,
 		&i.CompletedAt,
 		&i.ProjectID,
 		&i.AssigneeID,
+		&i.ParentTaskID,
+		&i.CustomStatusID,
+		&i.Position,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

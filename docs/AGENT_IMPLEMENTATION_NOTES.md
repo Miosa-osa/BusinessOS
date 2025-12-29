@@ -631,3 +631,221 @@ The backend automatically routes requests to Groq when a Groq model ID is select
 | `backend-go/internal/streaming/events.go` | Added ThinkingStep, ToolCallEvent structs |
 | `frontend/src/routes/(app)/chat/+page.svelte` | Added COT indicator, artifact auto-open |
 | `frontend/src/lib/api/client.ts` | Added 'thinking' to SSEEventType |
+
+---
+
+## Session: 2025-12-27/28 - Real Tool Execution & Task Extraction
+
+### Overview
+
+This session focused on implementing **real tool execution** (connecting AgentToolRegistry to actual database operations) and fixing the **task extraction from artifacts** feature.
+
+### Issues Resolved
+
+#### 1. Tool Calling Support in Groq Service
+
+**Problem:** Tools were defined in AgentToolRegistry but not actually executing database operations.
+
+**Solution:** Implemented full tool calling support in the Groq LLM service.
+
+**Files Modified:**
+- `internal/services/groq.go`
+
+**New Structures Added:**
+```go
+type GroqToolCall struct {
+    ID       string `json:"id"`
+    Type     string `json:"type"`
+    Function struct {
+        Name      string `json:"name"`
+        Arguments string `json:"arguments"`
+    } `json:"function"`
+}
+
+type GroqTool struct {
+    Type     string `json:"type"`
+    Function struct {
+        Name        string                 `json:"name"`
+        Description string                 `json:"description"`
+        Parameters  map[string]interface{} `json:"parameters"`
+    } `json:"function"`
+}
+```
+
+**New Methods:**
+- `ChatWithTools(ctx, messages, systemPrompt, tools)` - Sends request with tool definitions
+- `ContinueWithToolResults(ctx, messages, systemPrompt, toolResults, tools)` - Continues after tool execution
+
+#### 2. RunWithTools in BaseAgentV2
+
+**Problem:** Agent execution didn't support tool call loops.
+
+**Solution:** Added `RunWithTools` method to handle tool execution cycles.
+
+**Files Modified:**
+- `internal/agents/agent_v2.go` - Added `RunWithTools` to interface
+- `internal/agents/base_agent_v2.go` - Implemented `RunWithTools` method
+
+**Flow:**
+```
+User Message → LLM with Tools → Tool Calls? 
+    → Yes: Execute Tools → Send Results → LLM continues
+    → No: Stream response directly
+```
+
+#### 3. ExtractTasks Endpoint Fix
+
+**Problem:** `/api/chat/ai/extract-tasks` returned 400 Bad Request.
+
+**Cause:** Frontend sent `artifact_content`, `artifact_title`, `artifact_type`, `team_members` but backend expected `content`.
+
+**Solution:** Updated request struct to accept all fields.
+
+**File Modified:** `internal/handlers/chat.go`
+
+```go
+var req struct {
+    Content         string                   `json:"content"`
+    ArtifactContent string                   `json:"artifact_content"`
+    ArtifactTitle   string                   `json:"artifact_title"`
+    ArtifactType    string                   `json:"artifact_type"`
+    Model           *string                  `json:"model"`
+    TeamMembers     []map[string]interface{} `json:"team_members"`
+}
+```
+
+#### 4. CreateArtifact SQL Fix
+
+**Problem:** `POST /api/artifacts` returned 500 with null constraint violations.
+
+**Cause:** SQL INSERT missing default values for `id`, `version`, `created_at`, `updated_at`.
+
+**Solution:** Updated SQL query to generate defaults.
+
+**Files Modified:**
+- `internal/database/queries/artifacts.sql`
+- `internal/database/sqlc/artifacts.sql.go`
+
+```sql
+INSERT INTO artifacts (id, user_id, ..., version, created_at, updated_at)
+VALUES (gen_random_uuid(), $1, ..., 1, NOW(), NOW())
+RETURNING *;
+```
+
+#### 5. CreateTask SQL Fix
+
+**Problem:** `POST /api/dashboard/tasks` returned 500 with multiple null constraint violations.
+
+**Cause:** SQL INSERT missing defaults for `id`, `status`, `priority`, `created_at`, `updated_at`.
+
+**Solution:** Updated SQL query with proper defaults and type casts.
+
+**Files Modified:**
+- `internal/database/queries/tasks.sql`
+- `internal/database/sqlc/tasks.sql.go`
+
+```sql
+INSERT INTO tasks (id, user_id, title, description, status, priority, due_date, project_id, assignee_id, created_at, updated_at)
+VALUES (gen_random_uuid(), $1, $2, $3, COALESCE($4, 'todo'::taskstatus), COALESCE($5, 'medium'::taskpriority), $6, $7, $8, NOW(), NOW())
+RETURNING *;
+```
+
+#### 6. Frontend Task Creation Without Project
+
+**Problem:** "Create Tasks" button did nothing if no project was selected.
+
+**Cause:** `confirmInlineTasks()` required `selectedProjectId`.
+
+**Solution:** Made project selection optional.
+
+**File Modified:** `frontend/src/routes/(app)/chat/+page.svelte`
+
+```typescript
+async function confirmInlineTasks() {
+    if (inlineTasksForArtifact.length === 0) return; // Removed project requirement
+    
+    for (const task of inlineTasksForArtifact) {
+        const taskData: any = {
+            title: task.title,
+            description: task.description,
+            priority: task.priority,
+            assignee_id: task.assignee_id
+        };
+        if (selectedProjectId) {
+            taskData.project_id = selectedProjectId;
+        }
+        await api.createTask(taskData);
+    }
+}
+```
+
+### Complete Feature Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    TASK EXTRACTION FROM ARTIFACTS                    │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. User: "Create a plan to hit 100M ARR"                          │
+│                          │                                          │
+│                          ▼                                          │
+│  2. Agent generates plan with artifact                              │
+│     POST /api/artifacts → 201 Created                               │
+│                          │                                          │
+│                          ▼                                          │
+│  3. User clicks "Generate Tasks" button                             │
+│     POST /api/chat/ai/extract-tasks                                 │
+│     → AI extracts actionable tasks from artifact content            │
+│     → Returns JSON array of tasks                                   │
+│                          │                                          │
+│                          ▼                                          │
+│  4. Modal shows extracted tasks with:                               │
+│     - Title, Description, Priority                                  │
+│     - Assignee dropdown (optional)                                  │
+│     - Project selection (optional)                                  │
+│                          │                                          │
+│                          ▼                                          │
+│  5. User clicks "Create X Tasks"                                    │
+│     POST /api/dashboard/tasks (for each task)                       │
+│     → Tasks saved to database                                       │
+│     → Confirmation message in chat                                  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Available Agent Tools (23 total)
+
+| Category | Tools |
+|----------|-------|
+| **Tasks** | `create_task`, `update_task`, `get_task`, `list_tasks`, `bulk_create_tasks`, `move_task`, `assign_task` |
+| **Projects** | `create_project`, `update_project`, `get_project`, `list_projects` |
+| **Clients** | `create_client`, `update_client`, `get_client`, `update_client_pipeline`, `log_client_interaction` |
+| **Documents** | `search_documents`, `create_artifact`, `create_note` |
+| **Analytics** | `query_metrics`, `get_team_capacity` |
+| **System** | `log_activity` |
+
+### Files Modified Summary
+
+| File | Changes |
+|------|---------|
+| `internal/services/groq.go` | Added `GroqToolCall`, `GroqTool`, `ChatWithTools()`, `ContinueWithToolResults()` |
+| `internal/agents/agent_v2.go` | Added `RunWithTools` to interface |
+| `internal/agents/base_agent_v2.go` | Implemented `RunWithTools` method |
+| `internal/handlers/chat_v2.go` | Changed to use `RunWithTools` |
+| `internal/handlers/chat.go` | Fixed `ExtractTasks` to accept artifact fields |
+| `internal/handlers/dashboard.go` | Added error logging to `CreateTask` |
+| `internal/database/sqlc/artifacts.sql.go` | Added defaults for id, version, timestamps |
+| `internal/database/sqlc/tasks.sql.go` | Added defaults for id, status, priority, timestamps |
+| `frontend/src/routes/(app)/chat/+page.svelte` | Made project optional for task creation |
+
+### Test Results
+
+```
+✅ Artifact creation: 201 Created
+✅ Task extraction: 200 OK (15 tasks extracted from plan)
+✅ Task creation: 201 Created (5 tasks created successfully)
+```
+
+---
+
+*Last updated: 2025-12-28*

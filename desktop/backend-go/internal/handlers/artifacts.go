@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
@@ -112,7 +113,8 @@ func (h *Handlers) CreateArtifact(c *gin.Context) {
 		Summary:        req.Summary,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create artifact"})
+		log.Printf("[CreateArtifact] Error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create artifact: " + err.Error()})
 		return
 	}
 
@@ -319,12 +321,12 @@ func (h *Handlers) DeleteArtifact(c *gin.Context) {
 // stringToArtifactType converts a string to sqlc.Artifacttype
 func stringToArtifactType(t string) sqlc.Artifacttype {
 	typeMap := map[string]sqlc.Artifacttype{
-		"code":      sqlc.ArtifacttypeCODE,
-		"document":  sqlc.ArtifacttypeDOCUMENT,
-		"markdown":  sqlc.ArtifacttypeMARKDOWN,
-		"react":     sqlc.ArtifacttypeREACT,
-		"html":      sqlc.ArtifacttypeHTML,
-		"svg":       sqlc.ArtifacttypeSVG,
+		"code":     sqlc.ArtifacttypeCODE,
+		"document": sqlc.ArtifacttypeDOCUMENT,
+		"markdown": sqlc.ArtifacttypeMARKDOWN,
+		"react":    sqlc.ArtifacttypeREACT,
+		"html":     sqlc.ArtifacttypeHTML,
+		"svg":      sqlc.ArtifacttypeSVG,
 		// Map old types to DOCUMENT
 		"proposal":  sqlc.ArtifacttypeDOCUMENT,
 		"sop":       sqlc.ArtifacttypeDOCUMENT,
