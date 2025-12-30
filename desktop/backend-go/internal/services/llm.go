@@ -47,11 +47,12 @@ type StreamResultWithThinking struct {
 
 // TokenUsage tracks token consumption for LLM calls
 type TokenUsage struct {
-	InputTokens  int    `json:"input_tokens"`
-	OutputTokens int    `json:"output_tokens"`
-	TotalTokens  int    `json:"total_tokens"`
-	Model        string `json:"model"`
-	Provider     string `json:"provider"`
+	InputTokens    int    `json:"input_tokens"`
+	OutputTokens   int    `json:"output_tokens"`
+	ThinkingTokens int    `json:"thinking_tokens,omitempty"` // Tokens used for extended thinking/COT
+	TotalTokens    int    `json:"total_tokens"`
+	Model          string `json:"model"`
+	Provider       string `json:"provider"`
 }
 
 // AgentTrace tracks the flow of an agent request
@@ -87,6 +88,29 @@ func (sr *StreamResult) GetTokenUsage() *TokenUsage {
 	return sr.TokenUsage
 }
 
+// ExtendedThinkingResult wraps streaming results with separate thinking channel
+type ExtendedThinkingResult struct {
+	Chunks         chan string        // Regular response content
+	ThinkingChunks chan string        // Extended thinking content
+	Errors         chan error         // Errors
+	TokenUsage     *TokenUsage        // Final token usage
+	mu             sync.Mutex
+}
+
+// SetTokenUsage safely sets token usage (called when stream completes)
+func (etr *ExtendedThinkingResult) SetTokenUsage(usage *TokenUsage) {
+	etr.mu.Lock()
+	defer etr.mu.Unlock()
+	etr.TokenUsage = usage
+}
+
+// GetTokenUsage safely gets token usage
+func (etr *ExtendedThinkingResult) GetTokenUsage() *TokenUsage {
+	etr.mu.Lock()
+	defer etr.mu.Unlock()
+	return etr.TokenUsage
+}
+
 // LLMService interface for language model services
 type LLMService interface {
 	StreamChat(ctx context.Context, messages []ChatMessage, systemPrompt string) (<-chan string, <-chan error)
@@ -98,6 +122,16 @@ type LLMService interface {
 	GetProvider() string
 	SetOptions(opts LLMOptions)
 	GetOptions() LLMOptions
+}
+
+// ExtendedThinkingService interface for providers that support native extended thinking
+type ExtendedThinkingService interface {
+	LLMService
+	// StreamChatWithThinking streams chat with extended thinking support
+	// Returns separate channels for thinking content and response content
+	StreamChatWithThinking(ctx context.Context, messages []ChatMessage, systemPrompt string) *ExtendedThinkingResult
+	// SupportsExtendedThinking returns true if the current model supports extended thinking
+	SupportsExtendedThinking() bool
 }
 
 // NewLLMService creates the appropriate LLM service based on configuration

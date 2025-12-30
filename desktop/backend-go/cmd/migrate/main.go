@@ -553,5 +553,407 @@ Match the desired tone, style, and voice. Be creative while staying on-brand.',
 		fmt.Println("✓ agent_presets data OK")
 	}
 
+	// ===== CUSTOM COMMANDS SYSTEM (Migration 010) =====
+
+	// Create custom_commands table
+	_, err = conn.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS custom_commands (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id VARCHAR(255) NOT NULL,
+			trigger VARCHAR(50) NOT NULL,
+			display_name VARCHAR(100) NOT NULL,
+			description TEXT,
+			action_type VARCHAR(50) NOT NULL,
+			target_agent_id UUID REFERENCES custom_agents(id) ON DELETE SET NULL,
+			prompt_template TEXT,
+			tool_name VARCHAR(100),
+			requires_input BOOLEAN DEFAULT FALSE,
+			input_placeholder TEXT,
+			parameters JSONB DEFAULT '{}',
+			streaming_enabled BOOLEAN DEFAULT TRUE,
+			thinking_enabled BOOLEAN DEFAULT FALSE,
+			category VARCHAR(50) DEFAULT 'general',
+			is_active BOOLEAN DEFAULT TRUE,
+			is_system BOOLEAN DEFAULT FALSE,
+			times_used INTEGER DEFAULT 0,
+			last_used_at TIMESTAMP WITH TIME ZONE,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			UNIQUE(user_id, trigger)
+		);
+		CREATE INDEX IF NOT EXISTS idx_custom_commands_user_id ON custom_commands(user_id);
+		CREATE INDEX IF NOT EXISTS idx_custom_commands_trigger ON custom_commands(user_id, trigger);
+		CREATE INDEX IF NOT EXISTS idx_custom_commands_active ON custom_commands(user_id, is_active);
+		CREATE INDEX IF NOT EXISTS idx_custom_commands_category ON custom_commands(category);
+	`)
+	if err != nil {
+		log.Printf("Warning creating custom_commands table: %v", err)
+	} else {
+		fmt.Println("✓ custom_commands table OK")
+	}
+
+	// Create agent_mentions table
+	_, err = conn.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS agent_mentions (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id VARCHAR(255) NOT NULL,
+			conversation_id UUID NOT NULL,
+			message_id UUID NOT NULL,
+			mentioned_agent_id UUID REFERENCES custom_agents(id) ON DELETE CASCADE,
+			mention_text VARCHAR(100) NOT NULL,
+			position_in_message INT,
+			resolved BOOLEAN DEFAULT TRUE,
+			resolution_note TEXT,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_agent_mentions_user_id ON agent_mentions(user_id);
+		CREATE INDEX IF NOT EXISTS idx_agent_mentions_conversation ON agent_mentions(conversation_id);
+		CREATE INDEX IF NOT EXISTS idx_agent_mentions_agent ON agent_mentions(mentioned_agent_id);
+	`)
+	if err != nil {
+		log.Printf("Warning creating agent_mentions table: %v", err)
+	} else {
+		fmt.Println("✓ agent_mentions table OK")
+	}
+
+	// Insert default system commands
+	_, err = conn.Exec(ctx, `
+		INSERT INTO custom_commands (user_id, trigger, display_name, description, action_type, prompt_template, category, is_system, streaming_enabled, thinking_enabled)
+		VALUES
+			('SYSTEM', '/help', 'Show Help', 'Display available commands and agents', 'template',
+			 'Here are the available commands and agents:\n\n**Commands:**\n{{commands_list}}\n\n**Agents:**\n{{agents_list}}',
+			 'productivity', TRUE, TRUE, FALSE),
+
+			('SYSTEM', '/clear', 'Clear Context', 'Clear conversation context', 'tool',
+			 NULL,
+			 'productivity', TRUE, FALSE, FALSE),
+
+			('SYSTEM', '/summarize', 'Summarize Conversation', 'Create a summary of the current conversation', 'template',
+			 'Please provide a concise summary of this conversation, highlighting:\n1. Key topics discussed\n2. Decisions made\n3. Action items identified\n4. Open questions remaining',
+			 'productivity', TRUE, TRUE, TRUE)
+		ON CONFLICT (user_id, trigger) DO NOTHING;
+	`)
+	if err != nil {
+		log.Printf("Warning inserting system commands: %v", err)
+	} else {
+		fmt.Println("✓ system_commands data OK")
+	}
+
+	// ===== CORE SPECIALIST AGENTS (Migration 011) =====
+
+	// Insert 5 core specialist agent presets
+	_, err = conn.Exec(ctx, `
+		INSERT INTO agent_presets (name, display_name, description, avatar, system_prompt, model_preference, category, capabilities, tools_enabled, thinking_enabled, temperature)
+		VALUES
+			-- RESEARCHER
+			('researcher', 'Researcher', 'Expert at deep research, fact-finding, and synthesizing information from multiple sources', 'search',
+			 'You are an expert Research Agent specializing in deep investigation and knowledge synthesis.
+
+## Core Capabilities
+- **Deep Research**: Thoroughly investigate topics using all available sources
+- **Fact Verification**: Cross-reference information to ensure accuracy
+- **Source Attribution**: Always cite sources and provide references
+- **Knowledge Synthesis**: Combine information from multiple sources into coherent insights
+
+## Research Process
+1. **Understand the Query**: Clarify what information is needed
+2. **Gather Sources**: Search for relevant, authoritative sources
+3. **Analyze & Verify**: Cross-check facts across multiple sources
+4. **Synthesize**: Combine findings into clear, actionable insights
+5. **Cite**: Always provide sources for claims
+
+## Output Format
+- Start with a brief summary of findings
+- Provide detailed analysis with citations
+- Include confidence levels for claims
+- Suggest areas for further research if needed
+
+Always prioritize accuracy over speed. If uncertain, say so explicitly.',
+			 'claude-3-5-sonnet-20241022', 'research',
+			 ARRAY['research', 'fact_checking', 'synthesis', 'web_search'],
+			 ARRAY['web_search', 'read_document'],
+			 TRUE, 0.3),
+
+			-- WRITER
+			('writer', 'Writer', 'Professional writer for all types of content - articles, emails, documentation, and creative writing', 'pen-tool',
+			 'You are an expert Writing Agent capable of creating high-quality content across all formats.
+
+## Core Capabilities
+- **Versatile Writing**: Articles, emails, docs, marketing copy, creative content
+- **Tone Adaptation**: Match any voice, style, or brand guidelines
+- **Structure**: Clear organization with compelling flow
+- **Editing**: Polish and improve existing content
+
+## Writing Process
+1. **Understand the Brief**: Clarify purpose, audience, tone, and constraints
+2. **Outline**: Create a logical structure before writing
+3. **Draft**: Write with the target audience in mind
+4. **Refine**: Edit for clarity, flow, and impact
+5. **Polish**: Final review for grammar and style
+
+## Output Guidelines
+- Match the requested tone and style
+- Use clear, engaging language
+- Structure content for easy reading (headers, bullets, short paragraphs)
+- Provide multiple versions if requested
+
+Adapt your writing style to the context - professional for business, engaging for marketing, precise for technical.',
+			 NULL, 'writing',
+			 ARRAY['content_creation', 'copywriting', 'editing', 'documentation'],
+			 ARRAY[]::TEXT[],
+			 FALSE, 0.7),
+
+			-- CODER
+			('coder', 'Coder', 'Expert software developer for writing, reviewing, and debugging code across all languages', 'code',
+			 'You are an expert Coding Agent with deep knowledge of software development.
+
+## Core Capabilities
+- **Multi-Language**: Proficient in all major programming languages
+- **Code Writing**: Write clean, efficient, well-documented code
+- **Code Review**: Identify bugs, security issues, and improvements
+- **Debugging**: Systematic problem diagnosis and fixes
+- **Architecture**: Design scalable, maintainable solutions
+
+## Coding Standards
+1. **Clean Code**: Readable, self-documenting, follows conventions
+2. **Error Handling**: Robust error handling and edge cases
+3. **Security**: No vulnerabilities (OWASP top 10 awareness)
+4. **Performance**: Efficient algorithms and data structures
+5. **Testing**: Include tests when appropriate
+
+## Output Format
+- Provide complete, working code
+- Include comments for complex logic
+- Explain your approach when asked
+- Suggest alternatives when relevant
+
+Always prioritize code quality and security. Ask for clarification on requirements when needed.',
+			 'claude-3-5-sonnet-20241022', 'coding',
+			 ARRAY['code_writing', 'code_review', 'debugging', 'architecture'],
+			 ARRAY['read_file', 'write_file', 'execute_code', 'search_code'],
+			 TRUE, 0.2),
+
+			-- ANALYST
+			('analyst', 'Analyst', 'Data analyst for extracting insights, identifying patterns, and making data-driven recommendations', 'bar-chart-2',
+			 'You are an expert Analysis Agent specializing in data interpretation and insights.
+
+## Core Capabilities
+- **Data Analysis**: Statistical analysis, trend identification, pattern recognition
+- **Visualization**: Describe effective charts and visualizations
+- **Interpretation**: Transform raw data into actionable insights
+- **Forecasting**: Predictive analysis and projections
+- **Reporting**: Clear, executive-ready summaries
+
+## Analysis Framework
+1. **Understand the Question**: What decision needs to be made?
+2. **Explore the Data**: Initial patterns, distributions, quality
+3. **Analyze**: Apply appropriate statistical methods
+4. **Interpret**: What do the numbers mean?
+5. **Recommend**: Actionable next steps
+
+## Output Guidelines
+- Lead with key findings and recommendations
+- Support claims with specific data points
+- Visualize (describe charts) when helpful
+- Acknowledge data limitations and assumptions
+- Provide confidence intervals when appropriate
+
+Be precise with numbers. Distinguish between correlation and causation.',
+			 NULL, 'analysis',
+			 ARRAY['data_analysis', 'statistics', 'visualization', 'forecasting'],
+			 ARRAY['read_file', 'execute_code'],
+			 TRUE, 0.3),
+
+			-- PLANNER
+			('planner', 'Planner', 'Strategic planner for project planning, goal setting, and creating actionable roadmaps', 'map',
+			 'You are an expert Planning Agent specializing in strategy and project management.
+
+## Core Capabilities
+- **Strategic Planning**: Long-term vision and goal setting
+- **Project Planning**: Breakdown, timelines, dependencies
+- **Resource Allocation**: Optimize people, time, and budget
+- **Risk Management**: Identify and mitigate potential issues
+- **Progress Tracking**: Milestones and success metrics
+
+## Planning Framework
+1. **Define Goals**: Clear, measurable objectives (SMART)
+2. **Analyze Context**: Current state, constraints, resources
+3. **Develop Strategy**: High-level approach to achieve goals
+4. **Create Roadmap**: Phases, milestones, dependencies
+5. **Plan Execution**: Detailed tasks, owners, deadlines
+
+## Output Format
+- Start with executive summary
+- Provide clear timelines and milestones
+- Include task breakdowns with dependencies
+- Identify risks and mitigation strategies
+- Define success metrics and checkpoints
+
+Focus on actionable, realistic plans. Consider constraints and dependencies.',
+			 NULL, 'planning',
+			 ARRAY['strategic_planning', 'project_management', 'roadmapping', 'risk_assessment'],
+			 ARRAY[]::TEXT[],
+			 TRUE, 0.5)
+		ON CONFLICT (name) DO UPDATE SET
+			display_name = EXCLUDED.display_name,
+			description = EXCLUDED.description,
+			avatar = EXCLUDED.avatar,
+			system_prompt = EXCLUDED.system_prompt,
+			model_preference = EXCLUDED.model_preference,
+			category = EXCLUDED.category,
+			capabilities = EXCLUDED.capabilities,
+			tools_enabled = EXCLUDED.tools_enabled,
+			thinking_enabled = EXCLUDED.thinking_enabled,
+			temperature = EXCLUDED.temperature,
+			updated_at = NOW();
+	`)
+	if err != nil {
+		log.Printf("Warning inserting core specialist presets: %v", err)
+	} else {
+		fmt.Println("✓ core_specialist_presets data OK")
+	}
+
+	// Migration 012: Add thinking_tokens to usage tracking
+	_, err = conn.Exec(ctx, `
+		DO $$
+		BEGIN
+			-- Add thinking_tokens column to ai_usage_logs
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'ai_usage_logs' AND column_name = 'thinking_tokens'
+			) THEN
+				ALTER TABLE ai_usage_logs ADD COLUMN thinking_tokens INTEGER DEFAULT 0;
+			END IF;
+
+			-- Add ai_thinking_tokens to usage_daily_summary
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'usage_daily_summary' AND column_name = 'ai_thinking_tokens'
+			) THEN
+				ALTER TABLE usage_daily_summary ADD COLUMN ai_thinking_tokens BIGINT DEFAULT 0;
+			END IF;
+		END $$;
+	`)
+	if err != nil {
+		log.Printf("Warning adding thinking_tokens columns: %v", err)
+	} else {
+		fmt.Println("✓ thinking_tokens columns OK")
+	}
+
+	// Migration 013: Focus Configurations System
+	_, err = conn.Exec(ctx, `
+		-- Focus mode templates (system-level defaults)
+		CREATE TABLE IF NOT EXISTS focus_mode_templates (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name VARCHAR(50) NOT NULL UNIQUE,
+			display_name VARCHAR(100) NOT NULL,
+			description TEXT,
+			icon VARCHAR(50),
+			default_model VARCHAR(100),
+			temperature DECIMAL(3,2) DEFAULT 0.7,
+			max_tokens INTEGER DEFAULT 4096,
+			output_style VARCHAR(50) DEFAULT 'balanced',
+			response_format VARCHAR(50) DEFAULT 'markdown',
+			max_response_length INTEGER,
+			require_sources BOOLEAN DEFAULT false,
+			auto_search BOOLEAN DEFAULT false,
+			search_depth VARCHAR(20) DEFAULT 'quick',
+			kb_context_limit INTEGER DEFAULT 5,
+			include_history_count INTEGER DEFAULT 10,
+			thinking_enabled BOOLEAN DEFAULT false,
+			thinking_style VARCHAR(50),
+			system_prompt_prefix TEXT,
+			system_prompt_suffix TEXT,
+			sort_order INTEGER DEFAULT 0,
+			is_active BOOLEAN DEFAULT true,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		);
+
+		-- User-specific focus configuration overrides
+		CREATE TABLE IF NOT EXISTS focus_configurations (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id VARCHAR(255) NOT NULL,
+			template_id UUID REFERENCES focus_mode_templates(id) ON DELETE CASCADE,
+			custom_name VARCHAR(100),
+			temperature DECIMAL(3,2),
+			max_tokens INTEGER,
+			output_style VARCHAR(50),
+			response_format VARCHAR(50),
+			max_response_length INTEGER,
+			require_sources BOOLEAN,
+			auto_search BOOLEAN,
+			search_depth VARCHAR(20),
+			kb_context_limit INTEGER,
+			include_history_count INTEGER,
+			thinking_enabled BOOLEAN,
+			thinking_style VARCHAR(50),
+			custom_system_prompt TEXT,
+			preferred_model VARCHAR(100),
+			auto_load_kb_categories TEXT[],
+			keyboard_shortcut VARCHAR(20),
+			is_favorite BOOLEAN DEFAULT false,
+			use_count INTEGER DEFAULT 0,
+			last_used_at TIMESTAMPTZ,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW(),
+			UNIQUE(user_id, template_id)
+		);
+
+		-- Focus context presets
+		CREATE TABLE IF NOT EXISTS focus_context_presets (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id VARCHAR(255) NOT NULL,
+			name VARCHAR(100) NOT NULL,
+			description TEXT,
+			kb_artifact_ids UUID[],
+			kb_categories TEXT[],
+			project_ids UUID[],
+			default_search_queries TEXT[],
+			search_domains TEXT[],
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		);
+
+		-- Link presets to focus configurations
+		CREATE TABLE IF NOT EXISTS focus_configuration_presets (
+			focus_config_id UUID REFERENCES focus_configurations(id) ON DELETE CASCADE,
+			preset_id UUID REFERENCES focus_context_presets(id) ON DELETE CASCADE,
+			sort_order INTEGER DEFAULT 0,
+			PRIMARY KEY (focus_config_id, preset_id)
+		);
+
+		-- Indexes
+		CREATE INDEX IF NOT EXISTS idx_focus_configurations_user ON focus_configurations(user_id);
+		CREATE INDEX IF NOT EXISTS idx_focus_configurations_template ON focus_configurations(template_id);
+		CREATE INDEX IF NOT EXISTS idx_focus_context_presets_user ON focus_context_presets(user_id);
+	`)
+	if err != nil {
+		log.Printf("Warning creating focus_mode tables: %v", err)
+	} else {
+		fmt.Println("✓ focus_mode tables OK")
+	}
+
+	// Insert default focus mode templates
+	_, err = conn.Exec(ctx, `
+		INSERT INTO focus_mode_templates (name, display_name, description, icon, default_model, temperature, output_style, auto_search, search_depth, thinking_enabled, thinking_style, system_prompt_prefix, sort_order) VALUES
+		('quick', 'Quick', 'Fast, concise responses for simple questions', 'zap', NULL, 0.5, 'concise', false, 'quick', false, NULL, 'You are in Quick Mode. Provide brief, direct answers. Be concise and to the point.', 1),
+		('deep', 'Deep Research', 'Thorough research with sources and citations', 'search', 'claude-3-5-sonnet-20241022', 0.7, 'detailed', true, 'deep', true, 'analytical', 'You are in Deep Research Mode. Conduct thorough research and provide comprehensive, well-sourced answers.', 2),
+		('creative', 'Creative', 'Imaginative and exploratory responses', 'sparkles', NULL, 0.9, 'balanced', false, 'quick', true, 'creative', 'You are in Creative Mode. Think outside the box. Be imaginative and innovative.', 3),
+		('analyze', 'Analysis', 'Data-driven analysis and insights', 'chart-bar', 'claude-3-5-sonnet-20241022', 0.6, 'structured', false, 'standard', true, 'analytical', 'You are in Analysis Mode. Focus on data-driven insights with clear structure.', 4),
+		('write', 'Writing', 'Document creation and editing', 'file-text', NULL, 0.7, 'detailed', false, 'quick', false, NULL, 'You are in Writing Mode. Create well-structured, polished content.', 5),
+		('plan', 'Planning', 'Strategic planning and project organization', 'clipboard-list', NULL, 0.6, 'structured', false, 'standard', true, 'step-by-step', 'You are in Planning Mode. Create actionable plans with clear steps.', 6),
+		('code', 'Coding', 'Software development assistance', 'code', 'claude-3-5-sonnet-20241022', 0.4, 'structured', false, 'quick', true, 'step-by-step', 'You are in Coding Mode. Write clean, efficient code with best practices.', 7)
+		ON CONFLICT (name) DO UPDATE SET
+			display_name = EXCLUDED.display_name,
+			description = EXCLUDED.description,
+			updated_at = NOW();
+	`)
+	if err != nil {
+		log.Printf("Warning inserting focus_mode_templates: %v", err)
+	} else {
+		fmt.Println("✓ focus_mode_templates data OK")
+	}
+
 	fmt.Println("Migration complete!")
 }

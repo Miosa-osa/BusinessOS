@@ -93,6 +93,7 @@
 	interface UsageData {
 		input_tokens: number;
 		output_tokens: number;
+		thinking_tokens: number;
 		total_tokens: number;
 		duration_ms: number;
 		tps: number;
@@ -136,6 +137,7 @@
 	let focusModeEnabled = $state(true); // Focus vs Classic mode
 	let selectedFocusId = $state<string | null>(null); // Current focus card
 	let focusOptions = $state<Record<string, string>>({}); // Selected options
+	let showFocusDropdown = $state(false); // Focus mode dropdown in existing conversations
 	let rightPanelOpen = $state(false); // Progress/Context panel - closed by default
 	let rightPanelTab = $state<'progress' | 'context' | 'artifacts'>('progress');
 	let delegatedTasks = $state<DelegatedTask[]>([]); // Tasks from AI
@@ -203,6 +205,21 @@
 	let filteredCommands = $state<SlashCommand[]>([]);
 	let commandDropdownIndex = $state(0);
 	let activeCommand = $state<SlashCommand | null>(null);
+
+	// Agent mention state (@agent)
+	interface AgentPreset {
+		id: string;
+		name: string;
+		display_name: string;
+		description: string | null;
+		avatar: string | null;
+		category: string | null;
+	}
+	let availableAgents: AgentPreset[] = $state([]);
+	let detectedAgent = $state<AgentPreset | null>(null);
+	let showAgentSuggestions = $state(false);
+	let filteredAgents = $state<AgentPreset[]>([]);
+	let agentDropdownIndex = $state(0);
 
 	// Chat state
 	let messages: ChatMessage[] = $state([]);
@@ -779,6 +796,35 @@
 		}
 	}
 
+	// Load agent presets for @mention autocomplete
+	async function loadAgentPresets() {
+		try {
+			const response = await fetch('/api/ai/agents/presets');
+			if (response.ok) {
+				const data = await response.json();
+				availableAgents = data.presets || [];
+				console.log('[Chat] Loaded', availableAgents.length, 'agent presets');
+			}
+		} catch (e) {
+			console.error('Failed to load agent presets:', e);
+		}
+	}
+
+	// Detect @agent mentions in input and set detectedAgent
+	function detectAgentMention(text: string) {
+		// Match @agent-name at the start of the message
+		const agentMatch = text.match(/^@(\w[\w-]*)/);
+		if (agentMatch && availableAgents.length > 0) {
+			const agentName = agentMatch[1].toLowerCase();
+			const agent = availableAgents.find(a => a.name.toLowerCase() === agentName);
+			if (agent) {
+				detectedAgent = agent;
+				return;
+			}
+		}
+		detectedAgent = null;
+	}
+
 	// Create a new project quickly from chat
 	async function createProjectQuick() {
 		if (!newProjectName.trim()) return;
@@ -1002,6 +1048,7 @@ Use this context to inform your responses.`;
 		loadProjects();
 		loadTeamMembers();
 		loadCommands(); // Load slash commands for autocomplete
+		loadAgentPresets(); // Load agent presets for @mention
 		checkWhisperStatus(); // Check if voice transcription is available
 
 		// Set artifact panel width to ~50% of available space (window width minus sidebars)
@@ -2810,14 +2857,60 @@ Use this context to inform your responses.`;
 		inputRef?.focus();
 	}
 
+	// Select an agent from the dropdown
+	function selectAgent(agent: AgentPreset) {
+		detectedAgent = agent;
+		inputValue = '@' + agent.name + ' ';
+		showAgentSuggestions = false;
+		inputRef?.focus();
+	}
+
+	// Clear the detected agent
+	function clearDetectedAgent() {
+		detectedAgent = null;
+		inputValue = '';
+		inputRef?.focus();
+	}
+
 	function handleInput() {
 		if (inputRef) {
 			inputRef.style.height = 'auto';
 			inputRef.style.height = Math.min(inputRef.scrollHeight, 200) + 'px';
 		}
 
+		// Check for @agent mention input
+		if (inputValue.startsWith('@')) {
+			const query = inputValue.slice(1).toLowerCase().split(' ')[0]; // Get text after @ before space
+
+			// Check if we have a complete agent mention (has space after agent name)
+			const spaceIndex = inputValue.indexOf(' ');
+			if (spaceIndex > 0) {
+				const agentName = inputValue.slice(1, spaceIndex);
+				const matchedAgent = availableAgents.find(a => a.name.toLowerCase() === agentName.toLowerCase());
+				if (matchedAgent) {
+					detectedAgent = matchedAgent;
+					showAgentSuggestions = false;
+					showCommandSuggestions = false;
+					return;
+				}
+			}
+
+			// Still typing agent name - show suggestions
+			if (query.length === 0) {
+				// Just "@" typed, show all agents
+				filteredAgents = availableAgents.slice(0, 8);
+			} else {
+				// Filter agents by query
+				filteredAgents = availableAgents
+					.filter(agent => agent.name.toLowerCase().includes(query) || agent.display_name.toLowerCase().includes(query))
+					.slice(0, 8);
+			}
+			showAgentSuggestions = filteredAgents.length > 0;
+			agentDropdownIndex = 0;
+			showCommandSuggestions = false;
+		}
 		// Check for slash command input
-		if (inputValue.startsWith('/')) {
+		else if (inputValue.startsWith('/')) {
 			const query = inputValue.slice(1).toLowerCase().split(' ')[0]; // Get text after / before space
 
 			// Check if we have a complete command (has space after command name)
@@ -2828,6 +2921,7 @@ Use this context to inform your responses.`;
 				if (matchedCmd) {
 					activeCommand = matchedCmd;
 					showCommandSuggestions = false;
+					showAgentSuggestions = false;
 					return;
 				}
 			}
@@ -2844,9 +2938,12 @@ Use this context to inform your responses.`;
 			}
 			showCommandSuggestions = filteredCommands.length > 0;
 			commandDropdownIndex = 0;
+			showAgentSuggestions = false;
 		} else {
 			showCommandSuggestions = false;
+			showAgentSuggestions = false;
 			activeCommand = null;
+			detectedAgent = null;
 		}
 	}
 
@@ -3856,7 +3953,10 @@ Use this context to inform your responses.`;
 													{message.usage.tps.toFixed(1)} t/s
 												</span>
 												<span title="Total tokens">{message.usage.total_tokens} tokens</span>
-												<span class="text-gray-300 dark:text-gray-600">â€¢</span>
+												{#if message.usage.thinking_tokens > 0}
+													<span class="text-purple-400" title="Thinking tokens (COT)">{message.usage.thinking_tokens} thinking</span>
+												{/if}
+												<span class="text-gray-300 dark:text-gray-600">.</span>
 												<span title="Provider">{message.usage.model?.toLowerCase().includes('-cloud') ? 'Cloud' : (message.usage.provider === 'ollama_local' ? 'Local' : message.usage.provider)}</span>
 											</div>
 										{/if}
@@ -4076,6 +4176,36 @@ Use this context to inform your responses.`;
 								</div>
 							{/if}
 
+							<!-- Agent Mention Suggestions -->
+							{#if showAgentSuggestions}
+								<div class="mb-3 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden" transition:fly={{ y: 10, duration: 150 }}>
+									<div class="px-3 py-2 border-b border-gray-200 bg-white">
+										<span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Agents</span>
+									</div>
+									<div class="max-h-64 overflow-y-auto" id="agent-list-messages">
+										{#each filteredAgents as agent, i (agent.id)}
+											<button
+												data-agent-index={i}
+												onclick={() => selectAgent(agent)}
+												class="w-full px-3 py-2.5 text-left transition-colors flex items-center gap-3 {agentDropdownIndex === i ? 'bg-purple-50 text-purple-700' : 'hover:bg-gray-100 text-gray-700'}"
+											>
+												<div class="w-8 h-8 rounded-lg {agentDropdownIndex === i ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-600'} flex items-center justify-center flex-shrink-0">
+													<span class="text-sm font-bold">@</span>
+												</div>
+												<div class="flex-1 min-w-0">
+													<div class="text-sm font-medium">{agent.display_name}</div>
+													<div class="text-xs text-gray-500 truncate">{agent.description || agent.category || 'Agent'}</div>
+												</div>
+												<span class="text-xs text-gray-400 font-mono">@{agent.name}</span>
+											</button>
+										{/each}
+									</div>
+									<div class="px-3 py-1.5 bg-gray-100 border-t border-gray-200 text-xs text-gray-500">
+										Use arrow keys + Enter/Tab to select
+									</div>
+								</div>
+							{/if}
+
 							<!-- Active Command Chip (when command is selected) -->
 							{#if activeCommand}
 								<div class="mb-2 flex items-center gap-2" transition:fly={{ y: -5, duration: 150 }}>
@@ -4095,6 +4225,28 @@ Use this context to inform your responses.`;
 										</button>
 									</div>
 									<span class="text-xs text-gray-500">{activeCommand.description}</span>
+								</div>
+							{/if}
+
+							<!-- Detected Agent Chip (when @agent is detected) -->
+							{#if detectedAgent}
+								<div class="mb-2 flex items-center gap-2" transition:fly={{ y: -5, duration: 150 }}>
+									<div class="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-full">
+										<div class="w-5 h-5 rounded bg-purple-500 text-white flex items-center justify-center">
+											<span class="text-xs font-bold">@</span>
+										</div>
+										<span class="text-sm font-medium text-purple-700">{detectedAgent.display_name}</span>
+										<button
+											onclick={clearDetectedAgent}
+											class="w-4 h-4 rounded-full bg-purple-200 hover:bg-purple-300 text-purple-600 flex items-center justify-center transition-colors"
+											aria-label="Clear agent"
+										>
+											<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+											</svg>
+										</button>
+									</div>
+									<span class="text-xs text-gray-500">{detectedAgent.description || detectedAgent.category || 'Specialist'}</span>
 								</div>
 							{/if}
 
@@ -4221,6 +4373,78 @@ Use this context to inform your responses.`;
 														<span class="text-base">{ctx.icon || 'ðŸ“„'}</span>
 													{/if}
 													<span class="truncate">{ctx.name}</span>
+												</button>
+											{/each}
+										</div>
+									{/if}
+								</div>
+
+								<!-- Focus Mode Selector (inline for existing conversations) -->
+								<div class="relative">
+									<button
+										onclick={() => { showFocusDropdown = !showFocusDropdown; showModelDropdown = false; showContextDropdown = false; }}
+										class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors {selectedFocusId ? 'text-purple-600 bg-purple-50 hover:bg-purple-100' : 'text-gray-600 hover:bg-gray-100'}"
+									>
+										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+										</svg>
+										{#if selectedFocusId}
+											{@const mode = FOCUS_MODES.find(m => m.id === selectedFocusId)}
+											<span class="font-medium">{mode?.name || 'Focus'}</span>
+										{:else}
+											<span>Focus</span>
+										{/if}
+										<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+										</svg>
+									</button>
+
+									{#if showFocusDropdown}
+										<div
+											class="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[200px] z-10"
+											transition:fly={{ y: 5, duration: 150 }}
+										>
+											{#if selectedFocusId}
+												<button
+													onclick={() => { selectedFocusId = null; focusOptions = {}; showFocusDropdown = false; }}
+													class="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-600 border-b border-gray-100"
+												>
+													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+													</svg>
+													Clear Focus Mode
+												</button>
+											{/if}
+											{#each FOCUS_MODES as mode (mode.id)}
+												{@const isSelected = selectedFocusId === mode.id}
+												<button
+													onclick={() => {
+														selectedFocusId = mode.id;
+														focusOptions = getDefaultOptions(mode);
+														showFocusDropdown = false;
+													}}
+													class="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors flex items-center gap-2 {isSelected ? 'text-purple-600 font-medium bg-purple-50' : 'text-gray-600'}"
+												>
+													{#if isSelected}
+														<svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+														</svg>
+													{:else}
+														<span class="w-4 h-4 flex items-center justify-center text-gray-400">
+															{#if mode.icon === 'magnifying-glass-chart'}
+																<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+															{:else if mode.icon === 'chart-bar'}
+																<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+															{:else if mode.icon === 'document-text'}
+																<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+															{:else if mode.icon === 'cube'}
+																<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+															{:else}
+																<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+															{/if}
+														</span>
+													{/if}
+													<span class="truncate">{mode.name}</span>
 												</button>
 											{/each}
 										</div>

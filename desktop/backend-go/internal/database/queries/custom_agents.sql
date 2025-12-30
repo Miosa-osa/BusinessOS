@@ -14,7 +14,7 @@ WHERE id = $1 AND user_id = $2;
 
 -- name: GetCustomAgentByName :one
 SELECT * FROM custom_agents
-WHERE name = $1 AND user_id = $2 AND is_active = TRUE;
+WHERE LOWER(name) = LOWER($1) AND user_id = $2 AND is_active = TRUE;
 
 -- name: CreateCustomAgent :one
 INSERT INTO custom_agents (
@@ -105,6 +105,6 @@ SELECT
     TRUE, -- streaming_enabled
     category,
     TRUE  -- is_active
-FROM agent_presets
-WHERE id = $3
+FROM agent_presets ap
+WHERE ap.id = $3
 RETURNING *;

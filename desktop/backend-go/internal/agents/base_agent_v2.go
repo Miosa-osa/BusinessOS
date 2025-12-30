@@ -17,20 +17,21 @@ import (
 
 // BaseAgentV2 provides common functionality for all V2 agents
 type BaseAgentV2 struct {
-	pool           *pgxpool.Pool
-	cfg            *config.Config
-	userID         string
-	userName       string
-	conversationID *uuid.UUID
-	model          string
-	agentType      AgentTypeV2
-	agentName      string
-	description    string
-	systemPrompt   string
-	contextReqs    ContextRequirements
-	llmOptions     services.LLMOptions
-	toolRegistry   *tools.AgentToolRegistry
-	enabledTools   []string // Tool names this agent can use
+	pool            *pgxpool.Pool
+	cfg             *config.Config
+	userID          string
+	userName        string
+	conversationID  *uuid.UUID
+	model           string
+	agentType       AgentTypeV2
+	agentName       string
+	description     string
+	systemPrompt    string
+	focusModePrompt string // Focus mode specific prompt prefix
+	contextReqs     ContextRequirements
+	llmOptions      services.LLMOptions
+	toolRegistry    *tools.AgentToolRegistry
+	enabledTools    []string // Tool names this agent can use
 }
 
 // BaseAgentV2Config holds configuration for creating a BaseAgentV2
@@ -118,6 +119,23 @@ func (a *BaseAgentV2) SetOptions(opts services.LLMOptions) {
 // GetOptions returns the current LLM options
 func (a *BaseAgentV2) GetOptions() services.LLMOptions {
 	return a.llmOptions
+}
+
+// SetCustomSystemPrompt overrides the system prompt with a custom one (for custom agents)
+func (a *BaseAgentV2) SetCustomSystemPrompt(prompt string) {
+	fmt.Printf("[Agent %p] SetCustomSystemPrompt called with %d chars\n", a, len(prompt))
+	if prompt != "" {
+		fmt.Printf("[Agent %p] Setting custom systemPrompt: %s\n", a, prompt[:min(100, len(prompt))])
+		a.systemPrompt = prompt
+		fmt.Printf("[Agent %p] systemPrompt now has %d chars\n", a, len(a.systemPrompt))
+	} else {
+		fmt.Printf("[Agent %p] SetCustomSystemPrompt called with empty prompt - NOT setting\n", a)
+	}
+}
+
+// SetFocusModePrompt sets a focus mode specific prompt prefix
+func (a *BaseAgentV2) SetFocusModePrompt(prompt string) {
+	a.focusModePrompt = prompt
 }
 
 // GetEnabledTools returns the list of tools this agent can use
@@ -403,6 +421,21 @@ func (a *BaseAgentV2) buildMessages(input AgentInput) []services.ChatMessage {
 
 // buildSystemPromptWithThinking returns the system prompt with thinking instructions if enabled
 func (a *BaseAgentV2) buildSystemPromptWithThinking() string {
+	// Debug: log the system prompt being used
+	fmt.Printf("[Agent %p] buildSystemPromptWithThinking called - systemPrompt length: %d\n", a, len(a.systemPrompt))
+	if len(a.systemPrompt) > 0 {
+		fmt.Printf("[Agent %p] systemPrompt preview: %s\n", a, a.systemPrompt[:min(150, len(a.systemPrompt))])
+	}
+
+	// Start with base system prompt
+	result := a.systemPrompt
+
+	// Prepend focus mode prompt if set
+	if a.focusModePrompt != "" {
+		result = a.focusModePrompt + "\n\n" + result
+		fmt.Printf("[Agent] Applied focus mode prompt prefix (%d chars)\n", len(a.focusModePrompt))
+	}
+
 	if a.llmOptions.ThinkingEnabled {
 		// Use custom thinking instruction from template if provided, otherwise use default
 		thinkingInstruction := prompts.ThinkingInstruction
@@ -412,10 +445,10 @@ func (a *BaseAgentV2) buildSystemPromptWithThinking() string {
 		} else {
 			fmt.Printf("[Agent] ThinkingEnabled=true, using default thinking instruction (%d chars)\n", len(thinkingInstruction))
 		}
-		return a.systemPrompt + "\n\n" + thinkingInstruction
+		return result + "\n\n" + thinkingInstruction
 	}
 	fmt.Printf("[Agent] ThinkingEnabled=false, using base prompt\n")
-	return a.systemPrompt
+	return result
 }
 
 // Pool returns the database pool

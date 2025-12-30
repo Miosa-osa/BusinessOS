@@ -15,8 +15,8 @@ LEFT JOIN clients c ON p.client_id = c.id
 WHERE p.id = $1 AND p.user_id = $2;
 
 -- name: CreateProject :one
-INSERT INTO projects (user_id, name, description, status, priority, client_name, client_id, project_type, project_metadata, start_date, due_date, visibility, owner_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+INSERT INTO projects (id, user_id, name, description, status, priority, client_name, client_id, project_type, project_metadata, start_date, due_date, visibility, owner_id)
+VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 RETURNING *;
 
 -- name: UpdateProject :one

@@ -11,156 +11,43 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const listCustomAgents = `-- name: ListCustomAgents :many
-SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
-WHERE user_id = $1 AND is_active = TRUE
-ORDER BY times_used DESC, display_name ASC
+const createAgentFromPreset = `-- name: CreateAgentFromPreset :one
+INSERT INTO custom_agents (
+    user_id, name, display_name, description, avatar,
+    system_prompt, model_preference, temperature, max_tokens,
+    capabilities, tools_enabled, context_sources,
+    thinking_enabled, streaming_enabled, category, is_active
+)
+SELECT
+    $1, -- user_id
+    $2, -- custom name (user can rename)
+    display_name,
+    description,
+    avatar,
+    system_prompt,
+    model_preference,
+    temperature,
+    max_tokens,
+    capabilities,
+    tools_enabled,
+    context_sources,
+    thinking_enabled,
+    TRUE, -- streaming_enabled
+    category,
+    TRUE  -- is_active
+FROM agent_presets ap
+WHERE ap.id = $3
+RETURNING id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at
 `
 
-func (q *Queries) ListCustomAgents(ctx context.Context, userID string) ([]CustomAgent, error) {
-	rows, err := q.db.Query(ctx, listCustomAgents, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []CustomAgent{}
-	for rows.Next() {
-		var i CustomAgent
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.Name,
-			&i.DisplayName,
-			&i.Description,
-			&i.Avatar,
-			&i.SystemPrompt,
-			&i.ModelPreference,
-			&i.Temperature,
-			&i.MaxTokens,
-			&i.Capabilities,
-			&i.ToolsEnabled,
-			&i.ContextSources,
-			&i.ThinkingEnabled,
-			&i.StreamingEnabled,
-			&i.Category,
-			&i.IsPublic,
-			&i.IsActive,
-			&i.TimesUsed,
-			&i.LastUsedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getAllCustomAgents = `-- name: GetAllCustomAgents :many
-SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
-WHERE user_id = $1
-ORDER BY created_at DESC
-`
-
-func (q *Queries) GetAllCustomAgents(ctx context.Context, userID string) ([]CustomAgent, error) {
-	rows, err := q.db.Query(ctx, getAllCustomAgents, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []CustomAgent{}
-	for rows.Next() {
-		var i CustomAgent
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.Name,
-			&i.DisplayName,
-			&i.Description,
-			&i.Avatar,
-			&i.SystemPrompt,
-			&i.ModelPreference,
-			&i.Temperature,
-			&i.MaxTokens,
-			&i.Capabilities,
-			&i.ToolsEnabled,
-			&i.ContextSources,
-			&i.ThinkingEnabled,
-			&i.StreamingEnabled,
-			&i.Category,
-			&i.IsPublic,
-			&i.IsActive,
-			&i.TimesUsed,
-			&i.LastUsedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getCustomAgent = `-- name: GetCustomAgent :one
-SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
-WHERE id = $1 AND user_id = $2
-`
-
-type GetCustomAgentParams struct {
-	ID     pgtype.UUID `json:"id"`
+type CreateAgentFromPresetParams struct {
 	UserID string      `json:"user_id"`
+	Name   string      `json:"name"`
+	ID     pgtype.UUID `json:"id"`
 }
 
-func (q *Queries) GetCustomAgent(ctx context.Context, arg GetCustomAgentParams) (CustomAgent, error) {
-	row := q.db.QueryRow(ctx, getCustomAgent, arg.ID, arg.UserID)
-	var i CustomAgent
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Name,
-		&i.DisplayName,
-		&i.Description,
-		&i.Avatar,
-		&i.SystemPrompt,
-		&i.ModelPreference,
-		&i.Temperature,
-		&i.MaxTokens,
-		&i.Capabilities,
-		&i.ToolsEnabled,
-		&i.ContextSources,
-		&i.ThinkingEnabled,
-		&i.StreamingEnabled,
-		&i.Category,
-		&i.IsPublic,
-		&i.IsActive,
-		&i.TimesUsed,
-		&i.LastUsedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getCustomAgentByName = `-- name: GetCustomAgentByName :one
-SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
-WHERE name = $1 AND user_id = $2 AND is_active = TRUE
-`
-
-type GetCustomAgentByNameParams struct {
-	Name   string `json:"name"`
-	UserID string `json:"user_id"`
-}
-
-func (q *Queries) GetCustomAgentByName(ctx context.Context, arg GetCustomAgentByNameParams) (CustomAgent, error) {
-	row := q.db.QueryRow(ctx, getCustomAgentByName, arg.Name, arg.UserID)
+func (q *Queries) CreateAgentFromPreset(ctx context.Context, arg CreateAgentFromPresetParams) (CustomAgent, error) {
+	row := q.db.QueryRow(ctx, createAgentFromPreset, arg.UserID, arg.Name, arg.ID)
 	var i CustomAgent
 	err := row.Scan(
 		&i.ID,
@@ -281,6 +168,195 @@ func (q *Queries) DeleteCustomAgent(ctx context.Context, arg DeleteCustomAgentPa
 	return err
 }
 
+const getAgentPreset = `-- name: GetAgentPreset :one
+SELECT id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, category, times_copied, created_at, updated_at FROM agent_presets
+WHERE id = $1
+`
+
+func (q *Queries) GetAgentPreset(ctx context.Context, id pgtype.UUID) (AgentPreset, error) {
+	row := q.db.QueryRow(ctx, getAgentPreset, id)
+	var i AgentPreset
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.DisplayName,
+		&i.Description,
+		&i.Avatar,
+		&i.SystemPrompt,
+		&i.ModelPreference,
+		&i.Temperature,
+		&i.MaxTokens,
+		&i.Capabilities,
+		&i.ToolsEnabled,
+		&i.ContextSources,
+		&i.ThinkingEnabled,
+		&i.Category,
+		&i.TimesCopied,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getAgentPresetByName = `-- name: GetAgentPresetByName :one
+SELECT id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, category, times_copied, created_at, updated_at FROM agent_presets
+WHERE name = $1
+`
+
+func (q *Queries) GetAgentPresetByName(ctx context.Context, name string) (AgentPreset, error) {
+	row := q.db.QueryRow(ctx, getAgentPresetByName, name)
+	var i AgentPreset
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.DisplayName,
+		&i.Description,
+		&i.Avatar,
+		&i.SystemPrompt,
+		&i.ModelPreference,
+		&i.Temperature,
+		&i.MaxTokens,
+		&i.Capabilities,
+		&i.ToolsEnabled,
+		&i.ContextSources,
+		&i.ThinkingEnabled,
+		&i.Category,
+		&i.TimesCopied,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getAllCustomAgents = `-- name: GetAllCustomAgents :many
+SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
+WHERE user_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetAllCustomAgents(ctx context.Context, userID string) ([]CustomAgent, error) {
+	rows, err := q.db.Query(ctx, getAllCustomAgents, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CustomAgent{}
+	for rows.Next() {
+		var i CustomAgent
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.DisplayName,
+			&i.Description,
+			&i.Avatar,
+			&i.SystemPrompt,
+			&i.ModelPreference,
+			&i.Temperature,
+			&i.MaxTokens,
+			&i.Capabilities,
+			&i.ToolsEnabled,
+			&i.ContextSources,
+			&i.ThinkingEnabled,
+			&i.StreamingEnabled,
+			&i.Category,
+			&i.IsPublic,
+			&i.IsActive,
+			&i.TimesUsed,
+			&i.LastUsedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCustomAgent = `-- name: GetCustomAgent :one
+SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
+WHERE id = $1 AND user_id = $2
+`
+
+type GetCustomAgentParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID string      `json:"user_id"`
+}
+
+func (q *Queries) GetCustomAgent(ctx context.Context, arg GetCustomAgentParams) (CustomAgent, error) {
+	row := q.db.QueryRow(ctx, getCustomAgent, arg.ID, arg.UserID)
+	var i CustomAgent
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.DisplayName,
+		&i.Description,
+		&i.Avatar,
+		&i.SystemPrompt,
+		&i.ModelPreference,
+		&i.Temperature,
+		&i.MaxTokens,
+		&i.Capabilities,
+		&i.ToolsEnabled,
+		&i.ContextSources,
+		&i.ThinkingEnabled,
+		&i.StreamingEnabled,
+		&i.Category,
+		&i.IsPublic,
+		&i.IsActive,
+		&i.TimesUsed,
+		&i.LastUsedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getCustomAgentByName = `-- name: GetCustomAgentByName :one
+SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
+WHERE LOWER(name) = LOWER($1) AND user_id = $2 AND is_active = TRUE
+`
+
+type GetCustomAgentByNameParams struct {
+	Name   string `json:"name"`
+	UserID string `json:"user_id"`
+}
+
+func (q *Queries) GetCustomAgentByName(ctx context.Context, arg GetCustomAgentByNameParams) (CustomAgent, error) {
+	row := q.db.QueryRow(ctx, getCustomAgentByName, arg.Name, arg.UserID)
+	var i CustomAgent
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.DisplayName,
+		&i.Description,
+		&i.Avatar,
+		&i.SystemPrompt,
+		&i.ModelPreference,
+		&i.Temperature,
+		&i.MaxTokens,
+		&i.Capabilities,
+		&i.ToolsEnabled,
+		&i.ContextSources,
+		&i.ThinkingEnabled,
+		&i.StreamingEnabled,
+		&i.Category,
+		&i.IsPublic,
+		&i.IsActive,
+		&i.TimesUsed,
+		&i.LastUsedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const incrementAgentUsage = `-- name: IncrementAgentUsage :exec
 UPDATE custom_agents
 SET times_used = times_used + 1, last_used_at = NOW(), updated_at = NOW()
@@ -292,13 +368,24 @@ func (q *Queries) IncrementAgentUsage(ctx context.Context, id pgtype.UUID) error
 	return err
 }
 
-// ===== AGENT PRESETS =====
+const incrementPresetCopyCount = `-- name: IncrementPresetCopyCount :exec
+UPDATE agent_presets
+SET times_copied = times_copied + 1, updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) IncrementPresetCopyCount(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, incrementPresetCopyCount, id)
+	return err
+}
 
 const listAgentPresets = `-- name: ListAgentPresets :many
+
 SELECT id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, category, times_copied, created_at, updated_at FROM agent_presets
 ORDER BY times_copied DESC, display_name ASC
 `
 
+// ===== AGENT PRESETS =====
 func (q *Queries) ListAgentPresets(ctx context.Context) ([]AgentPreset, error) {
 	rows, err := q.db.Query(ctx, listAgentPresets)
 	if err != nil {
@@ -337,141 +424,54 @@ func (q *Queries) ListAgentPresets(ctx context.Context) ([]AgentPreset, error) {
 	return items, nil
 }
 
-const getAgentPreset = `-- name: GetAgentPreset :one
-SELECT id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, category, times_copied, created_at, updated_at FROM agent_presets
-WHERE id = $1
+const listCustomAgents = `-- name: ListCustomAgents :many
+SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
+WHERE user_id = $1 AND is_active = TRUE
+ORDER BY times_used DESC, display_name ASC
 `
 
-func (q *Queries) GetAgentPreset(ctx context.Context, id pgtype.UUID) (AgentPreset, error) {
-	row := q.db.QueryRow(ctx, getAgentPreset, id)
-	var i AgentPreset
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.DisplayName,
-		&i.Description,
-		&i.Avatar,
-		&i.SystemPrompt,
-		&i.ModelPreference,
-		&i.Temperature,
-		&i.MaxTokens,
-		&i.Capabilities,
-		&i.ToolsEnabled,
-		&i.ContextSources,
-		&i.ThinkingEnabled,
-		&i.Category,
-		&i.TimesCopied,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+func (q *Queries) ListCustomAgents(ctx context.Context, userID string) ([]CustomAgent, error) {
+	rows, err := q.db.Query(ctx, listCustomAgents, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CustomAgent{}
+	for rows.Next() {
+		var i CustomAgent
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.DisplayName,
+			&i.Description,
+			&i.Avatar,
+			&i.SystemPrompt,
+			&i.ModelPreference,
+			&i.Temperature,
+			&i.MaxTokens,
+			&i.Capabilities,
+			&i.ToolsEnabled,
+			&i.ContextSources,
+			&i.ThinkingEnabled,
+			&i.StreamingEnabled,
+			&i.Category,
+			&i.IsPublic,
+			&i.IsActive,
+			&i.TimesUsed,
+			&i.LastUsedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
-
-const incrementPresetCopyCount = `-- name: IncrementPresetCopyCount :exec
-UPDATE agent_presets
-SET times_copied = times_copied + 1, updated_at = NOW()
-WHERE id = $1
-`
-
-func (q *Queries) IncrementPresetCopyCount(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, incrementPresetCopyCount, id)
-	return err
-}
-
-// ===== UPDATE CUSTOM AGENT =====
-
-const updateCustomAgent = `-- name: UpdateCustomAgent :one
-UPDATE custom_agents
-SET
-    name = COALESCE($3, name),
-    display_name = COALESCE($4, display_name),
-    description = COALESCE($5, description),
-    avatar = COALESCE($6, avatar),
-    system_prompt = COALESCE($7, system_prompt),
-    model_preference = COALESCE($8, model_preference),
-    temperature = COALESCE($9, temperature),
-    max_tokens = COALESCE($10, max_tokens),
-    capabilities = COALESCE($11, capabilities),
-    tools_enabled = COALESCE($12, tools_enabled),
-    context_sources = COALESCE($13, context_sources),
-    thinking_enabled = COALESCE($14, thinking_enabled),
-    streaming_enabled = COALESCE($15, streaming_enabled),
-    category = COALESCE($16, category),
-    is_active = COALESCE($17, is_active),
-    updated_at = NOW()
-WHERE id = $1 AND user_id = $2
-RETURNING id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at
-`
-
-type UpdateCustomAgentParams struct {
-	ID               pgtype.UUID    `json:"id"`
-	UserID           string         `json:"user_id"`
-	Name             *string        `json:"name"`
-	DisplayName      *string        `json:"display_name"`
-	Description      *string        `json:"description"`
-	Avatar           *string        `json:"avatar"`
-	SystemPrompt     *string        `json:"system_prompt"`
-	ModelPreference  *string        `json:"model_preference"`
-	Temperature      pgtype.Numeric `json:"temperature"`
-	MaxTokens        *int32         `json:"max_tokens"`
-	Capabilities     []string       `json:"capabilities"`
-	ToolsEnabled     []string       `json:"tools_enabled"`
-	ContextSources   []string       `json:"context_sources"`
-	ThinkingEnabled  *bool          `json:"thinking_enabled"`
-	StreamingEnabled *bool          `json:"streaming_enabled"`
-	Category         *string        `json:"category"`
-	IsActive         *bool          `json:"is_active"`
-}
-
-func (q *Queries) UpdateCustomAgent(ctx context.Context, arg UpdateCustomAgentParams) (CustomAgent, error) {
-	row := q.db.QueryRow(ctx, updateCustomAgent,
-		arg.ID,
-		arg.UserID,
-		arg.Name,
-		arg.DisplayName,
-		arg.Description,
-		arg.Avatar,
-		arg.SystemPrompt,
-		arg.ModelPreference,
-		arg.Temperature,
-		arg.MaxTokens,
-		arg.Capabilities,
-		arg.ToolsEnabled,
-		arg.ContextSources,
-		arg.ThinkingEnabled,
-		arg.StreamingEnabled,
-		arg.Category,
-		arg.IsActive,
-	)
-	var i CustomAgent
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Name,
-		&i.DisplayName,
-		&i.Description,
-		&i.Avatar,
-		&i.SystemPrompt,
-		&i.ModelPreference,
-		&i.Temperature,
-		&i.MaxTokens,
-		&i.Capabilities,
-		&i.ToolsEnabled,
-		&i.ContextSources,
-		&i.ThinkingEnabled,
-		&i.StreamingEnabled,
-		&i.Category,
-		&i.IsPublic,
-		&i.IsActive,
-		&i.TimesUsed,
-		&i.LastUsedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-// ===== LIST BY CATEGORY =====
 
 const listCustomAgentsByCategory = `-- name: ListCustomAgentsByCategory :many
 SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
@@ -527,77 +527,69 @@ func (q *Queries) ListCustomAgentsByCategory(ctx context.Context, arg ListCustom
 	return items, nil
 }
 
-// ===== GET PRESET BY NAME =====
-
-const getAgentPresetByName = `-- name: GetAgentPresetByName :one
-SELECT id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, category, times_copied, created_at, updated_at FROM agent_presets
-WHERE name = $1
-`
-
-func (q *Queries) GetAgentPresetByName(ctx context.Context, name string) (AgentPreset, error) {
-	row := q.db.QueryRow(ctx, getAgentPresetByName, name)
-	var i AgentPreset
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.DisplayName,
-		&i.Description,
-		&i.Avatar,
-		&i.SystemPrompt,
-		&i.ModelPreference,
-		&i.Temperature,
-		&i.MaxTokens,
-		&i.Capabilities,
-		&i.ToolsEnabled,
-		&i.ContextSources,
-		&i.ThinkingEnabled,
-		&i.Category,
-		&i.TimesCopied,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-// ===== CREATE AGENT FROM PRESET =====
-
-const createAgentFromPreset = `-- name: CreateAgentFromPreset :one
-INSERT INTO custom_agents (
-    user_id, name, display_name, description, avatar,
-    system_prompt, model_preference, temperature, max_tokens,
-    capabilities, tools_enabled, context_sources,
-    thinking_enabled, streaming_enabled, category, is_active
-)
-SELECT
-    $1,
-    $2,
-    display_name,
-    description,
-    avatar,
-    system_prompt,
-    model_preference,
-    temperature,
-    max_tokens,
-    capabilities,
-    tools_enabled,
-    context_sources,
-    thinking_enabled,
-    TRUE,
-    category,
-    TRUE
-FROM agent_presets
-WHERE id = $3
+const updateCustomAgent = `-- name: UpdateCustomAgent :one
+UPDATE custom_agents
+SET
+    name = COALESCE($2, name),
+    display_name = COALESCE($3, display_name),
+    description = COALESCE($4, description),
+    avatar = COALESCE($5, avatar),
+    system_prompt = COALESCE($6, system_prompt),
+    model_preference = COALESCE($7, model_preference),
+    temperature = COALESCE($8, temperature),
+    max_tokens = COALESCE($9, max_tokens),
+    capabilities = COALESCE($10, capabilities),
+    tools_enabled = COALESCE($11, tools_enabled),
+    context_sources = COALESCE($12, context_sources),
+    thinking_enabled = COALESCE($13, thinking_enabled),
+    streaming_enabled = COALESCE($14, streaming_enabled),
+    category = COALESCE($15, category),
+    is_active = COALESCE($16, is_active),
+    updated_at = NOW()
+WHERE id = $1 AND user_id = $17
 RETURNING id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at
 `
 
-type CreateAgentFromPresetParams struct {
-	UserID   string      `json:"user_id"`
-	Name     string      `json:"name"`
-	PresetID pgtype.UUID `json:"preset_id"`
+type UpdateCustomAgentParams struct {
+	ID               pgtype.UUID    `json:"id"`
+	Name             *string        `json:"name"`
+	DisplayName      *string        `json:"display_name"`
+	Description      *string        `json:"description"`
+	Avatar           *string        `json:"avatar"`
+	SystemPrompt     *string        `json:"system_prompt"`
+	ModelPreference  *string        `json:"model_preference"`
+	Temperature      pgtype.Numeric `json:"temperature"`
+	MaxTokens        *int32         `json:"max_tokens"`
+	Capabilities     []string       `json:"capabilities"`
+	ToolsEnabled     []string       `json:"tools_enabled"`
+	ContextSources   []string       `json:"context_sources"`
+	ThinkingEnabled  *bool          `json:"thinking_enabled"`
+	StreamingEnabled *bool          `json:"streaming_enabled"`
+	Category         *string        `json:"category"`
+	IsActive         *bool          `json:"is_active"`
+	UserID           string         `json:"user_id"`
 }
 
-func (q *Queries) CreateAgentFromPreset(ctx context.Context, arg CreateAgentFromPresetParams) (CustomAgent, error) {
-	row := q.db.QueryRow(ctx, createAgentFromPreset, arg.UserID, arg.Name, arg.PresetID)
+func (q *Queries) UpdateCustomAgent(ctx context.Context, arg UpdateCustomAgentParams) (CustomAgent, error) {
+	row := q.db.QueryRow(ctx, updateCustomAgent,
+		arg.ID,
+		arg.Name,
+		arg.DisplayName,
+		arg.Description,
+		arg.Avatar,
+		arg.SystemPrompt,
+		arg.ModelPreference,
+		arg.Temperature,
+		arg.MaxTokens,
+		arg.Capabilities,
+		arg.ToolsEnabled,
+		arg.ContextSources,
+		arg.ThinkingEnabled,
+		arg.StreamingEnabled,
+		arg.Category,
+		arg.IsActive,
+		arg.UserID,
+	)
 	var i CustomAgent
 	err := row.Scan(
 		&i.ID,

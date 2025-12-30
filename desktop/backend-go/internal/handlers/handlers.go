@@ -252,6 +252,23 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		reasoning.POST("/templates/:id/default", h.SetDefaultReasoningTemplate)
 	}
 
+	// Focus Mode routes - /api/focus
+	focus := api.Group("/focus")
+	focus.Use(auth)
+	{
+		focus.GET("/templates", h.GetFocusModeTemplates)
+		focus.GET("/settings", h.GetEffectiveFocusSettings)
+		focus.POST("/preflight", h.BuildPreflightContext)
+	}
+
+	// Web Search routes - /api/search
+	search := api.Group("/search")
+	search.Use(auth)
+	{
+		search.GET("/web", h.WebSearch)             // Basic web search
+		search.GET("/context", h.WebSearchWithContext) // Search with formatted context
+	}
+
 	// AI configuration routes - /api/ai
 	ai := api.Group("/ai")
 	ai.Use(auth)
@@ -264,20 +281,22 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		ai.GET("/system", h.GetSystemInfo)
 		ai.POST("/api-key", h.SaveAPIKey)
 		ai.PUT("/provider", h.UpdateAIProvider)
+		// Agent presets (templates for custom agents) - must be before /agents/:id
+		ai.GET("/agents/presets", h.ListAgentPresets)
+		ai.GET("/agents/presets/:id", h.GetAgentPreset)
 		// Agent prompts (built-in)
 		ai.GET("/agents", h.GetAgentPrompts)
 		ai.GET("/agents/:id", h.GetAgentPrompt)
-		// Agent presets (templates for custom agents)
-		ai.GET("/agents/presets", h.ListAgentPresets)
-		ai.GET("/agents/presets/:id", h.GetAgentPreset)
-		// Custom user agents CRUD
+		// Custom user agents - specific routes before parameterized ones
 		ai.GET("/custom-agents", h.ListCustomAgents)
 		ai.POST("/custom-agents", h.CreateCustomAgent)
+		ai.POST("/custom-agents/sandbox", h.TestCustomAgent)      // Test arbitrary prompt
+		ai.GET("/custom-agents/category/:category", h.ListCustomAgentsByCategory)
+		ai.POST("/custom-agents/from-preset/:presetId", h.CreateAgentFromPreset)
 		ai.GET("/custom-agents/:id", h.GetCustomAgent)
 		ai.PUT("/custom-agents/:id", h.UpdateCustomAgent)
 		ai.DELETE("/custom-agents/:id", h.DeleteCustomAgent)
-		ai.GET("/custom-agents/category/:category", h.ListCustomAgentsByCategory)
-		ai.POST("/custom-agents/from-preset/:presetId", h.CreateAgentFromPreset)
+		ai.POST("/custom-agents/:id/test", h.TestCustomAgent)     // Test existing agent
 		// Slash commands (built-in + custom)
 		ai.GET("/commands", h.ListCommands)
 		// Custom user commands CRUD

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -22,6 +23,45 @@ import (
 	"github.com/rhl/businessos-backend/internal/streaming"
 	"github.com/rhl/businessos-backend/internal/tools"
 )
+
+// AgentMention represents a parsed @agent mention
+type AgentMention struct {
+	AgentName string
+	StartPos  int
+	EndPos    int
+}
+
+// parseAgentMentions extracts @agent-name mentions from a message
+func parseAgentMentions(message string) []AgentMention {
+	var mentions []AgentMention
+	mentionPattern := regexp.MustCompile(`@([a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9])`)
+
+	matches := mentionPattern.FindAllStringSubmatchIndex(message, -1)
+	for _, match := range matches {
+		if len(match) >= 4 {
+			mentions = append(mentions, AgentMention{
+				AgentName: message[match[2]:match[3]],
+				StartPos:  match[0],
+				EndPos:    match[1],
+			})
+		}
+	}
+	return mentions
+}
+
+// stripMentions removes @mentions from message for cleaner processing
+func stripMentions(message string, mentions []AgentMention) string {
+	if len(mentions) == 0 {
+		return message
+	}
+	result := message
+	// Remove in reverse order to preserve indices
+	for i := len(mentions) - 1; i >= 0; i-- {
+		m := mentions[i]
+		result = result[:m.StartPos] + result[m.EndPos:]
+	}
+	return strings.TrimSpace(result)
+}
 
 // SendMessageV2 handles chat messages using the new AgentV2 architecture
 // This endpoint uses streaming events with artifact detection
@@ -162,12 +202,12 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 	}
 	if req.ThinkingEnabled != nil && *req.ThinkingEnabled {
 		llmOptions.ThinkingEnabled = true
-		fmt.Println("[ChatV2] ThinkingEnabled set to true from request.ThinkingEnabled")
+		slog.Debug("ChatV2: ThinkingEnabled set from request.ThinkingEnabled")
 	}
 	// Also enable thinking if use_cot is true (frontend sends this)
 	if req.UseCOT != nil && *req.UseCOT {
 		llmOptions.ThinkingEnabled = true
-		fmt.Println("[ChatV2] ThinkingEnabled set to true from request.UseCOT")
+		slog.Debug("ChatV2: ThinkingEnabled set from request.UseCOT")
 	}
 
 	// Apply reasoning template if thinking is enabled
@@ -183,7 +223,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 				if err == nil {
 					applyReasoningTemplate(&llmOptions, template)
 					appliedTemplateID = &templateUUID
-					fmt.Printf("[ChatV2] Applied requested reasoning template: %s\n", template.Name)
+					slog.Debug("ChatV2: Applied requested reasoning template", "name", template.Name)
 				}
 			}
 		} else {
@@ -195,7 +235,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 					templateUUID := defaultTemplate.ID.Bytes
 					appliedTemplateID = (*uuid.UUID)(&templateUUID)
 				}
-				fmt.Printf("[ChatV2] Applied default reasoning template: %s\n", defaultTemplate.Name)
+				slog.Debug("ChatV2: Applied default reasoning template", "name", defaultTemplate.Name)
 			}
 		}
 
@@ -225,14 +265,82 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 	// Check if COT (Chain of Thought) mode is enabled
 	useCOT := req.UseCOT != nil && *req.UseCOT
 
+	// Parse @agent mentions from message
+	mentions := parseAgentMentions(strings.ToLower(req.Message))
+	var customAgent *sqlc.CustomAgent
+	var customAgentSystemPrompt string
+
+	log.Printf("[ChatV2] @Agent parsing - message: %q, found %d mentions", req.Message, len(mentions))
+	for i, m := range mentions {
+		log.Printf("[ChatV2] @Agent mention %d: name=%q pos=%d-%d", i, m.AgentName, m.StartPos, m.EndPos)
+	}
+
+	// Try to resolve first @mention to a custom agent
+	if len(mentions) > 0 {
+		for _, mention := range mentions {
+			log.Printf("[ChatV2] Looking up custom agent: name=%q user_id=%v", mention.AgentName, user.ID)
+			agent, err := queries.GetCustomAgentByName(ctx, sqlc.GetCustomAgentByNameParams{
+				Name:   mention.AgentName,
+				UserID: user.ID,
+			})
+			if err != nil {
+				log.Printf("[ChatV2] Agent lookup failed for @%s: %v", mention.AgentName, err)
+				continue
+			}
+			customAgent = &agent
+			customAgentSystemPrompt = agent.SystemPrompt
+			// Increment usage counter
+			go queries.IncrementAgentUsage(context.Background(), agent.ID)
+			log.Printf("[ChatV2] Resolved @%s to custom agent: %s (prompt: %d chars)", mention.AgentName, agent.DisplayName, len(customAgentSystemPrompt))
+			break
+		}
+	}
+
 	// Determine agent type using SmartIntentRouter
 	router := agents.NewSmartIntentRouter(h.pool, h.cfg)
 	intent := router.ClassifyIntent(ctx, chatMessages, tieredCtx)
 
-	// Focus mode can override intent
+	// Focus mode can override intent and apply focus-specific settings
 	var agentType agents.AgentTypeV2
+	var focusSystemPrompt string
+	var searchContextText string
 	if req.FocusMode != nil && *req.FocusMode != "" {
 		log.Printf("[ChatV2] FocusMode received: %s", *req.FocusMode)
+
+		// Build preflight context with web search if enabled
+		focusService := services.NewFocusService(h.pool)
+		focusCtx, err := focusService.BuildPreflightContext(ctx, user.ID, *req.FocusMode, req.Message, nil, nil)
+		if err == nil {
+			// Apply focus mode settings to LLM options
+			llmOptions.Temperature = focusCtx.LLMOptions.Temperature
+			llmOptions.MaxTokens = focusCtx.LLMOptions.MaxTokens
+			if focusCtx.LLMOptions.ThinkingEnabled {
+				llmOptions.ThinkingEnabled = true
+			}
+			// Build focus-specific system prompt
+			focusSystemPrompt = focusCtx.SystemPrompt
+
+			// Format search results if available
+			if len(focusCtx.SearchContext) > 0 {
+				searchContextText = focusService.FormatContextForPrompt(focusCtx)
+				log.Printf("[ChatV2] Web search returned %d results for focus mode", len(focusCtx.SearchContext))
+			}
+
+			log.Printf("[ChatV2] Applied focus settings: temp=%.2f, maxTokens=%d, thinking=%v, searchResults=%d",
+				focusCtx.LLMOptions.Temperature, focusCtx.LLMOptions.MaxTokens, focusCtx.LLMOptions.ThinkingEnabled, len(focusCtx.SearchContext))
+		} else {
+			// Fallback to just settings if preflight fails
+			focusSettings, settingsErr := focusService.GetEffectiveSettings(ctx, user.ID, *req.FocusMode)
+			if settingsErr == nil {
+				llmOptions.Temperature = focusSettings.Temperature
+				llmOptions.MaxTokens = focusSettings.MaxTokens
+				if focusSettings.ThinkingEnabled {
+					llmOptions.ThinkingEnabled = true
+				}
+				focusSystemPrompt = focusSettings.SystemPromptPrefix
+			}
+		}
+
 		shouldDelegate, targetAgent := agents.ShouldDelegateForFocusMode(*req.FocusMode)
 		if shouldDelegate {
 			agentType = targetAgent
@@ -251,10 +359,49 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 	agent.SetModel(model)
 	agent.SetOptions(llmOptions)
 
-	// Create COT orchestrator if enabled
+	// Apply focus mode system prompt prefix if set
+	if focusSystemPrompt != "" {
+		// Combine focus prompt with search context if available
+		fullFocusPrompt := focusSystemPrompt
+		if searchContextText != "" {
+			fullFocusPrompt = focusSystemPrompt + "\n\n" + searchContextText
+			log.Printf("[ChatV2] Injected search context (%d chars) into focus prompt", len(searchContextText))
+		}
+		agent.SetFocusModePrompt(fullFocusPrompt)
+		log.Printf("[ChatV2] Applied focus mode prompt prefix (%d chars)", len(fullFocusPrompt))
+	} else if searchContextText != "" {
+		// If no focus prompt but we have search results, still inject them
+		agent.SetFocusModePrompt(searchContextText)
+		log.Printf("[ChatV2] Injected search context only (%d chars)", len(searchContextText))
+	}
+
+	// If custom agent found, override the system prompt
+	log.Printf("[ChatV2] Custom agent check: customAgent=%v, promptLen=%d", customAgent != nil, len(customAgentSystemPrompt))
+	if customAgent != nil && customAgentSystemPrompt != "" {
+		log.Printf("[ChatV2] APPLYING custom prompt: %s", customAgentSystemPrompt[:min(100, len(customAgentSystemPrompt))])
+		agent.SetCustomSystemPrompt(customAgentSystemPrompt)
+		// Apply custom agent's model preference if set
+		if customAgent.ModelPreference != nil && *customAgent.ModelPreference != "" {
+			agent.SetModel(*customAgent.ModelPreference)
+			model = *customAgent.ModelPreference
+		}
+		// Apply custom agent's thinking setting
+		if customAgent.ThinkingEnabled != nil && *customAgent.ThinkingEnabled {
+			llmOptions.ThinkingEnabled = true
+			agent.SetOptions(llmOptions)
+		}
+		log.Printf("[ChatV2] Using custom agent: %s (model: %s, prompt: %d chars)", customAgent.DisplayName, model, len(customAgentSystemPrompt))
+	} else {
+		log.Printf("[ChatV2] NOT using custom agent - customAgent=%v, promptLen=%d", customAgent != nil, len(customAgentSystemPrompt))
+	}
+
+	// Create COT orchestrator if enabled (but NOT when using custom agents)
+	// Custom agents have their own system prompts and should not be routed through multi-agent orchestration
 	var cotOrchestrator *agents.OrchestratorCOT
-	if useCOT {
+	if useCOT && customAgent == nil {
 		cotOrchestrator = agents.NewOrchestratorCOT(h.pool, h.cfg, registry)
+	} else if customAgent != nil && useCOT {
+		log.Printf("[ChatV2] COT mode disabled for custom agent: %s", customAgent.DisplayName)
 	}
 
 	// Set streaming headers
@@ -305,7 +452,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 	var pendingArtifactType, pendingArtifactTitle string
 	var artifactContentStart int = -1
 
-	fmt.Printf("[ChatV2] Starting stream with agent: %s (intent: %s)\n", agentType, intent.Category)
+	slog.Debug("ChatV2: Starting stream", "agent", agentType, "intent", intent.Category)
 
 	// Track if we've sent the initial thinking event
 	var thinkingEventSent bool
@@ -318,7 +465,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 
 	// Stream the response
 	c.Stream(func(w io.Writer) bool {
-		fmt.Println("[ChatV2] Stream callback invoked, fullResponse so far:", len(fullResponse), "chars")
+		slog.Debug("ChatV2: Stream callback invoked", "responseLen", len(fullResponse))
 
 		// Send initial thinking event at the start of stream
 		if !thinkingEventSent {
@@ -337,7 +484,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 		select {
 		case event, ok := <-events:
 			if !ok {
-				fmt.Println("[ChatV2] Stream ended (!ok). fullResponse:", len(fullResponse), "chars")
+				slog.Debug("ChatV2: Stream ended", "responseLen", len(fullResponse))
 				// Stream ended - send artifact_complete if we have pending artifact from tool
 				if pendingArtifactTitle != "" && artifactContentStart > 0 {
 					artifactContent := fullResponse
@@ -356,34 +503,20 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 								Content: artifactContent,
 							},
 						})
-						fmt.Printf("[ChatV2] Artifact complete sent: %s (%d chars)\n", pendingArtifactTitle, len(artifactContent))
+						slog.Debug("ChatV2: Artifact complete sent", "title", pendingArtifactTitle, "len", len(artifactContent))
 					}
-				} else if len(detectedArtifacts) == 0 && len(fullResponse) > 800 {
-					// Auto-create artifact for long responses (plans, proposals, etc.)
-					title := extractDocumentTitle(fullResponse, req.Message)
-					docType := "document"
-					msgLower := strings.ToLower(req.Message)
-					if strings.Contains(msgLower, "plan") || strings.Contains(msgLower, "roadmap") {
-						docType = "plan"
-					} else if strings.Contains(msgLower, "proposal") {
-						docType = "proposal"
-					} else if strings.Contains(msgLower, "report") || strings.Contains(msgLower, "analysis") {
-						docType = "report"
+				} else if len(detectedArtifacts) == 0 {
+					// Auto-detect artifacts based on content structure and keywords
+					if artifact := detectStructuredArtifact(fullResponse, req.Message); artifact != nil {
+						writeSSEEvent(w, streaming.StreamEvent{
+							Type: streaming.EventTypeArtifactComplete,
+							Data: *artifact,
+						})
+						slog.Debug("ChatV2: Auto-artifact detected", "title", artifact.Title, "type", artifact.Type, "len", len(artifact.Content))
 					}
-
-					// Send artifact_complete event to frontend
-					writeSSEEvent(w, streaming.StreamEvent{
-						Type: streaming.EventTypeArtifactComplete,
-						Data: streaming.Artifact{
-							Type:    docType,
-							Title:   title,
-							Content: fullResponse,
-						},
-					})
-					fmt.Printf("[ChatV2] Auto-artifact sent: %s (%s, %d chars)\n", title, docType, len(fullResponse))
 				}
 				// Send usage and done
-				sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model)
+				sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model, len(thinkingContent)/4)
 				return false
 			}
 
@@ -433,7 +566,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 								},
 							})
 							startTag := fullResponse[startMatch[0]:startMatch[1]]
-							fmt.Printf("[ChatV2] Thinking started (tag: %s)\n", startTag)
+							slog.Debug("ChatV2: Thinking started", "tag", startTag)
 						}
 					}
 
@@ -454,7 +587,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 								"content": sanitizeContent(thinkingContent),
 							},
 						})
-						fmt.Printf("[ChatV2] Thinking ended (%d chars)\n", len(thinkingContent))
+						slog.Debug("ChatV2: Thinking ended", "chars", len(thinkingContent))
 					} else if insideThinking {
 						// Send thinking chunk (only the new token, not accumulated)
 						writeSSEEvent(w, streaming.StreamEvent{
@@ -484,7 +617,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 									Type: streaming.EventTypeArtifactStart,
 									Data: map[string]string{"type": pendingArtifactType, "title": pendingArtifactTitle},
 								})
-								fmt.Printf("[ChatV2] Artifact started: %s (%s)\n", pendingArtifactTitle, pendingArtifactType)
+								slog.Debug("ChatV2: Artifact started", "title", pendingArtifactTitle, "type", pendingArtifactType)
 							}
 						}
 					}
@@ -501,6 +634,31 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 				}
 				// When in artifact mode, content goes to panel only (via artifact_complete event)
 
+			case streaming.EventTypeThinkingStart:
+				// Thinking started from ArtifactDetector
+				if !thinkingStartSent {
+					thinkingStartSent = true
+					insideThinking = true
+					slog.Debug("ChatV2: Thinking started (from detector)")
+				}
+				writeSSEEvent(w, event)
+
+			case streaming.EventTypeThinkingChunk:
+				// Accumulate thinking content for token tracking
+				if data, ok := event.Data.(map[string]interface{}); ok {
+					if content, ok := data["content"].(string); ok {
+						thinkingContent += content
+					}
+				}
+				writeSSEEvent(w, event)
+
+			case streaming.EventTypeThinkingEnd:
+				// Thinking ended from ArtifactDetector
+				thinkingEndSent = true
+				insideThinking = false
+				slog.Debug("ChatV2: Thinking ended (from detector)", "chars", len(thinkingContent))
+				writeSSEEvent(w, event)
+
 			case streaming.EventTypeArtifactStart:
 				writeSSEEvent(w, event)
 
@@ -514,7 +672,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 				writeSSEEvent(w, event)
 
 			case streaming.EventTypeDone:
-			fmt.Println("[ChatV2] EventTypeDone received. fullResponse:", len(fullResponse), "chars")
+			slog.Debug("ChatV2: EventTypeDone received", "responseLen", len(fullResponse))
 			// Send artifact_complete if we have pending artifact from tool
 			if pendingArtifactTitle != "" && artifactContentStart > 0 {
 				artifactContent := fullResponse
@@ -532,31 +690,19 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 							Content: artifactContent,
 						},
 					})
-					fmt.Println("[ChatV2] Artifact complete sent on Done:", pendingArtifactTitle)
+					slog.Debug("ChatV2: Artifact complete sent on Done", "title", pendingArtifactTitle)
 				}
-			} else if len(detectedArtifacts) == 0 && len(fullResponse) > 800 {
-				// Auto-create artifact for long responses
-				title := extractDocumentTitle(fullResponse, req.Message)
-				docType := "document"
-				msgLower := strings.ToLower(req.Message)
-				if strings.Contains(msgLower, "plan") || strings.Contains(msgLower, "roadmap") {
-					docType = "plan"
-				} else if strings.Contains(msgLower, "proposal") {
-					docType = "proposal"
-				} else if strings.Contains(msgLower, "report") || strings.Contains(msgLower, "analysis") {
-					docType = "report"
+			} else if len(detectedArtifacts) == 0 {
+				// Auto-detect artifacts based on content structure
+				if artifact := detectStructuredArtifact(fullResponse, req.Message); artifact != nil {
+					writeSSEEvent(w, streaming.StreamEvent{
+						Type: streaming.EventTypeArtifactComplete,
+						Data: *artifact,
+					})
+					slog.Debug("ChatV2: Auto-artifact detected on Done", "title", artifact.Title, "type", artifact.Type)
 				}
-				writeSSEEvent(w, streaming.StreamEvent{
-					Type: streaming.EventTypeArtifactComplete,
-					Data: streaming.Artifact{
-						Type:    docType,
-						Title:   title,
-						Content: fullResponse,
-					},
-				})
-				fmt.Println("[ChatV2] Auto-artifact sent on Done:", title, docType, len(fullResponse))
 			}
-			sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model)
+			sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model, len(thinkingContent)/4)
 			return false
 
 		default:
@@ -565,18 +711,34 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 			return true
 
 		case err := <-errs:
-			fmt.Println("[ChatV2] Error channel received. err:", err, "fullResponse:", len(fullResponse), "chars")
+			slog.Debug("ChatV2: Error channel received", "err", err, "responseLen", len(fullResponse))
 			if err != nil {
-				fmt.Printf("[ChatV2] Error details: %v\n", err)
+				slog.Error("ChatV2: Error details", "err", err)
 				writeSSEEvent(w, streaming.StreamEvent{
 					Type:    streaming.EventTypeError,
 					Content: err.Error(),
 				})
+			} else {
+				// Stream completed via error channel (nil error = success)
+				// Check for artifacts since this is a completion path
+				if len(detectedArtifacts) == 0 && len(fullResponse) > 200 {
+					slog.Debug("ChatV2: Checking for auto-artifact on error channel", "responseLen", len(fullResponse))
+					if artifact := detectStructuredArtifact(fullResponse, req.Message); artifact != nil {
+						detectedArtifacts = append(detectedArtifacts, *artifact)
+						writeSSEEvent(w, streaming.StreamEvent{
+							Type: streaming.EventTypeArtifactComplete,
+							Data: *artifact,
+						})
+						slog.Debug("ChatV2: Auto-artifact detected on error channel", "title", artifact.Title, "type", artifact.Type)
+					}
+				}
+				// Send usage event
+				sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model, len(thinkingContent)/4)
 			}
 			return false
 
 		case <-streamCtx.Done():
-			fmt.Println("[ChatV2] Context done! Reason:", streamCtx.Err(), "fullResponse:", len(fullResponse), "chars")
+			slog.Debug("ChatV2: Context done", "reason", streamCtx.Err(), "responseLen", len(fullResponse))
 			return false
 		}
 	})
@@ -618,7 +780,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 					Content: artifactContent,
 				})
 				if err == nil && artifact != nil {
-					fmt.Printf("[ChatV2] Created artifact from tool: %s (type: %s, %d chars)\n", pendingArtifactTitle, pendingArtifactType, len(artifactContent))
+					slog.Debug("ChatV2: Created artifact from tool", "title", pendingArtifactTitle, "type", pendingArtifactType, "len", len(artifactContent))
 				}
 			}
 		}
@@ -744,8 +906,147 @@ func extractDocumentTitle(content string, userMessage string) string {
 	return title
 }
 
+// detectStructuredArtifact analyzes response content to detect if it should be an artifact
+// Works with models that don't follow ```artifact format (like Llama 3.3 70B)
+func detectStructuredArtifact(content string, userMessage string) *streaming.Artifact {
+	slog.Debug("detectStructuredArtifact: Called", "contentLen", len(content), "messagePreview", userMessage[:min(50, len(userMessage))])
+
+	contentLower := strings.ToLower(content)
+	msgLower := strings.ToLower(userMessage)
+	lines := strings.Split(content, "\n")
+
+	// Count structural elements
+	headingCount := 0
+	listItemCount := 0
+	numberedListCount := 0
+	codeBlockCount := 0
+	tableRowCount := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			headingCount++
+		}
+		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
+			listItemCount++
+		}
+		if len(trimmed) > 2 && trimmed[0] >= '0' && trimmed[0] <= '9' && (trimmed[1] == '.' || trimmed[1] == ')') {
+			numberedListCount++
+		}
+		if strings.HasPrefix(trimmed, "```") {
+			codeBlockCount++
+		}
+		if strings.HasPrefix(trimmed, "|") && strings.Contains(trimmed, "|") {
+			tableRowCount++
+		}
+	}
+
+	// Calculate structure score
+	structureScore := headingCount*3 + listItemCount + numberedListCount*2 + codeBlockCount*2 + tableRowCount
+
+	// Detect document type based on keywords and structure
+	docType := ""
+
+	// Plan detection - lower threshold
+	planKeywords := []string{"fase", "phase", "etapa", "step", "milestone", "roadmap", "timeline",
+		"cronograma", "plano", "plan", "objetivo", "goal", "meta", "sprint", "iteration",
+		"week 1", "week 2", "semana 1", "semana 2", "day 1", "day 2", "dia 1", "dia 2"}
+	for _, kw := range planKeywords {
+		if strings.Contains(msgLower, kw) || strings.Contains(contentLower, kw) {
+			docType = "plan"
+			break
+		}
+	}
+
+	// Proposal detection
+	if docType == "" {
+		proposalKeywords := []string{"proposal", "proposta", "orçamento", "budget", "escopo", "scope",
+			"deliverables", "entregáveis", "investimento", "investment", "pricing", "preço"}
+		for _, kw := range proposalKeywords {
+			if strings.Contains(msgLower, kw) || strings.Contains(contentLower, kw) {
+				docType = "proposal"
+				break
+			}
+		}
+	}
+
+	// Report/Analysis detection
+	if docType == "" {
+		reportKeywords := []string{"analysis", "análise", "report", "relatório", "findings", "conclusões",
+			"recommendations", "recomendações", "metrics", "métricas", "results", "resultados", "assessment"}
+		for _, kw := range reportKeywords {
+			if strings.Contains(msgLower, kw) || strings.Contains(contentLower, kw) {
+				docType = "report"
+				break
+			}
+		}
+	}
+
+	// Code detection
+	if docType == "" && codeBlockCount >= 2 {
+		codeKeywords := []string{"code", "código", "implement", "implementar", "function", "função",
+			"class", "classe", "component", "componente", "api", "endpoint"}
+		for _, kw := range codeKeywords {
+			if strings.Contains(msgLower, kw) {
+				docType = "code"
+				break
+			}
+		}
+	}
+
+	// Document detection (generic)
+	if docType == "" {
+		docKeywords := []string{"document", "documento", "write", "escrever", "create", "criar",
+			"draft", "rascunho", "template", "modelo", "guide", "guia", "manual", "tutorial"}
+		for _, kw := range docKeywords {
+			if strings.Contains(msgLower, kw) {
+				docType = "document"
+				break
+			}
+		}
+	}
+
+	// Determine if content qualifies as artifact
+	// Criteria: sufficient length + structure OR explicit document type detected
+	minLength := 300 // Lower threshold for structured content
+	if structureScore >= 5 {
+		minLength = 200 // Even lower if well-structured
+	}
+
+	shouldCreateArtifact := false
+
+	if docType != "" && len(content) >= minLength {
+		shouldCreateArtifact = true
+	} else if len(content) >= 500 && structureScore >= 8 {
+		// Long, well-structured content even without explicit keywords
+		shouldCreateArtifact = true
+		docType = "document"
+	} else if len(content) >= 800 && headingCount >= 2 {
+		// Fallback: long content with multiple sections
+		shouldCreateArtifact = true
+		docType = "document"
+	}
+
+	slog.Debug("detectStructuredArtifact: Analysis", "structureScore", structureScore, "docType", docType, "contentLen", len(content), "shouldCreate", shouldCreateArtifact)
+
+	if !shouldCreateArtifact {
+		slog.Debug("detectStructuredArtifact: Returning nil - not creating artifact")
+		return nil
+	}
+
+	// Extract title
+	title := extractDocumentTitle(content, userMessage)
+	slog.Debug("detectStructuredArtifact: Creating artifact", "title", title, "type", docType)
+
+	return &streaming.Artifact{
+		Type:    docType,
+		Title:   title,
+		Content: content,
+	}
+}
+
 // sendUsageEvent sends usage statistics as an SSE event
-func sendUsageEvent(w io.Writer, startTime time.Time, userMessage string, messages []sqlc.Message, fullResponse string, provider string, model string) {
+func sendUsageEvent(w io.Writer, startTime time.Time, userMessage string, messages []sqlc.Message, fullResponse string, provider string, model string, thinkingTokens int) {
 	endTime := time.Now()
 	inputChars := len(userMessage)
 	for _, msg := range messages {
@@ -754,7 +1055,7 @@ func sendUsageEvent(w io.Writer, startTime time.Time, userMessage string, messag
 	outputChars := len(fullResponse)
 	inputTokens := inputChars / 4
 	outputTokens := outputChars / 4
-	totalTokens := inputTokens + outputTokens
+	totalTokens := inputTokens + outputTokens + thinkingTokens
 	durationMs := endTime.Sub(startTime).Milliseconds()
 	tps := float64(0)
 	if durationMs > 0 {
@@ -763,14 +1064,15 @@ func sendUsageEvent(w io.Writer, startTime time.Time, userMessage string, messag
 	estimatedCost := services.CalculateEstimatedCost(provider, model, inputTokens, outputTokens)
 
 	usageData := map[string]interface{}{
-		"input_tokens":   inputTokens,
-		"output_tokens":  outputTokens,
-		"total_tokens":   totalTokens,
-		"duration_ms":    durationMs,
-		"tps":            tps,
-		"provider":       provider,
-		"model":          model,
-		"estimated_cost": estimatedCost,
+		"input_tokens":    inputTokens,
+		"output_tokens":   outputTokens,
+		"thinking_tokens": thinkingTokens,
+		"total_tokens":    totalTokens,
+		"duration_ms":     durationMs,
+		"tps":             tps,
+		"provider":        provider,
+		"model":           model,
+		"estimated_cost":  estimatedCost,
 	}
 
 	event := streaming.StreamEvent{
@@ -957,8 +1259,8 @@ func (h *Handlers) handleSlashCommandV2(c *gin.Context, user *middleware.BetterA
 		select {
 		case event, ok := <-events:
 			if !ok {
-				// Send usage data
-				sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model)
+				// Send usage data (no thinking tokens for slash commands)
+				sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model, 0)
 				return false
 			}
 
@@ -1074,9 +1376,9 @@ func saveThinkingTrace(ctx context.Context, pool *pgxpool.Pool, userID string, c
 	})
 
 	if err != nil {
-		fmt.Printf("[ChatV2] Failed to save thinking trace: %v\n", err)
+		slog.Error("ChatV2: Failed to save thinking trace", "err", err)
 	} else {
-		fmt.Printf("[ChatV2] Saved thinking trace (%d chars, %d tokens)\n", len(thinkingContent), thinkingTokens)
+		slog.Debug("ChatV2: Saved thinking trace", "chars", len(thinkingContent), "tokens", thinkingTokens)
 	}
 }
 
@@ -1085,7 +1387,7 @@ func applyReasoningTemplate(opts *services.LLMOptions, template sqlc.ReasoningTe
 	// Apply thinking instruction from template
 	if template.ThinkingInstruction != nil && *template.ThinkingInstruction != "" {
 		opts.ThinkingInstruction = *template.ThinkingInstruction
-		fmt.Printf("[ChatV2] Applied template thinking instruction (%d chars)\n", len(*template.ThinkingInstruction))
+		slog.Debug("ChatV2: Applied template thinking instruction", "len", len(*template.ThinkingInstruction))
 	}
 
 	// Apply max thinking tokens if set

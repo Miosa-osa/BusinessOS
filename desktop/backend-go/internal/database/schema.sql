@@ -568,6 +568,7 @@ CREATE TABLE ai_usage_logs (
     input_tokens INTEGER DEFAULT 0,
     output_tokens INTEGER DEFAULT 0,
     total_tokens INTEGER DEFAULT 0,
+    thinking_tokens INTEGER DEFAULT 0,  -- COT reasoning tokens (tracked separately)
 
     -- Agent tracking
     agent_name VARCHAR(100),
@@ -638,6 +639,7 @@ CREATE TABLE usage_daily_summary (
     ai_input_tokens INTEGER DEFAULT 0,
     ai_output_tokens INTEGER DEFAULT 0,
     ai_total_tokens INTEGER DEFAULT 0,
+    ai_thinking_tokens BIGINT DEFAULT 0,  -- COT reasoning tokens
     ai_estimated_cost NUMERIC(10, 4) DEFAULT 0,
 
     -- Breakdown by provider

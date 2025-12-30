@@ -36,6 +36,18 @@ func (h *Handlers) GetSettings(c *gin.Context) {
 				"streamResponses":   true,
 				"showUsageInChat":   true,
 			},
+			"agent_settings": map[string]interface{}{
+				"default_agent":        "general",
+				"enable_mentions":      true,
+				"auto_select_agent":    true,
+				"show_agent_reasoning": true,
+			},
+			"focus_settings": map[string]interface{}{
+				"default_mode":         "quick",
+				"remember_last_mode":   true,
+				"show_mode_selector":   true,
+				"auto_switch_by_query": false,
+			},
 		})
 		return
 	}
@@ -54,7 +66,7 @@ func (h *Handlers) GetSettings(c *gin.Context) {
 		"updated_at":          settings.UpdatedAt,
 	}
 
-	// Parse custom_settings and extract model_settings
+	// Parse custom_settings and extract model_settings, agent_settings, focus_settings
 	var customSettings map[string]interface{}
 	if settings.CustomSettings != nil {
 		if err := json.Unmarshal(settings.CustomSettings, &customSettings); err == nil {
@@ -62,6 +74,14 @@ func (h *Handlers) GetSettings(c *gin.Context) {
 			// Extract model_settings for top-level access
 			if modelSettings, ok := customSettings["model_settings"]; ok {
 				response["model_settings"] = modelSettings
+			}
+			// Extract agent_settings for top-level access
+			if agentSettings, ok := customSettings["agent_settings"]; ok {
+				response["agent_settings"] = agentSettings
+			}
+			// Extract focus_settings for top-level access
+			if focusSettings, ok := customSettings["focus_settings"]; ok {
+				response["focus_settings"] = focusSettings
 			}
 		}
 	}
@@ -74,6 +94,26 @@ func (h *Handlers) GetSettings(c *gin.Context) {
 			"topP":              0.9,
 			"streamResponses":   true,
 			"showUsageInChat":   true,
+		}
+	}
+
+	// Set default agent_settings if not present
+	if response["agent_settings"] == nil {
+		response["agent_settings"] = map[string]interface{}{
+			"default_agent":        "general",
+			"enable_mentions":      true,
+			"auto_select_agent":    true,
+			"show_agent_reasoning": true,
+		}
+	}
+
+	// Set default focus_settings if not present
+	if response["focus_settings"] == nil {
+		response["focus_settings"] = map[string]interface{}{
+			"default_mode":         "quick",
+			"remember_last_mode":   true,
+			"show_mode_selector":   true,
+			"auto_switch_by_query": false,
 		}
 	}
 
@@ -97,6 +137,8 @@ func (h *Handlers) UpdateSettings(c *gin.Context) {
 		ShareAnalytics     *bool                  `json:"share_analytics"`
 		CustomSettings     map[string]interface{} `json:"custom_settings"`
 		ModelSettings      map[string]interface{} `json:"model_settings"`
+		AgentSettings      map[string]interface{} `json:"agent_settings"`
+		FocusSettings      map[string]interface{} `json:"focus_settings"`
 		AIProvider         *string                `json:"ai_provider"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -104,12 +146,20 @@ func (h *Handlers) UpdateSettings(c *gin.Context) {
 		return
 	}
 
-	// Merge model_settings into custom_settings
-	if req.ModelSettings != nil {
+	// Merge model_settings, agent_settings, focus_settings into custom_settings
+	if req.ModelSettings != nil || req.AgentSettings != nil || req.FocusSettings != nil {
 		if req.CustomSettings == nil {
 			req.CustomSettings = make(map[string]interface{})
 		}
-		req.CustomSettings["model_settings"] = req.ModelSettings
+		if req.ModelSettings != nil {
+			req.CustomSettings["model_settings"] = req.ModelSettings
+		}
+		if req.AgentSettings != nil {
+			req.CustomSettings["agent_settings"] = req.AgentSettings
+		}
+		if req.FocusSettings != nil {
+			req.CustomSettings["focus_settings"] = req.FocusSettings
+		}
 	}
 
 	queries := sqlc.New(h.pool)

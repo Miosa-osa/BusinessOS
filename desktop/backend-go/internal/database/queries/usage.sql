@@ -3,12 +3,12 @@
 -- name: CreateAIUsageLog :one
 INSERT INTO ai_usage_logs (
     user_id, conversation_id, provider, model,
-    input_tokens, output_tokens, total_tokens,
+    input_tokens, output_tokens, total_tokens, thinking_tokens,
     agent_name, delegated_to, parent_request_id,
     request_type, node_id, project_id,
     duration_ms, started_at, completed_at, estimated_cost
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
 ) RETURNING *;
 
 -- name: GetAIUsageLogs :many
@@ -73,6 +73,7 @@ SELECT
     COALESCE(SUM(input_tokens), 0) as total_input_tokens,
     COALESCE(SUM(output_tokens), 0) as total_output_tokens,
     COALESCE(SUM(total_tokens), 0) as total_tokens,
+    COALESCE(SUM(thinking_tokens), 0) as total_thinking_tokens,
     COALESCE(SUM(estimated_cost), 0) as total_cost,
     COUNT(*) as total_requests
 FROM ai_usage_logs
@@ -111,19 +112,20 @@ GROUP BY tool_name, server_name;
 -- name: UpsertDailySummary :one
 INSERT INTO usage_daily_summary (
     user_id, date,
-    ai_requests, ai_input_tokens, ai_output_tokens, ai_total_tokens, ai_estimated_cost,
+    ai_requests, ai_input_tokens, ai_output_tokens, ai_total_tokens, ai_thinking_tokens, ai_estimated_cost,
     provider_breakdown, model_breakdown, agent_breakdown,
     mcp_requests, mcp_tool_breakdown,
     conversations_created, messages_sent, artifacts_created, documents_created,
     contexts_accessed, nodes_accessed, projects_accessed
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
 )
 ON CONFLICT (user_id, date) DO UPDATE SET
     ai_requests = usage_daily_summary.ai_requests + EXCLUDED.ai_requests,
     ai_input_tokens = usage_daily_summary.ai_input_tokens + EXCLUDED.ai_input_tokens,
     ai_output_tokens = usage_daily_summary.ai_output_tokens + EXCLUDED.ai_output_tokens,
     ai_total_tokens = usage_daily_summary.ai_total_tokens + EXCLUDED.ai_total_tokens,
+    ai_thinking_tokens = usage_daily_summary.ai_thinking_tokens + EXCLUDED.ai_thinking_tokens,
     ai_estimated_cost = usage_daily_summary.ai_estimated_cost + EXCLUDED.ai_estimated_cost,
     mcp_requests = usage_daily_summary.mcp_requests + EXCLUDED.mcp_requests,
     conversations_created = usage_daily_summary.conversations_created + EXCLUDED.conversations_created,
@@ -149,6 +151,7 @@ SELECT
     date,
     ai_requests,
     ai_total_tokens,
+    ai_thinking_tokens,
     ai_estimated_cost,
     mcp_requests,
     messages_sent

@@ -821,6 +821,26 @@ func (ns NullThinkingtype) Value() (driver.Value, error) {
 	return string(ns.Thinkingtype), nil
 }
 
+type AgentPreset struct {
+	ID              pgtype.UUID        `json:"id"`
+	Name            string             `json:"name"`
+	DisplayName     string             `json:"display_name"`
+	Description     *string            `json:"description"`
+	Avatar          *string            `json:"avatar"`
+	SystemPrompt    string             `json:"system_prompt"`
+	ModelPreference *string            `json:"model_preference"`
+	Temperature     pgtype.Numeric     `json:"temperature"`
+	MaxTokens       *int32             `json:"max_tokens"`
+	Capabilities    []string           `json:"capabilities"`
+	ToolsEnabled    []string           `json:"tools_enabled"`
+	ContextSources  []string           `json:"context_sources"`
+	ThinkingEnabled *bool              `json:"thinking_enabled"`
+	Category        *string            `json:"category"`
+	TimesCopied     *int32             `json:"times_copied"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
 type AiUsageLog struct {
 	ID              pgtype.UUID        `json:"id"`
 	UserID          string             `json:"user_id"`
@@ -830,6 +850,7 @@ type AiUsageLog struct {
 	InputTokens     *int32             `json:"input_tokens"`
 	OutputTokens    *int32             `json:"output_tokens"`
 	TotalTokens     *int32             `json:"total_tokens"`
+	ThinkingTokens  *int32             `json:"thinking_tokens"`
 	AgentName       *string            `json:"agent_name"`
 	DelegatedTo     *string            `json:"delegated_to"`
 	ParentRequestID pgtype.UUID        `json:"parent_request_id"`
@@ -1004,6 +1025,31 @@ type ConversationTag struct {
 	ConversationID pgtype.UUID      `json:"conversation_id"`
 	Tag            string           `json:"tag"`
 	CreatedAt      pgtype.Timestamp `json:"created_at"`
+}
+
+type CustomAgent struct {
+	ID               pgtype.UUID        `json:"id"`
+	UserID           string             `json:"user_id"`
+	Name             string             `json:"name"`
+	DisplayName      string             `json:"display_name"`
+	Description      *string            `json:"description"`
+	Avatar           *string            `json:"avatar"`
+	SystemPrompt     string             `json:"system_prompt"`
+	ModelPreference  *string            `json:"model_preference"`
+	Temperature      pgtype.Numeric     `json:"temperature"`
+	MaxTokens        *int32             `json:"max_tokens"`
+	Capabilities     []string           `json:"capabilities"`
+	ToolsEnabled     []string           `json:"tools_enabled"`
+	ContextSources   []string           `json:"context_sources"`
+	ThinkingEnabled  *bool              `json:"thinking_enabled"`
+	StreamingEnabled *bool              `json:"streaming_enabled"`
+	Category         *string            `json:"category"`
+	IsPublic         *bool              `json:"is_public"`
+	IsActive         *bool              `json:"is_active"`
+	TimesUsed        *int32             `json:"times_used"`
+	LastUsedAt       pgtype.Timestamptz `json:"last_used_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
 type DailyLog struct {
@@ -1366,51 +1412,6 @@ type UserCommand struct {
 	IsActive       *bool              `json:"is_active"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-}
-
-type CustomAgent struct {
-	ID               pgtype.UUID        `json:"id"`
-	UserID           string             `json:"user_id"`
-	Name             string             `json:"name"`
-	DisplayName      string             `json:"display_name"`
-	Description      *string            `json:"description"`
-	Avatar           *string            `json:"avatar"`
-	SystemPrompt     string             `json:"system_prompt"`
-	ModelPreference  *string            `json:"model_preference"`
-	Temperature      pgtype.Numeric     `json:"temperature"`
-	MaxTokens        *int32             `json:"max_tokens"`
-	Capabilities     []string           `json:"capabilities"`
-	ToolsEnabled     []string           `json:"tools_enabled"`
-	ContextSources   []string           `json:"context_sources"`
-	ThinkingEnabled  *bool              `json:"thinking_enabled"`
-	StreamingEnabled *bool              `json:"streaming_enabled"`
-	Category         *string            `json:"category"`
-	IsPublic         *bool              `json:"is_public"`
-	IsActive         *bool              `json:"is_active"`
-	TimesUsed        *int32             `json:"times_used"`
-	LastUsedAt       pgtype.Timestamptz `json:"last_used_at"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
-}
-
-type AgentPreset struct {
-	ID              pgtype.UUID        `json:"id"`
-	Name            string             `json:"name"`
-	DisplayName     string             `json:"display_name"`
-	Description     *string            `json:"description"`
-	Avatar          *string            `json:"avatar"`
-	SystemPrompt    string             `json:"system_prompt"`
-	ModelPreference *string            `json:"model_preference"`
-	Temperature     pgtype.Numeric     `json:"temperature"`
-	MaxTokens       *int32             `json:"max_tokens"`
-	Capabilities    []string           `json:"capabilities"`
-	ToolsEnabled    []string           `json:"tools_enabled"`
-	ContextSources  []string           `json:"context_sources"`
-	ThinkingEnabled *bool              `json:"thinking_enabled"`
-	Category        *string            `json:"category"`
-	TimesCopied     *int32             `json:"times_copied"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }
 
 type UserSetting struct {

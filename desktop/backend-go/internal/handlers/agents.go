@@ -4,12 +4,14 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 )
 
 // ListCustomAgents returns all custom agents for the authenticated user
@@ -382,7 +384,7 @@ func (h *Handlers) CreateAgentFromPreset(c *gin.Context) {
 	agent, err := queries.CreateAgentFromPreset(ctx, sqlc.CreateAgentFromPresetParams{
 		UserID:   user.ID,
 		Name:     name,
-		PresetID: pgtype.UUID{Bytes: presetID, Valid: true},
+		ID: pgtype.UUID{Bytes: presetID, Valid: true},
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create agent from preset: " + err.Error()})
@@ -422,4 +424,159 @@ func (h *Handlers) ListCustomAgentsByCategory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"agents": agents})
+}
+
+// TestAgentRequest represents request to test an agent prompt
+type TestAgentRequest struct {
+	SystemPrompt string   `json:"system_prompt"`
+	TestMessage  string   `json:"test_message" binding:"required"`
+	Model        *string  `json:"model"`
+	Temperature  *float64 `json:"temperature"`
+	MaxTokens    *int     `json:"max_tokens"`
+}
+
+// TestAgentResponse represents the sandbox test response
+type TestAgentResponse struct {
+	Response   string `json:"response"`
+	TokensUsed int    `json:"tokens_used"`
+	DurationMs int64  `json:"duration_ms"`
+	Model      string `json:"model"`
+}
+
+// TestCustomAgent provides a sandbox to test agent prompts without saving
+// POST /api/agents/:id/test - Test existing agent with custom message
+// POST /api/agents/sandbox - Test arbitrary prompt (no agent ID needed)
+func (h *Handlers) TestCustomAgent(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	var req TestAgentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := c.Request.Context()
+	queries := sqlc.New(h.pool)
+
+	// If agent ID is provided, load the agent's settings
+	idStr := c.Param("id")
+	var systemPrompt string
+	var model string
+	var temperature float64 = 0.7
+
+	if idStr != "" && idStr != "sandbox" {
+		// Testing existing agent
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid agent ID"})
+			return
+		}
+
+		agent, err := queries.GetCustomAgent(ctx, sqlc.GetCustomAgentParams{
+			ID:     pgtype.UUID{Bytes: id, Valid: true},
+			UserID: user.ID,
+		})
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Agent not found"})
+			return
+		}
+
+		// Use agent's prompt if not overridden
+		if req.SystemPrompt != "" {
+			systemPrompt = req.SystemPrompt
+		} else {
+			systemPrompt = agent.SystemPrompt
+		}
+
+		// Use agent's model preference if set
+		if agent.ModelPreference != nil && *agent.ModelPreference != "" {
+			model = *agent.ModelPreference
+		}
+
+		// Use agent's temperature if set
+		if agent.Temperature.Valid {
+			tempFloat, _ := agent.Temperature.Float64Value()
+			if tempFloat.Valid {
+				temperature = tempFloat.Float64
+			}
+		}
+	} else {
+		// Sandbox mode - use provided prompt
+		systemPrompt = req.SystemPrompt
+		if systemPrompt == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "system_prompt is required for sandbox mode"})
+			return
+		}
+	}
+
+	// Override with request parameters if provided
+	if req.Model != nil && *req.Model != "" {
+		model = *req.Model
+	}
+	if model == "" {
+		model = h.cfg.DefaultModel
+	}
+	if req.Temperature != nil {
+		temperature = *req.Temperature
+	}
+
+	// Track timing
+	startTime := time.Now()
+
+	// Create LLM service
+	llmService := services.NewLLMService(h.cfg, model)
+
+	// Set options
+	opts := services.DefaultLLMOptions()
+	opts.Temperature = temperature
+	if req.MaxTokens != nil {
+		opts.MaxTokens = *req.MaxTokens
+	} else {
+		opts.MaxTokens = 1000 // Limit for sandbox testing
+	}
+	llmService.SetOptions(opts)
+
+	// Build messages
+	chatMessages := []services.ChatMessage{
+		{Role: "user", Content: req.TestMessage},
+	}
+
+	// Stream response and collect
+	var fullResponse strings.Builder
+	chunks, errs := llmService.StreamChat(ctx, chatMessages, systemPrompt)
+
+	for {
+		select {
+		case chunk, ok := <-chunks:
+			if !ok {
+				goto done
+			}
+			fullResponse.WriteString(chunk)
+		case err := <-errs:
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "LLM error: " + err.Error()})
+				return
+			}
+			goto done
+		case <-ctx.Done():
+			c.JSON(http.StatusRequestTimeout, gin.H{"error": "Request timeout"})
+			return
+		}
+	}
+
+done:
+	response := fullResponse.String()
+	tokensUsed := len(response) / 4 // Rough estimate
+	durationMs := time.Since(startTime).Milliseconds()
+
+	c.JSON(http.StatusOK, TestAgentResponse{
+		Response:   response,
+		TokensUsed: tokensUsed,
+		DurationMs: durationMs,
+		Model:      model,
+	})
 }

@@ -10,9 +10,31 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/rhl/businessos-backend/internal/config"
 )
+
+// sanitizeUTF8 ensures the string contains only valid UTF-8 characters
+// Invalid bytes are replaced with empty string to avoid encoding issues
+func sanitizeUTF8(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	}
+	// Replace invalid UTF-8 sequences
+	var result strings.Builder
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if r == utf8.RuneError && size == 1 {
+			// Invalid byte, skip it
+			i++
+			continue
+		}
+		result.WriteRune(r)
+		i += size
+	}
+	return result.String()
+}
 
 // GroqService handles LLM inference via Groq API
 type GroqService struct {
@@ -218,8 +240,9 @@ func (s *GroqService) StreamChat(ctx context.Context, messages []ChatMessage, sy
 			}
 
 			if len(streamResp.Choices) > 0 && streamResp.Choices[0].Delta.Content != "" {
+				content := sanitizeUTF8(streamResp.Choices[0].Delta.Content)
 				select {
-				case chunks <- streamResp.Choices[0].Delta.Content:
+				case chunks <- content:
 				case <-ctx.Done():
 					return
 				}
@@ -399,7 +422,7 @@ func (s *GroqService) StreamChatWithUsage(ctx context.Context, messages []ChatMe
 			}
 
 			if len(streamResp.Choices) > 0 && streamResp.Choices[0].Delta.Content != "" {
-				content := streamResp.Choices[0].Delta.Content
+				content := sanitizeUTF8(streamResp.Choices[0].Delta.Content)
 				estimatedTokens += len(content) / 4
 				select {
 				case chunks <- content:

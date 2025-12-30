@@ -29,6 +29,7 @@ type LogAIUsageParams struct {
 	InputTokens    int
 	OutputTokens   int
 	TotalTokens    int
+	ThinkingTokens int // Tokens used for Chain of Thought reasoning
 	AgentName      string
 	DelegatedTo    string
 	RequestType    string
@@ -62,6 +63,7 @@ func (s *UsageService) LogAIUsage(ctx context.Context, params LogAIUsageParams) 
 	inputTokens := int32(params.InputTokens)
 	outputTokens := int32(params.OutputTokens)
 	totalTokens := int32(params.TotalTokens)
+	thinkingTokens := int32(params.ThinkingTokens)
 	durationMs := int32(params.DurationMs)
 
 	var agentName *string
@@ -92,6 +94,7 @@ func (s *UsageService) LogAIUsage(ctx context.Context, params LogAIUsageParams) 
 		InputTokens:    &inputTokens,
 		OutputTokens:   &outputTokens,
 		TotalTokens:    &totalTokens,
+		ThinkingTokens: &thinkingTokens,
 		AgentName:      agentName,
 		DelegatedTo:    delegatedTo,
 		RequestType:    requestType,

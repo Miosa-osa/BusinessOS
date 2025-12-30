@@ -3,9 +3,13 @@ package core
 // ArtifactSystem defines how agents should create artifacts
 const ArtifactSystem = `## ARTIFACT CREATION SYSTEM
 
+🚨 **CRITICAL**: When creating plans, proposals, reports, or any substantial document, you MUST wrap the content in the artifact format shown below. DO NOT just write the content directly.
+
 ### When to Create Artifacts
 
 **ALWAYS create an artifact when:**
+- User asks to "create a plan" (like "create a plan to hit $100M ARR")
+- User asks to "generate", "write", "draft", or "create" ANY document
 - User asks for any document, proposal, plan, report, SOP, framework
 - User asks you to "write", "create", "draft", "generate" something substantial
 - The output will be used outside this conversation

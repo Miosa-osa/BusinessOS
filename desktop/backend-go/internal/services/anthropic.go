@@ -28,6 +28,12 @@ type AnthropicMessage struct {
 	Content string `json:"content"`
 }
 
+// AnthropicThinking represents extended thinking configuration
+type AnthropicThinking struct {
+	Type         string `json:"type"`          // "enabled"
+	BudgetTokens int    `json:"budget_tokens"` // Max tokens for thinking (1024-32768)
+}
+
 // AnthropicRequest represents a request to the Anthropic API
 type AnthropicRequest struct {
 	Model     string             `json:"model"`
@@ -35,21 +41,29 @@ type AnthropicRequest struct {
 	System    string             `json:"system,omitempty"`
 	Messages  []AnthropicMessage `json:"messages"`
 	Stream    bool               `json:"stream"`
+	Thinking  *AnthropicThinking `json:"thinking,omitempty"` // Extended thinking support
+}
+
+// AnthropicContentBlock represents a content block in the response
+type AnthropicContentBlock struct {
+	Type     string `json:"type"`               // "text" or "thinking"
+	Text     string `json:"text,omitempty"`     // For text blocks
+	Thinking string `json:"thinking,omitempty"` // For thinking blocks
 }
 
 // AnthropicResponse represents a non-streaming response from Anthropic
 type AnthropicResponse struct {
-	ID           string `json:"id"`
-	Type         string `json:"type"`
-	Role         string `json:"role"`
-	Content      []struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
-	} `json:"content"`
-	StopReason string `json:"stop_reason"`
+	ID         string                  `json:"id"`
+	Type       string                  `json:"type"`
+	Role       string                  `json:"role"`
+	Content    []AnthropicContentBlock `json:"content"`
+	StopReason string                  `json:"stop_reason"`
 	Usage      struct {
 		InputTokens  int `json:"input_tokens"`
 		OutputTokens int `json:"output_tokens"`
+		// Extended thinking usage
+		CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+		CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
 	} `json:"usage"`
 }
 
@@ -58,12 +72,14 @@ type AnthropicStreamEvent struct {
 	Type  string `json:"type"`
 	Index int    `json:"index,omitempty"`
 	Delta struct {
-		Type string `json:"type,omitempty"`
-		Text string `json:"text,omitempty"`
+		Type     string `json:"type,omitempty"`
+		Text     string `json:"text,omitempty"`
+		Thinking string `json:"thinking,omitempty"` // For thinking_delta events
 	} `json:"delta,omitempty"`
 	ContentBlock struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
+		Type     string `json:"type"`
+		Text     string `json:"text,omitempty"`
+		Thinking string `json:"thinking,omitempty"`
 	} `json:"content_block,omitempty"`
 	Message struct {
 		Usage struct {
@@ -132,9 +148,14 @@ func (s *AnthropicService) StreamChat(ctx context.Context, messages []ChatMessag
 			})
 		}
 
+		maxTokens := s.options.MaxTokens
+		if maxTokens <= 0 {
+			maxTokens = 8192
+		}
+
 		reqBody := AnthropicRequest{
 			Model:     s.model,
-			MaxTokens: 8192,
+			MaxTokens: maxTokens,
 			System:    systemPrompt,
 			Messages:  anthropicMsgs,
 			Stream:    true,
@@ -154,7 +175,7 @@ func (s *AnthropicService) StreamChat(ctx context.Context, messages []ChatMessag
 
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("x-api-key", s.apiKey)
-		req.Header.Set("anthropic-version", "2023-06-01")
+		req.Header.Set("anthropic-version", "2023-09-01")
 
 		resp, err := s.client.Do(req)
 		if err != nil {
@@ -231,9 +252,14 @@ func (s *AnthropicService) ChatComplete(ctx context.Context, messages []ChatMess
 		})
 	}
 
+	maxTokens := s.options.MaxTokens
+	if maxTokens <= 0 {
+		maxTokens = 8192
+	}
+
 	reqBody := AnthropicRequest{
 		Model:     s.model,
-		MaxTokens: 8192,
+		MaxTokens: maxTokens,
 		System:    systemPrompt,
 		Messages:  anthropicMsgs,
 		Stream:    false,
@@ -251,7 +277,7 @@ func (s *AnthropicService) ChatComplete(ctx context.Context, messages []ChatMess
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", s.apiKey)
-	req.Header.Set("anthropic-version", "2023-06-01")
+	req.Header.Set("anthropic-version", "2023-09-01")
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -328,9 +354,14 @@ func (s *AnthropicService) StreamChatWithUsage(ctx context.Context, messages []C
 			})
 		}
 
+		maxTokens := s.options.MaxTokens
+		if maxTokens <= 0 {
+			maxTokens = 8192
+		}
+
 		reqBody := AnthropicRequest{
 			Model:     s.model,
-			MaxTokens: 8192,
+			MaxTokens: maxTokens,
 			System:    systemPrompt,
 			Messages:  anthropicMsgs,
 			Stream:    true,
@@ -350,7 +381,7 @@ func (s *AnthropicService) StreamChatWithUsage(ctx context.Context, messages []C
 
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("x-api-key", s.apiKey)
-		req.Header.Set("anthropic-version", "2023-06-01")
+		req.Header.Set("anthropic-version", "2023-09-01")
 
 		resp, err := s.client.Do(req)
 		if err != nil {
@@ -439,9 +470,14 @@ func (s *AnthropicService) ChatCompleteWithUsage(ctx context.Context, messages [
 		})
 	}
 
+	maxTokens := s.options.MaxTokens
+	if maxTokens <= 0 {
+		maxTokens = 8192
+	}
+
 	reqBody := AnthropicRequest{
 		Model:     s.model,
-		MaxTokens: 8192,
+		MaxTokens: maxTokens,
 		System:    systemPrompt,
 		Messages:  anthropicMsgs,
 		Stream:    false,
@@ -459,7 +495,7 @@ func (s *AnthropicService) ChatCompleteWithUsage(ctx context.Context, messages [
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", s.apiKey)
-	req.Header.Set("anthropic-version", "2023-06-01")
+	req.Header.Set("anthropic-version", "2023-09-01")
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -494,4 +530,192 @@ func (s *AnthropicService) ChatCompleteWithUsage(ctx context.Context, messages [
 	}
 
 	return resultText.String(), usage, nil
+}
+
+// SupportsExtendedThinking returns true if the current model supports extended thinking
+func (s *AnthropicService) SupportsExtendedThinking() bool {
+	// Extended thinking is supported on Claude 3.5 Sonnet and Claude 3 Opus and newer
+	supportedModels := []string{
+		"claude-sonnet-4",
+		"claude-opus-4",
+		"claude-3-7-sonnet",
+		"claude-3-5-sonnet",
+		"claude-3-opus",
+	}
+	for _, supported := range supportedModels {
+		if strings.Contains(s.model, supported) {
+			return true
+		}
+	}
+	return false
+}
+
+// StreamChatWithThinking streams chat with extended thinking support
+func (s *AnthropicService) StreamChatWithThinking(ctx context.Context, messages []ChatMessage, systemPrompt string) *ExtendedThinkingResult {
+	result := &ExtendedThinkingResult{
+		Chunks:         make(chan string, 100),
+		ThinkingChunks: make(chan string, 100),
+		Errors:         make(chan error, 1),
+	}
+
+	go func() {
+		defer close(result.Chunks)
+		defer close(result.ThinkingChunks)
+		defer close(result.Errors)
+
+		var inputTokens, outputTokens, thinkingTokens int
+		var currentBlockType string
+
+		// Convert messages to Anthropic format
+		anthropicMsgs := make([]AnthropicMessage, 0, len(messages))
+		for _, msg := range messages {
+			if msg.Role == "system" {
+				if systemPrompt != "" {
+					systemPrompt = systemPrompt + "\n\n" + msg.Content
+				} else {
+					systemPrompt = msg.Content
+				}
+				continue
+			}
+			anthropicMsgs = append(anthropicMsgs, AnthropicMessage{
+				Role:    msg.Role,
+				Content: msg.Content,
+			})
+		}
+
+		// Build request with extended thinking enabled
+		reqBody := AnthropicRequest{
+			Model:     s.model,
+			MaxTokens: s.options.MaxTokens,
+			System:    systemPrompt,
+			Messages:  anthropicMsgs,
+			Stream:    true,
+		}
+
+		// Enable extended thinking if supported and enabled in options
+		if s.options.ThinkingEnabled && s.SupportsExtendedThinking() {
+			budgetTokens := s.options.MaxThinkingTokens
+			if budgetTokens < 1024 {
+				budgetTokens = 1024
+			}
+			if budgetTokens > 32768 {
+				budgetTokens = 32768
+			}
+			reqBody.Thinking = &AnthropicThinking{
+				Type:         "enabled",
+				BudgetTokens: budgetTokens,
+			}
+		}
+
+		body, err := json.Marshal(reqBody)
+		if err != nil {
+			result.Errors <- fmt.Errorf("failed to marshal request: %w", err)
+			return
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(body))
+		if err != nil {
+			result.Errors <- fmt.Errorf("failed to create request: %w", err)
+			return
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-api-key", s.apiKey)
+		req.Header.Set("anthropic-version", "2023-09-01")
+
+		resp, err := s.client.Do(req)
+		if err != nil {
+			result.Errors <- fmt.Errorf("failed to send request: %w", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			result.Errors <- fmt.Errorf("anthropic API error: %s - %s", resp.Status, string(body))
+			return
+		}
+
+		scanner := bufio.NewScanner(resp.Body)
+		// Increase buffer size for large thinking blocks
+		buf := make([]byte, 0, 64*1024)
+		scanner.Buffer(buf, 1024*1024)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if line == "" || !strings.HasPrefix(line, "data: ") {
+				continue
+			}
+
+			data := strings.TrimPrefix(line, "data: ")
+			if data == "[DONE]" {
+				break
+			}
+
+			var event AnthropicStreamEvent
+			if err := json.Unmarshal([]byte(data), &event); err != nil {
+				continue
+			}
+
+			switch event.Type {
+			case "message_start":
+				inputTokens = event.Message.Usage.InputTokens
+
+			case "content_block_start":
+				// Track what type of block we're in
+				currentBlockType = event.ContentBlock.Type
+
+			case "content_block_delta":
+				if currentBlockType == "thinking" {
+					// This is thinking content
+					if event.Delta.Thinking != "" {
+						select {
+						case result.ThinkingChunks <- event.Delta.Thinking:
+							thinkingTokens++ // Approximate token count
+						case <-ctx.Done():
+							return
+						}
+					}
+				} else if currentBlockType == "text" {
+					// This is regular text content
+					if event.Delta.Text != "" {
+						select {
+						case result.Chunks <- event.Delta.Text:
+						case <-ctx.Done():
+							return
+						}
+					}
+				}
+
+			case "content_block_stop":
+				currentBlockType = ""
+
+			case "message_delta":
+				outputTokens = event.Usage.OutputTokens
+
+			case "message_stop":
+				// Stream complete
+
+			case "error":
+				result.Errors <- fmt.Errorf("anthropic stream error")
+				return
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			result.Errors <- fmt.Errorf("error reading response: %w", err)
+		}
+
+		// Set final token usage
+		result.SetTokenUsage(&TokenUsage{
+			InputTokens:    inputTokens,
+			OutputTokens:   outputTokens,
+			ThinkingTokens: thinkingTokens,
+			TotalTokens:    inputTokens + outputTokens + thinkingTokens,
+			Model:          s.model,
+			Provider:       "anthropic",
+		})
+	}()
+
+	return result
 }

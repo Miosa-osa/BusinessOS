@@ -165,6 +165,45 @@
 	let editingAgent = $state<string | null>(null);
 	let editedPrompt = $state<string>('');
 
+	// Custom Agents (user-created, can be mentioned with @name)
+	interface CustomAgent {
+		id: string;
+		name: string;
+		display_name: string;
+		description: string;
+		avatar?: string;
+		system_prompt: string;
+		model_preference?: string;
+		temperature?: number;
+		max_tokens?: number;
+		capabilities?: string[];
+		tools_enabled?: string[];
+		context_sources?: string[];
+		thinking_enabled?: boolean;
+		streaming_enabled?: boolean;
+		category?: string;
+		is_active: boolean;
+		times_used: number;
+		last_used_at?: string;
+		created_at: string;
+		updated_at: string;
+	}
+
+	let customAgents = $state<CustomAgent[]>([]);
+	let loadingCustomAgents = $state(false);
+	let showNewCustomAgent = $state(false);
+	let editingCustomAgent = $state<CustomAgent | null>(null);
+	let savingCustomAgent = $state(false);
+	let newCustomAgent = $state({
+		name: '',
+		display_name: '',
+		description: '',
+		system_prompt: '',
+		model_preference: '',
+		temperature: 0.7,
+		category: 'custom'
+	});
+
 	// Model capability types
 	type ModelCapability = 'vision' | 'tools' | 'coding' | 'reasoning' | 'rag' | 'multilingual' | 'fast';
 
@@ -467,6 +506,7 @@
 		loadConfig();
 		loadSystemInfo();
 		loadAgents();
+		loadCustomAgents();
 
 		// Click outside handler for dropdowns
 		const handleClickOutside = (e: MouseEvent) => {
@@ -529,6 +569,91 @@
 			console.error('Failed to load agents:', err);
 		} finally {
 			loadingAgents = false;
+		}
+	}
+
+	// Custom Agents API functions
+	async function loadCustomAgents() {
+		loadingCustomAgents = true;
+		try {
+			const res = await apiClient.get('/ai/custom-agents');
+			if (res.ok) {
+				const data = await res.json();
+				customAgents = data.agents || [];
+			}
+		} catch (err) {
+			console.error('Failed to load custom agents:', err);
+		} finally {
+			loadingCustomAgents = false;
+		}
+	}
+
+	async function createCustomAgent() {
+		if (!newCustomAgent.name || !newCustomAgent.display_name || !newCustomAgent.system_prompt) {
+			error = 'Name, display name, and system prompt are required';
+			return;
+		}
+		savingCustomAgent = true;
+		try {
+			const res = await apiClient.post('/ai/custom-agents', newCustomAgent);
+			if (res.ok) {
+				const data = await res.json();
+				customAgents = [...customAgents, data.agent];
+				showNewCustomAgent = false;
+				newCustomAgent = {
+					name: '',
+					display_name: '',
+					description: '',
+					system_prompt: '',
+					model_preference: '',
+					temperature: 0.7,
+					category: 'custom'
+				};
+				saveStatus = 'Custom agent created!';
+				setTimeout(() => saveStatus = '', 3000);
+			} else {
+				const err = await res.json();
+				error = err.error || 'Failed to create agent';
+			}
+		} catch (err) {
+			console.error('Failed to create custom agent:', err);
+			error = 'Failed to create custom agent';
+		} finally {
+			savingCustomAgent = false;
+		}
+	}
+
+	async function updateCustomAgent(agent: CustomAgent) {
+		savingCustomAgent = true;
+		try {
+			const res = await apiClient.put(`/ai/custom-agents/${agent.id}`, agent);
+			if (res.ok) {
+				const data = await res.json();
+				customAgents = customAgents.map(a => a.id === agent.id ? data.agent : a);
+				editingCustomAgent = null;
+				saveStatus = 'Agent updated!';
+				setTimeout(() => saveStatus = '', 3000);
+			}
+		} catch (err) {
+			console.error('Failed to update custom agent:', err);
+			error = 'Failed to update agent';
+		} finally {
+			savingCustomAgent = false;
+		}
+	}
+
+	async function deleteCustomAgent(id: string) {
+		if (!confirm('Are you sure you want to delete this agent?')) return;
+		try {
+			const res = await apiClient.delete(`/ai/custom-agents/${id}`);
+			if (res.ok) {
+				customAgents = customAgents.filter(a => a.id !== id);
+				saveStatus = 'Agent deleted';
+				setTimeout(() => saveStatus = '', 3000);
+			}
+		} catch (err) {
+			console.error('Failed to delete custom agent:', err);
+			error = 'Failed to delete agent';
 		}
 	}
 
@@ -1750,10 +1875,113 @@
 					</div>
 				</section>
 			{:else if activeTab === 'agents'}
-				<!-- Agents Tab -->
+				<!-- Custom Agents Section -->
 				<section class="section">
 					<div class="section-header">
-						<h2>AI Agents</h2>
+						<h2>Custom Agents</h2>
+						<button class="add-btn" onclick={() => showNewCustomAgent = true}>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+							New Agent
+						</button>
+					</div>
+					<p class="section-subtitle">Create custom agents you can mention with @name in chat</p>
+
+					{#if showNewCustomAgent}
+						<div class="custom-agent-form">
+							<div class="form-header">
+								<h3>Create Custom Agent</h3>
+								<button class="close-btn" onclick={() => showNewCustomAgent = false}>x</button>
+							</div>
+							<div class="form-grid">
+								<div class="form-group">
+									<label>Agent Name (for @mentions)</label>
+									<div class="input-prefix">
+										<span>@</span>
+										<input type="text" bind:value={newCustomAgent.name} placeholder="coder" />
+									</div>
+									<span class="form-hint">Lowercase, no spaces (use hyphens)</span>
+								</div>
+								<div class="form-group">
+									<label>Display Name</label>
+									<input type="text" bind:value={newCustomAgent.display_name} placeholder="My Coding Assistant" />
+								</div>
+								<div class="form-group full-width">
+									<label>Description</label>
+									<input type="text" bind:value={newCustomAgent.description} placeholder="A helpful coding assistant..." />
+								</div>
+								<div class="form-group full-width">
+									<label>System Prompt</label>
+									<textarea bind:value={newCustomAgent.system_prompt} rows="8" placeholder="You are an expert programmer..."></textarea>
+									<span class="form-hint">This prompt defines the agent's personality and behavior</span>
+								</div>
+								<div class="form-group">
+									<label>Model (optional)</label>
+									<select bind:value={newCustomAgent.model_preference}>
+										<option value="">Use default</option>
+										<option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+										<option value="llama-3.1-8b-instant">Llama 3.1 8B</option>
+										<option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label>Temperature</label>
+									<input type="number" bind:value={newCustomAgent.temperature} min="0" max="2" step="0.1" />
+								</div>
+							</div>
+							<div class="form-actions">
+								<button class="btn secondary" onclick={() => showNewCustomAgent = false}>Cancel</button>
+								<button class="btn primary" onclick={createCustomAgent} disabled={savingCustomAgent}>
+									{savingCustomAgent ? 'Creating...' : 'Create Agent'}
+								</button>
+							</div>
+						</div>
+					{/if}
+
+					{#if loadingCustomAgents}
+						<div class="loading">
+							<div class="spinner"></div>
+							<span>Loading custom agents...</span>
+						</div>
+					{:else if customAgents.length === 0}
+						<div class="empty-state small">
+							<p>No custom agents yet. Create one to mention with @name in chat!</p>
+						</div>
+					{:else}
+						<div class="custom-agents-list">
+							{#each customAgents as agent}
+								<div class="custom-agent-card">
+									<div class="agent-header">
+										<div class="agent-info">
+											<span class="agent-mention">@{agent.name}</span>
+											<span class="agent-display-name">{agent.display_name}</span>
+										</div>
+										<div class="agent-actions">
+											<span class="usage-badge">{agent.times_used} uses</span>
+											<button class="icon-btn" onclick={() => editingCustomAgent = {...agent}} title="Edit">
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+											</button>
+											<button class="icon-btn danger" onclick={() => deleteCustomAgent(agent.id)} title="Delete">
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+											</button>
+										</div>
+									</div>
+									{#if agent.description}
+										<p class="agent-desc">{agent.description}</p>
+									{/if}
+									<div class="agent-prompt-preview">
+										<span class="label">Prompt:</span>
+										<span class="preview">{agent.system_prompt.slice(0, 100)}...</span>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</section>
+
+				<!-- Built-in Agents Tab -->
+				<section class="section">
+					<div class="section-header">
+						<h2>Built-in Agents</h2>
 						<span class="subtitle">View and customize agent prompts</span>
 					</div>
 
@@ -4986,6 +5214,118 @@
 	}
 
 	/* ===== AGENTS TAB STYLES ===== */
+
+	/* Custom Agents */
+	.section-subtitle {
+		color: var(--color-text-muted);
+		font-size: 14px;
+		margin: -8px 0 16px 0;
+	}
+
+	.custom-agent-form {
+		background: var(--color-bg-elevated);
+		border: 1px solid var(--color-border);
+		border-radius: 12px;
+		padding: 20px;
+		margin-bottom: 20px;
+	}
+
+	.custom-agents-list {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.custom-agent-card {
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
+		border-radius: 12px;
+		padding: 16px;
+	}
+
+	.custom-agent-card:hover {
+		border-color: var(--color-primary);
+	}
+
+	.custom-agent-card .agent-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 8px;
+	}
+
+	.custom-agent-card .agent-info {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.agent-mention {
+		font-family: monospace;
+		font-weight: 600;
+		color: var(--color-primary);
+		background: var(--color-primary-bg);
+		padding: 4px 8px;
+		border-radius: 6px;
+		font-size: 14px;
+	}
+
+	.agent-display-name {
+		font-weight: 500;
+		color: var(--color-text);
+	}
+
+	.custom-agent-card .agent-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.usage-badge {
+		font-size: 12px;
+		color: var(--color-text-muted);
+		background: var(--color-bg-elevated);
+		padding: 4px 8px;
+		border-radius: 4px;
+	}
+
+	.custom-agent-card .agent-desc {
+		font-size: 14px;
+		color: var(--color-text-muted);
+		margin-bottom: 8px;
+	}
+
+	.agent-prompt-preview {
+		font-size: 13px;
+		display: flex;
+		gap: 8px;
+	}
+
+	.agent-prompt-preview .label {
+		color: var(--color-text-muted);
+		flex-shrink: 0;
+	}
+
+	.agent-prompt-preview .preview {
+		color: var(--color-text-secondary);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.empty-state.small {
+		padding: 24px;
+		text-align: center;
+		color: var(--color-text-muted);
+		background: var(--color-bg-elevated);
+		border-radius: 8px;
+	}
+
+	.icon-btn.danger:hover {
+		color: var(--color-error);
+	}
+
+	/* Built-in Agents */
 	.agents-list {
 		display: flex;
 		flex-direction: column;

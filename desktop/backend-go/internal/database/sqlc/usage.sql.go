@@ -15,13 +15,13 @@ const createAIUsageLog = `-- name: CreateAIUsageLog :one
 
 INSERT INTO ai_usage_logs (
     user_id, conversation_id, provider, model,
-    input_tokens, output_tokens, total_tokens,
+    input_tokens, output_tokens, total_tokens, thinking_tokens,
     agent_name, delegated_to, parent_request_id,
     request_type, node_id, project_id,
     duration_ms, started_at, completed_at, estimated_cost
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
-) RETURNING id, user_id, conversation_id, provider, model, input_tokens, output_tokens, total_tokens, agent_name, delegated_to, parent_request_id, request_type, context_ids, node_id, project_id, duration_ms, started_at, completed_at, estimated_cost, created_at
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+) RETURNING id, user_id, conversation_id, provider, model, input_tokens, output_tokens, total_tokens, thinking_tokens, agent_name, delegated_to, parent_request_id, request_type, context_ids, node_id, project_id, duration_ms, started_at, completed_at, estimated_cost, created_at
 `
 
 type CreateAIUsageLogParams struct {
@@ -32,6 +32,7 @@ type CreateAIUsageLogParams struct {
 	InputTokens     *int32             `json:"input_tokens"`
 	OutputTokens    *int32             `json:"output_tokens"`
 	TotalTokens     *int32             `json:"total_tokens"`
+	ThinkingTokens  *int32             `json:"thinking_tokens"`
 	AgentName       *string            `json:"agent_name"`
 	DelegatedTo     *string            `json:"delegated_to"`
 	ParentRequestID pgtype.UUID        `json:"parent_request_id"`
@@ -54,6 +55,7 @@ func (q *Queries) CreateAIUsageLog(ctx context.Context, arg CreateAIUsageLogPara
 		arg.InputTokens,
 		arg.OutputTokens,
 		arg.TotalTokens,
+		arg.ThinkingTokens,
 		arg.AgentName,
 		arg.DelegatedTo,
 		arg.ParentRequestID,
@@ -75,6 +77,7 @@ func (q *Queries) CreateAIUsageLog(ctx context.Context, arg CreateAIUsageLogPara
 		&i.InputTokens,
 		&i.OutputTokens,
 		&i.TotalTokens,
+		&i.ThinkingTokens,
 		&i.AgentName,
 		&i.DelegatedTo,
 		&i.ParentRequestID,
