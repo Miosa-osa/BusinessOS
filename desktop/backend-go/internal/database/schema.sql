@@ -186,6 +186,42 @@ CREATE TABLE node_metrics (
     recorded_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Node to Project links (many-to-many)
+CREATE TABLE node_projects (
+    node_id UUID NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    linked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    linked_by VARCHAR(255),
+    PRIMARY KEY (node_id, project_id)
+);
+
+CREATE INDEX idx_node_projects_node ON node_projects(node_id);
+CREATE INDEX idx_node_projects_project ON node_projects(project_id);
+
+-- Node to Context links (many-to-many)
+CREATE TABLE node_contexts (
+    node_id UUID NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+    context_id UUID NOT NULL REFERENCES contexts(id) ON DELETE CASCADE,
+    linked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    linked_by VARCHAR(255),
+    PRIMARY KEY (node_id, context_id)
+);
+
+CREATE INDEX idx_node_contexts_node ON node_contexts(node_id);
+CREATE INDEX idx_node_contexts_context ON node_contexts(context_id);
+
+-- Node to Conversation links (many-to-many)
+CREATE TABLE node_conversations (
+    node_id UUID NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    linked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    linked_by VARCHAR(255),
+    PRIMARY KEY (node_id, conversation_id)
+);
+
+CREATE INDEX idx_node_conversations_node ON node_conversations(node_id);
+CREATE INDEX idx_node_conversations_conversation ON node_conversations(conversation_id);
+
 -- Team members table
 CREATE TABLE team_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -81,16 +81,47 @@
 		return result;
 	}
 
-	function createBuilding() {
-		if (!scene) return;
+	// Properly dispose Three.js objects to prevent memory leaks
+	function disposeObject(obj: THREE.Object3D) {
+		if (obj instanceof THREE.Mesh) {
+			if (obj.geometry) obj.geometry.dispose();
+			if (obj.material) {
+				if (Array.isArray(obj.material)) {
+					obj.material.forEach(m => m.dispose());
+				} else {
+					obj.material.dispose();
+				}
+			}
+		}
+		if (obj instanceof THREE.Line) {
+			if (obj.geometry) obj.geometry.dispose();
+			if (obj.material) {
+				if (Array.isArray(obj.material)) {
+					obj.material.forEach(m => m.dispose());
+				} else {
+					obj.material.dispose();
+				}
+			}
+		}
+	}
 
-		// Clear existing building
+	function clearScene() {
+		if (!scene) return;
+		scene.traverse((obj) => {
+			disposeObject(obj);
+		});
 		while (scene.children.length > 0) {
-			const obj = scene.children[0];
-			scene.remove(obj);
+			scene.remove(scene.children[0]);
 		}
 		roomMeshes.clear();
 		agentMeshes.clear();
+	}
+
+	function createBuilding() {
+		if (!scene) return;
+
+		// Clear existing building with proper disposal
+		clearScene();
 
 		const flatNodes = flattenWithDepth(nodes);
 		const floorMap = new Map<number, NodeTree[]>();
@@ -675,16 +706,21 @@
 		if (animationId) {
 			cancelAnimationFrame(animationId);
 		}
+		// Properly dispose all Three.js resources
+		clearScene();
+		if (controls) {
+			controls.dispose();
+		}
 		if (renderer && container) {
 			renderer.domElement.removeEventListener('click', onMouseClick);
 			renderer.domElement.removeEventListener('dblclick', onMouseDoubleClick);
 			renderer.dispose();
+			renderer.forceContextLoss();
 			if (renderer.domElement.parentNode === container) {
 				container.removeChild(renderer.domElement);
 			}
 		}
 		window.removeEventListener('resize', onWindowResize);
-		roomMeshes.clear();
 		isInitialized = false;
 	}
 

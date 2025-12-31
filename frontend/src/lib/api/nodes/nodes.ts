@@ -72,17 +72,26 @@ export async function unarchiveNode(id: string) {
 
 // Note: These endpoints may not exist yet on the backend.
 // Use raw fetch to avoid console.error spam from base request.
+// We differentiate between "not found/not implemented" (return empty) and auth errors (throw).
 
 export async function getNodeLinks(nodeId: string): Promise<NodeLinks> {
   try {
     const response = await raw.get(`/nodes/${nodeId}/links`);
+    // Auth errors should be surfaced, not silently swallowed
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(`Authorization error: ${response.status}`);
+    }
     if (!response.ok) {
-      // Silently return empty data for any error (404, etc.)
+      // 404 or other errors - endpoint may not exist yet
       return { projects: [], contexts: [], conversations: [] };
     }
     return await response.json();
-  } catch {
-    // Network errors, etc.
+  } catch (error) {
+    // Re-throw auth errors
+    if (error instanceof Error && error.message.startsWith('Authorization')) {
+      throw error;
+    }
+    // Network errors, etc. - return empty
     return { projects: [], contexts: [], conversations: [] };
   }
 }
@@ -90,30 +99,53 @@ export async function getNodeLinks(nodeId: string): Promise<NodeLinks> {
 export async function getNodeLinkCounts(nodeId: string): Promise<NodeLinkCounts> {
   try {
     const response = await raw.get(`/nodes/${nodeId}/links/counts`);
+    // Auth errors should be surfaced
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(`Authorization error: ${response.status}`);
+    }
     if (!response.ok) {
-      // Silently return zeros for any error
+      // 404 or other errors - endpoint may not exist yet
       return { linked_projects_count: 0, linked_contexts_count: 0, linked_conversations_count: 0 };
     }
     return await response.json();
-  } catch {
-    // Network errors, etc.
+  } catch (error) {
+    // Re-throw auth errors
+    if (error instanceof Error && error.message.startsWith('Authorization')) {
+      throw error;
+    }
+    // Network errors, etc. - return zeros
     return { linked_projects_count: 0, linked_contexts_count: 0, linked_conversations_count: 0 };
+  }
+}
+
+// Helper to check for auth errors
+function checkAuthError(response: Response): void {
+  if (response.status === 401 || response.status === 403) {
+    throw new Error(`Authorization error: ${response.status}`);
   }
 }
 
 // Project linking
 export async function linkNodeProject(nodeId: string, projectId: string): Promise<void> {
   try {
-    await raw.post(`/nodes/${nodeId}/links/projects`, { project_id: projectId });
-  } catch {
-    // Silently fail if endpoint doesn't exist
+    const response = await raw.post(`/nodes/${nodeId}/links/projects`, { project_id: projectId });
+    checkAuthError(response);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Authorization')) {
+      throw error;
+    }
+    // Silently fail if endpoint doesn't exist (404)
   }
 }
 
 export async function unlinkNodeProject(nodeId: string, projectId: string): Promise<void> {
   try {
-    await raw.delete(`/nodes/${nodeId}/links/projects/${projectId}`);
-  } catch {
+    const response = await raw.delete(`/nodes/${nodeId}/links/projects/${projectId}`);
+    checkAuthError(response);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Authorization')) {
+      throw error;
+    }
     // Silently fail if endpoint doesn't exist
   }
 }
@@ -121,16 +153,24 @@ export async function unlinkNodeProject(nodeId: string, projectId: string): Prom
 // Context linking
 export async function linkNodeContext(nodeId: string, contextId: string): Promise<void> {
   try {
-    await raw.post(`/nodes/${nodeId}/links/contexts`, { context_id: contextId });
-  } catch {
+    const response = await raw.post(`/nodes/${nodeId}/links/contexts`, { context_id: contextId });
+    checkAuthError(response);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Authorization')) {
+      throw error;
+    }
     // Silently fail if endpoint doesn't exist
   }
 }
 
 export async function unlinkNodeContext(nodeId: string, contextId: string): Promise<void> {
   try {
-    await raw.delete(`/nodes/${nodeId}/links/contexts/${contextId}`);
-  } catch {
+    const response = await raw.delete(`/nodes/${nodeId}/links/contexts/${contextId}`);
+    checkAuthError(response);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Authorization')) {
+      throw error;
+    }
     // Silently fail if endpoint doesn't exist
   }
 }
@@ -138,16 +178,24 @@ export async function unlinkNodeContext(nodeId: string, contextId: string): Prom
 // Conversation linking
 export async function linkNodeConversation(nodeId: string, conversationId: string): Promise<void> {
   try {
-    await raw.post(`/nodes/${nodeId}/links/conversations`, { conversation_id: conversationId });
-  } catch {
+    const response = await raw.post(`/nodes/${nodeId}/links/conversations`, { conversation_id: conversationId });
+    checkAuthError(response);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Authorization')) {
+      throw error;
+    }
     // Silently fail if endpoint doesn't exist
   }
 }
 
 export async function unlinkNodeConversation(nodeId: string, conversationId: string): Promise<void> {
   try {
-    await raw.delete(`/nodes/${nodeId}/links/conversations/${conversationId}`);
-  } catch {
+    const response = await raw.delete(`/nodes/${nodeId}/links/conversations/${conversationId}`);
+    checkAuthError(response);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Authorization')) {
+      throw error;
+    }
     // Silently fail if endpoint doesn't exist
   }
 }

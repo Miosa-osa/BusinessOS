@@ -242,13 +242,49 @@
 		animate();
 	}
 
-	function createGraph() {
-		// Clear existing
-		nodeMeshes.forEach((mesh) => scene.remove(mesh));
-		edges.forEach((edge) => scene.remove(edge));
+	// Properly dispose Three.js objects to prevent memory leaks
+	function disposeObject(obj: THREE.Object3D) {
+		if (obj instanceof THREE.Mesh) {
+			if (obj.geometry) obj.geometry.dispose();
+			if (obj.material) {
+				if (Array.isArray(obj.material)) {
+					obj.material.forEach(m => m.dispose());
+				} else {
+					obj.material.dispose();
+				}
+			}
+		}
+		if (obj instanceof THREE.Line) {
+			if (obj.geometry) obj.geometry.dispose();
+			if (obj.material) {
+				if (Array.isArray(obj.material)) {
+					obj.material.forEach(m => m.dispose());
+				} else {
+					obj.material.dispose();
+				}
+			}
+		}
+	}
+
+	function clearGraph() {
+		// Dispose and remove node meshes
+		nodeMeshes.forEach((mesh) => {
+			mesh.traverse(disposeObject);
+			scene.remove(mesh);
+		});
+		// Dispose and remove edges
+		edges.forEach((edge) => {
+			disposeObject(edge);
+			scene.remove(edge);
+		});
 		nodeMeshes.clear();
 		nodePositions.clear();
 		edges = [];
+	}
+
+	function createGraph() {
+		// Clear existing with proper disposal
+		clearGraph();
 
 		// Flatten the tree
 		flatNodes = flattenTree(nodes);
@@ -527,11 +563,17 @@
 		if (animationId) {
 			cancelAnimationFrame(animationId);
 		}
+		// Properly dispose all Three.js resources
+		clearGraph();
+		if (controls) {
+			controls.dispose();
+		}
 		if (renderer) {
 			renderer.domElement.removeEventListener('mousemove', onMouseMove);
 			renderer.domElement.removeEventListener('click', onClick);
 			renderer.domElement.removeEventListener('dblclick', onDoubleClick);
 			renderer.dispose();
+			renderer.forceContextLoss();
 		}
 		window.removeEventListener('resize', onResize);
 	});

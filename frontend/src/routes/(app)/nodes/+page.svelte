@@ -6,13 +6,37 @@
 	import { NodeGraphView, NodeBuildingView, NodeBuilding3D } from '$lib/components/nodes';
 	import type { NodeTree, NodeType, NodeHealth, CreateNodeData } from '$lib/api/nodes/types';
 
+	// Sanitize user input to prevent XSS and injection attacks
+	function sanitizeInput(input: string): string {
+		return input
+			.replace(/[<>]/g, '') // Remove angle brackets
+			.replace(/javascript:/gi, '') // Remove javascript: protocol
+			.replace(/on\w+=/gi, '') // Remove event handlers
+			.trim();
+	}
+
+	// Debounce utility for search input
+	function debounce<T extends (...args: Parameters<T>) => void>(fn: T, delay: number): T {
+		let timeoutId: ReturnType<typeof setTimeout>;
+		return ((...args: Parameters<T>) => {
+			clearTimeout(timeoutId);
+			timeoutId = setTimeout(() => fn(...args), delay);
+		}) as T;
+	}
+
 	// View state (local - UI specific)
 	let viewMode: 'tree' | 'list' | 'grid' | 'graph' | 'building' | 'building3d' = $state('tree');
 	let selectedGraphNode: string | null = $state(null);
 	let selectedBuildingNode: string | null = $state(null);
-	let searchQuery = $state('');
+	let searchInput = $state(''); // Raw input value
+	let searchQuery = $state(''); // Debounced value used for filtering
 	let showNewNodeModal = $state(false);
 	let expandedNodes: Set<string> = $state(new Set());
+
+	// Debounced search handler (300ms delay)
+	const updateSearchQuery = debounce((value: string) => {
+		searchQuery = value;
+	}, 300);
 
 	// Filter state
 	let showFilterDropdown = $state(false);
@@ -30,14 +54,34 @@
 	// Error state (local)
 	let error: string | null = $state(null);
 
-	// Node type config
-	const nodeTypeConfig: Record<string, { icon: string; color: string; label: string }> = {
-		business: { icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', color: 'blue', label: 'Business' },
-		project: { icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z', color: 'green', label: 'Project' },
-		learning: { icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', color: 'purple', label: 'Learning' },
-		operational: { icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', color: 'orange', label: 'Operational' },
+	// Node type config with full Tailwind classes (static for purging)
+	const nodeTypeConfig: Record<string, { icon: string; bgClass: string; textClass: string; label: string }> = {
+		business: {
+			icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+			bgClass: 'bg-blue-100',
+			textClass: 'text-blue-600',
+			label: 'Business'
+		},
+		project: {
+			icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z',
+			bgClass: 'bg-green-100',
+			textClass: 'text-green-600',
+			label: 'Project'
+		},
+		learning: {
+			icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
+			bgClass: 'bg-purple-100',
+			textClass: 'text-purple-600',
+			label: 'Learning'
+		},
+		operational: {
+			icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+			bgClass: 'bg-orange-100',
+			textClass: 'text-orange-600',
+			label: 'Operational'
+		},
 	};
-	const defaultTypeConfig = { icon: 'M4 6h16M4 12h16M4 18h16', color: 'gray', label: 'Unknown' };
+	const defaultTypeConfig = { icon: 'M4 6h16M4 12h16M4 18h16', bgClass: 'bg-gray-100', textClass: 'text-gray-600', label: 'Unknown' };
 
 	// Health config
 	const healthConfig: Record<string, { color: string; label: string }> = {
@@ -118,12 +162,21 @@
 		if (!newNodeName.trim()) return;
 		isCreatingNode = true;
 		try {
+			// Sanitize user inputs before sending to backend
+			const sanitizedName = sanitizeInput(newNodeName);
+			const sanitizedPurpose = sanitizeInput(newNodePurpose);
+
+			if (!sanitizedName) {
+				console.error('Invalid node name after sanitization');
+				return;
+			}
+
 			const data: CreateNodeData = {
-				name: newNodeName.trim(),
+				name: sanitizedName,
 				type: newNodeType,
 			};
 			if (newNodeParentId) data.parent_id = newNodeParentId;
-			if (newNodePurpose.trim()) data.purpose = newNodePurpose.trim();
+			if (sanitizedPurpose) data.purpose = sanitizedPurpose;
 
 			await nodes.create(data);
 			showNewNodeModal = false;
@@ -352,7 +405,8 @@
 					<input
 						type="text"
 						placeholder="Search nodes..."
-						bind:value={searchQuery}
+						bind:value={searchInput}
+						oninput={(e) => updateSearchQuery(e.currentTarget.value)}
 						class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
 					/>
 				</div>
@@ -446,7 +500,7 @@
 							{/if}
 
 							<!-- Type Icon -->
-							<div class="w-8 h-8 rounded-lg bg-{getTypeConfig(node.type).color}-100 text-{getTypeConfig(node.type).color}-600 flex items-center justify-center flex-shrink-0">
+							<div class="w-8 h-8 rounded-lg {getTypeConfig(node.type).bgClass} {getTypeConfig(node.type).textClass} flex items-center justify-center flex-shrink-0">
 								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getTypeConfig(node.type).icon} />
 								</svg>
@@ -522,7 +576,7 @@
 							<tr class="hover:bg-gray-50">
 								<td class="px-4 py-3">
 									<div class="flex items-center gap-3" style="padding-left: {node.depth * 20}px">
-										<div class="w-8 h-8 rounded-lg bg-{getTypeConfig(node.type).color}-100 text-{getTypeConfig(node.type).color}-600 flex items-center justify-center flex-shrink-0">
+										<div class="w-8 h-8 rounded-lg {getTypeConfig(node.type).bgClass} {getTypeConfig(node.type).textClass} flex items-center justify-center flex-shrink-0">
 											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getTypeConfig(node.type).icon} />
 											</svg>
@@ -581,7 +635,7 @@
 						class="block p-4 bg-white border border-gray-200 rounded-xl hover:shadow-md transition-all hover:-translate-y-0.5"
 					>
 						<div class="flex items-start gap-3">
-							<div class="w-10 h-10 rounded-lg bg-{getTypeConfig(node.type).color}-100 text-{getTypeConfig(node.type).color}-600 flex items-center justify-center flex-shrink-0">
+							<div class="w-10 h-10 rounded-lg {getTypeConfig(node.type).bgClass} {getTypeConfig(node.type).textClass} flex items-center justify-center flex-shrink-0">
 								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getTypeConfig(node.type).icon} />
 								</svg>
@@ -726,7 +780,7 @@
 								onclick={() => newNodeType = type as NodeType}
 								class="flex flex-col items-center gap-1 p-3 border-2 rounded-lg transition-colors {newNodeType === type ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}"
 							>
-								<svg class="w-5 h-5 text-{config.color}-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg class="w-5 h-5 {config.textClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={config.icon} />
 								</svg>
 								<span class="text-xs font-medium text-gray-700">{config.label}</span>
