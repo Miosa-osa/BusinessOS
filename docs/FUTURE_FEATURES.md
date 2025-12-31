@@ -55,9 +55,9 @@ Roberto's exact requirements:
 > "It'll be individual personalized memory from when they use the system. The system's not personal, so it'll just be personal to what they're working on, to their tasks in relation."
 
 > "If they have a role, it's been specific to their profile and stuff. The agent will know based off their role and everything what they're able to do based on the project. That way, people don't do things outside their role."
-
+Pedro
 ### 1.2 Key Concepts
-
+Pedro / Nick discuss best routes 
 #### Memory Hierarchy
 ```
 WORKSPACE MEMORY (Shared across team)
@@ -71,13 +71,13 @@ USER MEMORY (Individual)
  └── Tied to their role and profile
  └── Private agent interactions
 ```
-
+Pedro
 #### Role-Based Agent Behavior
 - Agents MUST know the user's role
 - Agents MUST know what actions the user can perform
 - Agents MUST restrict suggestions/actions to user's permissions
 - Agents use role context to personalize responses
-
+Pedro / nick
 ### 1.3 Database Schema
 
 ```sql
@@ -383,7 +383,7 @@ func (r *UserRoleContext) GetRoleContextPrompt() string {
    r.formatCanDo(), r.formatCannotDo())
 }
 ```
-
+pedro / nick
 ### 1.5 API Endpoints
 
 ```
@@ -437,7 +437,7 @@ DELETE /api/projects/:id/members/:userId      # Remove from project
 ---
 
 ## FEATURE 2: Mobile API (HIGH PRIORITY)
-
+Javaris 
 ### 2.1 Core Requirements
 
 > "The mobile thing will be important."
@@ -448,7 +448,7 @@ Mobile API must be optimized for:
 - Offline-first data patterns
 - Push notification integration
 - Battery-efficient polling
-
+Javaris 
 ### 2.2 API Design Principles
 
 ```go
@@ -495,7 +495,7 @@ POST   /api/mobile/v1/capture/photo           # Quick photo capture
 POST   /api/mobile/v1/chat/message            # Send message (returns summary)
 GET    /api/mobile/v1/chat/history            # Paginated, compressed
 ```
-
+Javaris 
 ### 2.4 Sync Protocol
 
 ```go
@@ -527,7 +527,7 @@ type Change struct {
 ### 3.1 Core Requirements
 
 Better tool server management for the 20+ MCP servers.
-
+pedro
 ### 3.2 Tool Registry System
 
 ```sql
@@ -594,7 +594,7 @@ CREATE TABLE mcp_tools (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
-
+Nick
 ### 3.3 API Endpoints
 
 ```
@@ -623,7 +623,7 @@ GET    /api/mcp/tools/:id/schema              # Get tool input schema
 Roberto's exact requirement:
 
 > "The Dashboards of course I want them to be custom where you have to use the OS agent or something to tell the users. Because everyone has different data in some cases, sometimes you want to view it in a different way."
-
+Javaris 
 ### 4.2 Key Concept: Agent-Configured Dashboards
 
 Instead of static dashboards:
@@ -631,7 +631,7 @@ Instead of static dashboards:
 2. Agent configures dashboard widgets
 3. Dashboards are saved and can be modified via conversation
 4. Different users see different dashboards based on their needs/role
-
+javaris / nick
 ### 4.3 Database Schema
 
 ```sql
@@ -702,7 +702,7 @@ CREATE TABLE dashboard_widgets (
 -- recent_activity, upcoming_deadlines
 -- custom_query (for power users)
 ```
-
+pedro
 ### 4.4 Agent Dashboard Commands
 
 ```go
@@ -758,7 +758,7 @@ Would you like me to add anything else, like a project progress chart?"
 ```
 
 ---
-
+javaris
 ## FEATURE 5: Notifications System
 
 ### 5.1 Database Schema
@@ -829,7 +829,7 @@ CREATE TABLE notification_preferences (
     UNIQUE(user_id, workspace_id)
 );
 ```
-
+javaris / nick / pedro
 ### 5.2 Real-Time Delivery
 
 ```go
@@ -846,7 +846,7 @@ type NotificationEvent struct {
 ---
 
 ## FEATURE 6: Voice/Audio Improvements
-
+nick / pedro 
 ### 6.1 Improvements Needed
 
 - Better transcription accuracy
@@ -854,7 +854,7 @@ type NotificationEvent struct {
 - Real-time transcription
 - Voice commands for quick actions
 - Audio summarization
-
+nick / pedro
 ### 6.2 API Endpoints
 
 ```
@@ -868,7 +868,7 @@ POST   /api/voice/notes/:id/summarize         # Generate summary
 ---
 
 ## FEATURE 7: RAG/Embeddings Enhancement
-
+pedro
 ### 7.1 Improvements Needed
 
 - Hybrid search (semantic + keyword)
@@ -876,7 +876,7 @@ POST   /api/voice/notes/:id/summarize         # Generate summary
 - Re-ranking for relevance
 - Multi-modal embeddings (images, diagrams)
 - Embedding cache optimization
-
+pedro
 ### 7.2 Search Service
 
 ```go
@@ -903,7 +903,7 @@ type SearchOptions struct {
 ---
 
 ## FEATURE 8: Calendar/Scheduling
-
+nick
 ### 8.1 Google Calendar Integration Improvements
 
 - Two-way sync
@@ -924,7 +924,7 @@ POST   /api/calendar/sync                     # Force sync with Google
 ---
 
 ## FEATURE 9: Webhooks & External Integrations
-
+nick / pedro
 ### 9.1 Database Schema
 
 ```sql
@@ -979,14 +979,14 @@ CREATE TABLE webhook_deliveries (
 ---
 
 ## FEATURE 10: Background Jobs System
-
+nick / pedro
 ### 10.1 Requirements
 
 - Reliable task queue for async operations
 - Retry logic with exponential backoff
 - Job scheduling (cron-like)
 - Job monitoring and management
-
+nick / pedro
 ### 10.2 Database Schema
 
 ```sql
