@@ -938,12 +938,12 @@ Focus on actionable, realistic plans. Consider constraints and dependencies.',
 	_, err = conn.Exec(ctx, `
 		INSERT INTO focus_mode_templates (name, display_name, description, icon, default_model, temperature, output_style, auto_search, search_depth, thinking_enabled, thinking_style, system_prompt_prefix, sort_order) VALUES
 		('quick', 'Quick', 'Fast, concise responses for simple questions', 'zap', NULL, 0.5, 'concise', false, 'quick', false, NULL, 'You are in Quick Mode. Provide brief, direct answers. Be concise and to the point.', 1),
-		('deep', 'Deep Research', 'Thorough research with sources and citations', 'search', 'claude-3-5-sonnet-20241022', 0.7, 'detailed', true, 'deep', true, 'analytical', 'You are in Deep Research Mode. Conduct thorough research and provide comprehensive, well-sourced answers.', 2),
+		('deep', 'Deep Research', 'Thorough research with sources and citations', 'search', 'claude-sonnet-4-20250514', 0.7, 'detailed', true, 'deep', true, 'analytical', 'You are in Deep Research Mode. Conduct thorough research and provide comprehensive, well-sourced answers.', 2),
 		('creative', 'Creative', 'Imaginative and exploratory responses', 'sparkles', NULL, 0.9, 'balanced', false, 'quick', true, 'creative', 'You are in Creative Mode. Think outside the box. Be imaginative and innovative.', 3),
-		('analyze', 'Analysis', 'Data-driven analysis and insights', 'chart-bar', 'claude-3-5-sonnet-20241022', 0.6, 'structured', false, 'standard', true, 'analytical', 'You are in Analysis Mode. Focus on data-driven insights with clear structure.', 4),
+		('analyze', 'Analysis', 'Data-driven analysis and insights', 'chart-bar', 'claude-sonnet-4-20250514', 0.6, 'structured', false, 'standard', true, 'analytical', 'You are in Analysis Mode. Focus on data-driven insights with clear structure.', 4),
 		('write', 'Writing', 'Document creation and editing', 'file-text', NULL, 0.7, 'detailed', false, 'quick', false, NULL, 'You are in Writing Mode. Create well-structured, polished content.', 5),
 		('plan', 'Planning', 'Strategic planning and project organization', 'clipboard-list', NULL, 0.6, 'structured', false, 'standard', true, 'step-by-step', 'You are in Planning Mode. Create actionable plans with clear steps.', 6),
-		('code', 'Coding', 'Software development assistance', 'code', 'claude-3-5-sonnet-20241022', 0.4, 'structured', false, 'quick', true, 'step-by-step', 'You are in Coding Mode. Write clean, efficient code with best practices.', 7)
+		('code', 'Coding', 'Software development assistance', 'code', 'claude-sonnet-4-20250514', 0.4, 'structured', false, 'quick', true, 'step-by-step', 'You are in Coding Mode. Write clean, efficient code with best practices.', 7)
 		ON CONFLICT (name) DO UPDATE SET
 			display_name = EXCLUDED.display_name,
 			description = EXCLUDED.description,
@@ -953,6 +953,54 @@ Focus on actionable, realistic plans. Consider constraints and dependencies.',
 		log.Printf("Warning inserting focus_mode_templates: %v", err)
 	} else {
 		fmt.Println("✓ focus_mode_templates data OK")
+	}
+
+	// ===== Migration 014: Web Search Results Cache =====
+	_, err = conn.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS web_search_results (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			query_hash VARCHAR(64) NOT NULL,
+			original_query TEXT NOT NULL,
+			optimized_query TEXT,
+			user_id VARCHAR(255),
+			conversation_id UUID,
+			results JSONB NOT NULL DEFAULT '[]',
+			result_count INTEGER DEFAULT 0,
+			provider VARCHAR(50) DEFAULT 'duckduckgo',
+			search_time_ms FLOAT,
+			expires_at TIMESTAMPTZ NOT NULL,
+			hit_count INTEGER DEFAULT 0,
+			last_hit_at TIMESTAMPTZ,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_web_search_query_hash ON web_search_results(query_hash);
+		CREATE INDEX IF NOT EXISTS idx_web_search_user ON web_search_results(user_id) WHERE user_id IS NOT NULL;
+		CREATE INDEX IF NOT EXISTS idx_web_search_conversation ON web_search_results(conversation_id) WHERE conversation_id IS NOT NULL;
+		CREATE INDEX IF NOT EXISTS idx_web_search_expires ON web_search_results(expires_at);
+		CREATE INDEX IF NOT EXISTS idx_web_search_lookup ON web_search_results(query_hash, expires_at);
+	`)
+	if err != nil {
+		log.Printf("Warning creating web_search_results table: %v", err)
+	} else {
+		fmt.Println("✓ web_search_results table OK")
+	}
+
+	// Add is_active column to agent_presets if missing
+	_, err = conn.Exec(ctx, `
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'agent_presets' AND column_name = 'is_active'
+			) THEN
+				ALTER TABLE agent_presets ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+			END IF;
+		END $$;
+	`)
+	if err != nil {
+		log.Printf("Warning adding is_active to agent_presets: %v", err)
+	} else {
+		fmt.Println("✓ agent_presets.is_active column OK")
 	}
 
 	fmt.Println("Migration complete!")

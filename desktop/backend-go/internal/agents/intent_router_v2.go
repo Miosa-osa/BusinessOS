@@ -122,7 +122,7 @@ func (r *SmartIntentRouter) initializePatterns() {
 		{Pattern: regexp.MustCompile(`(?i)(crm|sales\s+pipeline|deal\s+pipeline|opportunity)`), Weight: 0.7, Description: "CRM terms"},
 	}
 
-	// Analyst Agent patterns - data analysis
+	// Analyst Agent patterns - data analysis AND research queries
 	r.patterns[AgentTypeV2Analyst] = []*IntentPattern{
 		// High confidence - explicit analysis requests
 		{Pattern: regexp.MustCompile(`(?i)(analyze|analyse|examine|evaluate|assess)\s+(the\s+)?(data|metrics|performance|trends|numbers|results)`), Weight: 1.0, MustMatch: true, Description: "Data analysis"},
@@ -130,6 +130,12 @@ func (r *SmartIntentRouter) initializePatterns() {
 		{Pattern: regexp.MustCompile(`(?i)(compare|benchmark|contrast)\s+.*(vs|versus|against|with|to)`), Weight: 0.9, MustMatch: true, Description: "Comparison request"},
 		{Pattern: regexp.MustCompile(`(?i)(forecast|predict|project|estimate)\s+.*(revenue|sales|growth|trend)`), Weight: 0.95, MustMatch: true, Description: "Forecasting"},
 		{Pattern: regexp.MustCompile(`(?i)(analisar|análise|métricas|desempenho|tendências)`), Weight: 1.0, MustMatch: true, Description: "Portuguese analysis"},
+
+		// Research queries - analyst handles these
+		{Pattern: regexp.MustCompile(`(?i)^(how|what|why|when|where|who)\s+(does|do|is|are|was|were|did|can|could|would|should)\s+.+\??\s*$`), Weight: 0.85, Description: "Research question"},
+		{Pattern: regexp.MustCompile(`(?i)(explain|describe|tell\s+me\s+about|what\s+is|how\s+does)\s+.+`), Weight: 0.9, MustMatch: true, Description: "Explanation request"},
+		{Pattern: regexp.MustCompile(`(?i)(research|investigate|look\s+into|find\s+out|learn\s+about)`), Weight: 0.95, MustMatch: true, Description: "Research request"},
+		{Pattern: regexp.MustCompile(`(?i)(como|o\s+que|por\s+que|explique|pesquise)`), Weight: 0.9, MustMatch: true, Description: "Portuguese research"},
 
 		// Medium confidence
 		{Pattern: regexp.MustCompile(`(?i)(kpi|roi|okr|metric|dashboard)`), Weight: 0.7, Description: "KPI terms"},

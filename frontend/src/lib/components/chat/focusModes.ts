@@ -22,6 +22,46 @@ export interface FocusMode {
 
 export const FOCUS_MODES: FocusMode[] = [
 	{
+		id: 'deep',
+		name: 'Deep Research',
+		icon: 'globe-alt',
+		agent: 'analysis',
+		options: [
+			{
+				id: 'searchScope',
+				label: 'Search scope',
+				type: 'segment',
+				choices: [
+					{ value: 'web', label: 'Web', tooltip: 'Search the internet' },
+					{ value: 'docs', label: 'Docs', tooltip: 'Search your documents' },
+					{ value: 'all', label: 'All', tooltip: 'Search everything' }
+				],
+				default: 'web'
+			},
+			{
+				id: 'depth',
+				label: 'Depth',
+				type: 'segment',
+				choices: [
+					{ value: 'quick', label: 'Quick', tooltip: '3 sources' },
+					{ value: 'standard', label: 'Standard', tooltip: '5 sources' },
+					{ value: 'deep', label: 'Deep', tooltip: '10+ sources' }
+				],
+				default: 'deep'
+			},
+			{
+				id: 'output',
+				label: 'Output',
+				type: 'segment',
+				choices: [
+					{ value: 'summary', label: 'Summary', tooltip: 'Concise overview' },
+					{ value: 'report', label: 'Report', tooltip: 'Detailed report with sources' }
+				],
+				default: 'report'
+			}
+		]
+	},
+	{
 		id: 'research',
 		name: 'Research',
 		icon: 'magnifying-glass-chart',

@@ -78,6 +78,13 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 		return
 	}
 
+	// Debug: Log received request parameters
+	focusModeStr := "nil"
+	if req.FocusMode != nil {
+		focusModeStr = *req.FocusMode
+	}
+	log.Printf("[ChatV2] Request: msg=%q focus=%s cot=%v", req.Message, focusModeStr, req.UseCOT)
+
 	// Handle slash commands - route to specialized processing
 	if req.Command != nil && *req.Command != "" {
 		h.handleSlashCommandV2(c, user, req)
@@ -304,6 +311,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 	var agentType agents.AgentTypeV2
 	var focusSystemPrompt string
 	var searchContextText string
+	var searchResultCount int
 	if req.FocusMode != nil && *req.FocusMode != "" {
 		log.Printf("[ChatV2] FocusMode received: %s", *req.FocusMode)
 
@@ -317,17 +325,27 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 			if focusCtx.LLMOptions.ThinkingEnabled {
 				llmOptions.ThinkingEnabled = true
 			}
+			// Apply model override from focus mode (if set and not already overridden by request)
+			if focusCtx.LLMOptions.Model != nil && *focusCtx.LLMOptions.Model != "" {
+				// Only override if request didn't explicitly set a model
+				if req.Model == nil || *req.Model == "" {
+					model = *focusCtx.LLMOptions.Model
+					log.Printf("[ChatV2] Focus mode model override: %s", model)
+				}
+			}
 			// Build focus-specific system prompt
 			focusSystemPrompt = focusCtx.SystemPrompt
 
 			// Format search results if available
 			if len(focusCtx.SearchContext) > 0 {
 				searchContextText = focusService.FormatContextForPrompt(focusCtx)
-				log.Printf("[ChatV2] Web search returned %d results for focus mode", len(focusCtx.SearchContext))
+				searchResultCount = len(focusCtx.SearchContext)
+				log.Printf("[ChatV2] Web search returned %d results for focus mode", searchResultCount)
 			}
 
-			log.Printf("[ChatV2] Applied focus settings: temp=%.2f, maxTokens=%d, thinking=%v, searchResults=%d",
-				focusCtx.LLMOptions.Temperature, focusCtx.LLMOptions.MaxTokens, focusCtx.LLMOptions.ThinkingEnabled, len(focusCtx.SearchContext))
+			log.Printf("[ChatV2] Applied focus settings: temp=%.2f, maxTokens=%d, thinking=%v, model=%v, searchResults=%d",
+				focusCtx.LLMOptions.Temperature, focusCtx.LLMOptions.MaxTokens, focusCtx.LLMOptions.ThinkingEnabled,
+				focusCtx.LLMOptions.Model, len(focusCtx.SearchContext))
 		} else {
 			// Fallback to just settings if preflight fails
 			focusSettings, settingsErr := focusService.GetEffectiveSettings(ctx, user.ID, *req.FocusMode)
@@ -336,6 +354,13 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 				llmOptions.MaxTokens = focusSettings.MaxTokens
 				if focusSettings.ThinkingEnabled {
 					llmOptions.ThinkingEnabled = true
+				}
+				// Apply model override from focus settings
+				if focusSettings.EffectiveModel != nil && *focusSettings.EffectiveModel != "" {
+					if req.Model == nil || *req.Model == "" {
+						model = *focusSettings.EffectiveModel
+						log.Printf("[ChatV2] Focus mode model override (fallback): %s", model)
+					}
 				}
 				focusSystemPrompt = focusSettings.SystemPromptPrefix
 			}
@@ -420,6 +445,36 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 	streamCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
 
+	// Augment user message with search results for non-Claude models
+	isNonClaudeModel := !strings.Contains(strings.ToLower(model), "claude")
+	if isNonClaudeModel && searchContextText != "" && len(chatMessages) > 0 {
+		log.Printf("[ChatV2] Augmenting for non-Claude model: %s", model)
+		for i := len(chatMessages) - 1; i >= 0; i-- {
+			if strings.EqualFold(chatMessages[i].Role, "user") {
+				augmentedContent := fmt.Sprintf(`Based on web search:
+
+%s
+
+---
+Question: %s
+
+INSTRUCTIONS:
+1. Provide a comprehensive, detailed answer based on the search results above
+2. Be thorough - do NOT stop mid-sentence
+3. CRITICAL: You MUST end your response with a "## Sources" section
+4. In the Sources section, list ALL sources you referenced as markdown links
+
+Example ending:
+## Sources
+- [Source Title 1](url1)
+- [Source Title 2](url2)`, searchContextText, chatMessages[i].Content)
+				chatMessages[i].Content = augmentedContent
+				log.Printf("[ChatV2] Augmented with %d chars", len(searchContextText))
+				break
+			}
+		}
+	}
+
 	// Build agent input
 	input := agents.AgentInput{
 		Messages:       chatMessages,
@@ -479,6 +534,19 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 					Completed: false,
 				},
 			})
+
+			// Send web search notification if search was performed
+			if searchResultCount > 0 {
+				writeSSEEvent(w, streaming.StreamEvent{
+					Type: streaming.EventTypeThinking,
+					Data: streaming.ThinkingStep{
+						Step:      "search_complete",
+						Content:   fmt.Sprintf("Found %d sources from web search", searchResultCount),
+						Agent:     string(agentType),
+						Completed: true,
+					},
+				})
+			}
 		}
 
 		select {

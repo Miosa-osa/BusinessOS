@@ -182,12 +182,16 @@ type ExecutionPlan struct {
 
 // PlannedStep represents a planned execution step
 type PlannedStep struct {
-	Order       int         `json:"order"`
-	Agent       AgentTypeV2 `json:"agent"`
-	Task        string      `json:"task"`
-	DependsOn   []int       `json:"depends_on,omitempty"` // Order numbers of dependencies
-	CanParallel bool        `json:"can_parallel"`
-	Priority    int         `json:"priority"`
+	Order         int            `json:"order"`
+	Agent         AgentTypeV2    `json:"agent"`
+	Task          string         `json:"task"`
+	DependsOn     []int          `json:"depends_on,omitempty"` // Order numbers of dependencies
+	CanParallel   bool           `json:"can_parallel"`
+	Priority      int            `json:"priority"`
+	NeedsSearch   bool           `json:"needs_search"`            // Whether this step needs web search
+	NeedsTools    bool           `json:"needs_tools"`             // Whether this step needs tool access
+	ModelOverride string         `json:"model_override,omitempty"` // Optional model override
+	Context       map[string]any `json:"context,omitempty"`       // Context passed from previous steps
 }
 
 // ProcessWithCOT processes a user request with full chain of thought tracking
@@ -235,7 +239,7 @@ func (o *OrchestratorCOT) ProcessWithCOT(
 		// Send thinking event
 		events <- streaming.StreamEvent{
 			Type: streaming.EventTypeToken,
-			Data: "🧠 *Analyzing request...*\n\n",
+			Data: "Analyzing request...\n\n",
 		}
 
 		// Classify intent using SmartIntentRouter
@@ -260,10 +264,11 @@ func (o *OrchestratorCOT) ProcessWithCOT(
 		planStep.Confidence = plan.Confidence
 		cot.UpdateStep(planStep.ID, planStep.Output, "completed")
 
-		// Send plan event
+		// Send routing box to frontend
+		routingBox := o.formatRoutingBox(intent, plan)
 		events <- streaming.StreamEvent{
 			Type: streaming.EventTypeToken,
-			Data: fmt.Sprintf("📋 *Plan: %s*\n\n", plan.Strategy),
+			Data: routingBox,
 		}
 
 		cot.Status = "executing"
@@ -314,7 +319,7 @@ func (o *OrchestratorCOT) createExecutionPlan(
 	_ context.Context,
 	userMessage string,
 	intent Intent,
-	_ AgentInput,
+	input AgentInput,
 ) *ExecutionPlan {
 	plan := &ExecutionPlan{
 		PrimaryAgent: intent.TargetAgent,
@@ -322,92 +327,209 @@ func (o *OrchestratorCOT) createExecutionPlan(
 		Steps:        make([]PlannedStep, 0),
 	}
 
-	// Determine strategy based on intent and message complexity
 	msgLower := strings.ToLower(userMessage)
 
-	// Check for multi-agent indicators
-	hasMultipleIntents := strings.Contains(msgLower, " and ") ||
-		strings.Contains(msgLower, " then ") ||
-		strings.Contains(msgLower, " also ")
+	// ========== DETECT REQUIREMENTS ==========
 
-	// Check for specific patterns
-	needsAnalysis := strings.Contains(msgLower, "analyze") || strings.Contains(msgLower, "metrics")
-	needsDocument := strings.Contains(msgLower, "document") || strings.Contains(msgLower, "report") || strings.Contains(msgLower, "proposal")
-	needsProject := strings.Contains(msgLower, "project") || strings.Contains(msgLower, "plan")
-	needsTask := strings.Contains(msgLower, "task") || strings.Contains(msgLower, "todo") || strings.Contains(msgLower, "prioritize")
-	needsClient := strings.Contains(msgLower, "client") || strings.Contains(msgLower, "pipeline")
+	// Web search indicators
+	needsWebSearch := strings.Contains(msgLower, "search") ||
+		strings.Contains(msgLower, "find") ||
+		strings.Contains(msgLower, "look up") ||
+		strings.Contains(msgLower, "what is") ||
+		strings.Contains(msgLower, "how does") ||
+		strings.Contains(msgLower, "latest") ||
+		strings.Contains(msgLower, "current") ||
+		strings.Contains(msgLower, "news") ||
+		strings.Contains(msgLower, "2024") ||
+		strings.Contains(msgLower, "2025") ||
+		input.FocusMode == "deep" ||
+		input.FocusMode == "research"
 
-	// Count how many domains are involved
-	domainCount := 0
-	if needsAnalysis {
-		domainCount++
-	}
-	if needsDocument {
-		domainCount++
-	}
-	if needsProject {
-		domainCount++
-	}
-	if needsTask {
-		domainCount++
-	}
-	if needsClient {
-		domainCount++
+	// Multi-step indicators
+	hasSequentialSteps := strings.Contains(msgLower, " then ") ||
+		strings.Contains(msgLower, " after ") ||
+		strings.Contains(msgLower, " next ") ||
+		strings.Contains(msgLower, "first ") ||
+		strings.Contains(msgLower, "step by step")
+
+	hasParallelTasks := strings.Contains(msgLower, " and ") ||
+		strings.Contains(msgLower, " also ") ||
+		strings.Contains(msgLower, " plus ") ||
+		strings.Contains(msgLower, "both ")
+
+	// Domain detection with weights
+	domains := make(map[AgentTypeV2]float64)
+
+	// Analysis domain
+	if strings.Contains(msgLower, "analyze") || strings.Contains(msgLower, "analysis") ||
+		strings.Contains(msgLower, "metrics") || strings.Contains(msgLower, "data") ||
+		strings.Contains(msgLower, "statistics") || strings.Contains(msgLower, "compare") {
+		domains[AgentTypeV2Analyst] = 0.9
 	}
 
-	// Decide strategy
-	if !intent.ShouldDelegate || intent.Confidence < 0.5 {
+	// Document domain
+	if strings.Contains(msgLower, "document") || strings.Contains(msgLower, "report") ||
+		strings.Contains(msgLower, "proposal") || strings.Contains(msgLower, "write") ||
+		strings.Contains(msgLower, "draft") || strings.Contains(msgLower, "create a") {
+		domains[AgentTypeV2Document] = 0.9
+	}
+
+	// Project domain
+	if strings.Contains(msgLower, "project") || strings.Contains(msgLower, "plan") ||
+		strings.Contains(msgLower, "roadmap") || strings.Contains(msgLower, "timeline") ||
+		strings.Contains(msgLower, "milestone") {
+		domains[AgentTypeV2Project] = 0.9
+	}
+
+	// Task domain
+	if strings.Contains(msgLower, "task") || strings.Contains(msgLower, "todo") ||
+		strings.Contains(msgLower, "prioritize") || strings.Contains(msgLower, "schedule") ||
+		strings.Contains(msgLower, "deadline") {
+		domains[AgentTypeV2Task] = 0.9
+	}
+
+	// Client domain
+	if strings.Contains(msgLower, "client") || strings.Contains(msgLower, "customer") ||
+		strings.Contains(msgLower, "pipeline") || strings.Contains(msgLower, "lead") ||
+		strings.Contains(msgLower, "crm") {
+		domains[AgentTypeV2Client] = 0.9
+	}
+
+	// Research/general queries go to analyst
+	if strings.Contains(msgLower, "how") || strings.Contains(msgLower, "what") ||
+		strings.Contains(msgLower, "why") || strings.Contains(msgLower, "explain") {
+		if _, exists := domains[AgentTypeV2Analyst]; !exists {
+			domains[AgentTypeV2Analyst] = 0.7
+		}
+	}
+
+	domainCount := len(domains)
+
+	// ========== DETERMINE STRATEGY ==========
+
+	if !intent.ShouldDelegate || intent.Confidence < 0.4 {
+		// Low confidence - orchestrator handles directly
 		plan.Strategy = "direct"
-		plan.Reasoning = "Low confidence or general request - handling directly"
+		plan.Reasoning = "Low confidence or general chat - orchestrator handling directly"
 		plan.Steps = append(plan.Steps, PlannedStep{
-			Order: 1,
-			Agent: AgentTypeV2Orchestrator,
-			Task:  userMessage,
+			Order:       1,
+			Agent:       AgentTypeV2Orchestrator,
+			Task:        userMessage,
+			NeedsSearch: needsWebSearch,
 		})
-	} else if domainCount > 1 || hasMultipleIntents {
-		// Multiple domains - need multi-agent or sequential
-		if strings.Contains(msgLower, " then ") {
-			plan.Strategy = "sequential"
-			plan.Reasoning = "Sequential tasks detected - executing in order"
-		} else {
-			plan.Strategy = "multi-agent"
-			plan.Reasoning = "Multiple domains detected - parallel execution"
-		}
-
-		// Add steps for each domain
-		order := 1
-		if needsAnalysis {
-			plan.Steps = append(plan.Steps, PlannedStep{Order: order, Agent: AgentTypeV2Analyst, Task: "Analyze relevant data", CanParallel: true})
-			order++
-		}
-		if needsProject {
-			plan.Steps = append(plan.Steps, PlannedStep{Order: order, Agent: AgentTypeV2Project, Task: "Handle project aspects", CanParallel: true})
-			order++
-		}
-		if needsTask {
-			plan.Steps = append(plan.Steps, PlannedStep{Order: order, Agent: AgentTypeV2Task, Task: "Handle task management", CanParallel: true})
-			order++
-		}
-		if needsClient {
-			plan.Steps = append(plan.Steps, PlannedStep{Order: order, Agent: AgentTypeV2Client, Task: "Handle client aspects", CanParallel: true})
-			order++
-		}
-		if needsDocument {
-			// Documents usually come last (need other info first)
-			plan.Steps = append(plan.Steps, PlannedStep{Order: order, Agent: AgentTypeV2Document, Task: "Create document", CanParallel: false, DependsOn: []int{1}})
-		}
-	} else {
+	} else if domainCount > 1 && hasSequentialSteps {
+		// Multiple domains with sequence - sequential execution
+		plan.Strategy = "sequential"
+		plan.Reasoning = fmt.Sprintf("Sequential workflow detected with %d domains", domainCount)
+		o.buildSequentialSteps(plan, domains, userMessage, needsWebSearch)
+	} else if domainCount > 1 && hasParallelTasks {
+		// Multiple domains in parallel
+		plan.Strategy = "multi-agent"
+		plan.Reasoning = fmt.Sprintf("Parallel tasks detected across %d domains", domainCount)
+		o.buildParallelSteps(plan, domains, userMessage, needsWebSearch)
+	} else if domainCount == 1 {
 		// Single domain - delegate
 		plan.Strategy = "delegate"
-		plan.Reasoning = fmt.Sprintf("Clear intent for %s agent", intent.TargetAgent)
+		for agent := range domains {
+			plan.Reasoning = fmt.Sprintf("Single domain detected - delegating to @%s", agent)
+			plan.Steps = append(plan.Steps, PlannedStep{
+				Order:       1,
+				Agent:       agent,
+				Task:        userMessage,
+				NeedsSearch: needsWebSearch,
+			})
+			break
+		}
+	} else {
+		// No specific domain detected - use intent target
+		plan.Strategy = "delegate"
+		plan.Reasoning = fmt.Sprintf("Delegating to @%s based on intent analysis", intent.TargetAgent)
 		plan.Steps = append(plan.Steps, PlannedStep{
-			Order: 1,
-			Agent: intent.TargetAgent,
-			Task:  userMessage,
+			Order:       1,
+			Agent:       intent.TargetAgent,
+			Task:        userMessage,
+			NeedsSearch: needsWebSearch,
 		})
 	}
 
 	return plan
+}
+
+// buildSequentialSteps creates ordered steps for sequential execution
+func (o *OrchestratorCOT) buildSequentialSteps(plan *ExecutionPlan, domains map[AgentTypeV2]float64, task string, needsSearch bool) {
+	// Define execution order priority
+	orderPriority := []AgentTypeV2{
+		AgentTypeV2Analyst,  // Research/analysis first
+		AgentTypeV2Project,  // Planning second
+		AgentTypeV2Task,     // Task breakdown third
+		AgentTypeV2Client,   // Client handling fourth
+		AgentTypeV2Document, // Document creation last
+	}
+
+	order := 1
+	var prevOrders []int
+	for _, agent := range orderPriority {
+		if _, exists := domains[agent]; exists {
+			step := PlannedStep{
+				Order:       order,
+				Agent:       agent,
+				Task:        fmt.Sprintf("Handle %s aspects of: %s", agent, task),
+				CanParallel: false,
+				NeedsSearch: needsSearch && order == 1, // Only first step needs search
+			}
+			if len(prevOrders) > 0 {
+				step.DependsOn = prevOrders
+			}
+			plan.Steps = append(plan.Steps, step)
+			prevOrders = []int{order}
+			order++
+		}
+	}
+
+	// Add synthesis step if multiple agents
+	if len(plan.Steps) > 1 {
+		allOrders := make([]int, len(plan.Steps))
+		for i := range plan.Steps {
+			allOrders[i] = i + 1
+		}
+		plan.Steps = append(plan.Steps, PlannedStep{
+			Order:       order,
+			Agent:       AgentTypeV2Orchestrator,
+			Task:        "Synthesize results from all agents",
+			DependsOn:   allOrders,
+			CanParallel: false,
+		})
+	}
+}
+
+// buildParallelSteps creates parallel steps for concurrent execution
+func (o *OrchestratorCOT) buildParallelSteps(plan *ExecutionPlan, domains map[AgentTypeV2]float64, task string, needsSearch bool) {
+	order := 1
+	parallelOrders := []int{}
+
+	for agent := range domains {
+		step := PlannedStep{
+			Order:       order,
+			Agent:       agent,
+			Task:        fmt.Sprintf("Handle %s aspects of: %s", agent, task),
+			CanParallel: true,
+			NeedsSearch: needsSearch,
+		}
+		plan.Steps = append(plan.Steps, step)
+		parallelOrders = append(parallelOrders, order)
+		order++
+	}
+
+	// Add synthesis step to combine all parallel results
+	if len(plan.Steps) > 1 {
+		plan.Steps = append(plan.Steps, PlannedStep{
+			Order:       order,
+			Agent:       AgentTypeV2Orchestrator,
+			Task:        "Synthesize and combine results from all agents",
+			DependsOn:   parallelOrders,
+			CanParallel: false,
+		})
+	}
 }
 
 // executeDirectly handles the request directly via orchestrator
@@ -441,6 +563,7 @@ func (o *OrchestratorCOT) executeDirectly(
 				step.Output = output.String()
 				cot.UpdateStep(step.ID, step.Output, "completed")
 				cot.FinalOutput = output.String()
+				events <- streaming.StreamEvent{Type: streaming.EventTypeDone}
 				return
 			}
 			events <- event
@@ -505,10 +628,10 @@ func (o *OrchestratorCOT) executeDelegation(
 	cot.AddStep(execStep)
 	execStep.Status = "running"
 
-	// Send agent indicator
+	// Send agent execution indicator
 	events <- streaming.StreamEvent{
 		Type: streaming.EventTypeToken,
-		Data: fmt.Sprintf("🤖 **%s Agent**\n\n", targetAgent),
+		Data: fmt.Sprintf("**Executing: @%s**\n\n", targetAgent),
 	}
 
 	// Get and run the agent with LLM options
@@ -524,6 +647,7 @@ func (o *OrchestratorCOT) executeDelegation(
 				execStep.Output = output.String()
 				cot.UpdateStep(execStep.ID, execStep.Output, "completed")
 				cot.FinalOutput = output.String()
+				events <- streaming.StreamEvent{Type: streaming.EventTypeDone}
 				return
 			}
 			events <- event
@@ -560,7 +684,7 @@ func (o *OrchestratorCOT) executeMultiAgent(
 ) {
 	events <- streaming.StreamEvent{
 		Type: streaming.EventTypeToken,
-		Data: fmt.Sprintf("🔄 **Multi-Agent Execution** (%d agents)\n\n", len(plan.Steps)),
+		Data: fmt.Sprintf("Multi-Agent Execution (%d agents)\n\n", len(plan.Steps)),
 	}
 
 	var wg sync.WaitGroup
@@ -643,7 +767,48 @@ func (o *OrchestratorCOT) executeMultiAgent(
 	cot.FinalOutput = allOutputs.String()
 }
 
-// executeSequential runs agents in sequence
+// ChainHistory tracks the full history of a multi-hop delegation
+type ChainHistory struct {
+	Steps []ChainStep `json:"steps"`
+}
+
+// ChainStep represents a single step in the chain history
+type ChainStep struct {
+	Order     int         `json:"order"`
+	Agent     AgentTypeV2 `json:"agent"`
+	Task      string      `json:"task"`
+	Input     string      `json:"input"`
+	Output    string      `json:"output"`
+	Reasoning string      `json:"reasoning,omitempty"`
+	Model     string      `json:"model,omitempty"`
+}
+
+// FormatAsContext formats the chain history as context for the next agent
+func (ch *ChainHistory) FormatAsContext() string {
+	if len(ch.Steps) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("## Previous Agent Chain History\n\n")
+	sb.WriteString("The following is the history of previous agents in this chain. Use this context to inform your response.\n\n")
+
+	for _, step := range ch.Steps {
+		sb.WriteString(fmt.Sprintf("### Step %d: @%s Agent\n", step.Order, step.Agent))
+		if step.Task != "" {
+			sb.WriteString(fmt.Sprintf("**Task:** %s\n", step.Task))
+		}
+		sb.WriteString(fmt.Sprintf("**Output:**\n%s\n\n", truncateOutput(step.Output, 2000)))
+		sb.WriteString("---\n\n")
+	}
+
+	sb.WriteString("## Your Task\n")
+	sb.WriteString("Based on the above context, provide your specialized contribution to this request.\n\n")
+
+	return sb.String()
+}
+
+// executeSequential runs agents in sequence with full chain history
 func (o *OrchestratorCOT) executeSequential(
 	ctx context.Context,
 	cot *ChainOfThought,
@@ -658,40 +823,76 @@ func (o *OrchestratorCOT) executeSequential(
 ) {
 	events <- streaming.StreamEvent{
 		Type: streaming.EventTypeToken,
-		Data: fmt.Sprintf("📝 **Sequential Execution** (%d steps)\n\n", len(plan.Steps)),
+		Data: fmt.Sprintf("**Multi-Hop Sequential Execution** (%d steps)\n\n", len(plan.Steps)),
+	}
+
+	// Initialize chain history for multi-hop tracking
+	chainHistory := &ChainHistory{
+		Steps: make([]ChainStep, 0, len(plan.Steps)),
 	}
 
 	var previousOutput string
+	var accumulatedContext strings.Builder // Accumulate context across all steps
 
 	for i, step := range plan.Steps {
-		// Create execution step
+		// Create execution step in COT
 		execStep := &ThoughtStep{
 			Agent:     step.Agent,
 			Action:    "execute",
 			Input:     step.Task,
-			Reasoning: fmt.Sprintf("Step %d of sequential execution", i+1),
+			Reasoning: fmt.Sprintf("Multi-hop step %d/%d - building on previous agent outputs", i+1, len(plan.Steps)),
 		}
 		cot.AddStep(execStep)
 		execStep.Status = "running"
 
+		// Send step indicator with agent info
 		events <- streaming.StreamEvent{
 			Type: streaming.EventTypeToken,
-			Data: fmt.Sprintf("\n**Step %d: %s Agent**\n", i+1, step.Agent),
+			Data: fmt.Sprintf("\n**Step %d/%d: @%s Agent**\n", i+1, len(plan.Steps), step.Agent),
 		}
 
-		// Modify input to include previous output
+		// Build modified input with chain history
 		modifiedInput := input
-		if previousOutput != "" {
+
+		// Add chain history as context message if we have previous steps
+		if len(chainHistory.Steps) > 0 {
+			chainContext := chainHistory.FormatAsContext()
 			contextMsg := services.ChatMessage{
 				Role:    "system",
-				Content: "Previous step output:\n" + previousOutput,
+				Content: chainContext,
 			}
 			modifiedInput.Messages = append([]services.ChatMessage{contextMsg}, modifiedInput.Messages...)
 		}
 
-		// Run agent with LLM options
+		// Add step-specific context if provided
+		if step.Context != nil {
+			stepContext := formatStepContext(step.Context)
+			if stepContext != "" {
+				stepContextMsg := services.ChatMessage{
+					Role:    "system",
+					Content: fmt.Sprintf("## Step-Specific Context\n%s", stepContext),
+				}
+				modifiedInput.Messages = append([]services.ChatMessage{stepContextMsg}, modifiedInput.Messages...)
+			}
+		}
+
+		// Prepare LLM options for this step
+		stepLLMOptions := llmOptions
+
+		// Apply model override if specified for this step
+		if step.ModelOverride != "" {
+			stepLLMOptions.Model = &step.ModelOverride
+		}
+
+		// Get and run the agent
 		agent := o.registry.GetAgent(step.Agent, userID, userName, conversationID, input.Context)
-		agent.SetOptions(llmOptions)
+		agent.SetOptions(stepLLMOptions)
+
+		// If step needs search, enable it in the input
+		if step.NeedsSearch {
+			modifiedInput.FocusMode = "research"
+		}
+
 		agentEvents, agentErrs := agent.Run(ctx, modifiedInput)
 
 		var output strings.Builder
@@ -714,6 +915,17 @@ func (o *OrchestratorCOT) executeSequential(
 					execStep.Error = err.Error()
 					cot.UpdateStep(execStep.ID, "", "failed")
 					errs <- err
+
+					// Send failure notification
+					events <- streaming.StreamEvent{
+						Type: streaming.EventTypeToken,
+						Data: fmt.Sprintf("\n[Step %d failed: %s - continuing with next step]\n", i+1, err.Error()),
+					}
+
+					// Don't return on failure if there are more steps - let the chain continue
+					if step.Order < len(plan.Steps) {
+						continue
+					}
 					return
 				}
 				done = true
@@ -722,12 +934,60 @@ func (o *OrchestratorCOT) executeSequential(
 			}
 		}
 
-		previousOutput = output.String()
+		stepOutput := output.String()
+		previousOutput = stepOutput
 		execStep.Output = previousOutput
 		cot.UpdateStep(execStep.ID, execStep.Output, "completed")
+
+		// Add to chain history for next agent
+		chainHistory.Steps = append(chainHistory.Steps, ChainStep{
+			Order:     i + 1,
+			Agent:     step.Agent,
+			Task:      step.Task,
+			Input:     cot.UserMessage,
+			Output:    stepOutput,
+			Reasoning: execStep.Reasoning,
+		})
+
+		// Accumulate context
+		accumulatedContext.WriteString(fmt.Sprintf("\n### @%s Output:\n%s\n", step.Agent, truncateOutput(stepOutput, 1500)))
+
+		// Send step completion indicator
+		events <- streaming.StreamEvent{
+			Type: streaming.EventTypeToken,
+			Data: fmt.Sprintf("\n[Step %d complete - @%s finished]\n", i+1, step.Agent),
+		}
 	}
 
+	// Final output is the combined accumulated context
 	cot.FinalOutput = previousOutput
+
+	// Send chain completion summary
+	events <- streaming.StreamEvent{
+		Type: streaming.EventTypeToken,
+		Data: fmt.Sprintf("\n**Chain Complete** - %d agents collaborated\n", len(chainHistory.Steps)),
+	}
+}
+
+// formatStepContext converts step context map to a formatted string
+func formatStepContext(ctx map[string]any) string {
+	if len(ctx) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	for key, value := range ctx {
+		switch v := value.(type) {
+		case string:
+			sb.WriteString(fmt.Sprintf("- **%s:** %s\n", key, v))
+		case []string:
+			sb.WriteString(fmt.Sprintf("- **%s:** %s\n", key, strings.Join(v, ", ")))
+		default:
+			jsonBytes, _ := json.Marshal(v)
+			sb.WriteString(fmt.Sprintf("- **%s:** %s\n", key, string(jsonBytes)))
+		}
+	}
+	return sb.String()
 }
 
 // synthesizeResults combines outputs from multiple agents
@@ -757,11 +1017,42 @@ func (o *OrchestratorCOT) synthesizeResults(
 	cot.UpdateStep(synthStep.ID, synthStep.Output, "completed")
 }
 
+// formatRoutingBox creates a formatted routing display
+func (o *OrchestratorCOT) formatRoutingBox(intent Intent, plan *ExecutionPlan) string {
+	var sb strings.Builder
+
+	sb.WriteString("**Routing Decision**\n")
+	sb.WriteString(fmt.Sprintf("- Strategy: `%s`\n", plan.Strategy))
+	sb.WriteString(fmt.Sprintf("- Primary Agent: `@%s`\n", intent.TargetAgent))
+	sb.WriteString(fmt.Sprintf("- Confidence: %.0f%%\n", intent.Confidence*100))
+
+	if len(plan.Steps) > 1 {
+		sb.WriteString(fmt.Sprintf("- Steps: %d agents\n", len(plan.Steps)))
+		sb.WriteString("\n**Execution Plan:**\n")
+		for _, step := range plan.Steps {
+			indicator := "→"
+			if step.CanParallel {
+				indicator = "⇉"
+			}
+			searchFlag := ""
+			if step.NeedsSearch {
+				searchFlag = " [web search]"
+			}
+			sb.WriteString(fmt.Sprintf("  %s Step %d: `@%s`%s\n", indicator, step.Order, step.Agent, searchFlag))
+		}
+	} else if len(plan.Steps) == 1 && plan.Steps[0].NeedsSearch {
+		sb.WriteString("- Web Search: enabled\n")
+	}
+
+	sb.WriteString("\n")
+	return sb.String()
+}
+
 // formatCOTSummary creates a readable summary of the chain of thought
 func (o *OrchestratorCOT) formatCOTSummary(cot *ChainOfThought) string {
 	var sb strings.Builder
 	sb.WriteString("\n\n---\n")
-	sb.WriteString("### 🧠 Chain of Thought Summary\n\n")
+	sb.WriteString("### Chain of Thought Summary\n\n")
 	sb.WriteString(fmt.Sprintf("**Duration:** %s\n", cot.TotalDuration.Round(time.Millisecond)))
 	sb.WriteString(fmt.Sprintf("**Agents:** %v\n", cot.AgentsInvolved))
 	sb.WriteString(fmt.Sprintf("**Steps:** %d\n", len(cot.Steps)))

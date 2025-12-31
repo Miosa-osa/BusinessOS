@@ -109,7 +109,26 @@ var focusModeDefaults = map[string]*FocusSettings{
 		SearchDepth:         "deep",
 		RequireSources:      true,
 		ThinkingEnabled:     true,
-		SystemPromptPrefix:  "You are in Deep Research Mode. Conduct thorough research and provide comprehensive, well-sourced answers. Include citations where possible. Analyze multiple perspectives.",
+		SystemPromptPrefix:  `You are in Deep Research Mode with LIVE WEB SEARCH results provided below.
+
+CRITICAL INSTRUCTIONS:
+1. You MUST base your response primarily on the Search Results provided below
+2. DO NOT make up or hallucinate information - only use data from the search results
+3. Reference sources inline when making claims using [Source Name](URL) format
+4. If the search results don't contain enough information, clearly state what is missing
+5. ALWAYS end your response with a "## Sources" section listing ALL sources used
+
+RESPONSE FORMAT:
+- Start with a clear, comprehensive answer
+- Use markdown formatting for readability
+- End with:
+
+## Sources
+- [Source 1 Title](url1)
+- [Source 2 Title](url2)
+...
+
+Your response should synthesize information from the search results to answer the user's question comprehensively.`,
 	},
 	"creative": {
 		Name:                "creative",
@@ -222,7 +241,8 @@ func (s *FocusService) getSettingsFromDB(ctx context.Context, userID string, foc
 			COALESCE(fc.thinking_style, fmt.thinking_style) as thinking_style,
 			COALESCE(fc.custom_system_prompt, '') as custom_system_prompt,
 			fmt.system_prompt_prefix,
-			fmt.system_prompt_suffix
+			fmt.system_prompt_suffix,
+			fc.auto_load_kb_categories
 		FROM focus_mode_templates fmt
 		LEFT JOIN focus_configurations fc ON fc.template_id = fmt.id AND fc.user_id = $1
 		WHERE fmt.name = $2 AND fmt.is_active = true
@@ -232,6 +252,7 @@ func (s *FocusService) getSettingsFromDB(ctx context.Context, userID string, foc
 	var effectiveModel *string
 	var thinkingStyle *string
 	var systemPromptPrefix, systemPromptSuffix *string
+	var autoLoadKBCategories []string
 
 	err := row.Scan(
 		&settings.Name,
@@ -250,6 +271,7 @@ func (s *FocusService) getSettingsFromDB(ctx context.Context, userID string, foc
 		&settings.CustomSystemPrompt,
 		&systemPromptPrefix,
 		&systemPromptSuffix,
+		&autoLoadKBCategories,
 	)
 	if err != nil {
 		return nil, err
@@ -257,11 +279,35 @@ func (s *FocusService) getSettingsFromDB(ctx context.Context, userID string, foc
 
 	settings.EffectiveModel = effectiveModel
 	settings.ThinkingStyle = thinkingStyle
+	settings.AutoLoadKBCategories = autoLoadKBCategories
 	if systemPromptPrefix != nil {
 		settings.SystemPromptPrefix = *systemPromptPrefix
 	}
 	if systemPromptSuffix != nil {
 		settings.SystemPromptSuffix = *systemPromptSuffix
+	}
+
+	// Merge with hardcoded defaults to ensure correct values
+	// (DB may have NULL or outdated values)
+	if defaults, ok := focusModeDefaults[focusMode]; ok {
+		// Use hardcoded MaxTokens if DB returned default fallback (4096)
+		if settings.MaxTokens == 4096 && defaults.MaxTokens > 4096 {
+			settings.MaxTokens = defaults.MaxTokens
+		}
+		// Use hardcoded SystemPromptPrefix if DB returned empty
+		if settings.SystemPromptPrefix == "" && defaults.SystemPromptPrefix != "" {
+			settings.SystemPromptPrefix = defaults.SystemPromptPrefix
+		}
+		// Ensure AutoSearch and RequireSources from defaults
+		if defaults.AutoSearch && !settings.AutoSearch {
+			settings.AutoSearch = defaults.AutoSearch
+		}
+		if defaults.RequireSources && !settings.RequireSources {
+			settings.RequireSources = defaults.RequireSources
+		}
+		if defaults.ThinkingEnabled && !settings.ThinkingEnabled {
+			settings.ThinkingEnabled = defaults.ThinkingEnabled
+		}
 	}
 
 	return &settings, nil
@@ -306,8 +352,28 @@ func (s *FocusService) BuildPreflightContext(
 		LLMOptions:        s.buildLLMOptions(settings),
 	}
 
-	// Build system prompt
-	focusCtx.SystemPrompt = s.buildSystemPrompt(settings)
+	// Build system prompt with output constraints
+	basePrompt := s.buildSystemPrompt(settings)
+	constraintInstructions := s.GetOutputConstraintsInstructions(focusCtx.OutputConstraints)
+	if constraintInstructions != "" {
+		focusCtx.SystemPrompt = basePrompt + "\n\n" + constraintInstructions
+	} else {
+		focusCtx.SystemPrompt = basePrompt
+	}
+
+	// Auto-load KB items - use intelligent loading if no specific categories configured
+	if len(settings.AutoLoadKBCategories) > 0 {
+		kbItems, err := s.loadKBItemsByCategories(ctx, userID, settings.AutoLoadKBCategories, settings.KBContextLimit)
+		if err == nil && len(kbItems) > 0 {
+			focusCtx.KBContext = kbItems
+		}
+	} else if userMessage != "" && settings.KBContextLimit > 0 {
+		// Use intelligent auto-load based on query content and focus mode
+		kbItems, err := s.AutoLoadKBContext(ctx, userID, focusMode, userMessage, settings.KBContextLimit)
+		if err == nil && len(kbItems) > 0 {
+			focusCtx.KBContext = kbItems
+		}
+	}
 
 	// Perform web search if AutoSearch is enabled and user message is provided
 	if settings.AutoSearch && userMessage != "" {
@@ -325,6 +391,192 @@ func (s *FocusService) BuildPreflightContext(
 	}()
 
 	return focusCtx, nil
+}
+
+// loadKBItemsByCategories loads contexts (KB items) matching the specified categories
+func (s *FocusService) loadKBItemsByCategories(ctx context.Context, userID string, categories []string, limit int) ([]KBContextItem, error) {
+	if s.pool == nil || len(categories) == 0 {
+		return nil, nil
+	}
+
+	if limit <= 0 {
+		limit = 5 // Default limit
+	}
+
+	// Build query with category filter
+	// Categories map to context types (PERSON, BUSINESS, PROJECT, CUSTOM, document, DOCUMENT)
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, name, type, content
+		FROM contexts
+		WHERE user_id = $1
+		  AND is_archived = false
+		  AND type = ANY($2::text[])
+		ORDER BY updated_at DESC
+		LIMIT $3
+	`, userID, categories, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load KB items: %w", err)
+	}
+	defer rows.Close()
+
+	var items []KBContextItem
+	for rows.Next() {
+		var item KBContextItem
+		var contextType string
+		var content *string
+
+		err := rows.Scan(&item.ID, &item.Title, &contextType, &content)
+		if err != nil {
+			continue
+		}
+
+		item.Category = contextType
+		if content != nil {
+			item.Content = *content
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+// AutoLoadKBContext intelligently loads KB items based on focus mode and query content
+func (s *FocusService) AutoLoadKBContext(ctx context.Context, userID string, focusMode string, userQuery string, limit int) ([]KBContextItem, error) {
+	if s.pool == nil {
+		return nil, nil
+	}
+
+	if limit <= 0 {
+		limit = 5
+	}
+
+	// Determine which context types to prioritize based on focus mode
+	priorityTypes := s.getContextTypesForFocusMode(focusMode)
+
+	// Extract keywords from query for relevance matching
+	keywords := extractKeywords(userQuery)
+
+	// Build query with smart relevance scoring
+	query := `
+		SELECT id, name, type, content,
+		       (CASE WHEN type = ANY($3::text[]) THEN 2 ELSE 1 END) as type_score,
+		       (CASE
+		         WHEN name ILIKE ANY($4::text[]) THEN 3
+		         WHEN content ILIKE ANY($4::text[]) THEN 2
+		         ELSE 1
+		       END) as relevance_score
+		FROM contexts
+		WHERE user_id = $1
+		  AND is_archived = false
+		  AND (name ILIKE ANY($4::text[]) OR content ILIKE ANY($4::text[]) OR type = ANY($3::text[]))
+		ORDER BY (type_score * relevance_score) DESC, updated_at DESC
+		LIMIT $2
+	`
+
+	// Build keyword patterns for ILIKE
+	keywordPatterns := make([]string, len(keywords))
+	for i, kw := range keywords {
+		keywordPatterns[i] = "%" + kw + "%"
+	}
+
+	// If no keywords, fall back to category-based loading
+	if len(keywordPatterns) == 0 {
+		return s.loadKBItemsByCategories(ctx, userID, priorityTypes, limit)
+	}
+
+	rows, err := s.pool.Query(ctx, query, userID, limit, priorityTypes, keywordPatterns)
+	if err != nil {
+		// Fallback to simple category load
+		return s.loadKBItemsByCategories(ctx, userID, priorityTypes, limit)
+	}
+	defer rows.Close()
+
+	var items []KBContextItem
+	for rows.Next() {
+		var item KBContextItem
+		var contextType string
+		var content *string
+		var typeScore, relevanceScore int
+
+		err := rows.Scan(&item.ID, &item.Title, &contextType, &content, &typeScore, &relevanceScore)
+		if err != nil {
+			continue
+		}
+
+		item.Category = contextType
+		if content != nil {
+			item.Content = *content
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+// getContextTypesForFocusMode returns priority context types based on focus mode
+func (s *FocusService) getContextTypesForFocusMode(focusMode string) []string {
+	switch focusMode {
+	case "code", "build":
+		return []string{"PROJECT", "DOCUMENT", "CUSTOM"}
+	case "write":
+		return []string{"DOCUMENT", "BUSINESS", "CUSTOM"}
+	case "analyze":
+		return []string{"BUSINESS", "PROJECT", "DOCUMENT"}
+	case "plan", "planning":
+		return []string{"PROJECT", "BUSINESS", "DOCUMENT"}
+	case "research", "deep":
+		return []string{"DOCUMENT", "CUSTOM", "BUSINESS"}
+	case "creative":
+		return []string{"CUSTOM", "DOCUMENT", "PERSON"}
+	default:
+		return []string{"DOCUMENT", "PROJECT", "BUSINESS", "CUSTOM"}
+	}
+}
+
+// extractKeywords extracts important keywords from a query for matching
+func extractKeywords(query string) []string {
+	// Remove common stop words and extract meaningful terms
+	stopWords := map[string]bool{
+		"a": true, "an": true, "the": true, "is": true, "are": true, "was": true,
+		"be": true, "been": true, "being": true, "have": true, "has": true, "had": true,
+		"do": true, "does": true, "did": true, "will": true, "would": true, "could": true,
+		"should": true, "can": true, "may": true, "might": true, "must": true,
+		"i": true, "me": true, "my": true, "we": true, "our": true, "you": true, "your": true,
+		"he": true, "she": true, "it": true, "they": true, "them": true, "their": true,
+		"this": true, "that": true, "these": true, "those": true,
+		"what": true, "which": true, "who": true, "whom": true, "where": true, "when": true,
+		"why": true, "how": true, "with": true, "about": true, "for": true, "from": true,
+		"of": true, "on": true, "in": true, "to": true, "at": true, "by": true, "as": true,
+		"and": true, "or": true, "but": true, "if": true, "then": true, "so": true,
+		"please": true, "help": true, "want": true, "need": true, "like": true,
+		"tell": true, "explain": true, "show": true, "give": true, "make": true,
+	}
+
+	words := strings.Fields(strings.ToLower(query))
+	var keywords []string
+	seen := make(map[string]bool)
+
+	for _, word := range words {
+		// Clean punctuation
+		word = strings.Trim(word, ".,!?;:'\"()[]{}")
+
+		// Skip short words, stop words, and duplicates
+		if len(word) < 3 || stopWords[word] || seen[word] {
+			continue
+		}
+
+		seen[word] = true
+		keywords = append(keywords, word)
+	}
+
+	// Limit to most relevant keywords
+	if len(keywords) > 5 {
+		keywords = keywords[:5]
+	}
+
+	return keywords
 }
 
 // performWebSearch executes web search based on search depth
@@ -371,6 +623,9 @@ func (s *FocusService) buildOutputConstraints(settings *FocusSettings) OutputCon
 
 	if settings.MaxResponseLength != nil {
 		constraints.MaxLength = settings.MaxResponseLength
+	} else {
+		// Set default max lengths per mode/style
+		constraints.MaxLength = s.getDefaultMaxLength(settings.Name, settings.OutputStyle)
 	}
 
 	// Auto-artifact for write mode or long content
@@ -381,12 +636,87 @@ func (s *FocusService) buildOutputConstraints(settings *FocusSettings) OutputCon
 	return constraints
 }
 
+// getDefaultMaxLength returns default max length based on mode and style
+func (s *FocusService) getDefaultMaxLength(modeName string, style string) *int {
+	// Mode-specific defaults (in characters)
+	modeDefaults := map[string]int{
+		"quick":    2000,  // ~500 words - concise
+		"creative": 8000,  // ~2000 words - flexible
+		"analyze":  12000, // ~3000 words - detailed analysis
+		"write":    20000, // ~5000 words - full documents
+		"plan":     10000, // ~2500 words - structured plans
+		"code":     16000, // ~4000 words - code + explanations
+		"deep":     16000, // ~4000 words - research
+		"research": 16000, // ~4000 words - research
+		"build":    12000, // ~3000 words - implementation
+	}
+
+	// Style overrides
+	styleDefaults := map[string]int{
+		"concise":    2000,  // Short responses
+		"balanced":   6000,  // Medium responses
+		"detailed":   12000, // Long responses
+		"structured": 10000, // Organized responses
+	}
+
+	// Prefer mode-specific default
+	if maxLen, ok := modeDefaults[modeName]; ok {
+		return &maxLen
+	}
+
+	// Fall back to style default
+	if maxLen, ok := styleDefaults[style]; ok {
+		return &maxLen
+	}
+
+	// General default
+	defaultLen := 6000
+	return &defaultLen
+}
+
+// GetOutputConstraintsInstructions returns system prompt instructions for output constraints
+func (s *FocusService) GetOutputConstraintsInstructions(constraints OutputConstraints) string {
+	var instructions []string
+
+	// Max length guidance
+	if constraints.MaxLength != nil {
+		maxWords := *constraints.MaxLength / 4 // ~4 chars per word
+		switch {
+		case maxWords <= 500:
+			instructions = append(instructions, "Keep your response brief and focused. Target 2-4 paragraphs maximum.")
+		case maxWords <= 1500:
+			instructions = append(instructions, "Provide a moderate-length response. Be thorough but avoid unnecessary repetition.")
+		case maxWords <= 3000:
+			instructions = append(instructions, "You may provide a detailed response. Include relevant context and explanations.")
+		default:
+			instructions = append(instructions, "You may provide a comprehensive, in-depth response as needed.")
+		}
+	}
+
+	// Format requirements
+	if constraints.RequireArtifact {
+		instructions = append(instructions, "For substantial content (documents, code, plans), generate an artifact that can be saved separately.")
+	}
+
+	// Source requirements
+	if constraints.RequireSources {
+		instructions = append(instructions, "CRITICAL: Include sources and citations. End with a '## Sources' section listing all references.")
+	}
+
+	if len(instructions) == 0 {
+		return ""
+	}
+
+	return "## Output Requirements\n" + strings.Join(instructions, "\n")
+}
+
 // buildLLMOptions creates LLM options from focus settings
 func (s *FocusService) buildLLMOptions(settings *FocusSettings) LLMOptions {
 	opts := DefaultLLMOptions()
 	opts.Temperature = settings.Temperature
 	opts.MaxTokens = settings.MaxTokens
 	opts.ThinkingEnabled = settings.ThinkingEnabled
+	opts.Model = settings.EffectiveModel // Model override from focus mode
 
 	return opts
 }
@@ -486,12 +816,14 @@ func (s *FocusService) FormatContextForPrompt(focusCtx *FocusContext) string {
 		}
 	}
 
-	// Add search context
+	// Add search context with explicit instructions
 	if len(focusCtx.SearchContext) > 0 {
-		parts = append(parts, "## Search Results:")
+		parts = append(parts, `## WEB SEARCH RESULTS
+The following are real-time search results. You MUST use these to answer the question:`)
 		for i, item := range focusCtx.SearchContext {
-			parts = append(parts, fmt.Sprintf("%d. **%s**\n   URL: %s\n   %s", i+1, item.Title, item.URL, item.Snippet))
+			parts = append(parts, fmt.Sprintf("\n### Source %d: %s\n- **URL:** %s\n- **Summary:** %s", i+1, item.Title, item.URL, item.Snippet))
 		}
+		parts = append(parts, "\n---\nIMPORTANT: Base your answer on the sources above. Do not hallucinate information.")
 	}
 
 	// Add project context

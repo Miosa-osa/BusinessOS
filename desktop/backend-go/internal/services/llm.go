@@ -13,6 +13,8 @@ type LLMOptions struct {
 	Temperature float64
 	MaxTokens   int
 	TopP        float64
+	// Model override (e.g. from focus mode)
+	Model *string
 	// Thinking/COT options
 	ThinkingEnabled      bool
 	ThinkingInstruction  string
@@ -149,4 +151,116 @@ func NewLLMService(cfg *config.Config, model string) LLMService {
 		// Default to local Ollama
 		return NewOllamaService(cfg, model)
 	}
+}
+
+// NewLLMServiceWithThinking creates an LLM service that may support extended thinking
+// Returns the service and a boolean indicating if extended thinking is supported
+func NewLLMServiceWithThinking(cfg *config.Config, model string) (LLMService, bool) {
+	provider := cfg.GetActiveProvider()
+	fmt.Printf("[LLM] Creating thinking-aware service for provider=%q, model=%q\n", provider, model)
+
+	switch provider {
+	case "anthropic":
+		service := NewAnthropicService(cfg, model)
+		return service, service.SupportsExtendedThinking()
+	case "ollama_cloud":
+		return NewOllamaCloudService(cfg, model), false
+	case "groq":
+		return NewGroqService(cfg, model), false
+	default:
+		return NewOllamaService(cfg, model), false
+	}
+}
+
+// AsExtendedThinkingService attempts to cast an LLMService to ExtendedThinkingService
+func AsExtendedThinkingService(service LLMService) (ExtendedThinkingService, bool) {
+	ets, ok := service.(ExtendedThinkingService)
+	if !ok {
+		return nil, false
+	}
+	// Also check if the model actually supports it
+	if !ets.SupportsExtendedThinking() {
+		return nil, false
+	}
+	return ets, true
+}
+
+// StreamWithNativeThinking streams a chat response using native extended thinking if available
+// Otherwise falls back to standard streaming with prompt-based thinking
+func StreamWithNativeThinking(ctx context.Context, service LLMService, messages []ChatMessage, systemPrompt string, opts LLMOptions) (<-chan string, <-chan string, <-chan error) {
+	contentChan := make(chan string, 100)
+	thinkingChan := make(chan string, 100)
+	errChan := make(chan error, 1)
+
+	// Check if native extended thinking is available
+	if opts.ThinkingEnabled {
+		if ets, ok := AsExtendedThinkingService(service); ok {
+			// Use native extended thinking
+			result := ets.StreamChatWithThinking(ctx, messages, systemPrompt)
+
+			go func() {
+				defer close(contentChan)
+				defer close(thinkingChan)
+				defer close(errChan)
+
+				// Forward thinking chunks
+				go func() {
+					for chunk := range result.ThinkingChunks {
+						select {
+						case thinkingChan <- chunk:
+						case <-ctx.Done():
+							return
+						}
+					}
+				}()
+
+				// Forward content chunks
+				for chunk := range result.Chunks {
+					select {
+					case contentChan <- chunk:
+					case <-ctx.Done():
+						return
+					}
+				}
+
+				// Forward errors
+				for err := range result.Errors {
+					select {
+					case errChan <- err:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}()
+
+			return contentChan, thinkingChan, errChan
+		}
+	}
+
+	// Fall back to standard streaming (prompt-based thinking handled by caller)
+	chunks, errs := service.StreamChat(ctx, messages, systemPrompt)
+
+	go func() {
+		defer close(contentChan)
+		defer close(thinkingChan) // No thinking content for non-native
+		defer close(errChan)
+
+		for chunk := range chunks {
+			select {
+			case contentChan <- chunk:
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		for err := range errs {
+			select {
+			case errChan <- err:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return contentChan, thinkingChan, errChan
 }

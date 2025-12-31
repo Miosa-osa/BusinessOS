@@ -187,10 +187,16 @@ func (s *GroqService) StreamChat(ctx context.Context, messages []ChatMessage, sy
 			fmt.Printf("[Groq] Final message[%d]: role=%q, content_len=%d\n", i, m.Role, len(m.Content))
 		}
 
+		maxTokens := s.options.MaxTokens
+		if maxTokens < 1000 {
+			maxTokens = 8192 // Default to 8192 if not set properly
+		}
+		fmt.Printf("[Groq] Using max_tokens=%d for streaming request\n", maxTokens)
+
 		reqBody := GroqRequest{
 			Model:     s.model,
 			Messages:  groqMsgs,
-			MaxTokens: 8192,
+			MaxTokens: maxTokens,
 			Stream:    true,
 		}
 
@@ -231,6 +237,7 @@ func (s *GroqService) StreamChat(ctx context.Context, messages []ChatMessage, sy
 
 			data := strings.TrimPrefix(line, "data: ")
 			if data == "[DONE]" {
+				fmt.Printf("[Groq] Stream completed: [DONE]\n")
 				return
 			}
 
@@ -239,17 +246,25 @@ func (s *GroqService) StreamChat(ctx context.Context, messages []ChatMessage, sy
 				continue // Skip malformed lines
 			}
 
-			if len(streamResp.Choices) > 0 && streamResp.Choices[0].Delta.Content != "" {
-				content := sanitizeUTF8(streamResp.Choices[0].Delta.Content)
-				select {
-				case chunks <- content:
-				case <-ctx.Done():
-					return
+			if len(streamResp.Choices) > 0 {
+				// Log finish_reason when set (indicates why stream ended)
+				if streamResp.Choices[0].FinishReason != "" {
+					fmt.Printf("[Groq] Stream finish_reason: %s\n", streamResp.Choices[0].FinishReason)
+				}
+
+				if streamResp.Choices[0].Delta.Content != "" {
+					content := sanitizeUTF8(streamResp.Choices[0].Delta.Content)
+					select {
+					case chunks <- content:
+					case <-ctx.Done():
+						return
+					}
 				}
 			}
 		}
 
 		if err := scanner.Err(); err != nil {
+			fmt.Printf("[Groq] Scanner error: %v\n", err)
 			errs <- fmt.Errorf("error reading response: %w", err)
 		}
 	}()
@@ -368,10 +383,15 @@ func (s *GroqService) StreamChatWithUsage(ctx context.Context, messages []ChatMe
 			})
 		}
 
+		maxTokens := s.options.MaxTokens
+		if maxTokens < 1000 {
+			maxTokens = 8192
+		}
+
 		reqBody := GroqRequest{
 			Model:     s.model,
 			Messages:  groqMsgs,
-			MaxTokens: 8192,
+			MaxTokens: maxTokens,
 			Stream:    true,
 		}
 

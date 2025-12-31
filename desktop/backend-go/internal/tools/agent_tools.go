@@ -4,6 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
+	"io"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -65,6 +71,9 @@ func (r *AgentToolRegistry) registerTools() {
 	r.tools["update_client"] = &UpdateClientTool{pool: r.pool, userID: r.userID}
 	r.tools["log_activity"] = &LogActivityTool{pool: r.pool, userID: r.userID}
 	r.tools["create_artifact"] = &CreateArtifactTool{pool: r.pool, userID: r.userID}
+
+	// Search tools
+	r.tools["web_search"] = &WebSearchTool{pool: r.pool, userID: r.userID}
 }
 
 // GetTool returns a tool by name
@@ -1577,4 +1586,150 @@ func (t *CreateArtifactTool) Execute(ctx context.Context, input json.RawMessage)
 
 	// Return a marker that the handler will use to capture content
 	return fmt.Sprintf("ARTIFACT_START::%s::%s::Now write the complete document content below. Everything you write will be saved to the artifact.", params.Type, params.Title), nil
+}
+
+// ========== SEARCH TOOLS ==========
+
+// WebSearchTool performs web searches using DuckDuckGo and other providers
+type WebSearchTool struct {
+	pool   *pgxpool.Pool
+	userID string
+}
+
+func (t *WebSearchTool) Name() string { return "web_search" }
+func (t *WebSearchTool) Description() string {
+	return "Search the web for current information. Use this when you need up-to-date information, facts, news, or data that might not be in your training data. Returns search results with titles, URLs, and snippets."
+}
+func (t *WebSearchTool) InputSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"query": map[string]interface{}{
+				"type":        "string",
+				"description": "The search query. Be specific and use keywords for better results.",
+			},
+			"max_results": map[string]interface{}{
+				"type":        "integer",
+				"description": "Maximum number of results to return (default: 5, max: 10)",
+			},
+		},
+		"required": []string{"query"},
+	}
+}
+func (t *WebSearchTool) Execute(ctx context.Context, input json.RawMessage) (string, error) {
+	var params struct {
+		Query      string `json:"query"`
+		MaxResults int    `json:"max_results"`
+	}
+	if err := json.Unmarshal(input, &params); err != nil {
+		return "", fmt.Errorf("invalid input: %w", err)
+	}
+
+	if params.Query == "" {
+		return "", fmt.Errorf("query is required")
+	}
+
+	if params.MaxResults <= 0 {
+		params.MaxResults = 5
+	}
+	if params.MaxResults > 10 {
+		params.MaxResults = 10
+	}
+
+	// Use the WebSearchService from services package
+	// We need to import the services package and use it here
+	// For now, we'll use a simple HTTP call to DuckDuckGo Lite
+
+	results, err := t.performDuckDuckGoSearch(ctx, params.Query, params.MaxResults)
+	if err != nil {
+		return "", fmt.Errorf("search failed: %w", err)
+	}
+
+	if len(results) == 0 {
+		return fmt.Sprintf("No results found for: %s", params.Query), nil
+	}
+
+	// Format results
+	var output string
+	output = fmt.Sprintf("## Web Search Results for: \"%s\"\n\n", params.Query)
+	for i, result := range results {
+		output += fmt.Sprintf("### %d. %s\n", i+1, result.Title)
+		output += fmt.Sprintf("**URL:** %s\n", result.URL)
+		output += fmt.Sprintf("%s\n\n", result.Snippet)
+	}
+
+	return output, nil
+}
+
+// SearchResult represents a single search result
+type SearchResult struct {
+	Title   string
+	URL     string
+	Snippet string
+}
+
+// performDuckDuckGoSearch performs a search using DuckDuckGo Lite HTML
+func (t *WebSearchTool) performDuckDuckGoSearch(ctx context.Context, query string, maxResults int) ([]SearchResult, error) {
+	// Build the DuckDuckGo Lite URL
+	searchURL := fmt.Sprintf("https://lite.duckduckgo.com/lite/?q=%s", url.QueryEscape(query))
+
+	// Create HTTP request
+	req, err := http.NewRequestWithContext(ctx, "GET", searchURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+
+	// Execute request
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Read body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse results from HTML
+	results := t.parseDuckDuckGoLiteHTML(string(body), maxResults)
+
+	return results, nil
+}
+
+// parseDuckDuckGoLiteHTML parses the DuckDuckGo Lite HTML response
+func (t *WebSearchTool) parseDuckDuckGoLiteHTML(htmlContent string, maxResults int) []SearchResult {
+	var results []SearchResult
+
+	// DuckDuckGo Lite uses a table with class "result-link" for links
+	// Pattern: <a rel="nofollow" href="URL" class="result-link">TITLE</a>
+	// Snippet is in the next <td class="result-snippet">
+
+	linkPattern := regexp.MustCompile(`<a[^>]*class="result-link"[^>]*href="([^"]+)"[^>]*>([^<]+)</a>`)
+	snippetPattern := regexp.MustCompile(`<td[^>]*class="result-snippet"[^>]*>([^<]+)</td>`)
+
+	linkMatches := linkPattern.FindAllStringSubmatch(htmlContent, -1)
+	snippetMatches := snippetPattern.FindAllStringSubmatch(htmlContent, -1)
+
+	for i := 0; i < len(linkMatches) && i < maxResults; i++ {
+		result := SearchResult{
+			URL:   html.UnescapeString(linkMatches[i][1]),
+			Title: html.UnescapeString(strings.TrimSpace(linkMatches[i][2])),
+		}
+
+		// Get corresponding snippet if available
+		if i < len(snippetMatches) {
+			result.Snippet = html.UnescapeString(strings.TrimSpace(snippetMatches[i][1]))
+		}
+
+		// Skip empty results
+		if result.URL != "" && result.Title != "" {
+			results = append(results, result)
+		}
+	}
+
+	return results
 }

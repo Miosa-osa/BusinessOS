@@ -225,6 +225,7 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		settings.GET("", h.GetSettings)
 		settings.PUT("", h.UpdateSettings)
 		settings.GET("/system", h.GetSystemSettings)
+		settings.GET("/full-state", h.GetFullState) // Complete state for UI sync
 	}
 
 	// Thinking/COT routes - /api/thinking
@@ -265,8 +266,12 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	search := api.Group("/search")
 	search.Use(auth)
 	{
-		search.GET("/web", h.WebSearch)             // Basic web search
+		search.GET("/web", h.WebSearch)                // Basic web search
 		search.GET("/context", h.WebSearchWithContext) // Search with formatted context
+		search.GET("/history", h.ListSearchHistory)    // List user's search history
+		search.GET("/history/:id", h.GetSearchHistoryEntry) // Get specific search details
+		search.DELETE("/history/:id", h.DeleteSearchHistoryEntry) // Delete specific search
+		search.DELETE("/history", h.ClearSearchHistory) // Clear all search history
 	}
 
 	// AI configuration routes - /api/ai
@@ -304,6 +309,24 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		ai.GET("/commands/:id", h.GetUserCommand)
 		ai.PUT("/commands/:id", h.UpdateUserCommand)
 		ai.DELETE("/commands/:id", h.DeleteUserCommand)
+		// Agent delegation routes
+		delegationHandler := NewDelegationHandler(services.NewDelegationService(h.pool))
+		ai.GET("/delegation/agents", delegationHandler.ListAgents)
+		ai.GET("/delegation/resolve/:mention", delegationHandler.ResolveAgentMention)
+		ai.POST("/delegation/mentions", delegationHandler.ExtractMentions)
+		ai.POST("/delegation/delegate", delegationHandler.Delegate)
+		// Intent classification / routing
+		routerHandler := NewRouterHandler(h.pool)
+		routerHandler.RegisterRoutes(ai)
+		// Workflow routes
+		ai.GET("/workflows", h.ListWorkflows)
+		ai.POST("/workflows", h.CreateWorkflow)
+		ai.GET("/workflows/:id", h.GetWorkflow)
+		ai.DELETE("/workflows/:id", h.DeleteWorkflow)
+		ai.POST("/workflows/:id/execute", h.ExecuteWorkflow)
+		ai.POST("/workflows/trigger/:trigger", h.ExecuteWorkflowByTrigger)
+		ai.GET("/workflows/executions", h.ListWorkflowExecutions)
+		ai.GET("/workflows/executions/:id", h.GetWorkflowExecution)
 	}
 
 	// Usage analytics routes - /api/usage

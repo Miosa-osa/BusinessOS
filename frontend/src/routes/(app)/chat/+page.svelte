@@ -69,9 +69,9 @@
 			// Regular numbered lists
 			.replace(/^(\d+)\.\s+(.+)$/gm, '<div class="chat-list-item"><span class="chat-list-number">$1.</span><span class="chat-list-content">$2</span></div>')
 			// Nested bullet points (indented with spaces/tabs)
-			.replace(/^[\t\s]{2,}[â€¢\-\*]\s+(.+)$/gm, '<div class="chat-nested-bullet"><span class="chat-bullet">â€¢</span><span>$1</span></div>')
+			.replace(/^[\t\s]{2,}[\u2022\-\*]\s+(.+)$/gm, '<div class="chat-nested-bullet"><span class="chat-bullet">&bull;</span><span>$1</span></div>')
 			// Bullet points with asterisk or dash
-			.replace(/^[â€¢\-\*]\s+(.+)$/gm, '<div class="chat-bullet-item"><span class="chat-bullet">â€¢</span><span>$1</span></div>')
+			.replace(/^[\u2022\-\*]\s+(.+)$/gm, '<div class="chat-bullet-item"><span class="chat-bullet">&bull;</span><span>$1</span></div>')
 			// Horizontal rules
 			.replace(/^---+$/gm, '<div class="chat-section-divider"></div>')
 			// Links
@@ -2231,6 +2231,9 @@ Use this context to inform your responses.`;
 		abortController = new AbortController();
 
 		try {
+			// Debug: Log focus mode state before building request
+			console.log('[Chat] Focus Mode Debug:', { selectedFocusId, focusOptions, focusModeEnabled });
+
 			// Build request body with context and node context
 			// Note: The backend will load full context details (content, system_prompt_template)
 			// using the context_id, so we just pass the ID here
@@ -2322,13 +2325,20 @@ Use this context to inform your responses.`;
 							try {
 								const data = JSON.parse(line.slice(6));
 								// Handle thinking events (generic COT from backend)
+								// These include search events with step: "searching" or "search_complete"
 								if (data.type === 'thinking' && data.data) {
 									const thinkingData = data.data;
 									hasThinking = true;
 									thinkingExpanded = true;
 									// ThinkingStep struct: { step, content, agent, completed }
 									if (thinkingData.content) {
-										currentThinking += thinkingData.content + '\n';
+										// Mark search-related thinking with a special prefix for preservation
+										if (thinkingData.step === 'searching' || thinkingData.step === 'search_complete') {
+											currentThinking += thinkingData.content + '\n';
+											console.log('[COT] Search event:', thinkingData);
+										} else {
+											currentThinking += thinkingData.content + '\n';
+										}
 									}
 									if (typeof thinkingData === 'string') {
 										currentThinking += thinkingData + '\n';
@@ -2338,9 +2348,13 @@ Use this context to inform your responses.`;
 								// Handle thinking_start events (Chain of Thought)
 								if (data.type === 'thinking_start') {
 									hasThinking = true;
-									currentThinking = '';
+									// Preserve search-related content
+									const searchContent = currentThinking.split('\n')
+										.filter(line => line.includes('Searching the web') || line.includes('Found') && line.includes('sources'))
+										.join('\n');
+									currentThinking = searchContent ? searchContent + '\n' : '';
 									thinkingExpanded = true;
-									console.log('[COT] Thinking started:', data.data);
+									console.log('[COT] Thinking started (preserved search):', searchContent ? 'yes' : 'no');
 								}
 								// Handle thinking_chunk events (Chain of Thought)
 								if (data.type === 'thinking_chunk' && data.data) {

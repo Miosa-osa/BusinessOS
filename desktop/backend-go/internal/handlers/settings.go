@@ -309,3 +309,181 @@ func (h *Handlers) GetAvailableModels(c *gin.Context) {
 
 	c.JSON(http.StatusOK, models)
 }
+
+// GetFullState returns complete configuration state for UI synchronization
+// This endpoint provides all settings, preferences, and configurations in a single call
+func (h *Handlers) GetFullState(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	queries := sqlc.New(h.pool)
+
+	// Initialize response with defaults
+	state := gin.H{
+		"version": "1.0",
+		"user": gin.H{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
+		},
+	}
+
+	// Get user settings
+	userSettings, err := queries.GetUserSettings(ctx, user.ID)
+	if err == nil {
+		var customSettings map[string]interface{}
+		if userSettings.CustomSettings != nil {
+			json.Unmarshal(userSettings.CustomSettings, &customSettings)
+		}
+
+		state["settings"] = gin.H{
+			"default_model":       userSettings.DefaultModel,
+			"email_notifications": userSettings.EmailNotifications,
+			"daily_summary":       userSettings.DailySummary,
+			"theme":               userSettings.Theme,
+			"sidebar_collapsed":   userSettings.SidebarCollapsed,
+			"share_analytics":     userSettings.ShareAnalytics,
+		}
+
+		// Extract nested settings
+		if modelSettings, ok := customSettings["model_settings"]; ok {
+			state["model_settings"] = modelSettings
+		} else {
+			state["model_settings"] = gin.H{
+				"temperature":       0.7,
+				"maxTokens":         2048,
+				"topP":              0.9,
+				"streamResponses":   true,
+				"showUsageInChat":   true,
+			}
+		}
+
+		if agentSettings, ok := customSettings["agent_settings"]; ok {
+			state["agent_settings"] = agentSettings
+		} else {
+			state["agent_settings"] = gin.H{
+				"default_agent":        "general",
+				"enable_mentions":      true,
+				"auto_select_agent":    true,
+				"show_agent_reasoning": true,
+			}
+		}
+
+		if focusSettings, ok := customSettings["focus_settings"]; ok {
+			state["focus_settings"] = focusSettings
+		} else {
+			state["focus_settings"] = gin.H{
+				"default_mode":         "quick",
+				"remember_last_mode":   true,
+				"show_mode_selector":   true,
+				"auto_switch_by_query": false,
+			}
+		}
+	} else {
+		// Set all defaults if no settings exist
+		state["settings"] = gin.H{
+			"default_model":       "llama3.2",
+			"email_notifications": true,
+			"daily_summary":       false,
+			"theme":               "system",
+			"sidebar_collapsed":   false,
+			"share_analytics":     false,
+		}
+		state["model_settings"] = gin.H{
+			"temperature":       0.7,
+			"maxTokens":         2048,
+			"topP":              0.9,
+			"streamResponses":   true,
+			"showUsageInChat":   true,
+		}
+		state["agent_settings"] = gin.H{
+			"default_agent":        "general",
+			"enable_mentions":      true,
+			"auto_select_agent":    true,
+			"show_agent_reasoning": true,
+		}
+		state["focus_settings"] = gin.H{
+			"default_mode":         "quick",
+			"remember_last_mode":   true,
+			"show_mode_selector":   true,
+			"auto_switch_by_query": false,
+		}
+	}
+
+	// Get thinking settings
+	thinkingSettings, err := queries.GetThinkingSettings(ctx, user.ID)
+	if err == nil {
+		state["thinking_settings"] = gin.H{
+			"enabled":             thinkingSettings.ThinkingEnabled,
+			"show_in_ui":          thinkingSettings.ThinkingShowInUi,
+			"save_traces":         thinkingSettings.ThinkingSaveTraces,
+			"default_template_id": thinkingSettings.ThinkingDefaultTemplateID,
+			"max_tokens":          thinkingSettings.ThinkingMaxTokens,
+		}
+	} else {
+		state["thinking_settings"] = gin.H{
+			"enabled":     false,
+			"show_in_ui":  true,
+			"save_traces": true,
+			"max_tokens":  4096,
+		}
+	}
+
+	// Get custom agents (brief list)
+	agents, err := queries.ListCustomAgents(ctx, user.ID)
+	if err == nil {
+		agentList := make([]gin.H, len(agents))
+		for i, agent := range agents {
+			agentList[i] = gin.H{
+				"id":           agent.ID,
+				"name":         agent.Name,
+				"display_name": agent.DisplayName,
+				"category":     agent.Category,
+				"is_active":    agent.IsActive,
+			}
+		}
+		state["agents"] = agentList
+	} else {
+		state["agents"] = []gin.H{}
+	}
+
+	// Get focus mode templates
+	focusModes := []gin.H{
+		{"id": "quick", "name": "Quick", "description": "Fast, concise responses"},
+		{"id": "deep", "name": "Deep Research", "description": "Web search + comprehensive analysis"},
+		{"id": "creative", "name": "Creative", "description": "Imaginative and innovative responses"},
+		{"id": "analyze", "name": "Analysis", "description": "Data-driven insights and structured output"},
+		{"id": "write", "name": "Writing", "description": "Polished documents and content"},
+		{"id": "plan", "name": "Planning", "description": "Actionable plans and strategies"},
+		{"id": "code", "name": "Coding", "description": "Clean, efficient code generation"},
+		{"id": "research", "name": "Research", "description": "Thorough investigation with sources"},
+		{"id": "build", "name": "Build", "description": "Implementation and construction"},
+	}
+	state["focus_modes"] = focusModes
+
+	// Get system configuration
+	activeProvider := h.cfg.GetActiveProvider()
+	ollamaMode := "cloud"
+	if activeProvider == "ollama_local" {
+		ollamaMode = "local"
+	}
+
+	state["system"] = gin.H{
+		"active_provider": activeProvider,
+		"ollama_mode":     ollamaMode,
+		"default_model":   h.cfg.DefaultModel,
+		"features": gin.H{
+			"web_search_enabled":  true,
+			"artifacts_enabled":   true,
+			"thinking_available":  true,
+			"agents_enabled":      true,
+			"focus_modes_enabled": true,
+		},
+	}
+
+	c.JSON(http.StatusOK, state)
+}

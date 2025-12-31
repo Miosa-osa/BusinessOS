@@ -74,6 +74,13 @@ type Config struct {
 	NotionClientSecret string `mapstructure:"NOTION_CLIENT_SECRET"`
 	NotionRedirectURI  string `mapstructure:"NOTION_REDIRECT_URI"`
 
+	// Web Search Providers
+	// Priority: Brave > Serper > Tavily > DuckDuckGo (fallback)
+	BraveSearchAPIKey string `mapstructure:"BRAVE_SEARCH_API_KEY"` // Free: 2000 queries/month
+	SerperAPIKey      string `mapstructure:"SERPER_API_KEY"`       // Google results via API
+	TavilyAPIKey      string `mapstructure:"TAVILY_API_KEY"`       // AI-focused search API
+	SearchProvider    string `mapstructure:"SEARCH_PROVIDER"`      // Override: brave, serper, tavily, duckduckgo, auto
+
 	// CORS
 	AllowedOrigins []string `mapstructure:"ALLOWED_ORIGINS"`
 
@@ -136,6 +143,13 @@ func Load() (*Config, error) {
 	viper.SetDefault("NOTION_CLIENT_ID", "")
 	viper.SetDefault("NOTION_CLIENT_SECRET", "")
 	viper.SetDefault("NOTION_REDIRECT_URI", "http://localhost:8001/api/integrations/notion/callback")
+
+	// Web Search Providers
+	viper.SetDefault("BRAVE_SEARCH_API_KEY", "")
+	viper.SetDefault("SERPER_API_KEY", "")
+	viper.SetDefault("TAVILY_API_KEY", "")
+	viper.SetDefault("SEARCH_PROVIDER", "auto") // auto, brave, serper, tavily, duckduckgo
+
 	viper.SetDefault("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:3000,app://localhost")
 
 	// Read from environment variables first (takes priority in production)
@@ -247,4 +261,39 @@ func (c *Config) LocalModelsAllowed() bool {
 	}
 	// In development, always allow local models
 	return true
+}
+
+// GetSearchProvider returns the active search provider
+// Priority when "auto": Brave > Serper > Tavily > DuckDuckGo
+func (c *Config) GetSearchProvider() string {
+	if c.SearchProvider != "" && c.SearchProvider != "auto" {
+		return c.SearchProvider
+	}
+
+	// Auto-select based on available API keys
+	if c.BraveSearchAPIKey != "" {
+		return "brave"
+	}
+	if c.SerperAPIKey != "" {
+		return "serper"
+	}
+	if c.TavilyAPIKey != "" {
+		return "tavily"
+	}
+	return "duckduckgo"
+}
+
+// HasBraveSearch returns true if Brave Search API is configured
+func (c *Config) HasBraveSearch() bool {
+	return c.BraveSearchAPIKey != ""
+}
+
+// HasSerper returns true if Serper API is configured
+func (c *Config) HasSerper() bool {
+	return c.SerperAPIKey != ""
+}
+
+// HasTavily returns true if Tavily API is configured
+func (c *Config) HasTavily() bool {
+	return c.TavilyAPIKey != ""
 }
