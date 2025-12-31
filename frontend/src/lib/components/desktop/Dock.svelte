@@ -4,6 +4,39 @@
 	import { api, apiClient } from '$lib/api';
 
 	const iconStyle = $derived($desktopSettings.iconStyle);
+	const iconLibrary = $derived($desktopSettings.iconLibrary);
+
+	// Different libraries have EXTREMELY DRAMATIC different styles
+	const libraryStrokeWidth = $derived({
+		lucide: 2,        // Lucide - balanced, clean
+		phosphor: 3,      // Phosphor - VERY bold, thick
+		tabler: 1.2,      // Tabler - very thin, hairline
+		heroicons: 2.5    // Heroicons - solid, medium-bold
+	}[iconLibrary] || 2);
+
+	const libraryLineCap = $derived<'round' | 'square' | 'butt'>(
+		iconLibrary === 'tabler' ? 'square' : 'round'
+	);
+
+	const libraryLineJoin = $derived<'round' | 'miter' | 'bevel'>(
+		iconLibrary === 'tabler' ? 'miter' : 'round'
+	);
+
+	// Icon scale varies EXTREMELY by library
+	const libraryIconScale = $derived({
+		lucide: 1,
+		phosphor: 1.25,   // Phosphor icons 25% larger
+		tabler: 0.85,     // Tabler icons 15% smaller
+		heroicons: 1.15   // Heroicons 15% larger
+	}[iconLibrary] || 1);
+
+	// Different SVG filters per library for OBVIOUS visual differences
+	const librarySvgFilter = $derived({
+		lucide: 'none',
+		phosphor: 'drop-shadow(0 2px 3px rgba(0,0,0,0.25))',    // Noticeable shadow
+		tabler: 'saturate(0.7)',                                  // Desaturated look
+		heroicons: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2)) saturate(1.2)'  // Shadow + vivid
+	}[iconLibrary] || 'none');
 
 	// Check if any windows are open (for collapsed chat bubble state)
 	const hasOpenWindows = $derived($windowStore.windows.filter(w => !w.minimized).length > 0);
@@ -1416,13 +1449,17 @@
 							</svg>
 						{:else}
 							<svg
-								class="dock-icon-svg"
+								class="dock-icon-svg library-{iconLibrary}"
 								viewBox="0 0 24 24"
 								fill="none"
 								stroke={icon.color}
-								stroke-width="1.5"
-								stroke-linecap="round"
-								stroke-linejoin="round"
+								stroke-width={libraryStrokeWidth}
+								stroke-linecap={libraryLineCap}
+								stroke-linejoin={libraryLineJoin}
+								style="
+									transform: scale({libraryIconScale});
+									filter: {librarySvgFilter};
+								"
 							>
 								<path d={icon.path} />
 							</svg>
@@ -2913,6 +2950,93 @@
 			0 3px 0 #333,
 			0 -3px 0 #333;
 		filter: brightness(1.1);
+	}
+
+	/* Frosted - clean frosted glass */
+	.dock-item.style-frosted .dock-icon {
+		background: rgba(255, 255, 255, 0.6) !important;
+		backdrop-filter: blur(12px) saturate(180%);
+		-webkit-backdrop-filter: blur(12px) saturate(180%);
+		border-radius: 14px;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+	}
+
+	.dock-item.style-frosted:hover .dock-icon {
+		background: rgba(255, 255, 255, 0.75) !important;
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+	}
+
+	/* Terminal */
+	.dock-item.style-terminal .dock-icon {
+		background: #0a0a0a !important;
+		border-radius: 4px;
+		border: 1px solid #00ff00;
+		box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+	}
+
+	.dock-item.style-terminal:hover .dock-icon {
+		box-shadow: 0 0 12px rgba(0, 255, 0, 0.5);
+	}
+
+	.dock-item.style-terminal .dock-icon-svg {
+		color: #00ff00 !important;
+		filter: drop-shadow(0 0 2px #00ff00);
+	}
+
+	/* Glow - soft colored glow */
+	.dock-item.style-glow .dock-icon {
+		border-radius: 14px;
+		box-shadow:
+			0 0 15px currentColor,
+			0 0 30px rgba(100, 100, 255, 0.3);
+		border: none;
+	}
+
+	.dock-item.style-glow:hover .dock-icon {
+		box-shadow:
+			0 0 20px currentColor,
+			0 0 40px rgba(100, 100, 255, 0.4);
+		transform: scale(1.02);
+	}
+
+	.dock-item.style-glow .dock-icon-svg {
+		filter: drop-shadow(0 0 3px currentColor);
+	}
+
+	/* Brutalist */
+	.dock-item.style-brutalist .dock-icon {
+		background: #fff !important;
+		border-radius: 0;
+		border: 3px solid #000;
+		box-shadow: 4px 4px 0 #000;
+	}
+
+	.dock-item.style-brutalist:hover .dock-icon {
+		transform: translate(-2px, -2px);
+		box-shadow: 6px 6px 0 #000;
+	}
+
+	.dock-item.style-brutalist .dock-icon-svg {
+		color: #000 !important;
+	}
+
+	/* Depth - layered 3D shadows */
+	.dock-item.style-depth .dock-icon {
+		border-radius: 12px;
+		border: none;
+		box-shadow:
+			0 2px 4px rgba(0, 0, 0, 0.1),
+			0 4px 8px rgba(0, 0, 0, 0.1),
+			0 8px 16px rgba(0, 0, 0, 0.08);
+	}
+
+	.dock-item.style-depth:hover .dock-icon {
+		transform: translateY(-3px);
+		box-shadow:
+			0 4px 8px rgba(0, 0, 0, 0.12),
+			0 8px 16px rgba(0, 0, 0, 0.1),
+			0 16px 32px rgba(0, 0, 0, 0.08);
 	}
 
 	/* ===== DARK MODE - MODERN APPLE STYLE ===== */

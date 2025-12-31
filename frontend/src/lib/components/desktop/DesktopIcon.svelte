@@ -1,6 +1,8 @@
 <script lang="ts">
-	import { desktopSettings, type IconStyle } from '$lib/stores/desktopStore';
-	import { windowStore } from '$lib/stores/windowStore';
+	import { desktopSettings, type IconStyle, type IconLibrary } from '$lib/stores/desktopStore';
+	import { windowStore, type CustomIconConfig } from '$lib/stores/windowStore';
+	import { soundStore } from '$lib/stores/soundStore';
+	import * as LucideIcons from 'lucide-svelte';
 
 	interface Props {
 		id: string;
@@ -13,11 +15,13 @@
 		iconType?: 'app' | 'folder';
 		folderId?: string;
 		folderColor?: string;
+		customIcon?: CustomIconConfig;
 		onSelect?: (id: string, additive: boolean) => void;
 		onOpen?: (module: string) => void;
 		onDragStart?: (id: string) => void;
 		onDragMove?: (id: string, newX: number, newY: number) => void;
 		onDragEnd?: (id: string, finalX: number, finalY: number) => void;
+		onCustomizeIcon?: (id: string) => void;
 	}
 
 	let {
@@ -31,12 +35,25 @@
 		iconType = 'app',
 		folderId,
 		folderColor = '#3B82F6',
+		customIcon,
 		onSelect,
 		onOpen,
 		onDragStart,
 		onDragMove,
-		onDragEnd
+		onDragEnd,
+		onCustomizeIcon
 	}: Props = $props();
+
+	// Context menu state
+	let showContextMenu = $state(false);
+	let contextMenuX = $state(0);
+	let contextMenuY = $state(0);
+
+	// Get Lucide icon component by name
+	function getLucideIcon(name: string): typeof import('lucide-svelte').Home | undefined {
+		const icons = LucideIcons as unknown as Record<string, typeof import('lucide-svelte').Home>;
+		return icons[name];
+	}
 
 	// Track if another icon is being dragged over this folder
 	let isDragOver = $state(false);
@@ -44,6 +61,48 @@
 	const iconStyle = $derived($desktopSettings.iconStyle);
 	const iconSize = $derived($desktopSettings.iconSize);
 	const showIconLabels = $derived($desktopSettings.showIconLabels);
+	const iconLibrary = $derived($desktopSettings.iconLibrary);
+
+	// Different libraries have EXTREMELY DRAMATIC different styles
+	const libraryStrokeWidth = $derived({
+		lucide: 2,        // Lucide - balanced, clean
+		phosphor: 3,      // Phosphor - VERY bold, thick
+		tabler: 1.2,      // Tabler - very thin, hairline
+		heroicons: 2.5    // Heroicons - solid, medium-bold
+	}[iconLibrary] || 2);
+
+	// Some libraries have rounder vs sharper corners
+	const libraryLineCap = $derived<'round' | 'square' | 'butt'>(
+		iconLibrary === 'tabler' ? 'square' : iconLibrary === 'phosphor' ? 'round' : 'round'
+	);
+
+	const libraryLineJoin = $derived<'round' | 'miter' | 'bevel'>(
+		iconLibrary === 'tabler' ? 'miter' : 'round'
+	);
+
+	// Icon scale varies EXTREMELY by library
+	const libraryIconScale = $derived({
+		lucide: 1,
+		phosphor: 1.25,   // Phosphor icons 25% larger
+		tabler: 0.85,     // Tabler icons 15% smaller
+		heroicons: 1.15   // Heroicons 15% larger
+	}[iconLibrary] || 1);
+
+	// Different icon opacity per library
+	const libraryOpacity = $derived({
+		lucide: 1,        // Normal
+		phosphor: 1,      // Full
+		tabler: 0.7,      // More muted/faded
+		heroicons: 1      // Full
+	}[iconLibrary] || 1);
+
+	// Different SVG filters per library for OBVIOUS visual differences
+	const librarySvgFilter = $derived({
+		lucide: 'none',
+		phosphor: 'drop-shadow(0 2px 3px rgba(0,0,0,0.25))',    // Noticeable shadow
+		tabler: 'saturate(0.7)',                                  // Desaturated look
+		heroicons: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2)) saturate(1.2)'  // Shadow + vivid
+	}[iconLibrary] || 'none');
 
 	// Calculate dimensions based on icon size - wider to accommodate labels
 	const containerWidth = $derived(Math.max(iconSize + 36, 90));
@@ -108,6 +167,9 @@
 	function handleClick(event: MouseEvent) {
 		clickCount++;
 
+		// Play click sound
+		soundStore.playSound('click');
+
 		if (clickCount === 1) {
 			// Single click - select
 			onSelect?.(id, event.metaKey || event.ctrlKey);
@@ -124,6 +186,40 @@
 				onOpen?.(module);
 			}
 		}
+	}
+
+	// Context menu handlers
+	function handleContextMenu(event: MouseEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+
+		// Position context menu
+		contextMenuX = event.clientX;
+		contextMenuY = event.clientY;
+		showContextMenu = true;
+
+		// Select this icon
+		onSelect?.(id, false);
+
+		// Close menu when clicking elsewhere
+		document.addEventListener('click', closeContextMenu);
+		document.addEventListener('contextmenu', closeContextMenu);
+	}
+
+	function closeContextMenu() {
+		showContextMenu = false;
+		document.removeEventListener('click', closeContextMenu);
+		document.removeEventListener('contextmenu', closeContextMenu);
+	}
+
+	function handleCustomizeIcon() {
+		closeContextMenu();
+		onCustomizeIcon?.(id);
+	}
+
+	function handleResetIcon() {
+		closeContextMenu();
+		windowStore.resetIconCustomization(id);
 	}
 
 	// Folder drop handlers
@@ -270,6 +366,7 @@
 	class:is-folder={iconType === 'folder'}
 	style="width: {containerWidth}px;"
 	onmousedown={handleMouseDown}
+	oncontextmenu={handleContextMenu}
 	ondragstart={handleNativeDragStart}
 	ondragover={handleFolderDragOver}
 	ondragleave={handleFolderDragLeave}
@@ -286,13 +383,32 @@
 			width: {imageSize}px;
 			height: {imageSize}px;
 			border-radius: {Math.max(8, imageSize * 0.2)}px;
-			background-color: {iconStyle === 'minimal' ? 'transparent' : effectiveIconData().bgColor};
-			{iconStyle === 'outlined' ? `border: 2px solid ${effectiveIconData().color}; background-color: transparent;` : ''}
-			{iconStyle === 'neon' ? `color: ${effectiveIconData().color};` : ''}
-			{iconStyle === 'gradient' ? `--gradient-start: ${effectiveIconData().color}; --gradient-end: ${effectiveIconData().bgColor};` : ''}
+			background-color: {iconStyle === 'minimal' ? 'transparent' : (customIcon?.backgroundColor || effectiveIconData().bgColor)};
+			{iconStyle === 'outlined' ? `border: 2px solid ${customIcon?.foregroundColor || effectiveIconData().color}; background-color: transparent;` : ''}
+			{iconStyle === 'neon' ? `color: ${customIcon?.foregroundColor || effectiveIconData().color};` : ''}
+			{iconStyle === 'gradient' ? `--gradient-start: ${customIcon?.foregroundColor || effectiveIconData().color}; --gradient-end: ${customIcon?.backgroundColor || effectiveIconData().bgColor};` : ''}
 		"
 	>
-		{#if isTerminal}
+		{#if customIcon?.type === 'lucide' && customIcon.lucideName}
+			<!-- Custom Lucide icon -->
+			{@const LucideIcon = getLucideIcon(customIcon.lucideName)}
+			{#if LucideIcon}
+				<svelte:component
+					this={LucideIcon}
+					size={svgSize}
+					color={customIcon.foregroundColor || effectiveIconData().color}
+					strokeWidth={libraryStrokeWidth}
+				/>
+			{/if}
+		{:else if customIcon?.type === 'custom' && customIcon.customSvg}
+			<!-- Custom SVG -->
+			<div
+				class="custom-svg-container"
+				style="width: {svgSize}px; height: {svgSize}px; color: {customIcon.foregroundColor || effectiveIconData().color};"
+			>
+				{@html customIcon.customSvg}
+			</div>
+		{:else if isTerminal}
 			<div class="terminal-icon">
 				<span class="terminal-prompt" style="font-size: {svgSize * 0.65}px;">&gt;_</span>
 			</div>
@@ -309,14 +425,19 @@
 			</svg>
 		{:else}
 			<svg
-				class="icon-svg"
+				class="icon-svg library-{iconLibrary}"
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke={effectiveIconData().color}
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				style="width: {svgSize}px; height: {svgSize}px;"
+				stroke-width={libraryStrokeWidth}
+				stroke-linecap={libraryLineCap}
+				stroke-linejoin={libraryLineJoin}
+				style="
+					width: {svgSize * libraryIconScale}px;
+					height: {svgSize * libraryIconScale}px;
+					opacity: {libraryOpacity};
+					filter: {librarySvgFilter};
+				"
 			>
 				<path d={effectiveIconData().path} />
 			</svg>
@@ -326,6 +447,40 @@
 		<span class="icon-label" class:selected style="font-size: {labelSize}px; max-width: {containerWidth - 8}px;">{label}</span>
 	{/if}
 </div>
+
+<!-- Context Menu -->
+{#if showContextMenu}
+	<div
+		class="context-menu"
+		style="left: {contextMenuX}px; top: {contextMenuY}px;"
+	>
+		<button class="context-menu-item" onclick={handleCustomizeIcon}>
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<circle cx="12" cy="12" r="3"/>
+				<path d="M12 1v6m0 6v10M1 12h6m6 0h10"/>
+			</svg>
+			Change Icon...
+		</button>
+		{#if customIcon}
+			<button class="context-menu-item" onclick={handleResetIcon}>
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+					<path d="M3 3v5h5"/>
+				</svg>
+				Reset to Default
+			</button>
+		{/if}
+		<div class="context-menu-divider"></div>
+		<button class="context-menu-item" onclick={() => { closeContextMenu(); onOpen?.(module); }}>
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+				<polyline points="15 3 21 3 21 9"/>
+				<line x1="10" y1="14" x2="21" y2="3"/>
+			</svg>
+			Open
+		</button>
+	</div>
+{/if}
 
 <style>
 	.desktop-icon {
@@ -403,6 +558,30 @@
 	.icon-svg {
 		width: 28px;
 		height: 28px;
+		transition: all 0.2s ease;
+	}
+
+	/* Icon Library-specific styles for DRAMATIC visual differences */
+	.icon-svg.library-lucide {
+		/* Lucide: Clean, balanced - default look */
+	}
+
+	.icon-svg.library-phosphor {
+		/* Phosphor: Bold, duotone-inspired look */
+		stroke-dasharray: none;
+		stroke-opacity: 1;
+	}
+
+	.icon-svg.library-tabler {
+		/* Tabler: Thin, minimal, geometric */
+		stroke-dasharray: none;
+		stroke-opacity: 0.8;
+	}
+
+	.icon-svg.library-heroicons {
+		/* Heroicons: Solid, professional */
+		stroke-dasharray: none;
+		stroke-opacity: 1;
 	}
 
 	.icon-label {
@@ -737,6 +916,136 @@
 		text-transform: uppercase;
 	}
 
+	/* Frosted - clean frosted glass with blur */
+	.desktop-icon.style-frosted .icon-image {
+		background: rgba(255, 255, 255, 0.6) !important;
+		backdrop-filter: blur(12px) saturate(180%);
+		-webkit-backdrop-filter: blur(12px) saturate(180%);
+		border-radius: 14px;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+	}
+
+	.desktop-icon.style-frosted:hover .icon-image {
+		background: rgba(255, 255, 255, 0.75) !important;
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+	}
+
+	.desktop-icon.style-frosted.selected .icon-image {
+		border-color: #0066FF;
+		box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.3), 0 6px 20px rgba(0, 0, 0, 0.12);
+	}
+
+	/* Terminal - green on black hacker aesthetic */
+	.desktop-icon.style-terminal .icon-image {
+		background: #0a0a0a !important;
+		border-radius: 4px;
+		border: 1px solid #00ff00;
+		box-shadow: 0 0 10px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.05);
+	}
+
+	.desktop-icon.style-terminal:hover .icon-image {
+		box-shadow: 0 0 15px rgba(0, 255, 0, 0.5), inset 0 0 30px rgba(0, 255, 0, 0.1);
+		border-color: #00ff00;
+	}
+
+	.desktop-icon.style-terminal.selected .icon-image {
+		box-shadow: 0 0 20px rgba(0, 255, 0, 0.7), 0 0 40px rgba(0, 255, 0, 0.3);
+	}
+
+	.desktop-icon.style-terminal .icon-svg {
+		color: #00ff00 !important;
+		filter: drop-shadow(0 0 2px #00ff00);
+	}
+
+	.desktop-icon.style-terminal .icon-label {
+		font-family: 'Courier New', monospace;
+		color: #00ff00;
+		text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+	}
+
+	/* Glow - soft colored glow aura effect */
+	.desktop-icon.style-glow .icon-image {
+		border-radius: 14px;
+		box-shadow:
+			0 0 20px currentColor,
+			0 0 40px rgba(100, 100, 255, 0.3);
+		border: none;
+	}
+
+	.desktop-icon.style-glow:hover .icon-image {
+		box-shadow:
+			0 0 25px currentColor,
+			0 0 50px rgba(100, 100, 255, 0.4);
+		transform: scale(1.02);
+	}
+
+	.desktop-icon.style-glow.selected .icon-image {
+		box-shadow:
+			0 0 30px #0066FF,
+			0 0 60px rgba(0, 102, 255, 0.5);
+	}
+
+	.desktop-icon.style-glow .icon-svg {
+		filter: drop-shadow(0 0 4px currentColor);
+	}
+
+	/* Brutalist - bold raw design with thick borders */
+	.desktop-icon.style-brutalist .icon-image {
+		background: #fff !important;
+		border-radius: 0;
+		border: 4px solid #000;
+		box-shadow: 6px 6px 0 #000;
+	}
+
+	.desktop-icon.style-brutalist:hover .icon-image {
+		transform: translate(-2px, -2px);
+		box-shadow: 8px 8px 0 #000;
+	}
+
+	.desktop-icon.style-brutalist.selected .icon-image {
+		background: #ff0 !important;
+		box-shadow: 4px 4px 0 #000;
+	}
+
+	.desktop-icon.style-brutalist .icon-svg {
+		color: #000 !important;
+	}
+
+	.desktop-icon.style-brutalist .icon-label {
+		font-weight: 900;
+		text-transform: uppercase;
+		letter-spacing: 1px;
+	}
+
+	/* Depth - layered 3D depth shadows */
+	.desktop-icon.style-depth .icon-image {
+		border-radius: 12px;
+		border: none;
+		box-shadow:
+			0 2px 4px rgba(0, 0, 0, 0.1),
+			0 4px 8px rgba(0, 0, 0, 0.1),
+			0 8px 16px rgba(0, 0, 0, 0.1),
+			0 16px 32px rgba(0, 0, 0, 0.08);
+	}
+
+	.desktop-icon.style-depth:hover .icon-image {
+		transform: translateY(-4px);
+		box-shadow:
+			0 4px 8px rgba(0, 0, 0, 0.12),
+			0 8px 16px rgba(0, 0, 0, 0.12),
+			0 16px 32px rgba(0, 0, 0, 0.1),
+			0 24px 48px rgba(0, 0, 0, 0.08);
+	}
+
+	.desktop-icon.style-depth.selected .icon-image {
+		box-shadow:
+			0 2px 4px rgba(0, 102, 255, 0.2),
+			0 4px 8px rgba(0, 102, 255, 0.15),
+			0 8px 16px rgba(0, 102, 255, 0.1),
+			0 16px 32px rgba(0, 102, 255, 0.08);
+	}
+
 	/* Dark background mode - light text */
 	.desktop-icon.dark-bg .icon-label {
 		color: #FFFFFF;
@@ -776,5 +1085,71 @@
 	.desktop-icon.dark-bg.style-retro .icon-label {
 		color: #00FF00;
 		text-shadow: 0 0 10px rgba(0, 255, 0, 0.5), 1px 1px 0 rgba(0, 0, 0, 0.5);
+	}
+
+	/* Custom SVG container */
+	.custom-svg-container {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.custom-svg-container :global(svg) {
+		width: 100%;
+		height: 100%;
+	}
+
+	/* Context Menu */
+	.context-menu {
+		position: fixed;
+		z-index: 9999;
+		background: white;
+		border-radius: 8px;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+		padding: 4px;
+		min-width: 180px;
+		animation: contextMenuIn 0.15s ease-out;
+	}
+
+	@keyframes contextMenuIn {
+		from {
+			opacity: 0;
+			transform: scale(0.95);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	.context-menu-item {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: 100%;
+		padding: 8px 12px;
+		background: none;
+		border: none;
+		border-radius: 6px;
+		font-size: 13px;
+		color: #374151;
+		cursor: pointer;
+		text-align: left;
+		transition: background 0.1s;
+	}
+
+	.context-menu-item:hover {
+		background: #f3f4f6;
+	}
+
+	.context-menu-item svg {
+		flex-shrink: 0;
+		color: #6b7280;
+	}
+
+	.context-menu-divider {
+		height: 1px;
+		background: #e5e7eb;
+		margin: 4px 8px;
 	}
 </style>

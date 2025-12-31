@@ -1,6 +1,7 @@
 // Window Store - State management for the desktop environment
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
+import { soundStore } from './soundStore';
 
 export type SnapZone = 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;
 
@@ -21,6 +22,14 @@ export interface WindowState {
 	data?: Record<string, unknown>; // Custom data passed when opening window
 }
 
+export interface CustomIconConfig {
+	type: 'lucide' | 'custom';
+	lucideName?: string;        // e.g., 'Home', 'Settings' - name from lucide-svelte
+	customSvg?: string;         // Base64 or raw SVG string for custom icons
+	foregroundColor?: string;   // Override icon color
+	backgroundColor?: string;   // Override background color
+}
+
 export interface DesktopIcon {
 	id: string;
 	module: string;
@@ -30,6 +39,7 @@ export interface DesktopIcon {
 	type?: 'app' | 'folder';
 	folderId?: string; // If icon is inside a folder
 	folderColor?: string; // For folder icons
+	customIcon?: CustomIconConfig; // Per-icon customization
 }
 
 export interface DesktopFolder {
@@ -282,6 +292,9 @@ function createWindowStore() {
 					data: windowData,
 				};
 
+				// Play window open sound
+				soundStore.playSound('windowOpen');
+
 				return {
 					...state,
 					windows: [...state.windows, newWindow],
@@ -293,6 +306,8 @@ function createWindowStore() {
 
 		// Close a window
 		closeWindow: (windowId: string) => {
+			// Play window close sound
+			soundStore.playSound('windowClose');
 			update(state => {
 				const newWindows = state.windows.filter(w => w.id !== windowId);
 				const newOrder = state.windowOrder.filter(id => id !== windowId);
@@ -311,6 +326,8 @@ function createWindowStore() {
 
 		// Minimize a window
 		minimizeWindow: (windowId: string) => {
+			// Play minimize sound
+			soundStore.playSound('windowMinimize');
 			update(state => {
 				const newOrder = state.windowOrder.filter(id => id !== windowId);
 				const newFocused = state.focusedWindowId === windowId
@@ -342,6 +359,8 @@ function createWindowStore() {
 
 		// Toggle maximize state
 		toggleMaximize: (windowId: string) => {
+			// Play maximize sound
+			soundStore.playSound('windowMaximize');
 			update(state => ({
 				...state,
 				windows: state.windows.map(w => {
@@ -862,6 +881,38 @@ function createWindowStore() {
 					desktopIcons: state.desktopIcons.map(icon =>
 						icon.id === iconId
 							? { ...icon, folderId: undefined }
+							: icon
+					),
+				};
+				saveSettings(newState);
+				return newState;
+			});
+		},
+
+		// Update icon customization (Lucide icon or custom SVG)
+		updateIconCustomization: (iconId: string, customIcon: CustomIconConfig | undefined) => {
+			update(state => {
+				const newState = {
+					...state,
+					desktopIcons: state.desktopIcons.map(icon =>
+						icon.id === iconId
+							? { ...icon, customIcon }
+							: icon
+					),
+				};
+				saveSettings(newState);
+				return newState;
+			});
+		},
+
+		// Reset icon to default appearance
+		resetIconCustomization: (iconId: string) => {
+			update(state => {
+				const newState = {
+					...state,
+					desktopIcons: state.desktopIcons.map(icon =>
+						icon.id === iconId
+							? { ...icon, customIcon: undefined }
 							: icon
 					),
 				};

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { windowStore, type WindowState, type SnapZone } from '$lib/stores/windowStore';
+	import { desktopSettings } from '$lib/stores/desktopStore';
+	import { onMount } from 'svelte';
 
 	interface Props {
 		window: WindowState;
@@ -20,6 +22,37 @@
 		children,
 		onsnapZoneChange
 	}: Props = $props();
+
+	// Animation state
+	let isAnimatingIn = $state(true);
+	let animationClass = $state('');
+
+	// Get animation settings
+	const openAnimation = $derived($desktopSettings.windowAnimations.openAnimation);
+	const animationSpeed = $derived($desktopSettings.windowAnimations.speed);
+
+	// Animation speed mapping
+	const speedDurations = {
+		fast: '150ms',
+		normal: '250ms',
+		slow: '400ms'
+	};
+
+	onMount(() => {
+		// Apply opening animation
+		if (openAnimation !== 'none') {
+			animationClass = `anim-${openAnimation}-in`;
+			// Remove animation class after it completes
+			const duration = speedDurations[animationSpeed];
+			const ms = parseInt(duration);
+			setTimeout(() => {
+				isAnimatingIn = false;
+				animationClass = '';
+			}, ms + 50);
+		} else {
+			isAnimatingIn = false;
+		}
+	});
 
 	let windowElement: HTMLDivElement;
 	let isDragging = $state(false);
@@ -209,7 +242,7 @@
 
 <div
 	bind:this={windowElement}
-	class="window"
+	class="window {animationClass}"
 	class:focused
 	class:maximized={window.maximized}
 	class:dragging={isDragging}
@@ -220,6 +253,7 @@
 		width: {bounds().width}px;
 		height: {bounds().height}px;
 		z-index: {zIndex};
+		--anim-duration: {speedDurations[animationSpeed]};
 	"
 	onmousedown={handleWindowMouseDown}
 	onclick={handleWindowClick}
@@ -361,6 +395,224 @@
 
 	.window.dragging {
 		opacity: 0.95;
+	}
+
+	/* ===== WINDOW OPEN ANIMATIONS ===== */
+
+	/* Fade animation */
+	.window.anim-fade-in {
+		animation: fadeIn var(--anim-duration, 250ms) ease-out forwards;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	/* Scale animation */
+	.window.anim-scale-in {
+		animation: scaleIn var(--anim-duration, 250ms) ease-out forwards;
+	}
+
+	@keyframes scaleIn {
+		from {
+			opacity: 0;
+			transform: scale(0.8);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	/* Slide animation */
+	.window.anim-slide-in {
+		animation: slideIn var(--anim-duration, 250ms) ease-out forwards;
+	}
+
+	@keyframes slideIn {
+		from {
+			opacity: 0;
+			transform: translateY(30px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	/* Bounce animation */
+	.window.anim-bounce-in {
+		animation: bounceIn var(--anim-duration, 250ms) cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+	}
+
+	@keyframes bounceIn {
+		from {
+			opacity: 0;
+			transform: scale(0.3);
+		}
+		50% {
+			transform: scale(1.05);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	/* Zoom animation - quick zoom burst */
+	.window.anim-zoom-in {
+		animation: zoomIn var(--anim-duration, 250ms) ease-out forwards;
+	}
+
+	@keyframes zoomIn {
+		from {
+			opacity: 0;
+			transform: scale(1.5);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	/* Flip animation - 3D card flip */
+	.window.anim-flip-in {
+		animation: flipIn var(--anim-duration, 250ms) ease-out forwards;
+		perspective: 1000px;
+	}
+
+	@keyframes flipIn {
+		from {
+			opacity: 0;
+			transform: rotateY(-90deg) scale(0.8);
+		}
+		to {
+			opacity: 1;
+			transform: rotateY(0) scale(1);
+		}
+	}
+
+	/* Elastic animation - stretchy rubber band */
+	.window.anim-elastic-in {
+		animation: elasticIn calc(var(--anim-duration, 250ms) * 1.5) cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+	}
+
+	@keyframes elasticIn {
+		0% {
+			opacity: 0;
+			transform: scale(0.3) translateY(-20px);
+		}
+		40% {
+			transform: scale(1.1) translateY(5px);
+		}
+		60% {
+			transform: scale(0.95) translateY(-2px);
+		}
+		80% {
+			transform: scale(1.02);
+		}
+		100% {
+			opacity: 1;
+			transform: scale(1) translateY(0);
+		}
+	}
+
+	/* Glitch animation - digital glitch effect */
+	.window.anim-glitch-in {
+		animation: glitchIn var(--anim-duration, 250ms) steps(1) forwards;
+	}
+
+	@keyframes glitchIn {
+		0% {
+			opacity: 0;
+			transform: translate(-5px, 5px);
+			filter: hue-rotate(90deg);
+		}
+		20% {
+			opacity: 0.7;
+			transform: translate(5px, -3px);
+			filter: hue-rotate(-90deg);
+		}
+		40% {
+			opacity: 0.5;
+			transform: translate(-3px, 2px);
+			filter: hue-rotate(45deg);
+		}
+		60% {
+			opacity: 0.8;
+			transform: translate(2px, -2px);
+			filter: none;
+		}
+		80% {
+			opacity: 0.9;
+			transform: translate(-1px, 1px);
+		}
+		100% {
+			opacity: 1;
+			transform: translate(0, 0);
+			filter: none;
+		}
+	}
+
+	/* Blur animation - focus blur transition */
+	.window.anim-blur-in {
+		animation: blurIn var(--anim-duration, 250ms) ease-out forwards;
+	}
+
+	@keyframes blurIn {
+		from {
+			opacity: 0;
+			filter: blur(20px);
+			transform: scale(1.1);
+		}
+		to {
+			opacity: 1;
+			filter: blur(0);
+			transform: scale(1);
+		}
+	}
+
+	/* Pop animation - quick pop */
+	.window.anim-pop-in {
+		animation: popIn var(--anim-duration, 250ms) cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	}
+
+	@keyframes popIn {
+		from {
+			opacity: 0;
+			transform: scale(0);
+		}
+		70% {
+			transform: scale(1.1);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	/* Drop animation - drop from above */
+	.window.anim-drop-in {
+		animation: dropIn var(--anim-duration, 250ms) cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	}
+
+	@keyframes dropIn {
+		from {
+			opacity: 0;
+			transform: translateY(-100px) scale(0.9);
+		}
+		60% {
+			transform: translateY(10px) scale(1.02);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
 	}
 
 	.title-bar {

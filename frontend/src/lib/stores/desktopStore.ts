@@ -526,7 +526,18 @@ export const desktopBackgrounds: DesktopBackground[] = [
 	},
 ];
 
-export type IconStyle = 'default' | 'minimal' | 'rounded' | 'square' | 'macos' | 'macos-classic' | 'outlined' | 'retro' | 'win95' | 'glassmorphism' | 'neon' | 'flat' | 'gradient' | 'paper' | 'pixel';
+export type IconStyle = 'default' | 'minimal' | 'rounded' | 'square' | 'macos' | 'macos-classic' | 'outlined' | 'retro' | 'win95' | 'glassmorphism' | 'neon' | 'flat' | 'gradient' | 'paper' | 'pixel' | 'frosted' | 'terminal' | 'glow' | 'brutalist' | 'depth';
+
+export type IconLibrary = 'lucide' | 'phosphor' | 'tabler' | 'heroicons';
+
+// Icon Library actually controls line weight/rendering style, not different icon sets
+// We only have Lucide icons, but these presets change how they're rendered
+export const iconLibraries: { id: IconLibrary; name: string; description: string; preview: string }[] = [
+	{ id: 'lucide', name: 'Regular', description: 'Balanced 2px strokes', preview: 'stroke-[2px]' },
+	{ id: 'phosphor', name: 'Bold', description: 'Thick 3px strokes with shadow', preview: 'stroke-[3px] + shadow' },
+	{ id: 'tabler', name: 'Light', description: 'Thin 1.2px strokes, subtle', preview: 'stroke-[1.2px]' },
+	{ id: 'heroicons', name: 'Heavy', description: 'Solid 2.5px strokes', preview: 'stroke-[2.5px]' },
+];
 
 export const iconStyles: { id: IconStyle; name: string; description: string }[] = [
 	{ id: 'default', name: 'Default', description: 'Rounded corners with colored backgrounds' },
@@ -544,6 +555,11 @@ export const iconStyles: { id: IconStyle; name: string; description: string }[] 
 	{ id: 'gradient', name: 'Gradient', description: 'Gradient background style' },
 	{ id: 'paper', name: 'Paper', description: 'Paper card style with soft shadows' },
 	{ id: 'pixel', name: 'Pixel', description: '8-bit pixel art style' },
+	{ id: 'frosted', name: 'Frosted', description: 'Clean frosted glass with blur' },
+	{ id: 'terminal', name: 'Terminal', description: 'Green on black hacker aesthetic' },
+	{ id: 'glow', name: 'Glow', description: 'Soft colored glow aura effect' },
+	{ id: 'brutalist', name: 'Brutalist', description: 'Bold raw design with thick borders' },
+	{ id: 'depth', name: 'Depth', description: 'Layered 3D depth shadows' },
 ];
 
 export type BackgroundFit = 'cover' | 'contain' | 'fill' | 'center';
@@ -555,16 +571,102 @@ export const backgroundFitOptions: { id: BackgroundFit; name: string; descriptio
 	{ id: 'center', name: 'Center', description: 'Original size, centered' },
 ];
 
+// Animated background types
+export type AnimatedBackgroundEffect =
+	// Basic
+	'none' | 'particles' | 'gradient' | 'pulse' | 'ripples' | 'dots' | 'floatingShapes' | 'smoke' |
+	// Nature
+	'aurora' | 'fireflies' | 'rain' | 'snow' | 'nebula' | 'waves' | 'bubbles' |
+	// Tech
+	'starfield' | 'matrix' | 'circuit' | 'confetti' | 'geometric' | 'scanlines' | 'grid' | 'warp' | 'hexgrid' | 'binary';
+export type AnimatedBackgroundIntensity = 'subtle' | 'medium' | 'high';
+
+export interface AnimatedBackgroundSettings {
+	effect: AnimatedBackgroundEffect;
+	intensity: AnimatedBackgroundIntensity;
+	colors: string[];
+	speed: number; // 0.5-2
+}
+
+// Boot screen settings
+export type BootAnimation = 'terminal' | 'spinner' | 'progress' | 'pulse' | 'glitch';
+
+export interface BootScreenSettings {
+	logo: {
+		type: 'default' | 'custom';
+		customSvg?: string;
+		color?: string;
+	};
+	animation: BootAnimation;
+	messages: {
+		enabled: boolean;
+		custom: string[];
+	};
+	colors: {
+		background: string;
+		text: string;
+		accent: string;
+	};
+	duration: number; // seconds (1-10)
+}
+
+// Cursor pack settings
+export type CursorPackId = 'system' | 'minimal' | 'retro' | 'modern' | 'custom';
+
+export interface CursorSettings {
+	packId: CursorPackId;
+	customCursors?: {
+		default?: string;
+		pointer?: string;
+		text?: string;
+		grab?: string;
+		loading?: string;
+	};
+}
+
+// Window animation settings - expanded options
+export type WindowAnimationType = 'none' | 'fade' | 'scale' | 'slide' | 'bounce' | 'zoom' | 'flip' | 'elastic' | 'glitch' | 'blur' | 'pop' | 'drop';
+export type AnimationSpeed = 'fast' | 'normal' | 'slow';
+
+export interface WindowAnimationSettings {
+	openAnimation: WindowAnimationType;
+	closeAnimation: WindowAnimationType;
+	minimizeAnimation: WindowAnimationType | 'genie' | 'shrink';
+	speed: AnimationSpeed;
+}
+
+// Window animation descriptions for UI
+export const windowAnimationOptions: { id: WindowAnimationType; name: string; description: string }[] = [
+	{ id: 'none', name: 'None', description: 'No animation' },
+	{ id: 'fade', name: 'Fade', description: 'Simple fade in/out' },
+	{ id: 'scale', name: 'Scale', description: 'Grow from center' },
+	{ id: 'slide', name: 'Slide', description: 'Slide from edge' },
+	{ id: 'bounce', name: 'Bounce', description: 'Bouncy spring effect' },
+	{ id: 'zoom', name: 'Zoom', description: 'Quick zoom burst' },
+	{ id: 'flip', name: 'Flip', description: '3D card flip' },
+	{ id: 'elastic', name: 'Elastic', description: 'Stretchy rubber band' },
+	{ id: 'glitch', name: 'Glitch', description: 'Digital glitch effect' },
+	{ id: 'blur', name: 'Blur', description: 'Focus blur transition' },
+	{ id: 'pop', name: 'Pop', description: 'Bubble pop effect' },
+	{ id: 'drop', name: 'Drop', description: 'Drop from above' },
+];
+
 interface DesktopSettings {
 	backgroundId: string;
 	customBackgroundUrl: string | null;
 	backgroundFit: BackgroundFit;
 	showNoise: boolean;
 	iconStyle: IconStyle;
+	iconLibrary: IconLibrary;
 	iconSize: number; // 32-128, default 64
 	showIconLabels: boolean;
 	gridSnap: boolean;
 	companyName: string; // Dynamic company name for loading screen
+	// New customization settings
+	animatedBackground: AnimatedBackgroundSettings;
+	bootScreen: BootScreenSettings;
+	cursor: CursorSettings;
+	windowAnimations: WindowAnimationSettings;
 }
 
 const defaultSettings: DesktopSettings = {
@@ -573,10 +675,34 @@ const defaultSettings: DesktopSettings = {
 	backgroundFit: 'cover',
 	showNoise: true,
 	iconStyle: 'default',
+	iconLibrary: 'lucide',
 	iconSize: 64,
 	showIconLabels: true,
 	gridSnap: true,
-	companyName: 'BUSINESS'
+	companyName: 'BUSINESS',
+	// New customization defaults
+	animatedBackground: {
+		effect: 'none',
+		intensity: 'subtle',
+		colors: ['#667eea', '#764ba2'],
+		speed: 1
+	},
+	bootScreen: {
+		logo: { type: 'default', color: '#333333' },
+		animation: 'terminal',
+		messages: { enabled: true, custom: [] },
+		colors: { background: '#FAFAFA', text: '#333333', accent: '#2563eb' },
+		duration: 3
+	},
+	cursor: {
+		packId: 'system'
+	},
+	windowAnimations: {
+		openAnimation: 'scale',
+		closeAnimation: 'fade',
+		minimizeAnimation: 'scale',
+		speed: 'normal'
+	}
 };
 
 // Icon size presets for the slider
@@ -658,6 +784,16 @@ function createDesktopStore() {
 			});
 		},
 
+		setIconLibrary: (iconLibrary: IconLibrary) => {
+			update(state => {
+				const newState = { ...state, iconLibrary };
+				if (browser) {
+					localStorage.setItem('desktop-settings', JSON.stringify(newState));
+				}
+				return newState;
+			});
+		},
+
 		setIconSize: (iconSize: number) => {
 			// Clamp between 32 and 128
 			const clampedSize = Math.max(32, Math.min(128, iconSize));
@@ -693,6 +829,69 @@ function createDesktopStore() {
 		setCompanyName: (companyName: string) => {
 			update(state => {
 				const newState = { ...state, companyName: companyName.toUpperCase() };
+				if (browser) {
+					localStorage.setItem('desktop-settings', JSON.stringify(newState));
+				}
+				return newState;
+			});
+		},
+
+		// Animated background settings
+		setAnimatedBackground: (settings: Partial<AnimatedBackgroundSettings>) => {
+			update(state => {
+				const newState = {
+					...state,
+					animatedBackground: { ...state.animatedBackground, ...settings }
+				};
+				if (browser) {
+					localStorage.setItem('desktop-settings', JSON.stringify(newState));
+				}
+				return newState;
+			});
+		},
+
+		// Boot screen settings
+		setBootScreen: (settings: Partial<BootScreenSettings>) => {
+			update(state => {
+				const newState = {
+					...state,
+					bootScreen: {
+						...state.bootScreen,
+						...settings,
+						// Deep merge nested objects
+						logo: settings.logo ? { ...state.bootScreen.logo, ...settings.logo } : state.bootScreen.logo,
+						messages: settings.messages ? { ...state.bootScreen.messages, ...settings.messages } : state.bootScreen.messages,
+						colors: settings.colors ? { ...state.bootScreen.colors, ...settings.colors } : state.bootScreen.colors
+					}
+				};
+				if (browser) {
+					localStorage.setItem('desktop-settings', JSON.stringify(newState));
+				}
+				return newState;
+			});
+		},
+
+		// Cursor settings
+		setCursor: (settings: Partial<CursorSettings>) => {
+			update(state => {
+				const newState = {
+					...state,
+					cursor: { ...state.cursor, ...settings }
+				};
+				if (browser) {
+					localStorage.setItem('desktop-settings', JSON.stringify(newState));
+				}
+				return newState;
+			});
+		},
+
+		// Window animation settings
+		setWindowAnimations: (settings: Partial<WindowAnimationSettings>) => {
+			update(state => {
+				const newState = {
+					...state,
+					windowAnimations: { ...state.windowAnimations, ...settings }
+				};
 				if (browser) {
 					localStorage.setItem('desktop-settings', JSON.stringify(newState));
 				}
