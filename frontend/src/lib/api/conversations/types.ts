@@ -14,6 +14,16 @@ export interface Conversation {
   updated_at: string;
   messages: Message[];
   message_count?: number;
+  /** Preview text from the last message */
+  preview?: string;
+  /** Whether this conversation is archived */
+  is_archived?: boolean;
+  /** Type of conversation - regular chat or focus mode session */
+  conversation_type?: 'chat' | 'focus';
+  /** Associated project ID if linked */
+  project_id?: string;
+  /** Whether this conversation is pinned */
+  pinned?: boolean;
 }
 
 export interface SearchResult {

@@ -3,21 +3,25 @@ import { api, type Conversation, type Message } from '$lib/api/conversations';
 
 interface ChatState {
 	conversations: Conversation[];
+	archivedConversations: Conversation[];
 	currentConversation: Conversation | null;
 	messages: Message[];
 	loading: boolean;
 	streaming: boolean;
 	streamingContent: string;
+	showArchived: boolean;
 }
 
 function createChatStore() {
 	const { subscribe, set, update } = writable<ChatState>({
 		conversations: [],
+		archivedConversations: [],
 		currentConversation: null,
 		messages: [],
 		loading: false,
 		streaming: false,
-		streamingContent: ''
+		streamingContent: '',
+		showArchived: false
 	});
 
 	return {
@@ -161,6 +165,89 @@ function createChatStore() {
 				console.error('Search failed:', error);
 				return [];
 			}
+		},
+
+		// Archive functionality (stubbed - TODO: Add backend endpoints)
+		toggleArchiveView() {
+			update((s) => ({ ...s, showArchived: !s.showArchived }));
+		},
+
+		setShowArchived(show: boolean) {
+			update((s) => ({ ...s, showArchived: show }));
+		},
+
+		async archiveConversation(id: string) {
+			// TODO: Replace with actual API call when backend endpoint is ready
+			// await api.archiveConversation(id);
+			console.log('[Chat Store] Archive conversation:', id, '(stubbed - backend not implemented)');
+
+			// Optimistic update: move from conversations to archivedConversations
+			update((s) => {
+				const conversation = s.conversations.find((c) => c.id === id);
+				if (!conversation) return s;
+
+				return {
+					...s,
+					conversations: s.conversations.filter((c) => c.id !== id),
+					archivedConversations: [...s.archivedConversations, { ...conversation, is_archived: true }],
+					currentConversation: s.currentConversation?.id === id ? null : s.currentConversation,
+					messages: s.currentConversation?.id === id ? [] : s.messages
+				};
+			});
+		},
+
+		async unarchiveConversation(id: string) {
+			// TODO: Replace with actual API call when backend endpoint is ready
+			// await api.unarchiveConversation(id);
+			console.log('[Chat Store] Unarchive conversation:', id, '(stubbed - backend not implemented)');
+
+			// Optimistic update: move from archivedConversations to conversations
+			update((s) => {
+				const conversation = s.archivedConversations.find((c) => c.id === id);
+				if (!conversation) return s;
+
+				return {
+					...s,
+					archivedConversations: s.archivedConversations.filter((c) => c.id !== id),
+					conversations: [...s.conversations, { ...conversation, is_archived: false }]
+				};
+			});
+		},
+
+		async loadArchivedConversations() {
+			// TODO: Replace with actual API call when backend endpoint is ready
+			// const archived = await api.getArchivedConversations();
+			console.log('[Chat Store] Load archived conversations (stubbed - backend not implemented)');
+
+			// For now, archived conversations are managed client-side only
+			// They will be lost on page refresh until backend is implemented
+		},
+
+		async pinConversation(id: string) {
+			// TODO: Replace with actual API call when backend endpoint is ready
+			console.log('[Chat Store] Pin conversation:', id, '(stubbed - backend not implemented)');
+
+			update((s) => ({
+				...s,
+				conversations: s.conversations.map((c) =>
+					c.id === id ? { ...c, pinned: !c.pinned } : c
+				)
+			}));
+		},
+
+		async renameConversation(id: string, newTitle: string) {
+			// TODO: Replace with actual API call when backend endpoint is ready
+			console.log('[Chat Store] Rename conversation:', id, 'to', newTitle, '(stubbed - backend not implemented)');
+
+			update((s) => ({
+				...s,
+				conversations: s.conversations.map((c) =>
+					c.id === id ? { ...c, title: newTitle } : c
+				),
+				currentConversation: s.currentConversation?.id === id
+					? { ...s.currentConversation, title: newTitle }
+					: s.currentConversation
+			}));
 		}
 	};
 }
