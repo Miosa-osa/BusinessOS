@@ -527,6 +527,16 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	api.GET("/focus_items/sync", auth, h.createTableSyncHandler("focus_items"))
 	api.GET("/user_settings/sync", auth, h.createTableSyncHandler("user_settings"))
 
+	// Onboarding routes - /api/onboarding
+	// Simplified: only 2 endpoints - profile fetch and AI chat
+	// The AI handles step progression and completion via the chat endpoint
+	onboarding := api.Group("/onboarding")
+	onboarding.Use(auth)
+	{
+		onboarding.GET("/profile", h.GetOnboardingProfile)
+		onboarding.POST("/chat", h.OnboardingChat)
+	}
+
 	// Authentication routes - /api/auth
 	// Apply strict rate limiting to prevent brute force attacks
 	strictRateLimit := middleware.StrictRateLimitMiddleware()

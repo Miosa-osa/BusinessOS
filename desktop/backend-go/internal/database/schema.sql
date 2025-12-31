@@ -991,3 +991,59 @@ CREATE TABLE reasoning_templates (
 
 CREATE INDEX idx_reasoning_templates_user ON reasoning_templates(user_id);
 CREATE INDEX idx_reasoning_templates_default ON reasoning_templates(user_id, is_default) WHERE is_default = true;
+
+-- ===== USER PROFILE & ONBOARDING =====
+
+-- Onboarding use case type
+CREATE TYPE usecasetype AS ENUM ('internal', 'external', 'both');
+
+-- Communication style (derived by AI during onboarding)
+CREATE TYPE communicationstyle AS ENUM ('formal', 'casual', 'technical', 'friendly');
+
+-- Expertise level (derived by AI during onboarding)
+CREATE TYPE expertiselevel AS ENUM ('beginner', 'intermediate', 'advanced', 'expert');
+
+-- User profile with onboarding data
+CREATE TABLE user_profile (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) UNIQUE NOT NULL,
+
+    -- Basic Info (Steps 1-2)
+    display_name VARCHAR(255),
+
+    -- Role & Business Context (Step 3)
+    role VARCHAR(100),
+    business_type VARCHAR(100),
+    business_name VARCHAR(255),
+    industry VARCHAR(100),
+    team_size VARCHAR(50),
+
+    -- Goals & Pain Points (Steps 4-5, AI-gathered)
+    primary_goals JSONB DEFAULT '[]',
+    pain_points JSONB DEFAULT '[]',
+    target_audience TEXT,
+
+    -- Purpose (Step 6)
+    use_case_type usecasetype,
+
+    -- Success Metrics (Step 7)
+    success_definition TEXT,
+
+    -- AI Personalization (derived from conversation)
+    communication_style communicationstyle,
+    expertise_level expertiselevel,
+    focus_areas JSONB DEFAULT '[]',
+
+    -- Onboarding State
+    onboarding_completed BOOLEAN DEFAULT FALSE,
+    onboarding_step INTEGER DEFAULT 0,
+    onboarding_answers JSONB DEFAULT '{}',
+    completed_at TIMESTAMP WITH TIME ZONE,
+
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_profile_user_id ON user_profile(user_id);
+CREATE INDEX idx_user_profile_onboarding ON user_profile(onboarding_completed);

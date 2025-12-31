@@ -17,6 +17,7 @@ export * from './voice-notes';
 export * from './usage';
 export * from './ai';
 export * from './profile';
+export * from './onboarding';
 
 import * as projectsApi from './projects';
 import * as conversationsApi from './conversations';
@@ -35,6 +36,7 @@ import * as voiceNotesApi from './voice-notes';
 import * as usageApi from './usage';
 import * as aiApi from './ai';
 import * as profileApi from './profile';
+import * as onboardingApi from './onboarding';
 import * as base from './base';
 
 // Consolidated `api` object exposing common domain functions for backward compatibility.
@@ -212,6 +214,10 @@ export const api = {
   updateProfile: profileApi.updateProfile,
   uploadProfilePhoto: profileApi.uploadProfilePhoto,
   deleteProfilePhoto: profileApi.deleteProfilePhoto,
+
+  // Onboarding (simplified: just profile + chat)
+  getOnboardingProfile: onboardingApi.getOnboardingProfile,
+  startOnboardingChat: onboardingApi.startOnboardingChat,
 
   // Raw helper to inspect base URL if needed
   apiBase: base.getApiBaseUrl,

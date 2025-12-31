@@ -144,6 +144,50 @@ func (ns NullClienttype) Value() (driver.Value, error) {
 	return string(ns.Clienttype), nil
 }
 
+type Communicationstyle string
+
+const (
+	CommunicationstyleFormal    Communicationstyle = "formal"
+	CommunicationstyleCasual    Communicationstyle = "casual"
+	CommunicationstyleTechnical Communicationstyle = "technical"
+	CommunicationstyleFriendly  Communicationstyle = "friendly"
+)
+
+func (e *Communicationstyle) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Communicationstyle(s)
+	case string:
+		*e = Communicationstyle(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Communicationstyle: %T", src)
+	}
+	return nil
+}
+
+type NullCommunicationstyle struct {
+	Communicationstyle Communicationstyle `json:"communicationstyle"`
+	Valid              bool               `json:"valid"` // Valid is true if Communicationstyle is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullCommunicationstyle) Scan(value interface{}) error {
+	if value == nil {
+		ns.Communicationstyle, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Communicationstyle.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullCommunicationstyle) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Communicationstyle), nil
+}
+
 type Contexttype string
 
 const (
@@ -256,6 +300,27 @@ func (e *Dependencytype) Scan(src interface{}) error {
 	return nil
 }
 
+type Expertiselevel string
+
+const (
+	ExpertiselevelBeginner     Expertiselevel = "beginner"
+	ExpertiselevelIntermediate Expertiselevel = "intermediate"
+	ExpertiselevelAdvanced     Expertiselevel = "advanced"
+	ExpertiselevelExpert       Expertiselevel = "expert"
+)
+
+func (e *Expertiselevel) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Expertiselevel(s)
+	case string:
+		*e = Expertiselevel(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Expertiselevel: %T", src)
+	}
+	return nil
+}
+
 type NullDependencytype struct {
 	Dependencytype Dependencytype `json:"dependencytype"`
 	Valid          bool           `json:"valid"` // Valid is true if Dependencytype is not NULL
@@ -277,6 +342,29 @@ func (ns NullDependencytype) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.Dependencytype), nil
+}
+
+type NullExpertiselevel struct {
+	Expertiselevel Expertiselevel `json:"expertiselevel"`
+	Valid          bool           `json:"valid"` // Valid is true if Expertiselevel is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullExpertiselevel) Scan(value interface{}) error {
+	if value == nil {
+		ns.Expertiselevel, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Expertiselevel.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullExpertiselevel) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Expertiselevel), nil
 }
 
 type Interactiontype string
@@ -798,6 +886,26 @@ func (e *Thinkingtype) Scan(src interface{}) error {
 	return nil
 }
 
+type Usecasetype string
+
+const (
+	UsecasetypeInternal Usecasetype = "internal"
+	UsecasetypeExternal Usecasetype = "external"
+	UsecasetypeBoth     Usecasetype = "both"
+)
+
+func (e *Usecasetype) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Usecasetype(s)
+	case string:
+		*e = Usecasetype(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Usecasetype: %T", src)
+	}
+	return nil
+}
+
 type NullThinkingtype struct {
 	Thinkingtype Thinkingtype `json:"thinkingtype"`
 	Valid        bool         `json:"valid"` // Valid is true if Thinkingtype is not NULL
@@ -819,6 +927,29 @@ func (ns NullThinkingtype) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.Thinkingtype), nil
+}
+
+type NullUsecasetype struct {
+	Usecasetype Usecasetype `json:"usecasetype"`
+	Valid       bool        `json:"valid"` // Valid is true if Usecasetype is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUsecasetype) Scan(value interface{}) error {
+	if value == nil {
+		ns.Usecasetype, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Usecasetype.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUsecasetype) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Usecasetype), nil
 }
 
 type AgentPreset struct {
@@ -1412,6 +1543,31 @@ type UserCommand struct {
 	IsActive       *bool              `json:"is_active"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type UserProfile struct {
+	ID                  pgtype.UUID            `json:"id"`
+	UserID              string                 `json:"user_id"`
+	DisplayName         *string                `json:"display_name"`
+	Role                *string                `json:"role"`
+	BusinessType        *string                `json:"business_type"`
+	BusinessName        *string                `json:"business_name"`
+	Industry            *string                `json:"industry"`
+	TeamSize            *string                `json:"team_size"`
+	PrimaryGoals        []byte                 `json:"primary_goals"`
+	PainPoints          []byte                 `json:"pain_points"`
+	TargetAudience      *string                `json:"target_audience"`
+	UseCaseType         NullUsecasetype        `json:"use_case_type"`
+	SuccessDefinition   *string                `json:"success_definition"`
+	CommunicationStyle  NullCommunicationstyle `json:"communication_style"`
+	ExpertiseLevel      NullExpertiselevel     `json:"expertise_level"`
+	FocusAreas          []byte                 `json:"focus_areas"`
+	OnboardingCompleted *bool                  `json:"onboarding_completed"`
+	OnboardingStep      *int32                 `json:"onboarding_step"`
+	OnboardingAnswers   []byte                 `json:"onboarding_answers"`
+	CompletedAt         pgtype.Timestamptz     `json:"completed_at"`
+	CreatedAt           pgtype.Timestamptz     `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz     `json:"updated_at"`
 }
 
 type UserSetting struct {
