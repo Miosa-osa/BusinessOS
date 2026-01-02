@@ -727,53 +727,68 @@ func (s *ProjectContextService) InjectContextIntoConversation(
 		TokenBreakdown: make(map[string]int),
 	}
 
-	var sb strings.Builder
-	sb.WriteString("\n## Loaded Context\n\n")
+	items := make([]BudgetItem, 0, 32)
+	items = append(items, BudgetItem{
+		Key:      "header",
+		Type:     "meta",
+		Content:  "\n## Loaded Context\n\n",
+		Priority: 100,
+		Pinned:   true,
+	})
 
 	// Load project context if project is selected
 	if projectID != nil {
 		pc, err := s.LoadProjectContext(ctx, userID, *projectID)
 		if err == nil {
-			// Add project info
-			sb.WriteString(fmt.Sprintf("### Active Project: %s\n", pc.Project.Name))
+			// Add project info (pinned)
+			var psb strings.Builder
+			psb.WriteString(fmt.Sprintf("### Active Project: %s\n", pc.Project.Name))
 			if pc.Project.Description != "" {
-				sb.WriteString(fmt.Sprintf("%s\n\n", pc.Project.Description))
+				psb.WriteString(fmt.Sprintf("%s\n", pc.Project.Description))
 			}
-			ic.TokenBreakdown["project"] = 100
+			psb.WriteString("\n")
+			items = append(items, BudgetItem{Key: "project", Type: "project", Content: psb.String(), Priority: 90, Pinned: true})
 
 			// Add memories
 			if len(pc.Memories) > 0 {
-				sb.WriteString("### Relevant Memories\n")
 				for _, m := range pc.Memories {
-					sb.WriteString(fmt.Sprintf("- [%s] %s: %s\n", m.MemoryType, m.Title, m.Summary))
+					items = append(items, BudgetItem{
+						Key:      "memory:" + m.ID.String(),
+						Type:     "memory",
+						Content:  fmt.Sprintf("### Relevant Memories\n- [%s] %s: %s\n\n", m.MemoryType, m.Title, m.Summary),
+						Priority: 60,
+						Pinned:   false,
+					})
 					ic.LoadedItems = append(ic.LoadedItems, ContextItem{
 						ID:    m.ID,
 						Type:  "memory",
 						Title: m.Title,
 					})
 				}
-				sb.WriteString("\n")
-				ic.TokenBreakdown["memories"] = len(pc.Memories) * 50
 			}
 
 			// Add user facts
 			if len(pc.UserFacts) > 0 {
-				sb.WriteString("### User Facts\n")
+				var fsb strings.Builder
+				fsb.WriteString("### User Facts\n")
 				for _, f := range pc.UserFacts {
-					sb.WriteString(fmt.Sprintf("- %s: %s\n", f.FactKey, f.FactValue))
+					fsb.WriteString(fmt.Sprintf("- %s: %s\n", f.FactKey, f.FactValue))
 				}
-				sb.WriteString("\n")
-				ic.TokenBreakdown["user_facts"] = len(pc.UserFacts) * 20
+				fsb.WriteString("\n")
+				items = append(items, BudgetItem{Key: "user_facts", Type: "user_facts", Content: fsb.String(), Priority: 80, Pinned: true})
 			}
 
 			// Add recent conversation context
 			if len(pc.Conversations) > 0 {
-				sb.WriteString("### Recent Discussion Context\n")
 				for _, c := range pc.Conversations {
-					sb.WriteString(fmt.Sprintf("- %s\n", c.Summary))
+					items = append(items, BudgetItem{
+						Key:      "conversation:" + c.ID.String(),
+						Type:     "conversation",
+						Content:  fmt.Sprintf("### Recent Discussion Context\n- %s\n\n", c.Summary),
+						Priority: 50,
+						Pinned:   false,
+					})
 				}
-				sb.WriteString("\n")
-				ic.TokenBreakdown["conversations"] = len(pc.Conversations) * 50
 			}
 		}
 	}
@@ -782,40 +797,50 @@ func (s *ProjectContextService) InjectContextIntoConversation(
 	if nodeID != nil {
 		nc, err := s.LoadNodeContext(ctx, userID, *nodeID)
 		if err == nil {
-			sb.WriteString(fmt.Sprintf("### Business Context: %s (%s)\n", nc.Node.Name, nc.Node.Type))
+			var nsb strings.Builder
+			nsb.WriteString(fmt.Sprintf("### Business Context: %s (%s)\n", nc.Node.Name, nc.Node.Type))
 			if nc.Node.Description != "" {
-				sb.WriteString(fmt.Sprintf("%s\n\n", nc.Node.Description))
+				nsb.WriteString(fmt.Sprintf("%s\n", nc.Node.Description))
 			}
-			ic.TokenBreakdown["node"] = 50
+			nsb.WriteString("\n")
+			items = append(items, BudgetItem{Key: "node", Type: "node", Content: nsb.String(), Priority: 70, Pinned: true})
 
 			// Add node memories
 			if len(nc.Memories) > 0 {
-				sb.WriteString("### Node-Specific Memories\n")
 				for _, m := range nc.Memories {
-					sb.WriteString(fmt.Sprintf("- [%s] %s\n", m.MemoryType, m.Summary))
+					items = append(items, BudgetItem{
+						Key:      "node_memory:" + m.ID.String(),
+						Type:     "node_memory",
+						Content:  fmt.Sprintf("### Node-Specific Memories\n- [%s] %s\n\n", m.MemoryType, m.Summary),
+						Priority: 40,
+						Pinned:   false,
+					})
 				}
-				sb.WriteString("\n")
-				ic.TokenBreakdown["node_memories"] = len(nc.Memories) * 30
 			}
 		}
 	}
 
-	ic.SystemPromptAddition = sb.String()
+	res := ApplyTokenBudget(items, maxTokens)
 
-	// Calculate total tokens (rough estimate: 4 chars per token)
-	ic.TotalTokens = len(ic.SystemPromptAddition) / 4
-	for _, t := range ic.TokenBreakdown {
-		ic.TotalTokens += t
-	}
-
-	// Trim if exceeds max tokens
-	if maxTokens > 0 && ic.TotalTokens > maxTokens {
-		// Truncate the system prompt addition
-		maxChars := maxTokens * 4
-		if len(ic.SystemPromptAddition) > maxChars {
-			ic.SystemPromptAddition = ic.SystemPromptAddition[:maxChars] + "\n... (context truncated)"
+	// Rebuild prompt addition from kept items
+	var sb strings.Builder
+	for _, it := range res.Kept {
+		if it.Content == "" {
+			continue
 		}
-		ic.TotalTokens = maxTokens
+		sb.WriteString(it.Content)
+	}
+	ic.SystemPromptAddition = sb.String()
+	ic.TotalTokens = res.UsedTokens
+
+	// Token breakdown from kept items
+	ic.TokenBreakdown = make(map[string]int)
+	for _, it := range res.Kept {
+		if it.Type == "meta" {
+			continue
+		}
+		it = ensureTokenCount(it)
+		ic.TokenBreakdown[it.Type] += it.TokenCount
 	}
 
 	return ic, nil

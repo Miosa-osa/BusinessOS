@@ -30,7 +30,9 @@ export async function getMemories(filters?: MemoryFilters): Promise<MemoryListIt
   if (filters?.offset) params.set('offset', String(filters.offset));
 
   const query = params.toString();
-  return request<MemoryListItem[]>(`/memories${query ? `?${query}` : ''}`);
+
+  const data = await request<{ memories: MemoryListItem[] }>(`/memories${query ? `?${query}` : ''}`);
+  return data.memories;
 }
 
 export async function getMemory(id: string): Promise<Memory> {
@@ -58,11 +60,20 @@ export async function pinMemory(id: string, pinned: boolean): Promise<Memory> {
 // ============================================
 
 export async function searchMemories(params: MemorySearchParams): Promise<MemorySearchResult[]> {
-  return request<MemorySearchResult[]>('/memories/search', { method: 'POST', body: params });
+
+  // Backend expects `memory_type` (singular). Keep frontend call-sites simple.
+  const body = {
+    ...params,
+  };
+
+  const data = await request<{ results: MemorySearchResult[] }>('/memories/search', { method: 'POST', body });
+  return data.results;
 }
 
 export async function getRelevantMemories(params: RelevantMemoryParams): Promise<MemorySearchResult[]> {
-  return request<MemorySearchResult[]>('/memories/relevant', { method: 'POST', body: params });
+
+  const data = await request<{ results: MemorySearchResult[] }>('/memories/relevant', { method: 'POST', body: params });
+  return data.results;
 }
 
 // ============================================
@@ -73,14 +84,18 @@ export async function getProjectMemories(projectId: string, limit?: number): Pro
   const params = new URLSearchParams();
   if (limit) params.set('limit', String(limit));
   const query = params.toString();
-  return request<MemoryListItem[]>(`/memories/project/${projectId}${query ? `?${query}` : ''}`);
+  const data = await request<{ memories: MemoryListItem[] }>(
+    `/memories/project/${projectId}${query ? `?${query}` : ''}`
+  );
+  return data.memories;
 }
 
 export async function getNodeMemories(nodeId: string, limit?: number): Promise<MemoryListItem[]> {
   const params = new URLSearchParams();
   if (limit) params.set('limit', String(limit));
   const query = params.toString();
-  return request<MemoryListItem[]>(`/memories/node/${nodeId}${query ? `?${query}` : ''}`);
+  const data = await request<{ memories: MemoryListItem[] }>(`/memories/node/${nodeId}${query ? `?${query}` : ''}`);
+  return data.memories;
 }
 
 // ============================================
@@ -95,12 +110,26 @@ export async function getMemoryStats(): Promise<MemoryStats> {
 // User Facts Operations
 // ============================================
 
-export async function getUserFacts(): Promise<UserFact[]> {
-  return request<UserFact[]>('/user-facts');
+export async function getUserFacts(options?: { activeOnly?: boolean; type?: string }): Promise<UserFact[]> {
+  const params = new URLSearchParams();
+  if (options?.activeOnly === false) params.set('active', 'false');
+  if (options?.type) params.set('type', options.type);
+
+  const query = params.toString();
+  const data = await request<{ facts: UserFact[] }>(`/user-facts${query ? `?${query}` : ''}`);
+  return data.facts;
 }
 
 export async function updateUserFact(key: string, data: UpdateUserFactData): Promise<UserFact> {
   return request<UserFact>(`/user-facts/${encodeURIComponent(key)}`, { method: 'PUT', body: data });
+}
+
+export async function confirmUserFact(key: string): Promise<UserFact> {
+  return request<UserFact>(`/user-facts/${encodeURIComponent(key)}/confirm`, { method: 'POST' });
+}
+
+export async function rejectUserFact(key: string): Promise<UserFact> {
+  return request<UserFact>(`/user-facts/${encodeURIComponent(key)}/reject`, { method: 'POST' });
 }
 
 export async function deleteUserFact(key: string): Promise<void> {

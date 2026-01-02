@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -496,6 +497,61 @@ func (s *ContextService) GetTreeStatistics(ctx context.Context, userID string) (
 	// Count voice notes
 	s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM voice_notes WHERE user_id = $1`, userID).Scan(&stats.TotalVoiceNotes)
 
+	// Rough token estimate across common tree sources.
+	// NOTE: This is an approximation (chars/4) to avoid loading all rows.
+	var totalTokens int
+	{
+		var t int
+		// Contexts
+		s.pool.QueryRow(ctx, `
+			SELECT COALESCE(SUM(LENGTH(COALESCE(content, '')) / 4), 0)
+			FROM contexts
+			WHERE user_id = $1 AND is_archived = false
+		`, userID).Scan(&t)
+		totalTokens += t
+	}
+	{
+		var t int
+		// Artifacts
+		s.pool.QueryRow(ctx, `
+			SELECT COALESCE(SUM(LENGTH(COALESCE(content, '')) / 4), 0)
+			FROM artifacts
+			WHERE user_id = $1
+		`, userID).Scan(&t)
+		totalTokens += t
+	}
+	{
+		var t int
+		// Documents (extracted_text)
+		s.pool.QueryRow(ctx, `
+			SELECT COALESCE(SUM(LENGTH(COALESCE(extracted_text, '')) / 4), 0)
+			FROM uploaded_documents
+			WHERE user_id = $1
+		`, userID).Scan(&t)
+		totalTokens += t
+	}
+	{
+		var t int
+		// Memories
+		s.pool.QueryRow(ctx, `
+			SELECT COALESCE(SUM(LENGTH(COALESCE(content, '')) / 4), 0)
+			FROM memories
+			WHERE user_id = $1 AND is_active = true
+		`, userID).Scan(&t)
+		totalTokens += t
+	}
+	{
+		var t int
+		// Voice notes
+		s.pool.QueryRow(ctx, `
+			SELECT COALESCE(SUM(LENGTH(COALESCE(transcript, '')) / 4), 0)
+			FROM voice_notes
+			WHERE user_id = $1
+		`, userID).Scan(&t)
+		totalTokens += t
+	}
+	stats.TotalTokens = totalTokens
+
 	stats.ByType["projects"] = stats.TotalProjects
 	stats.ByType["nodes"] = stats.TotalNodes
 	stats.ByType["memories"] = stats.TotalMemories
@@ -561,10 +617,95 @@ func (s *ContextService) semanticSearch(ctx context.Context, userID string, para
 		results = append(results, docResults...)
 	}
 
+	// Search voice notes
+	if containsType(params.EntityTypes, "voice_notes") || len(params.EntityTypes) == 0 {
+		voiceResults, _ := s.searchVoiceNotesSemantic(ctx, userID, vec, params)
+		results = append(results, voiceResults...)
+	}
+
+	// Search conversation summaries (past chat history)
+	if containsType(params.EntityTypes, "conversations") || containsType(params.EntityTypes, "conversation_summaries") || len(params.EntityTypes) == 0 {
+		convResults, _ := s.searchConversationSummariesSemantic(ctx, userID, vec, params)
+		results = append(results, convResults...)
+	}
+
 	// Sort by relevance and limit
 	sortByRelevance(results)
 	if len(results) > params.MaxResults {
 		results = results[:params.MaxResults]
+	}
+
+	return results, nil
+}
+
+// searchConversationSummariesSemantic searches conversation summaries using embedding.
+func (s *ContextService) searchConversationSummariesSemantic(ctx context.Context, userID string, vec pgvector.Vector, params TreeSearchParams) ([]TreeSearchResult, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT cs.conversation_id,
+		       COALESCE(cs.title, ''),
+		       LEFT(cs.summary, 200) as snippet,
+		       COALESCE(cs.summarized_at, cs.created_at) as ts,
+		       1 - (cs.embedding <=> $1) as similarity
+		FROM conversation_summaries cs
+		WHERE cs.user_id = $2 AND cs.embedding IS NOT NULL
+		ORDER BY cs.embedding <=> $1
+		LIMIT $3
+	`, vec, userID, params.MaxResults)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []TreeSearchResult
+	for rows.Next() {
+		var r TreeSearchResult
+		var title string
+		var snippet string
+		var ts time.Time
+		if err := rows.Scan(&r.ID, &title, &snippet, &ts, &r.RelevanceScore); err != nil {
+			continue
+		}
+		r.Type = "conversation"
+		if strings.TrimSpace(title) != "" {
+			r.Title = title
+		} else {
+			r.Title = "Conversation (" + ts.UTC().Format("2006-01-02") + ")"
+		}
+		r.Summary = snippet
+		r.TreePath = []string{"Conversations"}
+		results = append(results, r)
+	}
+
+	return results, nil
+}
+
+// searchVoiceNotesSemantic searches voice notes using embedding
+func (s *ContextService) searchVoiceNotesSemantic(ctx context.Context, userID string, vec pgvector.Vector, params TreeSearchParams) ([]TreeSearchResult, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, LEFT(transcript, 200) as snippet, created_at, 1 - (embedding <=> $1) as similarity
+		FROM voice_notes
+		WHERE user_id = $2 AND is_context_source = true AND embedding IS NOT NULL
+		ORDER BY embedding <=> $1
+		LIMIT $3
+	`, vec, userID, params.MaxResults)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []TreeSearchResult
+	for rows.Next() {
+		var r TreeSearchResult
+		var snippet string
+		var createdAt time.Time
+		if err := rows.Scan(&r.ID, &snippet, &createdAt, &r.RelevanceScore); err != nil {
+			continue
+		}
+		r.Type = "voice_note"
+		r.Title = "Voice note (" + createdAt.UTC().Format("2006-01-02") + ")"
+		r.Summary = snippet
+		r.TreePath = []string{"Voice Notes"}
+		results = append(results, r)
 	}
 
 	return results, nil
@@ -687,6 +828,32 @@ func (s *ContextService) titleSearch(ctx context.Context, userID string, params 
 		}
 	}
 
+	// Search voice notes by transcript (best-effort "title")
+	if containsType(params.EntityTypes, "voice_notes") || len(params.EntityTypes) == 0 {
+		rows, _ := s.pool.Query(ctx, `
+			SELECT id, created_at, LEFT(transcript, 200)
+			FROM voice_notes
+			WHERE user_id = $1 AND is_context_source = true AND transcript ILIKE $2
+			ORDER BY created_at DESC
+			LIMIT $3
+		`, userID, searchPattern, params.MaxResults)
+		if rows != nil {
+			for rows.Next() {
+				var r TreeSearchResult
+				var createdAt time.Time
+				if err := rows.Scan(&r.ID, &createdAt, &r.Summary); err != nil {
+					continue
+				}
+				r.Type = "voice_note"
+				r.Title = "Voice note (" + createdAt.UTC().Format("2006-01-02") + ")"
+				r.TreePath = []string{"Voice Notes"}
+				r.RelevanceScore = 0.65
+				results = append(results, r)
+			}
+			rows.Close()
+		}
+	}
+
 	if len(results) > params.MaxResults {
 		results = results[:params.MaxResults]
 	}
@@ -746,6 +913,32 @@ func (s *ContextService) contentSearch(ctx context.Context, userID string, param
 				} else {
 					r.TreePath = []string{"Documents"}
 				}
+				r.RelevanceScore = 0.6
+				results = append(results, r)
+			}
+			rows.Close()
+		}
+	}
+
+	// Search voice notes by transcript
+	if containsType(params.EntityTypes, "voice_notes") || len(params.EntityTypes) == 0 {
+		rows, _ := s.pool.Query(ctx, `
+			SELECT id, created_at, LEFT(transcript, 200)
+			FROM voice_notes
+			WHERE user_id = $1 AND is_context_source = true AND transcript ILIKE $2
+			ORDER BY created_at DESC
+			LIMIT $3
+		`, userID, searchPattern, params.MaxResults)
+		if rows != nil {
+			for rows.Next() {
+				var r TreeSearchResult
+				var createdAt time.Time
+				if err := rows.Scan(&r.ID, &createdAt, &r.Summary); err != nil {
+					continue
+				}
+				r.Type = "voice_note"
+				r.Title = "Voice note (" + createdAt.UTC().Format("2006-01-02") + ")"
+				r.TreePath = []string{"Voice Notes"}
 				r.RelevanceScore = 0.6
 				results = append(results, r)
 			}

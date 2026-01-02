@@ -26,6 +26,8 @@ export const api = {
   // User Facts
   getUserFacts: memoryApi.getUserFacts,
   updateUserFact: memoryApi.updateUserFact,
+  confirmUserFact: memoryApi.confirmUserFact,
+  rejectUserFact: memoryApi.rejectUserFact,
   deleteUserFact: memoryApi.deleteUserFact,
 };
 

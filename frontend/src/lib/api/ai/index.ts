@@ -16,6 +16,7 @@ export const api = {
   getAgentPrompt: aiApi.getAgentPrompt,
   getTools: aiApi.getTools,
   executeTool: aiApi.executeTool,
+  getCustomAgents: aiApi.getCustomAgents,
 };
 
 export default api;

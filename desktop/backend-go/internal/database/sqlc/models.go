@@ -1383,6 +1383,7 @@ type UsageDailySummary struct {
 	AiInputTokens        *int32             `json:"ai_input_tokens"`
 	AiOutputTokens       *int32             `json:"ai_output_tokens"`
 	AiTotalTokens        *int32             `json:"ai_total_tokens"`
+	AiThinkingTokens     *int64             `json:"ai_thinking_tokens"`
 	AiEstimatedCost      pgtype.Numeric     `json:"ai_estimated_cost"`
 	ProviderBreakdown    []byte             `json:"provider_breakdown"`
 	ModelBreakdown       []byte             `json:"model_breakdown"`

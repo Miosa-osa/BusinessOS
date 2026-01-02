@@ -40,6 +40,9 @@ type SendMessageRequest struct {
 	ReasoningTemplateID *string `json:"reasoning_template_id"` // Custom reasoning template to use
 	SaveThinking        *bool   `json:"save_thinking"`         // Save thinking traces to database
 	MaxThinkingTokens   *int    `json:"max_thinking_tokens"`   // Max tokens for thinking
+	// Output Style settings
+	OutputStyle      *string `json:"output_style"`      // technical, creative, executive, concise
+	StructuredOutput *bool   `json:"structured_output"` // If true, backend will return structured Blocks
 }
 
 // ListConversations returns all conversations for the current user

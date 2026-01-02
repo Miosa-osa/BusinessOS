@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -199,6 +200,16 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 		}
 	}
 
+	// Compress conversation if too long (Deep Context Integration - Phase 4)
+	if h.tieredContextService != nil {
+		// Threshold: 20 messages. If exceeded, keep last 10 and summarize older part
+		compressed, summary, err := h.tieredContextService.CompressConversation(ctx, chatMessages, 20)
+		if err == nil && summary != "" {
+			chatMessages = compressed
+			slog.Debug("ChatV2: Hierarchical summarization applied", "summaryLen", len(summary))
+		}
+	}
+
 	// Determine model
 	model := h.cfg.DefaultModel
 	if req.Model != nil && *req.Model != "" {
@@ -267,7 +278,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 
 	// Build tiered context
 	var tieredCtx *services.TieredContext
-	if h.tieredContextService != nil && (len(contextIDs) > 0 || projectID != nil || nodeID != nil || len(documentIDs) > 0) {
+	if h.tieredContextService != nil {
 		tieredReq := services.TieredContextRequest{
 			UserID:      user.ID,
 			ContextIDs:  contextIDs,
@@ -299,7 +310,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 		for _, mention := range mentions {
 			log.Printf("[ChatV2] Looking up custom agent: name=%q user_id=%v", mention.AgentName, user.ID)
 			agent, err := queries.GetCustomAgentByName(ctx, sqlc.GetCustomAgentByNameParams{
-				Name:   mention.AgentName,
+				Lower:  mention.AgentName,
 				UserID: user.ID,
 			})
 			if err != nil {
@@ -439,6 +450,27 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 		cotOrchestrator = agents.NewOrchestratorCOT(h.pool, h.cfg, registry)
 	} else if customAgent != nil && useCOT {
 		log.Printf("[ChatV2] COT mode disabled for custom agent: %s", customAgent.DisplayName)
+	}
+
+	// Determine output style
+	styleName := ""
+	if req.OutputStyle != nil && *req.OutputStyle != "" {
+		styleName = *req.OutputStyle
+	} else {
+		// Check user preference
+		styleName = h.getUserStylePreference(ctx, user.ID, focusModeStr, string(agentType))
+		if styleName == "" {
+			// Auto-detect based on context
+			styleName = detectStyleFromContext(focusModeStr, string(agentType))
+		}
+	}
+
+	// Apply style instructions to agent
+	if styleName != "" {
+		stylePrompt := h.applyOutputStyle(ctx, styleName, "")
+		if stylePrompt != "" {
+			agent.SetOutputStylePrompt(stylePrompt)
+		}
 	}
 
 	// Set streaming headers
@@ -595,6 +627,21 @@ Example ending:
 						slog.Debug("ChatV2: Auto-artifact detected", "title", artifact.Title, "type", artifact.Type, "len", len(artifact.Content))
 					}
 				}
+
+				// Send output as blocks if requested
+				if req.StructuredOutput != nil && *req.StructuredOutput && h.blockMapper != nil {
+					// Clean response from thinking tags for better block parsing
+					cleanResponse := stripThinkingTags(fullResponse)
+					doc, err := h.blockMapper.ParseMarkdown(ctx, cleanResponse, nil)
+					if err == nil {
+						writeSSEEvent(w, streaming.StreamEvent{
+							Type: streaming.EventTypeBlocks,
+							Data: doc,
+						})
+						slog.Debug("ChatV2: Structured blocks sent", "totalBlocks", len(doc.Blocks))
+					}
+				}
+
 				// Send usage and done
 				sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model, len(thinkingContent)/4)
 				return false
@@ -752,36 +799,42 @@ Example ending:
 				writeSSEEvent(w, event)
 
 			case streaming.EventTypeDone:
-			slog.Debug("ChatV2: EventTypeDone received", "responseLen", len(fullResponse))
-			// Send artifact_complete if we have pending artifact from tool
-			if pendingArtifactTitle != "" && artifactContentStart > 0 {
-				artifactContent := fullResponse
-				if artifactContentStart < len(fullResponse) {
-					artifactContent = fullResponse[artifactContentStart:]
+				slog.Debug("ChatV2: EventTypeDone received", "responseLen", len(fullResponse))
+				// Send artifact_complete if we have pending artifact from tool
+				if pendingArtifactTitle != "" && artifactContentStart > 0 {
+					artifactContent := fullResponse
+					if artifactContentStart < len(fullResponse) {
+						artifactContent = fullResponse[artifactContentStart:]
+					}
+					artifactContent = strings.TrimPrefix(artifactContent, "Now write the complete document content below. Everything you write will be saved to the artifact.")
+					artifactContent = strings.TrimSpace(artifactContent)
+					if len(artifactContent) > 50 {
+						writeSSEEvent(w, streaming.StreamEvent{
+							Type: streaming.EventTypeArtifactComplete,
+							Data: streaming.Artifact{
+								Type:    pendingArtifactType,
+								Title:   pendingArtifactTitle,
+								Content: artifactContent,
+							},
+						})
+						slog.Debug("ChatV2: Artifact complete sent on Done", "title", pendingArtifactTitle)
+					}
 				}
-				artifactContent = strings.TrimPrefix(artifactContent, "Now write the complete document content below. Everything you write will be saved to the artifact.")
-				artifactContent = strings.TrimSpace(artifactContent)
-				if len(artifactContent) > 50 {
+
+			// Send output as blocks if requested
+			if req.StructuredOutput != nil && *req.StructuredOutput && h.blockMapper != nil {
+				// Clean response from thinking tags for better block parsing
+				cleanResponse := stripThinkingTags(fullResponse)
+				doc, err := h.blockMapper.ParseMarkdown(ctx, cleanResponse, nil)
+				if err == nil {
 					writeSSEEvent(w, streaming.StreamEvent{
-						Type: streaming.EventTypeArtifactComplete,
-						Data: streaming.Artifact{
-							Type:    pendingArtifactType,
-							Title:   pendingArtifactTitle,
-							Content: artifactContent,
-						},
+						Type: streaming.EventTypeBlocks,
+						Data: doc,
 					})
-					slog.Debug("ChatV2: Artifact complete sent on Done", "title", pendingArtifactTitle)
-				}
-			} else if len(detectedArtifacts) == 0 {
-				// Auto-detect artifacts based on content structure
-				if artifact := detectStructuredArtifact(fullResponse, req.Message); artifact != nil {
-					writeSSEEvent(w, streaming.StreamEvent{
-						Type: streaming.EventTypeArtifactComplete,
-						Data: *artifact,
-					})
-					slog.Debug("ChatV2: Auto-artifact detected on Done", "title", artifact.Title, "type", artifact.Type)
+					slog.Debug("ChatV2: Structured blocks sent on Done", "totalBlocks", len(doc.Blocks))
 				}
 			}
+
 			sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model, len(thinkingContent)/4)
 			return false
 
@@ -812,6 +865,21 @@ Example ending:
 						slog.Debug("ChatV2: Auto-artifact detected on error channel", "title", artifact.Title, "type", artifact.Type)
 					}
 				}
+
+				// Send output as blocks if requested
+				if req.StructuredOutput != nil && *req.StructuredOutput && h.blockMapper != nil {
+					// Clean response from thinking tags for better block parsing
+					cleanResponse := stripThinkingTags(fullResponse)
+					doc, err := h.blockMapper.ParseMarkdown(ctx, cleanResponse, nil)
+					if err == nil {
+						writeSSEEvent(w, streaming.StreamEvent{
+							Type: streaming.EventTypeBlocks,
+							Data: doc,
+						})
+						slog.Debug("ChatV2: Structured blocks sent on channel close", "totalBlocks", len(doc.Blocks))
+					}
+				}
+
 				// Send usage event
 				sendUsageEvent(w, startTime, req.Message, messages, fullResponse, provider, model, len(thinkingContent)/4)
 			}
@@ -1480,4 +1548,100 @@ func applyReasoningTemplate(opts *services.LLMOptions, template sqlc.ReasoningTe
 		templateID := template.ID.Bytes
 		opts.ReasoningTemplateID = uuid.UUID(templateID).String()
 	}
+}
+
+// detectStyleFromContext determines the best output style based on focus mode and agent type
+func detectStyleFromContext(focusMode string, agentType string) string {
+	// Priority 1: Focus Mode
+	switch focusMode {
+	case "research":
+		return "detailed"
+	case "analyze":
+		return "detailed"
+	case "write":
+		return "professional"
+	case "build":
+		return "technical"
+	case "general":
+		return "conversational"
+	}
+
+	// Priority 2: Agent Type
+	switch agentType {
+	case "analyst":
+		return "detailed"
+	case "document":
+		return "professional"
+	case "executive":
+		return "executive"
+	case "task":
+		return "tutorial"
+	case "project":
+		return "professional"
+	}
+
+	return "professional" // Default
+}
+
+// getUserStylePreference fetches the user's preferred style for a given context
+func (h *Handlers) getUserStylePreference(ctx context.Context, userID string, focusMode string, agentType string) string {
+	var defaultStyleName sql.NullString
+	var overrides []byte
+
+	// Join with output_styles to get the name
+	query := `
+		SELECT s.name, p.style_overrides 
+		FROM user_output_preferences p
+		LEFT JOIN output_styles s ON p.default_style_id = s.id
+		WHERE p.user_id = $1
+	`
+	err := h.pool.QueryRow(ctx, query, userID).Scan(&defaultStyleName, &overrides)
+	if err != nil {
+		return "" // No preference found
+	}
+
+	// Check overrides first
+	if len(overrides) > 0 {
+		var mapping map[string]string
+		if err := json.Unmarshal(overrides, &mapping); err == nil {
+			// Check focus mode override
+			if focusMode != "" {
+				if styleName, ok := mapping["focus_mode:"+focusMode]; ok {
+					return styleName
+				}
+			}
+			// Check agent type override
+			if agentType != "" {
+				if styleName, ok := mapping["agent:"+agentType]; ok {
+					return styleName
+				}
+			}
+		}
+	}
+
+	if defaultStyleName.Valid {
+		return defaultStyleName.String
+	}
+
+	return ""
+}
+
+// applyOutputStyle fetches style instructions and prepends them to the system prompt
+func (h *Handlers) applyOutputStyle(ctx context.Context, styleName string, systemPrompt string) string {
+	if styleName == "" {
+		return systemPrompt
+	}
+
+	// Manual query
+	var instructions string
+	err := h.pool.QueryRow(ctx, "SELECT style_instructions FROM output_styles WHERE name = $1 AND is_active = TRUE", styleName).Scan(&instructions)
+	if err != nil {
+		slog.Debug("ChatV2: Output style not found or inactive", "style", styleName)
+		return systemPrompt
+	}
+
+	// Prepend instructions to system prompt
+	styledPrompt := fmt.Sprintf("## OUTPUT STYLE: %s\n\n%s\n\n---\n\n%s", strings.ToUpper(styleName), instructions, systemPrompt)
+	slog.Debug("ChatV2: Applied output style", "style", styleName)
+	return styledPrompt
 }

@@ -1,0 +1,33 @@
+-- ================================================
+-- OUTPUT STYLES QUERIES
+-- ================================================
+
+-- name: GetOutputStyle :one
+SELECT * FROM output_styles
+WHERE id = $1 LIMIT 1;
+
+-- name: GetOutputStyleByName :one
+SELECT * FROM output_styles
+WHERE name = $1 LIMIT 1;
+
+-- name: ListActiveOutputStyles :many
+SELECT * FROM output_styles
+WHERE is_active = TRUE
+ORDER BY sort_order ASC;
+
+-- name: GetUserOutputPreference :one
+SELECT * FROM user_output_preferences
+WHERE user_id = $1 LIMIT 1;
+
+-- name: UpsertUserOutputPreference :one
+INSERT INTO user_output_preferences (
+    user_id, default_style_id, style_overrides, custom_instructions, updated_at
+) VALUES (
+    $1, $2, $3, $4, NOW()
+)
+ON CONFLICT (user_id) DO UPDATE SET
+    default_style_id = EXCLUDED.default_style_id,
+    style_overrides = EXCLUDED.style_overrides,
+    custom_instructions = EXCLUDED.custom_instructions,
+    updated_at = NOW()
+RETURNING *;

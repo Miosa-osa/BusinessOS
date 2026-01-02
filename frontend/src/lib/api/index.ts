@@ -2,6 +2,8 @@
 export * from './base';
 export * from './projects';
 export * from './conversations';
+// Note: contexts also exports Block type which conflicts with conversations
+// Use ContextBlock explicitly if needed
 export * from './contexts';
 export * from './clients';
 export * from './calendar';
@@ -234,6 +236,8 @@ export const api = {
   getMemoryStats: memoryApi.getMemoryStats,
   getUserFacts: memoryApi.getUserFacts,
   updateUserFact: memoryApi.updateUserFact,
+  confirmUserFact: memoryApi.confirmUserFact,
+  rejectUserFact: memoryApi.rejectUserFact,
   deleteUserFact: memoryApi.deleteUserFact,
 
   // Context Tree (Hierarchical Context Management)

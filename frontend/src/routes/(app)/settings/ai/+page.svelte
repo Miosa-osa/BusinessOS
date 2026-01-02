@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api';
+	import AgentTestSandbox from '$lib/components/settings/AgentTestSandbox.svelte';
+	import OutputStyleSelector from '$lib/components/settings/OutputStyleSelector.svelte';
+	import UserFactsPanel from '$lib/components/settings/UserFactsPanel.svelte';
 
 	// Types
 	interface LLMModel {
@@ -45,6 +48,37 @@
 		recommended_models: RecommendedModel[];
 	}
 
+	interface OutputStyle {
+		id: string;
+		name: string;
+		display_name: string;
+		description?: string;
+		is_active: boolean;
+		sort_order: number;
+	}
+
+	interface OutputPreference {
+		user_id: string;
+		default_style_id?: string;
+		default_style_name?: string;
+		style_overrides: Record<string, string>;
+		custom_instructions?: string;
+	}
+
+	interface UserFact {
+		id: string;
+		user_id: string;
+		fact_key: string;
+		fact_value: string;
+		fact_type: string;
+		source_memory_id?: string | null;
+		confidence_score: number;
+		is_active: boolean;
+		last_confirmed_at?: string | null;
+		created_at: string;
+		updated_at: string;
+	}
+
 	// State
 	let providers = $state<LLMProvider[]>([]);
 	let models = $state<LLMModel[]>([]);
@@ -55,6 +89,19 @@
 	let error = $state('');
 	let saveStatus = $state('');
 	let systemInfo = $state<SystemInfo | null>(null);
+
+	// Output Style preferences
+	let outputStyles = $state<OutputStyle[]>([]);
+	let outputPreference = $state<OutputPreference | null>(null);
+	let selectedDefaultStyleId = $state<string>('');
+	let loadingOutputStyles = $state(false);
+	let savingOutputPreference = $state(false);
+
+	// User facts (self-learning validation)
+	let userFacts = $state<UserFact[]>([]);
+	let loadingUserFacts = $state(false);
+	let userFactsError = $state('');
+	let savingUserFactKey = $state<string | null>(null);
 
 	// Model settings - defaults set to maximum performance
 	let modelSettings = $state({
@@ -194,6 +241,7 @@
 	let showNewCustomAgent = $state(false);
 	let editingCustomAgent = $state<CustomAgent | null>(null);
 	let savingCustomAgent = $state(false);
+	let testingAgentId = $state<string | null>(null);
 	let newCustomAgent = $state({
 		name: '',
 		display_name: '',
@@ -507,6 +555,9 @@
 		loadSystemInfo();
 		loadAgents();
 		loadCustomAgents();
+		loadOutputStyles();
+		loadOutputPreference();
+		loadUserFacts();
 
 		// Click outside handler for dropdowns
 		const handleClickOutside = (e: MouseEvent) => {
@@ -519,6 +570,137 @@
 		document.addEventListener('click', handleClickOutside);
 		return () => document.removeEventListener('click', handleClickOutside);
 	});
+
+	async function loadUserFacts() {
+		loadingUserFacts = true;
+		userFactsError = '';
+		try {
+			const res = await apiClient.get('/user-facts?active=false');
+			if (res.ok) {
+				const data = await res.json();
+				userFacts = (data.facts ?? []) as UserFact[];
+			} else {
+				const data = await res.json().catch(() => ({}));
+				userFactsError = data.error || 'Failed to load user facts';
+				userFacts = [];
+			}
+		} catch (err) {
+			userFactsError = 'Failed to load user facts';
+			userFacts = [];
+		} finally {
+			loadingUserFacts = false;
+		}
+	}
+
+	async function confirmUserFact(key: string) {
+		savingUserFactKey = key;
+		userFactsError = '';
+		try {
+			const res = await apiClient.post(`/user-facts/${encodeURIComponent(key)}/confirm`);
+			if (!res.ok) {
+				const data = await res.json().catch(() => ({}));
+				throw new Error(data.error || 'Failed to confirm fact');
+			}
+			await loadUserFacts();
+		} catch (err) {
+			userFactsError = err instanceof Error ? err.message : 'Failed to confirm fact';
+		} finally {
+			savingUserFactKey = null;
+		}
+	}
+
+	async function rejectUserFact(key: string) {
+		savingUserFactKey = key;
+		userFactsError = '';
+		try {
+			const res = await apiClient.post(`/user-facts/${encodeURIComponent(key)}/reject`);
+			if (!res.ok) {
+				const data = await res.json().catch(() => ({}));
+				throw new Error(data.error || 'Failed to reject fact');
+			}
+			await loadUserFacts();
+		} catch (err) {
+			userFactsError = err instanceof Error ? err.message : 'Failed to reject fact';
+		} finally {
+			savingUserFactKey = null;
+		}
+	}
+
+	async function deleteUserFact(key: string) {
+		if (!confirm(`Delete fact "${key}"?`)) return;
+		savingUserFactKey = key;
+		userFactsError = '';
+		try {
+			const res = await apiClient.delete(`/user-facts/${encodeURIComponent(key)}`);
+			if (!res.ok) {
+				const data = await res.json().catch(() => ({}));
+				throw new Error(data.error || 'Failed to delete fact');
+			}
+			await loadUserFacts();
+		} catch (err) {
+			userFactsError = err instanceof Error ? err.message : 'Failed to delete fact';
+		} finally {
+			savingUserFactKey = null;
+		}
+	}
+
+	async function loadOutputStyles() {
+		loadingOutputStyles = true;
+		try {
+			const res = await apiClient.get('/ai/output-styles');
+			if (res.ok) {
+				const data = await res.json();
+				outputStyles = data.styles || [];
+			}
+		} catch (err) {
+			console.error('Failed to load output styles:', err);
+		} finally {
+			loadingOutputStyles = false;
+		}
+	}
+
+	async function loadOutputPreference() {
+		try {
+			const res = await apiClient.get('/ai/output-preferences');
+			if (res.ok) {
+				const data = await res.json();
+				outputPreference = data.preference || null;
+				selectedDefaultStyleId = outputPreference?.default_style_id || '';
+			}
+		} catch (err) {
+			console.error('Failed to load output preference:', err);
+		}
+	}
+
+	async function saveOutputPreference() {
+		savingOutputPreference = true;
+		error = '';
+		saveStatus = '';
+		try {
+			const body = {
+				default_style_id: selectedDefaultStyleId || null,
+				style_overrides: outputPreference?.style_overrides || {},
+				custom_instructions: outputPreference?.custom_instructions || null
+			};
+
+			const res = await apiClient.put('/ai/output-preferences', body);
+			if (res.ok) {
+				const data = await res.json();
+				outputPreference = data.preference || null;
+				selectedDefaultStyleId = outputPreference?.default_style_id || '';
+				saveStatus = 'Output style saved!';
+				setTimeout(() => saveStatus = '', 2000);
+			} else {
+				const data = await res.json().catch(() => ({}));
+				error = data.error || 'Failed to save output style';
+			}
+		} catch (err) {
+			console.error('Failed to save output preference:', err);
+			error = 'Failed to save output style';
+		} finally {
+			savingOutputPreference = false;
+		}
+	}
 
 	async function loadConfig() {
 		isLoading = true;
@@ -1700,6 +1882,103 @@
 						<span class="subtitle">Fine-tune AI behavior</span>
 					</div>
 
+					<!-- Output Style Preference -->
+					<div class="setting-card" style="margin-bottom: 16px;">
+						<div class="setting-header">
+							<label>Default Output Style</label>
+						</div>
+						<p class="setting-desc" style="margin-bottom: 1rem;">Choose how the AI formats its responses. This is used when you don't specify an output style per message.</p>
+
+						{#if loadingOutputStyles}
+							<div class="loading" style="padding: 2rem; text-align: center;">
+								<div class="spinner"></div>
+								<span>Loading output styles...</span>
+							</div>
+						{:else}
+							<OutputStyleSelector
+								styles={outputStyles}
+								selectedStyleId={selectedDefaultStyleId}
+								onSelect={(styleId) => selectedDefaultStyleId = styleId}
+								disabled={savingOutputPreference}
+							/>
+
+							<button
+								class="save-btn"
+								style="margin-top: 1rem;"
+								onclick={saveOutputPreference}
+								disabled={savingOutputPreference}
+							>
+								{savingOutputPreference ? 'Saving...' : 'Save Default Style'}
+							</button>
+						{/if}
+					</div>
+
+					<!-- User Facts Management -->
+					<div class="setting-card" style="margin-bottom: 16px; padding: 0; overflow: hidden; max-height: 600px;">
+						<UserFactsPanel />
+					</div>
+
+					<!-- OLD User Facts (kept for reference, can be removed) -->
+					<div class="setting-card" style="margin-bottom: 16px; display: none;">
+						<div class="setting-header">
+							<label>User Facts (Old)</label>
+							<span class="setting-value">
+								{#if loadingUserFacts}
+									Loading...
+								{:else}
+									{userFacts.length}
+								{/if}
+							</span>
+						</div>
+						<p class="setting-desc">Review what the system has learned. Confirmed facts are injected into chats; rejected facts are not.</p>
+
+						{#if userFactsError}
+							<div class="error-banner" style="margin-top: 8px;">{userFactsError}</div>
+						{/if}
+
+						<div class="facts-toolbar">
+							<button class="save-btn" onclick={loadUserFacts} disabled={loadingUserFacts}>
+								{loadingUserFacts ? '...' : 'Refresh'}
+							</button>
+						</div>
+
+						{#if !loadingUserFacts && userFacts.length === 0}
+							<p class="setting-desc" style="margin-top: 10px;">No facts yet.</p>
+						{:else}
+							<div class="facts-list">
+								{#each userFacts as fact (fact.id)}
+									<div class="fact-row">
+										<div class="fact-main">
+											<div class="fact-key">{fact.fact_key}</div>
+											<div class="fact-value">{fact.fact_value}</div>
+											<div class="fact-meta">
+												<span class="fact-pill">{fact.fact_type}</span>
+												<span class="fact-pill">{Math.round((fact.confidence_score ?? 0) * 100)}%</span>
+												<span class="fact-pill" class:inactive={!fact.is_active}>
+													{fact.is_active ? 'confirmed' : 'rejected'}
+												</span>
+											</div>
+										</div>
+										<div class="fact-actions">
+											{#if fact.is_active}
+												<button class="bmc-btn delete-btn" onclick={() => rejectUserFact(fact.fact_key)} disabled={savingUserFactKey === fact.fact_key}>
+													{savingUserFactKey === fact.fact_key ? '...' : 'Reject'}
+												</button>
+											{:else}
+												<button class="save-btn" onclick={() => confirmUserFact(fact.fact_key)} disabled={savingUserFactKey === fact.fact_key}>
+													{savingUserFactKey === fact.fact_key ? '...' : 'Confirm'}
+												</button>
+											{/if}
+											<button class="bmc-btn delete-btn" onclick={() => deleteUserFact(fact.fact_key)} disabled={savingUserFactKey === fact.fact_key} title="Delete fact">
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+											</button>
+										</div>
+								</div>
+							{/each}
+						</div>
+						{/if}
+					</div>
+
 					<!-- Quick Presets -->
 					<div class="presets-row">
 						<span class="presets-label">Quick Presets:</span>
@@ -1957,6 +2236,9 @@
 										</div>
 										<div class="agent-actions">
 											<span class="usage-badge">{agent.times_used} uses</span>
+											<button class="icon-btn" onclick={() => testingAgentId = testingAgentId === agent.id ? null : agent.id} title="Test Agent">
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+											</button>
 											<button class="icon-btn" onclick={() => editingCustomAgent = {...agent}} title="Edit">
 												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
 											</button>
@@ -1972,6 +2254,13 @@
 										<span class="label">Prompt:</span>
 										<span class="preview">{agent.system_prompt.slice(0, 100)}...</span>
 									</div>
+
+									{#if testingAgentId === agent.id}
+										<div class="agent-test-section" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+											<h4 style="font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem;">Test Agent</h4>
+											<AgentTestSandbox agent={agent} />
+										</div>
+									{/if}
 								</div>
 							{/each}
 						</div>
@@ -7326,5 +7615,77 @@
 
 	:global(.dark) .provider-type-btn.cloud.active {
 		background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.08));
+	}
+
+	/* User Facts */
+	.facts-toolbar {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: 10px;
+	}
+
+	.facts-list {
+		margin-top: 12px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.fact-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 12px;
+		border: 1px solid var(--color-border);
+		border-radius: 12px;
+		background: var(--color-bg-secondary);
+	}
+
+	.fact-main {
+		min-width: 0;
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.fact-key {
+		font-weight: 600;
+		color: var(--color-text);
+		font-size: 13px;
+	}
+
+	.fact-value {
+		color: var(--color-text-secondary);
+		font-size: 13px;
+		word-break: break-word;
+	}
+
+	.fact-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-top: 2px;
+	}
+
+	.fact-pill {
+		font-size: 11px;
+		padding: 3px 8px;
+		border-radius: 999px;
+		border: 1px solid var(--color-border);
+		color: var(--color-text-secondary);
+		background: var(--color-bg-tertiary);
+	}
+
+	.fact-pill.inactive {
+		opacity: 0.75;
+	}
+
+	.fact-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-shrink: 0;
 	}
 </style>

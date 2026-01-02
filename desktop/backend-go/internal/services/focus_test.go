@@ -134,7 +134,7 @@ func TestKeywordExtractionLatency(t *testing.T) {
 				t.Errorf("Keyword extraction latency %v exceeds target %v", elapsed, maxLatency)
 			}
 
-			t.Logf("Query '%s...': %d keywords in %v", tt.query[:min(30, len(tt.query))], len(keywords), elapsed)
+			t.Logf("Query '%s...': %d keywords in %v", tt.query[:minInt(30, len(tt.query))], len(keywords), elapsed)
 		})
 	}
 }
@@ -294,7 +294,7 @@ func BenchmarkKeywordExtraction(b *testing.B) {
 	}
 
 	for _, q := range queries {
-		b.Run(q[:min(20, len(q))], func(b *testing.B) {
+		b.Run(q[:minInt(20, len(q))], func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_ = extractKeywords(q)
 			}
@@ -326,7 +326,7 @@ func containsIgnoreCase(s, substr string) bool {
 	return strings.Contains(sLower, substrLower)
 }
 
-func min(a, b int) int {
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}

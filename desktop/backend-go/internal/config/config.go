@@ -1,6 +1,8 @@
 package config
 
 import (
+	"bufio"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -12,6 +14,7 @@ type Config struct {
 
 	// Database
 	DatabaseURL string `mapstructure:"DATABASE_URL"`
+	DatabaseRequired bool `mapstructure:"DATABASE_REQUIRED"`
 
 	// Server
 	ServerPort string `mapstructure:"SERVER_PORT"`
@@ -86,6 +89,20 @@ type Config struct {
 
 	// Feature Flags
 	EnableLocalModels bool `mapstructure:"ENABLE_LOCAL_MODELS"`
+
+	// Background Jobs (disabled by default)
+	ConversationSummaryJobEnabled         bool `mapstructure:"CONVERSATION_SUMMARY_JOB_ENABLED"`
+	ConversationSummaryJobIntervalMinutes int  `mapstructure:"CONVERSATION_SUMMARY_JOB_INTERVAL_MINUTES"`
+	ConversationSummaryJobBatchSize       int  `mapstructure:"CONVERSATION_SUMMARY_JOB_BATCH_SIZE"`
+	ConversationSummaryJobMaxMessages     int  `mapstructure:"CONVERSATION_SUMMARY_JOB_MAX_MESSAGES"`
+
+	BehaviorPatternsJobEnabled         bool `mapstructure:"BEHAVIOR_PATTERNS_JOB_ENABLED"`
+	BehaviorPatternsJobIntervalMinutes int  `mapstructure:"BEHAVIOR_PATTERNS_JOB_INTERVAL_MINUTES"`
+	BehaviorPatternsJobUserBatchSize   int  `mapstructure:"BEHAVIOR_PATTERNS_JOB_USER_BATCH_SIZE"`
+
+	AppProfilerSyncJobEnabled         bool `mapstructure:"APP_PROFILER_SYNC_JOB_ENABLED"`
+	AppProfilerSyncJobIntervalMinutes int  `mapstructure:"APP_PROFILER_SYNC_JOB_INTERVAL_MINUTES"`
+	AppProfilerSyncJobBatchSize       int  `mapstructure:"APP_PROFILER_SYNC_JOB_BATCH_SIZE"`
 }
 
 var AppConfig *Config
@@ -98,6 +115,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("ENVIRONMENT", "development")
 	viper.SetDefault("SERVER_PORT", "8001")
 	viper.SetDefault("DATABASE_URL", "postgres://postgres:password@localhost:5432/business_os")
+	viper.SetDefault("DATABASE_REQUIRED", true)
 	viper.SetDefault("ENABLE_LOCAL_MODELS", true) // Disable in production
 	viper.SetDefault("SECRET_KEY", "your-secret-key-change-this-in-production")
 	viper.SetDefault("ALGORITHM", "HS256")
@@ -152,6 +170,20 @@ func Load() (*Config, error) {
 
 	viper.SetDefault("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:3000,app://localhost")
 
+	// Background jobs
+	viper.SetDefault("CONVERSATION_SUMMARY_JOB_ENABLED", false)
+	viper.SetDefault("CONVERSATION_SUMMARY_JOB_INTERVAL_MINUTES", 30)
+	viper.SetDefault("CONVERSATION_SUMMARY_JOB_BATCH_SIZE", 25)
+	viper.SetDefault("CONVERSATION_SUMMARY_JOB_MAX_MESSAGES", 200)
+
+	viper.SetDefault("APP_PROFILER_SYNC_JOB_ENABLED", false)
+	viper.SetDefault("APP_PROFILER_SYNC_JOB_INTERVAL_MINUTES", 10)
+	viper.SetDefault("APP_PROFILER_SYNC_JOB_BATCH_SIZE", 5)
+
+	viper.SetDefault("BEHAVIOR_PATTERNS_JOB_ENABLED", false)
+	viper.SetDefault("BEHAVIOR_PATTERNS_JOB_INTERVAL_MINUTES", 60)
+	viper.SetDefault("BEHAVIOR_PATTERNS_JOB_USER_BATCH_SIZE", 50)
+
 	// Read from environment variables first (takes priority in production)
 	viper.AutomaticEnv()
 
@@ -162,6 +194,21 @@ func Load() (*Config, error) {
 	config := &Config{}
 	if err := viper.Unmarshal(config); err != nil {
 		return nil, err
+	}
+
+	// In local development it's common to have a globally-set DATABASE_URL (e.g. Supabase)
+	// that should NOT override this repo's local .env. Viper's AutomaticEnv takes
+	// precedence over config files, so we explicitly re-apply .env values in development.
+	//
+	// Production still uses environment variables as the source of truth.
+	dotenvVars := readDotenvFile(".env")
+	dotenvApplied := false
+	if len(dotenvVars) > 0 {
+		dotenvEnv := strings.ToLower(strings.TrimSpace(dotenvVars["ENVIRONMENT"]))
+		if dotenvEnv == "" || dotenvEnv == "development" {
+			applyDotenvOverrides(config, dotenvVars)
+			dotenvApplied = true
+		}
 	}
 
 	// Default CORS origins for development
@@ -175,6 +222,11 @@ func Load() (*Config, error) {
 	// Clear AllowedOrigins set by Unmarshal (may have garbage) and parse from string
 	config.AllowedOrigins = nil
 	originsStr := viper.GetString("ALLOWED_ORIGINS")
+	if dotenvApplied {
+		if v, ok := dotenvVars["ALLOWED_ORIGINS"]; ok && strings.TrimSpace(v) != "" {
+			originsStr = v
+		}
+	}
 	if originsStr != "" {
 		origins := strings.Split(originsStr, ",")
 		for _, o := range origins {
@@ -198,6 +250,68 @@ func Load() (*Config, error) {
 
 	AppConfig = config
 	return config, nil
+}
+
+func readDotenvFile(path string) map[string]string {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	vars := make(map[string]string)
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "export ") {
+			line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
+		}
+		eq := strings.Index(line, "=")
+		if eq <= 0 {
+			continue
+		}
+		key := strings.TrimSpace(line[:eq])
+		val := strings.TrimSpace(line[eq+1:])
+		if len(val) >= 2 {
+			if (val[0] == '"' && val[len(val)-1] == '"') || (val[0] == '\'' && val[len(val)-1] == '\'') {
+				val = val[1 : len(val)-1]
+			}
+		}
+		if key != "" {
+			vars[key] = val
+		}
+	}
+	return vars
+}
+
+func applyDotenvOverrides(cfg *Config, vars map[string]string) {
+	if v := strings.TrimSpace(vars["ENVIRONMENT"]); v != "" {
+		cfg.Environment = v
+	}
+	if v := strings.TrimSpace(vars["SERVER_PORT"]); v != "" {
+		cfg.ServerPort = v
+	}
+	if v := strings.TrimSpace(vars["DATABASE_URL"]); v != "" {
+		cfg.DatabaseURL = v
+	}
+	if v := strings.TrimSpace(vars["DATABASE_REQUIRED"]); v != "" {
+		cfg.DatabaseRequired = strings.EqualFold(v, "true") || v == "1"
+	}
+	if v := strings.TrimSpace(vars["REDIS_URL"]); v != "" {
+		cfg.RedisURL = v
+	}
+	if v := strings.TrimSpace(vars["REDIS_PASSWORD"]); v != "" {
+		cfg.RedisPassword = v
+	}
+	if v := strings.TrimSpace(vars["REDIS_TLS_ENABLED"]); v != "" {
+		cfg.RedisTLSEnabled = strings.EqualFold(v, "true") || v == "1"
+	}
+	if v := strings.TrimSpace(vars["REDIS_KEY_HMAC_SECRET"]); v != "" {
+		cfg.RedisKeyHMACSecret = v
+	}
 }
 
 // GetActiveProvider returns the currently configured AI provider

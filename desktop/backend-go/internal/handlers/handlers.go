@@ -26,6 +26,7 @@ type Handlers struct {
 	appProfilerService       *services.AppProfilerService              // Application profiling
 	conversationIntelligence *services.ConversationIntelligenceService // Conversation analysis
 	memoryExtractor          *services.MemoryExtractorService          // Memory extraction
+	blockMapper              *services.BlockMapperService              // Markdown to structured blocks
 }
 
 // NewHandlers creates a new Handlers instance
@@ -49,12 +50,14 @@ func (h *Handlers) SetPedroServices(
 	appProfilerService *services.AppProfilerService,
 	conversationIntelligence *services.ConversationIntelligenceService,
 	memoryExtractor *services.MemoryExtractorService,
+	blockMapper *services.BlockMapperService,
 ) {
 	h.documentProcessor = documentProcessor
 	h.learningService = learningService
 	h.appProfilerService = appProfilerService
 	h.conversationIntelligence = conversationIntelligence
 	h.memoryExtractor = memoryExtractor
+	h.blockMapper = blockMapper
 }
 
 // RegisterRoutes registers all API routes
@@ -287,12 +290,12 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	search := api.Group("/search")
 	search.Use(auth)
 	{
-		search.GET("/web", h.WebSearch)                // Basic web search
-		search.GET("/context", h.WebSearchWithContext) // Search with formatted context
-		search.GET("/history", h.ListSearchHistory)    // List user's search history
-		search.GET("/history/:id", h.GetSearchHistoryEntry) // Get specific search details
+		search.GET("/web", h.WebSearch)                           // Basic web search
+		search.GET("/context", h.WebSearchWithContext)            // Search with formatted context
+		search.GET("/history", h.ListSearchHistory)               // List user's search history
+		search.GET("/history/:id", h.GetSearchHistoryEntry)       // Get specific search details
 		search.DELETE("/history/:id", h.DeleteSearchHistoryEntry) // Delete specific search
-		search.DELETE("/history", h.ClearSearchHistory) // Clear all search history
+		search.DELETE("/history", h.ClearSearchHistory)           // Clear all search history
 	}
 
 	// AI configuration routes - /api/ai
@@ -307,6 +310,10 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		ai.GET("/system", h.GetSystemInfo)
 		ai.POST("/api-key", h.SaveAPIKey)
 		ai.PUT("/provider", h.UpdateAIProvider)
+		// Output styles & preferences
+		ai.GET("/output-styles", h.ListOutputStyles)
+		ai.GET("/output-preferences", h.GetUserOutputPreference)
+		ai.PUT("/output-preferences", h.UpsertUserOutputPreference)
 		// Agent presets (templates for custom agents) - must be before /agents/:id
 		ai.GET("/agents/presets", h.ListAgentPresets)
 		ai.GET("/agents/presets/:id", h.GetAgentPreset)
@@ -316,13 +323,13 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		// Custom user agents - specific routes before parameterized ones
 		ai.GET("/custom-agents", h.ListCustomAgents)
 		ai.POST("/custom-agents", h.CreateCustomAgent)
-		ai.POST("/custom-agents/sandbox", h.TestCustomAgent)      // Test arbitrary prompt
+		ai.POST("/custom-agents/sandbox", h.TestCustomAgent) // Test arbitrary prompt
 		ai.GET("/custom-agents/category/:category", h.ListCustomAgentsByCategory)
 		ai.POST("/custom-agents/from-preset/:presetId", h.CreateAgentFromPreset)
 		ai.GET("/custom-agents/:id", h.GetCustomAgent)
 		ai.PUT("/custom-agents/:id", h.UpdateCustomAgent)
 		ai.DELETE("/custom-agents/:id", h.DeleteCustomAgent)
-		ai.POST("/custom-agents/:id/test", h.TestCustomAgent)     // Test existing agent
+		ai.POST("/custom-agents/:id/test", h.TestCustomAgent) // Test existing agent
 		// Slash commands (built-in + custom)
 		ai.GET("/commands", h.ListCommands)
 		// Custom user commands CRUD
@@ -402,6 +409,8 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	{
 		userFacts.GET("", memoryHandler.ListUserFacts)
 		userFacts.PUT("/:key", memoryHandler.UpdateUserFact)
+		userFacts.POST("/:key/confirm", memoryHandler.ConfirmUserFact)
+		userFacts.POST("/:key/reject", memoryHandler.RejectUserFact)
 		userFacts.DELETE("/:key", memoryHandler.DeleteUserFact)
 	}
 
@@ -434,7 +443,7 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	}
 
 	// Voice notes routes - /api/voice-notes
-	voiceNotesHandler := NewVoiceNotesHandler(h.pool)
+	voiceNotesHandler := NewVoiceNotesHandler(h.pool, h.embeddingService)
 	voiceNotes := api.Group("/voice-notes")
 	voiceNotes.Use(auth)
 	{

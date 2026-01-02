@@ -2409,6 +2409,7 @@ Use this context to inform your responses.`;
 				// Focus Mode parameters
 				focus_mode: selectedFocusId,
 				focus_options: Object.keys(focusOptions).length > 0 ? focusOptions : undefined,
+				structured_output: true, // Enable V2 structured output
 			};
 
 			// Include attached document IDs for context injection
@@ -2566,6 +2567,17 @@ Use this context to inform your responses.`;
 										generatingArtifact = false;
 										artifactCompletedInStream = true;
 										autoSaveArtifact(artifact);
+									}
+								}
+								// Handle blocks events (structured output)
+								if (data.type === 'blocks' && data.data) {
+									const blockDoc = data.data;
+									if (blockDoc.blocks) {
+										messages = messages.map(msg =>
+											msg.id === assistantMsgId
+												? { ...msg, blocks: blockDoc.blocks }
+												: msg
+										);
 									}
 								}
 							} catch {

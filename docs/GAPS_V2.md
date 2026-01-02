@@ -1,30 +1,48 @@
 # BusinessOS V2: Remaining Implementation Gaps
 
-This document tracks the tasks from the [taks_v2.md](file:///c:/Users/Pichau/Desktop/BusinessOS-main-dev/docs/taks_v2.md) master plan that are NOT yet fully operational.
+All V2 gaps tracked here are implemented.
+
+This document tracks the tasks from the [taks_v2.md](taks_v2.md) master plan that were NOT yet fully operational.
+
+## ✅ Status
+
+- All checklist items below are completed.
+
+## 🧪 Local Development (No Docker)
+
+You can run the backend without Docker/Postgres using a **degraded mode** that boots the server and exposes health/status endpoints.
+
+- Backend (degraded mode):
+	- Set `DATABASE_REQUIRED=false` in `desktop/backend-go/.env`
+	- Optionally disable Redis noise: set `REDIS_URL=`
+	- Run: `go -C desktop/backend-go run ./cmd/server`
+	- Check: `GET http://localhost:8001/api/status`
+
+Note: In degraded mode, DB/auth-dependent APIs are not registered; this is intended for UI/dev plumbing without Docker.
 
 ## 🔴 CRITICAL GAPS
 
 ### 1. Output Styles & Block System (Part 3)
-- [ ] **Markdown-to-Block Translation**: Backend logic to convert LLM Markdown responses into the structured `Block` format (`paragraph`, `bullet_list`, `code`, `callout`) used by the frontend documents.
-- [ ] **Context-Specific Style Selection**: Automatic switching of output styles based on `focus_mode` or `agent_type` (e.g., 'technical' for @coder, 'executive' for @analyst).
-- [ ] **User Style Overrides**: Persistence for user-defined default styles in the `user_output_preferences` table.
+- [x] **Markdown-to-Block Translation**: Backend converts LLM Markdown into structured `Block` output when `structured_output=true` (via BlockMapper).
+- [x] **Context-Specific Style Selection**: Backend auto-selects an output style from `focus_mode` / `agent_type`, with optional per-user overrides.
+- [x] **User Style Overrides**: Backend persistence in `user_output_preferences` + Settings UI for default style.
 
 ### 2. Deep Context Integration (Part 4)
-- [ ] **Conversation Summarization**: Background job/service to generate and update `conversation_summaries`, allowing the system to index and search past chat history semantically.
-- [ ] **Voice Note Semantic Search**: Indexing voice note transcriptions with vector embeddings for inclusion in the `TreeSearchTool` results.
-- [ ] **Node Hierarchy Inheritance**: Logic to automatically pull "Parent Node" context when a child node is selected.
+- [x] **Conversation Summarization**: Operational backfill + optional background job to generate/update `conversation_summaries` (with embeddings), enabling semantic indexing of past chat history.
+- [x] **Voice Note Semantic Search**: Voice note transcripts are embedded on upload and included in semantic/text TreeSearch results.
+- [x] **Node Hierarchy Inheritance**: TieredContext automatically includes selected node + ancestor node contexts when a child node is selected.
 
 ### 3. Self-Learning & Behavior Patterns (Part 6)
-- [ ] **Behavior Pattern Detection**: Service to analyze interaction history and detect patterns like preferred response length, common technical topics, or timezone-dependent behavior.
-- [ ] **Explicit Learning Validation**: UI/UX flow for users to "Confirm" or "Reject" facts the AI thinks it has learned about them.
-- [ ] **Automatic Context Injection**: System-wide middleware to inject "User Facts" (e.g., tech stack, company size) into every agent session without manual tool calls.
+- [x] **Behavior Pattern Detection**: LearningService detects behavior patterns and persists them into `user_facts` (inactive by default) for explicit confirmation; optional background job keeps them fresh.
+- [x] **Explicit Learning Validation**: Settings UI + backend endpoints to "Confirm" or "Reject" learned user facts (controls whether facts are injected).
+- [x] **Automatic Context Injection**: ChatV2 always builds TieredContext and injects active "User Facts" into the system context automatically.
 
 ## 🟡 ENHANCEMENTS & REFINEMENT
 
 ### Context Management
-- [ ] **Context Tree API Refinement**: Dedicated stats endpoints for the tree visualization (`/api/context-tree/stats`).
-- [ ] **Token Budgeting (Priority-Based)**: Implementing strict LRU eviction across *all* context types (Document Chunks vs Memories vs Recent Chat).
+- [x] **Context Tree API Refinement**: Dedicated stats endpoints for the tree visualization (`/api/context-tree/stats`).
+- [x] **Token Budgeting (Priority-Based)**: Strict priority-based LRU eviction across context sections during prompt assembly (TieredContext formatting), enforcing per-agent `MaxContextTokens`.
 
 ### Developer Experience
-- [ ] **Application Profiler Sync**: Auto-syncing `ApplicationProfiles` with local file changes or Git events.
-- [ ] **Specialized Specialist Prompts**: Updating @coder, @analyst, and @researcher prompts to be as precise and recursive as the new Orchestrator V2.
+- [x] **Application Profiler Sync**: Auto-syncing `ApplicationProfiles` with local file changes or Git events.
+- [x] **Specialized Specialist Prompts**: Updating @coder, @analyst, and @researcher prompts to be as precise and recursive as the new Orchestrator V2.

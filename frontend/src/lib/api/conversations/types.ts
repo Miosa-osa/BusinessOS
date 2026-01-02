@@ -4,6 +4,28 @@ export interface Message {
   content: string;
   created_at: string;
   message_metadata?: Record<string, unknown>;
+  blocks?: Block[];
+  style?: string;
+  usage?: MessageUsage;
+}
+
+export interface Block {
+  id: string;
+  type: string;
+  content: string;
+  language?: string;
+  level?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface MessageUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  thinking_tokens: number;
+  tps: number;
+  model: string;
+  provider: string;
 }
 
 export interface Conversation {

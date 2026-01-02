@@ -9,8 +9,8 @@ Get BusinessOS running locally in 15 minutes.
 | Go | 1.21+ | `brew install go` |
 | Node.js | 20+ | `brew install node` |
 | PostgreSQL | 14+ | `brew install postgresql@14` |
-| Docker | Latest | Docker Desktop |
-| Redis | 7+ | Via Docker (auto-started) |
+| Docker | Latest | Docker Desktop (optional) |
+| Redis | 7+ | Optional |
 
 ## Quick Start (3 Steps)
 
@@ -37,9 +37,34 @@ cp frontend/.env.production.example frontend/.env
 
 This starts:
 - PostgreSQL (via Homebrew)
-- Redis (via Docker)
+- Redis (optional)
 - Go Backend at http://localhost:8001
 - SvelteKit Frontend at http://localhost:5173
+
+## Local Development (No Docker)
+
+If you don't want Docker, you can run the frontend plus a **degraded backend** (no DB). This boots the server and exposes health/status endpoints so you can iterate UI and basic plumbing.
+
+### Backend (degraded mode)
+
+In `desktop/backend-go/.env`:
+
+- Set `DATABASE_REQUIRED=false`
+- Optionally disable Redis noise: set `REDIS_URL=`
+
+Run:
+
+```bash
+go -C desktop/backend-go run ./cmd/server
+```
+
+Check:
+
+```bash
+curl -s http://localhost:8001/api/status
+```
+
+Note: In degraded mode, DB/auth-dependent APIs are not registered.
 
 ## Development Commands
 
@@ -112,13 +137,64 @@ DEFAULT_MODEL=llama3.2:3b
 
 ### Database Migrations
 
-```bash
-cd desktop/backend-go
-psql -U postgres -d business_os -f internal/database/init.sql
+**Windows (PowerShell):**
+```powershell
+# Apply all migrations to local PostgreSQL
+cd desktop/backend-go/scripts
+.\apply-migrations.ps1
 ```
 
-### Run Tests
+**Manual (any platform):**
+```bash
+cd desktop/backend-go
+psql -U postgres -d postgres -f ../../supabase-migrations-combined.sql
+```
 
+This creates **26 tables** including:
+- `memories` - Semantic memory storage with 768D embeddings
+- `uploaded_documents` - Document management
+- `document_chunks` - Chunked documents with embeddings
+- `conversation_summaries` - AI conversation history
+- `learning_events` - User feedback and personalization
+- `application_profiles` - App-specific context
+- And 20 more tables for the complete system
+
+### Testing & Verification
+
+**Setup Test User (for API testing):**
+```powershell
+# Windows
+.\setup-test-user.ps1
+
+# Or manually via SQL
+psql -U postgres -d postgres -f test-user-setup.sql
+```
+
+This creates:
+- Test User: `testuser@businessos.dev`
+- Session Token: `test-token-businessos-123`
+- Cookie: `better-auth.session_token=test-token-businessos-123`
+
+**Test API Endpoints:**
+```bash
+# Health check
+curl http://localhost:8001/health/detailed
+
+# Send chat message (requires auth)
+curl -X POST http://localhost:8001/api/chat/message \
+  -H "Content-Type: application/json" \
+  -H "Cookie: better-auth.session_token=test-token-businessos-123" \
+  -d '{"message": "Hello", "conversation_id": null}'
+
+# Upload document
+curl -X POST http://localhost:8001/api/documents \
+  -H "Cookie: better-auth.session_token=test-token-businessos-123" \
+  -F "file=@test.txt" \
+  -F "title=Test Doc" \
+  -F "document_type=text"
+```
+
+**Run Unit Tests:**
 ```bash
 # Backend
 cd desktop/backend-go && go test ./...
@@ -126,6 +202,13 @@ cd desktop/backend-go && go test ./...
 # Frontend
 cd frontend && npm test
 ```
+
+**Verified Features (Jan 2, 2026):**
+- ✅ Conversation system with SSE streaming
+- ✅ Memory creation with 768D embeddings
+- ✅ Document upload with automatic chunking
+- ✅ Semantic search ready (pgvector + HNSW indexes)
+- ✅ 337 API endpoints registered
 
 ### Build for Production
 
@@ -184,6 +267,8 @@ docker ps | grep businessos-redis
 # Restart Redis
 docker-compose -f desktop/backend-go/docker-compose.yml up -d redis
 ```
+
+If you are running with `REDIS_URL=` (no Redis), you can ignore this.
 
 ### Port Already in Use
 ```bash

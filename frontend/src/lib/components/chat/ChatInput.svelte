@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { DropdownMenu } from 'bits-ui';
 	import { fly, fade } from 'svelte/transition';
 	import DocumentUploadModal from './DocumentUploadModal.svelte';
+	import { getCustomAgents, type CustomAgent } from '$lib/api/ai';
 
 	interface Props {
 		value?: string;
@@ -29,7 +31,49 @@
 
 	let textareaRef: HTMLTextAreaElement | undefined = $state(undefined);
 
+	// Agent autocomplete state
+	let agents = $state<CustomAgent[]>([]);
+	let showAgentDropdown = $state(false);
+	let filteredAgents = $state<CustomAgent[]>([]);
+	let selectedAgentIndex = $state(0);
+	let mentionStart = $state(-1);
+
+	// Load custom agents on mount
+	onMount(async () => {
+		try {
+			const response = await getCustomAgents();
+			agents = response.agents;
+		} catch (error) {
+			console.error('Failed to load custom agents:', error);
+		}
+	});
+
 	function handleKeydown(e: KeyboardEvent) {
+		// Handle agent autocomplete navigation
+		if (showAgentDropdown) {
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				selectedAgentIndex = (selectedAgentIndex + 1) % filteredAgents.length;
+				return;
+			}
+			if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				selectedAgentIndex = selectedAgentIndex === 0 ? filteredAgents.length - 1 : selectedAgentIndex - 1;
+				return;
+			}
+			if (e.key === 'Enter' && filteredAgents.length > 0) {
+				e.preventDefault();
+				insertAgent(filteredAgents[selectedAgentIndex]);
+				return;
+			}
+			if (e.key === 'Escape') {
+				e.preventDefault();
+				showAgentDropdown = false;
+				return;
+			}
+		}
+
+		// Normal send
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			handleSend();
@@ -52,6 +96,69 @@
 			textareaRef.style.height = 'auto';
 			textareaRef.style.height = Math.min(textareaRef.scrollHeight, 160) + 'px';
 		}
+
+		// Check for @ mention trigger
+		checkForMention();
+	}
+
+	function checkForMention() {
+		if (!textareaRef) return;
+
+		const cursorPos = textareaRef.selectionStart;
+		const textBeforeCursor = value.substring(0, cursorPos);
+
+		// Find the last @ character before cursor
+		const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+
+		if (lastAtIndex === -1) {
+			showAgentDropdown = false;
+			return;
+		}
+
+		// Check if there's a space between @ and cursor (if so, don't show dropdown)
+		const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+		if (textAfterAt.includes(' ')) {
+			showAgentDropdown = false;
+			return;
+		}
+
+		// Check if @ is at start or preceded by whitespace
+		const charBeforeAt = lastAtIndex > 0 ? value[lastAtIndex - 1] : ' ';
+		if (charBeforeAt !== ' ' && charBeforeAt !== '\n' && lastAtIndex !== 0) {
+			showAgentDropdown = false;
+			return;
+		}
+
+		// Show dropdown and filter agents
+		mentionStart = lastAtIndex;
+		const searchTerm = textAfterAt.toLowerCase();
+		filteredAgents = agents.filter(agent =>
+			agent.name.toLowerCase().includes(searchTerm) ||
+			agent.display_name.toLowerCase().includes(searchTerm)
+		);
+
+		selectedAgentIndex = 0;
+		showAgentDropdown = filteredAgents.length > 0;
+	}
+
+	function insertAgent(agent: CustomAgent) {
+		if (!textareaRef || mentionStart === -1) return;
+
+		const cursorPos = textareaRef.selectionStart;
+		const beforeMention = value.substring(0, mentionStart);
+		const afterCursor = value.substring(cursorPos);
+
+		value = beforeMention + '@' + agent.name + ' ' + afterCursor;
+		showAgentDropdown = false;
+
+		// Set cursor position after inserted mention
+		const newCursorPos = mentionStart + agent.name.length + 2; // +2 for @ and space
+		setTimeout(() => {
+			if (textareaRef) {
+				textareaRef.focus();
+				textareaRef.setSelectionRange(newCursorPos, newCursorPos);
+			}
+		}, 0);
 	}
 
 	let showUploadModal = $state(false);
@@ -124,6 +231,61 @@
 					class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[15px] placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
 					style="min-height: 48px; max-height: 160px;"
 				></textarea>
+
+				<!-- Agent Autocomplete Dropdown -->
+				{#if showAgentDropdown && filteredAgents.length > 0}
+					<div
+						class="absolute bottom-full left-0 mb-2 w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50"
+						transition:fly={{ y: 10, duration: 150 }}
+					>
+						<div class="px-3 py-2 bg-gray-50 border-b border-gray-200">
+							<div class="flex items-center gap-2 text-xs text-gray-600">
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+								</svg>
+								<span>Select agent ({filteredAgents.length})</span>
+							</div>
+						</div>
+						<div class="max-h-60 overflow-y-auto">
+							{#each filteredAgents as agent, index}
+								<button
+									type="button"
+									class="w-full px-3 py-2.5 flex items-start gap-3 hover:bg-gray-50 transition-colors text-left"
+									class:bg-gray-100={index === selectedAgentIndex}
+									onclick={() => insertAgent(agent)}
+								>
+									{#if agent.avatar}
+										<img src={agent.avatar} alt={agent.display_name} class="w-8 h-8 rounded-full flex-shrink-0" />
+									{:else}
+										<div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+											{agent.display_name.charAt(0).toUpperCase()}
+										</div>
+									{/if}
+									<div class="flex-1 min-w-0">
+										<div class="flex items-center gap-2">
+											<span class="font-medium text-sm text-gray-900">{agent.display_name}</span>
+											<span class="text-xs text-gray-400">@{agent.name}</span>
+										</div>
+										{#if agent.description}
+											<p class="text-xs text-gray-500 mt-0.5 line-clamp-2">{agent.description}</p>
+										{/if}
+									</div>
+								</button>
+							{/each}
+						</div>
+						<div class="px-3 py-2 bg-gray-50 border-t border-gray-200 flex items-center gap-4 text-xs text-gray-500">
+							<span class="flex items-center gap-1">
+								<kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-gray-600">↑↓</kbd> Navigate
+							</span>
+							<span class="flex items-center gap-1">
+								<kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-gray-600">Enter</kbd> Select
+							</span>
+							<span class="flex items-center gap-1">
+								<kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-gray-600">Esc</kbd> Close
+							</span>
+						</div>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Voice Button (optional) -->

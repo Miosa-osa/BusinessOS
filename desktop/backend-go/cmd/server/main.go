@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,6 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/rhl/businessos-backend/internal/config"
 	"github.com/rhl/businessos-backend/internal/container"
 	"github.com/rhl/businessos-backend/internal/database"
@@ -36,12 +40,36 @@ func main() {
 	instanceID := uuid.New().String()[:8]
 	log.Printf("Server instance ID: %s", instanceID)
 
-	// Connect to database
-	pool, err := database.Connect(cfg)
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+	// Connect to database (optional in dev)
+	var pool *pgxpool.Pool
+	dbConnected := false
+	var dbErr error
+	if cfg.DatabaseRequired {
+		pool, err = database.Connect(cfg)
+		if err != nil {
+			log.Fatalf("Failed to connect to database: %v", err)
+		}
+		dbConnected = true
+		defer database.Close()
+	} else {
+		log.Printf("DATABASE_REQUIRED=false: starting without database (degraded mode)")
+		p, err := database.Connect(cfg)
+		if err != nil {
+			dbErr = err
+			log.Printf("Database unavailable (continuing): %v", err)
+		} else {
+			pool = p
+			dbConnected = true
+			defer database.Close()
+		}
 	}
-	defer database.Close()
+
+	// Create a database/sql wrapper for services that use stdlib APIs.
+	var sqlDB *sql.DB
+	if dbConnected && pool != nil {
+		sqlDB = stdlib.OpenDBFromPool(pool)
+		defer sqlDB.Close()
+	}
 
 	// Connect to Redis (optional - for session storage and horizontal scaling)
 	redisConnected := false
@@ -125,10 +153,16 @@ func main() {
 
 	// Readiness check (includes dependencies)
 	router.GET("/ready", func(c *gin.Context) {
+		dbStatus := "disconnected"
+		if dbConnected {
+			dbStatus = "connected"
+		} else if !cfg.DatabaseRequired {
+			dbStatus = "disabled"
+		}
 		status := gin.H{
 			"status":      "ready",
 			"instance_id": instanceID,
-			"database":    "connected",
+			"database":    dbStatus,
 			"redis":       "disconnected",
 			"containers":  "unavailable",
 		}
@@ -157,9 +191,21 @@ func main() {
 		components := health["components"].(gin.H)
 
 		// Database health
-		components["database"] = gin.H{
-			"status": "connected",
+		dbComponent := gin.H{}
+		if dbConnected {
+			dbComponent["status"] = "connected"
+		} else if !cfg.DatabaseRequired {
+			dbComponent["status"] = "disabled"
+			if dbErr != nil {
+				dbComponent["error"] = dbErr.Error()
+			}
+		} else {
+			dbComponent["status"] = "disconnected"
+			if dbErr != nil {
+				dbComponent["error"] = dbErr.Error()
+			}
 		}
+		components["database"] = dbComponent
 
 		// Redis health
 		if redisConnected {
@@ -193,6 +239,44 @@ func main() {
 	// API routes group
 	api := router.Group("/api")
 
+	// If DB isn't available, only expose basic health endpoints.
+	if !dbConnected || pool == nil {
+		api.GET("/status", func(c *gin.Context) {
+			c.JSON(200, gin.H{
+				"status":            "degraded",
+				"database":          "unavailable",
+				"database_required": cfg.DatabaseRequired,
+			})
+		})
+
+		log.Printf("Backend running in degraded mode (no database): only /, /health, /ready, /health/detailed, /api/status, and /uploads are available")
+		// Start server
+		go func() {
+			log.Printf("Server starting on port %s", cfg.ServerPort)
+			if err := router.Run(":" + cfg.ServerPort); err != nil {
+				log.Fatalf("Failed to start server: %v", err)
+			}
+		}()
+
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		<-quit
+		log.Println("Shutting down server...")
+		if containerMonitor != nil {
+			log.Println("Stopping container monitor...")
+			if err := containerMonitor.StopMonitoring(); err != nil {
+				log.Printf("Warning: Error stopping container monitor: %v", err)
+			}
+		}
+		if containerMgr != nil {
+			log.Println("Shutting down container manager...")
+			containerMgr.Shutdown()
+		}
+		database.Close()
+		log.Println("Server stopped")
+		return
+	}
+
 	// Initialize embedding service for RAG (semantic search)
 	var embeddingService *services.EmbeddingService
 	var contextBuilder *services.ContextBuilder
@@ -200,7 +284,8 @@ func main() {
 	embeddingService = services.NewEmbeddingService(pool, cfg.OllamaLocalURL)
 	if embeddingService.HealthCheck(ctx) {
 		contextBuilder = services.NewContextBuilder(pool, embeddingService)
-		tieredContextService = services.NewTieredContextService(pool, embeddingService)
+		summarizer := services.NewSummarizerService(pool, cfg)
+		tieredContextService = services.NewTieredContextService(pool, embeddingService, summarizer)
 		log.Printf("Embedding service initialized (model=nomic-embed-text, dimensions=768)")
 		log.Printf("Tiered context service enabled (scoped RAG, Level 1/2/3 context)")
 	} else {
@@ -215,6 +300,7 @@ func main() {
 	var appProfilerService *services.AppProfilerService
 	var conversationIntelligence *services.ConversationIntelligenceService
 	var memoryExtractor *services.MemoryExtractorService
+	var blockMapper *services.BlockMapperService
 
 	// Document Processor - requires embedding service for semantic search
 	if embeddingService != nil {
@@ -254,12 +340,117 @@ func main() {
 		}
 	}
 
+	// Block Mapper - requires sqlDB wrapper
+	if sqlDB != nil {
+		blockMapper = services.NewBlockMapperService(sqlDB, slog.Default())
+		log.Printf("Block mapper initialized (markdown to structured blocks)")
+	}
+
 	// Initialize handlers with container manager, session cache, terminal pub/sub, and embedding services
 	h := handlers.NewHandlers(pool, cfg, containerMgr, sessionCache, terminalPubSub, embeddingService, contextBuilder, tieredContextService)
 
 	// Set Pedro Tasks services
-	h.SetPedroServices(documentProcessor, learningService, appProfilerService, conversationIntelligence, memoryExtractor)
-	log.Printf("Pedro Tasks services registered (documents, learning, profiles, intelligence)")
+	h.SetPedroServices(documentProcessor, learningService, appProfilerService, conversationIntelligence, memoryExtractor, blockMapper)
+	log.Printf("Pedro Tasks services registered (documents, learning, profiles, intelligence, blocks)")
+
+	// Optional background job: keep conversation_summaries fresh for context + semantic search.
+	if conversationIntelligence != nil && cfg.ConversationSummaryJobEnabled {
+		interval := time.Duration(cfg.ConversationSummaryJobIntervalMinutes) * time.Minute
+		if interval <= 0 {
+			interval = 30 * time.Minute
+		}
+		batchSize := cfg.ConversationSummaryJobBatchSize
+		if batchSize <= 0 {
+			batchSize = 25
+		}
+		maxMessages := cfg.ConversationSummaryJobMaxMessages
+		if maxMessages <= 0 {
+			maxMessages = 200
+		}
+
+		go func() {
+			t := time.NewTicker(interval)
+			defer t.Stop()
+			log.Printf("Conversation summary job enabled (interval=%s batch=%d maxMessages=%d)", interval, batchSize, maxMessages)
+			for {
+				select {
+				case <-t.C:
+					count, err := conversationIntelligence.BackfillStaleSummaries(ctx, batchSize, maxMessages, false)
+					if err != nil {
+						log.Printf("Conversation summary job error: %v", err)
+						continue
+					}
+					if count > 0 {
+						log.Printf("Conversation summary job updated %d conversations", count)
+					}
+				}
+			}
+		}()
+	}
+
+	// Optional background job: detect behavior patterns and store them as user_facts for explicit confirmation.
+	if learningService != nil && cfg.BehaviorPatternsJobEnabled {
+		interval := time.Duration(cfg.BehaviorPatternsJobIntervalMinutes) * time.Minute
+		if interval <= 0 {
+			interval = 60 * time.Minute
+		}
+		batchSize := cfg.BehaviorPatternsJobUserBatchSize
+		if batchSize <= 0 {
+			batchSize = 50
+		}
+
+		go func() {
+			t := time.NewTicker(interval)
+			defer t.Stop()
+			log.Printf("Behavior patterns job enabled (interval=%s userBatch=%d)", interval, batchSize)
+			for {
+				select {
+				case <-t.C:
+					usersProcessed, factsUpserted, err := learningService.BackfillRecentUsersBehaviorPatterns(ctx, batchSize)
+					if err != nil {
+						log.Printf("Behavior patterns job error: %v", err)
+						continue
+					}
+					if usersProcessed > 0 || factsUpserted > 0 {
+						log.Printf("Behavior patterns job processed %d users, upserted %d pattern facts", usersProcessed, factsUpserted)
+					}
+				}
+			}
+		}()
+	}
+
+	// Optional background job: auto-sync application profiles based on git HEAD or filesystem changes.
+	if appProfilerService != nil && cfg.AppProfilerSyncJobEnabled {
+		interval := time.Duration(cfg.AppProfilerSyncJobIntervalMinutes) * time.Minute
+		if interval <= 0 {
+			interval = 10 * time.Minute
+		}
+		batchSize := cfg.AppProfilerSyncJobBatchSize
+		if batchSize <= 0 {
+			batchSize = 5
+		}
+
+		go func() {
+			t := time.NewTicker(interval)
+			defer t.Stop()
+			log.Printf("App profiler auto-sync job enabled (interval=%s batch=%d)", interval, batchSize)
+			for {
+				select {
+				case <-t.C:
+					checked, refreshed, err := appProfilerService.SyncAutoProfiles(ctx, batchSize)
+					if err != nil {
+						log.Printf("App profiler auto-sync job error: %v", err)
+						continue
+					}
+					if checked > 0 || refreshed > 0 {
+						log.Printf("App profiler auto-sync checked %d profiles, refreshed %d", checked, refreshed)
+					}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
 
 	// Register routes
 	h.RegisterRoutes(api)

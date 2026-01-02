@@ -27,8 +27,9 @@ type BaseAgentV2 struct {
 	agentName       string
 	description     string
 	systemPrompt    string
-	focusModePrompt string // Focus mode specific prompt prefix
-	contextReqs     ContextRequirements
+	focusModePrompt   string // Focus mode specific prompt prefix
+	outputStylePrompt string // Output style specific instructions
+	contextReqs       ContextRequirements
 	llmOptions      services.LLMOptions
 	toolRegistry    *tools.AgentToolRegistry
 	enabledTools    []string // Tool names this agent can use
@@ -142,6 +143,11 @@ func (a *BaseAgentV2) SetCustomSystemPrompt(prompt string) {
 // SetFocusModePrompt sets a focus mode specific prompt prefix
 func (a *BaseAgentV2) SetFocusModePrompt(prompt string) {
 	a.focusModePrompt = prompt
+}
+
+// SetOutputStylePrompt sets an output style specific prompt section
+func (a *BaseAgentV2) SetOutputStylePrompt(prompt string) {
+	a.outputStylePrompt = prompt
 }
 
 // GetEnabledTools returns the list of tools this agent can use
@@ -409,7 +415,12 @@ func (a *BaseAgentV2) buildMessages(input AgentInput) []services.ChatMessage {
 
 	// Prepend context as system message if available
 	if input.Context != nil {
-		contextContent := input.Context.FormatForAI()
+		contextContent := ""
+		if a.contextReqs.MaxContextTokens > 0 {
+			contextContent = input.Context.FormatForAIWithTokenBudget(a.contextReqs.MaxContextTokens)
+		} else {
+			contextContent = input.Context.FormatForAI()
+		}
 		if contextContent != "" {
 			contextMsg := services.ChatMessage{
 				Role:    "system",
@@ -440,6 +451,12 @@ func (a *BaseAgentV2) buildSystemPromptWithThinking() string {
 	if a.focusModePrompt != "" {
 		result = a.focusModePrompt + "\n\n" + result
 		fmt.Printf("[Agent] Applied focus mode prompt prefix (%d chars)\n", len(a.focusModePrompt))
+	}
+
+	// Prepend output style prompt if set
+	if a.outputStylePrompt != "" {
+		result = a.outputStylePrompt + "\n\n" + result
+		fmt.Printf("[Agent] Applied output style prompt prefix (%d chars)\n", len(a.outputStylePrompt))
 	}
 
 	if a.llmOptions.ThinkingEnabled {
@@ -511,6 +528,7 @@ func NewOrchestratorV2(ctx *AgentContextV2) AgentV2 {
 			NeedsTasks:     true,
 			NeedsClients:   true,
 			NeedsKnowledge: true,
+			MaxContextTokens: 10000,
 		},
 		EnabledTools: []string{
 			"search_documents", "get_project", "get_task", "get_client",
@@ -539,6 +557,7 @@ func NewDocumentAgentV2(ctx *AgentContextV2) AgentV2 {
 			NeedsProjects:  true,
 			NeedsKnowledge: true,
 			NeedsClients:   true,
+			MaxContextTokens: 10000,
 		},
 		EnabledTools: []string{
 			"create_artifact", "search_documents", "get_project", "get_client",
@@ -567,6 +586,7 @@ func NewProjectAgentV2(ctx *AgentContextV2) AgentV2 {
 			NeedsTasks:    true,
 			NeedsTeam:     true,
 			NeedsClients:  true,
+			MaxContextTokens: 8000,
 		},
 		EnabledTools: []string{
 			"create_project", "update_project", "get_project", "list_projects",
@@ -596,6 +616,7 @@ func NewClientAgentV2(ctx *AgentContextV2) AgentV2 {
 			NeedsClients:   true,
 			NeedsProjects:  true,
 			NeedsKnowledge: true,
+			MaxContextTokens: 6000,
 		},
 		EnabledTools: []string{
 			"create_client", "update_client", "get_client",
@@ -626,6 +647,7 @@ func NewAnalystAgentV2(ctx *AgentContextV2) AgentV2 {
 			NeedsTasks:    true,
 			NeedsClients:  true,
 			NeedsTeam:     true,
+			MaxContextTokens: 8000,
 		},
 		EnabledTools: []string{
 			"query_metrics", "get_team_capacity",
@@ -655,6 +677,7 @@ func NewTaskAgentV2(ctx *AgentContextV2) AgentV2 {
 			NeedsProjects: true,
 			NeedsTasks:    true,
 			NeedsTeam:     true,
+			MaxContextTokens: 8000,
 		},
 		EnabledTools: []string{
 			"create_task", "update_task", "get_task", "list_tasks",

@@ -172,34 +172,40 @@ var AgentToolMatrix = map[AgentTypeV2][]string{
 		"search_documents", "get_project", "get_task", "get_client",
 		"create_task", "create_project", "create_client",
 		"create_artifact", "log_activity",
+		"tree_search", "browse_tree", "load_context",
 	},
 	AgentTypeV2Document: {
 		"create_artifact", "search_documents", "get_project", "get_client",
 		"log_activity",
+		"tree_search", "browse_tree", "load_context",
 	},
 	AgentTypeV2Project: {
 		"create_project", "update_project", "get_project", "list_projects",
 		"create_task", "bulk_create_tasks", "assign_task",
 		"get_team_capacity", "search_documents",
 		"create_artifact", "log_activity",
+		"tree_search", "browse_tree", "load_context",
 	},
 	AgentTypeV2Task: {
 		"create_task", "update_task", "get_task", "list_tasks",
 		"bulk_create_tasks", "move_task", "assign_task",
 		"get_team_capacity", "get_project",
 		"log_activity",
+		"tree_search", "browse_tree", "load_context",
 	},
 	AgentTypeV2Client: {
 		"create_client", "update_client", "get_client",
 		"log_client_interaction", "update_client_pipeline",
 		"search_documents", "get_project",
 		"create_artifact", "log_activity",
+		"tree_search", "browse_tree", "load_context",
 	},
 	AgentTypeV2Analyst: {
 		"query_metrics", "get_team_capacity",
 		"list_projects", "list_tasks", "get_project",
 		"search_documents", "create_artifact",
 		"log_activity",
+		"tree_search", "browse_tree", "load_context",
 	},
 }
 

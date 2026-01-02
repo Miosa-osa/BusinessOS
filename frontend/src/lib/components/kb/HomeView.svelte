@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import type { ContextListItem, ArtifactListItem } from '$lib/api/client';
 	import { api } from '$lib/api/client';
+	import TreeSearchPanel from '$lib/components/contexts/TreeSearchPanel.svelte';
+	import type { TreeSearchResult } from '$lib/api/context-tree/types';
 
 	interface Props {
 		pages: ContextListItem[];
@@ -16,6 +18,13 @@
 
 	let searchQuery = $state('');
 	let viewMode = $state<'grid' | 'list'>('list');
+	let showTreeSearch = $state(false);
+
+	function handleTreeSearchItemSelect(item: TreeSearchResult) {
+		console.log('Selected tree item:', item);
+		showTreeSearch = false;
+		// TODO: Navigate to the selected item based on entity_type
+	}
 
 	// Recent pages (last 8)
 	const displayRecentPages = $derived(recentPages.slice(0, 8));
@@ -87,8 +96,8 @@
 			<p class="text-gray-500 dark:text-gray-400">Your workspace for pages, docs, and artifacts</p>
 		</div>
 
-		<!-- Quick Action -->
-		<div class="mb-12">
+		<!-- Quick Actions -->
+		<div class="mb-12 flex gap-3">
 			<button
 				onclick={() => onCreatePage()}
 				class="inline-flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-400 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors text-sm"
@@ -97,6 +106,16 @@
 					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
 				</svg>
 				New page
+			</button>
+
+			<button
+				onclick={() => showTreeSearch = true}
+				class="inline-flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-400 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors text-sm"
+			>
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+				</svg>
+				Tree Search
 			</button>
 		</div>
 
@@ -273,3 +292,26 @@
 		</div>
 	</div>
 </div>
+
+<!-- Tree Search Modal -->
+{#if showTreeSearch}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onclick={(e) => { if (e.target === e.currentTarget) showTreeSearch = false; }}>
+		<div class="bg-white dark:bg-[#191919] rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col" onclick={(e) => e.stopPropagation()}>
+			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+				<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Tree Search</h2>
+				<button
+					onclick={() => showTreeSearch = false}
+					class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+					aria-label="Close"
+				>
+					<svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+			<div class="flex-1 overflow-hidden">
+				<TreeSearchPanel onItemSelect={handleTreeSearchItemSelect} />
+			</div>
+		</div>
+	</div>
+{/if}

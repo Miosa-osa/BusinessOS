@@ -192,19 +192,28 @@
 
 	{#if tasks.length === 0}
 		<div class="flex flex-col items-center justify-center py-16" in:fade={{ duration: 200 }}>
-			<div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-				<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-				</svg>
-			</div>
-			<h3 class="text-lg font-medium text-gray-900 mb-1">No tasks yet</h3>
-			<p class="text-gray-500 mb-4">Create your first task to start tracking work</p>
-			<button
-				onclick={() => showInlineAdd = 'all'}
-				class="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
-			>
-				+ Create your first task
-			</button>
+			{#if showInlineAdd !== 'all'}
+				<div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+					<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+					</svg>
+				</div>
+				<h3 class="text-lg font-medium text-gray-900 mb-1">No tasks yet</h3>
+				<p class="text-gray-500 mb-4">Create your first task to start tracking work</p>
+				<button
+					onclick={() => showInlineAdd = 'all'}
+					class="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+				>
+					+ Create your first task
+				</button>
+			{:else}
+				<div class="w-full max-w-2xl">
+					<TaskInlineAdd
+						onAdd={(task) => handleAddTask('all', task)}
+						onCancel={() => showInlineAdd = null}
+					/>
+				</div>
+			{/if}
 		</div>
 	{/if}
 </div>

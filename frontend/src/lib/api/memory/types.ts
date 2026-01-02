@@ -84,7 +84,7 @@ export interface MemoryFilters {
 
 export interface MemorySearchParams {
   query: string;
-  memory_types?: MemoryType[];
+  memory_type?: MemoryType;
   project_id?: string;
   node_id?: string;
   min_score?: number;
@@ -92,8 +92,9 @@ export interface MemorySearchParams {
 }
 
 export interface MemorySearchResult extends MemoryListItem {
-  relevance_score: number;
-  match_highlights?: string[];
+  // Returned by different endpoints
+  similarity?: number;
+  relevance_score?: number;
 }
 
 export interface RelevantMemoryParams {
@@ -116,18 +117,22 @@ export interface MemoryStats {
 }
 
 export interface UserFact {
-  key: string;
-  value: string;
-  category: string;
-  confidence: number;
-  source: string;
+
+  id: string;
+  user_id: string;
+  fact_key: string;
+  fact_value: string;
+  fact_type: string;
+  source_memory_id: string | null;
+  confidence_score: number;
+  is_active: boolean;
+  last_confirmed_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface UpdateUserFactData {
-  value: string;
-  category?: string;
-  confidence?: number;
-  source?: string;
+  fact_value: string;
+  fact_type?: string;
+  confidence_score?: number;
 }

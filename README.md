@@ -20,6 +20,21 @@ cd BusinessOS
 open http://localhost:5173
 ```
 
+### No Docker (UI / Dev Plumbing)
+
+If you don't want Docker, you can run the frontend plus a **degraded backend** (no DB). This is useful for UI iteration and basic wiring.
+
+```bash
+# Frontend
+npm --prefix frontend install
+npm --prefix frontend run dev
+
+# Backend (degraded mode)
+go -C desktop/backend-go run ./cmd/server
+```
+
+Backend status endpoint: `http://localhost:8001/api/status`
+
 **Requirements:** Node.js 18+, Go 1.21+, PostgreSQL 15+
 
 ---

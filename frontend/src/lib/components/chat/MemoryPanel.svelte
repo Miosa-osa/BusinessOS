@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { api, type MemoryListItem, type MemoryType } from '$lib/api';
 	import MemoryCard from './MemoryCard.svelte';
+	import MemoryStats from './MemoryStats.svelte';
+	import MemoryFilters from './MemoryFilters.svelte';
+	import MemoryDetailModal from './MemoryDetailModal.svelte';
 
 	interface Props {
 		conversationId?: string;
@@ -16,6 +19,9 @@
 	let searchQuery = $state('');
 	let selectedType = $state<MemoryType | 'all'>('all');
 	let showPinnedOnly = $state(false);
+	let importanceMin = $state(0);
+	let dateRange = $state<{ start: string; end: string } | null>(null);
+	let selectedMemory = $state<MemoryListItem | null>(null);
 
 	const memoryTypes: { value: MemoryType | 'all'; label: string }[] = [
 		{ value: 'all', label: 'All Types' },
@@ -34,7 +40,7 @@
 			if (searchQuery.trim()) {
 				const results = await api.searchMemories({
 					query: searchQuery,
-					memory_types: selectedType !== 'all' ? [selectedType] : undefined,
+					memory_type: selectedType !== 'all' ? selectedType : undefined,
 					project_id: projectId,
 					node_id: nodeId,
 					limit: 50
@@ -99,9 +105,29 @@
 		}
 	}
 
-	// Sort memories: pinned first, then by date
+	// Sort and filter memories: pinned first, then by date
 	let sortedMemories = $derived(() => {
-		return [...memories].sort((a, b) => {
+		let filtered = [...memories];
+
+		// Apply importance filter
+		if (importanceMin > 0) {
+			filtered = filtered.filter(m => m.importance_score >= importanceMin / 100);
+		}
+
+		// Apply date range filter
+		if (dateRange) {
+			const startDate = new Date(dateRange.start);
+			const endDate = new Date(dateRange.end);
+			endDate.setHours(23, 59, 59, 999); // Include full end date
+
+			filtered = filtered.filter(m => {
+				const memoryDate = new Date(m.created_at);
+				return memoryDate >= startDate && memoryDate <= endDate;
+			});
+		}
+
+		// Sort: pinned first, then by date
+		return filtered.sort((a, b) => {
 			if (a.is_pinned && !b.is_pinned) return -1;
 			if (!a.is_pinned && b.is_pinned) return 1;
 			return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -155,13 +181,22 @@
 				{/if}
 			</div>
 		</form>
-
-		<select class="type-filter" value={selectedType} onchange={handleTypeChange}>
-			{#each memoryTypes as type}
-				<option value={type.value}>{type.label}</option>
-			{/each}
-		</select>
 	</div>
+
+	<MemoryFilters
+		{selectedType}
+		{showPinnedOnly}
+		{importanceMin}
+		{dateRange}
+		onTypeChange={(type) => { selectedType = type; loadMemories(); }}
+		onPinnedToggle={togglePinnedOnly}
+		onImportanceChange={(min) => importanceMin = min}
+		onDateRangeChange={(range) => dateRange = range}
+	/>
+
+	{#if !loading && memories.length > 0}
+		<MemoryStats memories={sortedMemories()} />
+	{/if}
 
 	<div class="panel-content">
 		{#if loading}
@@ -189,7 +224,7 @@
 				{#each sortedMemories() as memory (memory.id)}
 					<MemoryCard
 						{memory}
-						onClick={onMemoryClick}
+						onClick={() => selectedMemory = memory}
 						onPin={handleMemoryPin}
 						onDelete={handleMemoryDelete}
 					/>
@@ -208,6 +243,13 @@
 		</button>
 	</div>
 </div>
+
+<MemoryDetailModal
+	memory={selectedMemory}
+	onClose={() => selectedMemory = null}
+	onPin={handleMemoryPin}
+	onDelete={handleMemoryDelete}
+/>
 
 <style>
 	.memory-panel {

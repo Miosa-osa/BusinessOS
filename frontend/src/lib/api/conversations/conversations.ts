@@ -34,7 +34,16 @@ export async function getConversationsByContext(contextId: string) {
 }
 
 // sendMessage returns a streaming response and conversation id header
-export async function sendMessage(message: string, conversationId?: string, contextId?: string, model?: string) {
+export async function sendMessage(
+  message: string,
+  conversationId?: string,
+  contextId?: string,
+  model?: string,
+  options?: {
+    structured_output?: boolean;
+    output_style?: string;
+  }
+) {
   const response = await fetch(`${getApiBaseUrl()}/chat/message`, {
     method: 'POST',
     headers: {
@@ -45,7 +54,9 @@ export async function sendMessage(message: string, conversationId?: string, cont
       message,
       conversation_id: conversationId,
       context_id: contextId,
-      model
+      model,
+      structured_output: options?.structured_output,
+      output_style: options?.output_style
     })
   });
 

@@ -1001,6 +1001,85 @@ func (h *MemoryHandler) UpdateUserFact(c *gin.Context) {
 	c.JSON(http.StatusOK, fact)
 }
 
+// ConfirmUserFact marks a user fact as confirmed/active
+// POST /api/user-facts/:key/confirm
+func (h *MemoryHandler) ConfirmUserFact(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	factKey := c.Param("key")
+	if factKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Fact key is required"})
+		return
+	}
+
+	query := `
+		UPDATE user_facts
+		SET is_active = true,
+		    last_confirmed_at = NOW(),
+		    updated_at = NOW()
+		WHERE user_id = $1 AND fact_key = $2
+		RETURNING id, user_id, fact_key, fact_value, fact_type,
+		          source_memory_id, confidence_score, is_active,
+		          last_confirmed_at, created_at, updated_at
+	`
+
+	row := h.pool.QueryRow(c.Request.Context(), query, user.ID, factKey)
+	fact, err := scanUserFactRowSingle(row)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Fact not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to confirm fact"})
+		return
+	}
+
+	c.JSON(http.StatusOK, fact)
+}
+
+// RejectUserFact marks a user fact as inactive (not injected)
+// POST /api/user-facts/:key/reject
+func (h *MemoryHandler) RejectUserFact(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	factKey := c.Param("key")
+	if factKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Fact key is required"})
+		return
+	}
+
+	query := `
+		UPDATE user_facts
+		SET is_active = false,
+		    updated_at = NOW()
+		WHERE user_id = $1 AND fact_key = $2
+		RETURNING id, user_id, fact_key, fact_value, fact_type,
+		          source_memory_id, confidence_score, is_active,
+		          last_confirmed_at, created_at, updated_at
+	`
+
+	row := h.pool.QueryRow(c.Request.Context(), query, user.ID, factKey)
+	fact, err := scanUserFactRowSingle(row)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Fact not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reject fact"})
+		return
+	}
+
+	c.JSON(http.StatusOK, fact)
+}
+
 // DeleteUserFact deletes a user fact
 // DELETE /api/user-facts/:key
 func (h *MemoryHandler) DeleteUserFact(c *gin.Context) {

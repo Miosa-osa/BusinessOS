@@ -79,3 +79,31 @@ export interface Tool {
 export type ToolResponse =
   | { success: true; result: string; error?: never }
   | { success: false; result?: never; error: string };
+
+// Custom Agents Types
+export interface CustomAgent {
+  id: string;
+  user_id: string;
+  name: string;
+  display_name: string;
+  description?: string;
+  avatar?: string;
+  system_prompt: string;
+  model_preference?: string;
+  temperature?: number;
+  max_tokens?: number;
+  capabilities?: string[];
+  tools_enabled?: string[];
+  context_sources?: string[];
+  thinking_enabled?: boolean;
+  streaming_enabled?: boolean;
+  category?: string;
+  is_active?: boolean;
+  usage_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomAgentsResponse {
+  agents: CustomAgent[];
+}

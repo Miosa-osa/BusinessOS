@@ -30,8 +30,11 @@ export interface CreateTaskData {
   description?: string;
   priority?: TaskPriority;
   due_date?: string;
+  start_date?: string;
   project_id?: string;
   assignee_id?: string;
+  parent_task_id?: string;
+  estimated_hours?: number;
 }
 
 export interface UpdateTaskData {
@@ -42,6 +45,7 @@ export interface UpdateTaskData {
   due_date?: string;
   project_id?: string;
   assignee_id?: string;
+  position?: number;
 }
 
 export interface DashboardTask {

@@ -115,6 +115,8 @@ type AwarenessContext struct {
 	SiblingContexts []EntitySummary `json:"sibling_contexts,omitempty"`
 	RelatedClients  []EntitySummary `json:"related_clients,omitempty"`
 	NodeInfo        *NodeSummary    `json:"node_info,omitempty"`
+	ParentNodes     []NodeSummary   `json:"parent_nodes,omitempty"`
+	UserFacts       []UserFact      `json:"user_facts,omitempty"`
 }
 
 // EntitySummary provides minimal awareness of an entity
@@ -150,13 +152,15 @@ type OnDemandEntity struct {
 type TieredContextService struct {
 	pool             *pgxpool.Pool
 	embeddingService *EmbeddingService
+	summarizer       *SummarizerService
 }
 
 // NewTieredContextService creates a new tiered context service
-func NewTieredContextService(pool *pgxpool.Pool, embeddingService *EmbeddingService) *TieredContextService {
+func NewTieredContextService(pool *pgxpool.Pool, embeddingService *EmbeddingService, summarizer *SummarizerService) *TieredContextService {
 	return &TieredContextService{
 		pool:             pool,
 		embeddingService: embeddingService,
+		summarizer:       summarizer,
 	}
 }
 
@@ -189,12 +193,65 @@ func (s *TieredContextService) BuildTieredContext(
 	return tc, nil
 }
 
+// CompressConversation uses the summarizer to compress old messages if the list is too long
+func (s *TieredContextService) CompressConversation(ctx context.Context, messages []ChatMessage, threshold int) ([]ChatMessage, string, error) {
+	if s.summarizer == nil || len(messages) <= threshold {
+		return messages, "", nil
+	}
+
+	// Keep last threshold/2 messages as recent context, summarize the rest
+	recentCount := threshold / 2
+	if recentCount < 5 {
+		recentCount = 5
+	}
+	if recentCount > 15 {
+		recentCount = 15
+	}
+
+	return s.summarizer.HierarchicalSummarize(ctx, messages, recentCount)
+}
+
 // buildLevel1 populates full context for selected items
 func (s *TieredContextService) buildLevel1(
 	ctx context.Context,
 	req TieredContextRequest,
 	level1 *FullContext,
 ) error {
+	// Track contexts already included to avoid duplicates.
+	seenContexts := make(map[uuid.UUID]struct{}, len(req.ContextIDs)+8)
+
+	// 0. If a business node is selected, include its context plus ancestor contexts (inheritance).
+	if req.NodeID != nil {
+		chain, err := s.getNodeAncestry(ctx, *req.NodeID, req.UserID, 8)
+		if err == nil {
+			for _, nc := range chain {
+				if nc.ContextID == nil {
+					continue
+				}
+				if _, ok := seenContexts[*nc.ContextID]; ok {
+					continue
+				}
+				// Skip if the user already explicitly selected it; we'll load it in the normal pass.
+				alreadySelected := false
+				for _, selected := range req.ContextIDs {
+					if selected == *nc.ContextID {
+						alreadySelected = true
+						break
+					}
+				}
+				if alreadySelected {
+					continue
+				}
+
+				doc, err := s.getContextFull(ctx, *nc.ContextID, req.UserID)
+				if err == nil {
+					level1.Contexts = append(level1.Contexts, *doc)
+					seenContexts[*nc.ContextID] = struct{}{}
+				}
+			}
+		}
+	}
+
 	// 1. Get selected project with full details
 	if req.ProjectID != nil {
 		project, err := s.getProjectFull(ctx, *req.ProjectID, req.UserID)
@@ -223,9 +280,13 @@ func (s *TieredContextService) buildLevel1(
 
 	// 2. Get selected contexts with full details
 	for _, ctxID := range req.ContextIDs {
+		if _, ok := seenContexts[ctxID]; ok {
+			continue
+		}
 		doc, err := s.getContextFull(ctx, ctxID, req.UserID)
 		if err == nil {
 			level1.Contexts = append(level1.Contexts, *doc)
+			seenContexts[ctxID] = struct{}{}
 		}
 	}
 
@@ -325,6 +386,22 @@ func (s *TieredContextService) buildLevel2(
 			level2.NodeInfo = node
 		}
 
+		// Also include node lineage (parents) for situational awareness.
+		if chain, err := s.getNodeAncestry(ctx, *req.NodeID, req.UserID, 8); err == nil {
+			for _, nc := range chain {
+				if nc.ID == *req.NodeID {
+					continue
+				}
+				level2.ParentNodes = append(level2.ParentNodes, NodeSummary{
+					ID:      nc.ID,
+					Name:    nc.Name,
+					Type:    nc.Type,
+					Health:  nc.Health,
+					Purpose: nc.Purpose,
+				})
+			}
+		}
+
 		// Get other projects (not the selected one)
 		projects, err := s.getOtherProjects(ctx, req.ProjectID, req.UserID, 10)
 		if err == nil {
@@ -348,6 +425,14 @@ func (s *TieredContextService) buildLevel2(
 			if level1.LinkedClient == nil || c.ID != level1.LinkedClient.ID {
 				level2.RelatedClients = append(level2.RelatedClients, c)
 			}
+		}
+	}
+
+	// 4. User facts (global personal/contextual preferences)
+	if req.UserID != "" {
+		facts, err := s.getUserFacts(ctx, req.UserID, 20)
+		if err == nil {
+			level2.UserFacts = facts
 		}
 	}
 
@@ -530,6 +615,25 @@ func (tc *TieredContext) FormatForAI() string {
 			sb.WriteString("\n")
 		}
 
+		if len(tc.Level2.ParentNodes) > 0 {
+			sb.WriteString("**Node Lineage (parents):**\n")
+			for _, pn := range tc.Level2.ParentNodes {
+				sb.WriteString(fmt.Sprintf("- %s (%s)\n", pn.Name, pn.Type))
+			}
+			sb.WriteString("\n")
+		}
+
+		if len(tc.Level2.UserFacts) > 0 {
+			sb.WriteString("**User Facts (confirmed):**\n")
+			for _, f := range tc.Level2.UserFacts {
+				if strings.TrimSpace(f.FactKey) == "" || strings.TrimSpace(f.FactValue) == "" {
+					continue
+				}
+				sb.WriteString(fmt.Sprintf("- %s: %s\n", f.FactKey, f.FactValue))
+			}
+			sb.WriteString("\n")
+		}
+
 		if len(tc.Level2.OtherProjects) > 0 {
 			sb.WriteString("**Other Projects in Scope:** ")
 			names := make([]string, len(tc.Level2.OtherProjects))
@@ -570,14 +674,315 @@ func (tc *TieredContext) FormatForAI() string {
 	return sb.String()
 }
 
+// FormatForAIWithTokenBudget formats tiered context but enforces a strict token budget
+// across context types (documents, RAG blocks, awareness summaries, etc) using
+// priority-based LRU eviction.
+//
+// If maxTokens <= 0, it falls back to FormatForAI().
+func (tc *TieredContext) FormatForAIWithTokenBudget(maxTokens int) string {
+	if maxTokens <= 0 {
+		return tc.FormatForAI()
+	}
+
+	items := tc.buildBudgetItems()
+	res := ApplyTokenBudget(items, maxTokens)
+
+	var sb strings.Builder
+	for _, it := range res.Kept {
+		if it.Content == "" {
+			continue
+		}
+		sb.WriteString(it.Content)
+		if !strings.HasSuffix(it.Content, "\n") {
+			sb.WriteString("\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	return strings.TrimSpace(sb.String())
+}
+
+func (tc *TieredContext) buildBudgetItems() []BudgetItem {
+	items := make([]BudgetItem, 0, 16)
+
+	// Global header (pinned)
+	items = append(items, BudgetItem{
+		Key:      "header",
+		Type:     "meta",
+		Content:  "## Context Overview\n",
+		Priority: 100,
+		Pinned:   true,
+	})
+
+	// Level 1: primary focus
+	if tc.Level1 != nil {
+		// User facts (high priority)
+		if tc.Level2 != nil && len(tc.Level2.UserFacts) > 0 {
+			var sb strings.Builder
+			sb.WriteString("### User Facts (confirmed)\n\n")
+			for _, f := range tc.Level2.UserFacts {
+				if f.FactKey == "" || f.FactValue == "" {
+					continue
+				}
+				sb.WriteString(fmt.Sprintf("- %s: %s\n", f.FactKey, f.FactValue))
+			}
+			items = append(items, BudgetItem{Key: "user_facts", Type: "user_facts", Content: sb.String(), Priority: 95, Pinned: true})
+		}
+
+		// Project + tasks + client + team (high priority)
+		if tc.Level1.Project != nil {
+			var sb strings.Builder
+			sb.WriteString("### Primary Focus (Full Details)\n\n")
+			sb.WriteString(fmt.Sprintf("**Active Project: %s**\n", tc.Level1.Project.Name))
+			sb.WriteString(fmt.Sprintf("- Status: %s | Priority: %s\n", tc.Level1.Project.Status, tc.Level1.Project.Priority))
+			if tc.Level1.Project.Description != "" {
+				sb.WriteString(fmt.Sprintf("- Description: %s\n", tc.Level1.Project.Description))
+			}
+			if tc.Level1.Project.ClientName != "" {
+				sb.WriteString(fmt.Sprintf("- Client: %s\n", tc.Level1.Project.ClientName))
+			}
+			sb.WriteString("\n")
+
+			if len(tc.Level1.Tasks) > 0 {
+				sb.WriteString("**Project Tasks:**\n")
+				for _, task := range tc.Level1.Tasks {
+					sb.WriteString(fmt.Sprintf("- [%s] %s (%s)", task.Status, task.Title, task.Priority))
+					if task.DueDate != "" {
+						sb.WriteString(fmt.Sprintf(" - Due: %s", task.DueDate))
+					}
+					if task.AssigneeName != "" {
+						sb.WriteString(fmt.Sprintf(" - Assignee: %s", task.AssigneeName))
+					}
+					sb.WriteString("\n")
+				}
+				sb.WriteString("\n")
+			}
+
+			if tc.Level1.LinkedClient != nil {
+				sb.WriteString(fmt.Sprintf("**Linked Client: %s**\n", tc.Level1.LinkedClient.Name))
+				sb.WriteString(fmt.Sprintf("- Status: %s | Industry: %s\n\n", tc.Level1.LinkedClient.Status, tc.Level1.LinkedClient.Industry))
+			}
+
+			if len(tc.Level1.TeamMembers) > 0 {
+				sb.WriteString("**Team Members:**\n")
+				for _, tm := range tc.Level1.TeamMembers {
+					sb.WriteString(fmt.Sprintf("- %s (%s) - %s\n", tm.Name, tm.Role, tm.Status))
+				}
+				sb.WriteString("\n")
+			}
+
+			items = append(items, BudgetItem{Key: "project", Type: "project", Content: sb.String(), Priority: 90, Pinned: true})
+		}
+
+		// Selected documents (medium priority; each document is a separate block for eviction)
+		if len(tc.Level1.Contexts) > 0 {
+			for _, doc := range tc.Level1.Contexts {
+				var sb strings.Builder
+				sb.WriteString("**Selected Documents:**\n")
+				sb.WriteString(fmt.Sprintf("- **%s** (%s, %d words)\n", doc.Name, doc.Type, doc.WordCount))
+				if doc.SystemPrompt != "" {
+					sb.WriteString(fmt.Sprintf("  System context: %s\n", truncateText(doc.SystemPrompt, 200)))
+				}
+				if doc.Content != "" {
+					content := truncateText(doc.Content, 1500)
+					sb.WriteString(fmt.Sprintf("  Content:\n  > %s\n", content))
+				}
+				sb.WriteString("\n")
+				items = append(items, BudgetItem{Key: "selected_doc:" + doc.ID.String(), Type: "selected_document", Content: sb.String(), Priority: 80, Pinned: false})
+			}
+		}
+
+		// RAG blocks (medium/low priority)
+		if len(tc.Level1.RelevantRAG) > 0 {
+			var sb strings.Builder
+			sb.WriteString("**Relevant Knowledge (from selected documents):**\n")
+			for i, block := range tc.Level1.RelevantRAG {
+				sb.WriteString(fmt.Sprintf("%d. From \"%s\" (%.0f%% match):\n", i+1, block.DocumentName, block.Similarity*100))
+				sb.WriteString(fmt.Sprintf("   > %s\n", truncateText(block.BlockContent, 300)))
+			}
+			sb.WriteString("\n")
+			items = append(items, BudgetItem{Key: "rag", Type: "rag", Content: sb.String(), Priority: 65, Pinned: false})
+		}
+
+		// Attached documents (often large; lower than selected docs)
+		if len(tc.Level1.Documents) > 0 {
+			for _, doc := range tc.Level1.Documents {
+				var sb strings.Builder
+				displayName := doc.DisplayName
+				if displayName == "" {
+					displayName = doc.Filename
+				}
+				sb.WriteString(fmt.Sprintf("--- Document: %s ---\n", displayName))
+				if doc.Content != "" {
+					sb.WriteString(doc.Content)
+					sb.WriteString("\n")
+				} else {
+					sb.WriteString(fmt.Sprintf("[Document has %d chunks - use RAG search for content]\n", doc.ChunkCount))
+				}
+				sb.WriteString("\n")
+				items = append(items, BudgetItem{Key: "attached_doc:" + doc.ID.String(), Type: "attached_document", Content: sb.String(), Priority: 60, Pinned: false})
+			}
+		}
+	}
+
+	// Level 2: awareness (low priority)
+	if tc.Level2 != nil && tc.hasLevel2Content() {
+		var sb strings.Builder
+		sb.WriteString("### Context Awareness (Summaries Only)\n\n")
+
+		if tc.Level2.NodeInfo != nil {
+			sb.WriteString(fmt.Sprintf("**Business Node: %s** (%s)\n", tc.Level2.NodeInfo.Name, tc.Level2.NodeInfo.Type))
+			if tc.Level2.NodeInfo.Purpose != "" {
+				sb.WriteString(fmt.Sprintf("- Purpose: %s\n", tc.Level2.NodeInfo.Purpose))
+			}
+			if tc.Level2.NodeInfo.Health != "" {
+				sb.WriteString(fmt.Sprintf("- Health: %s\n", tc.Level2.NodeInfo.Health))
+			}
+			sb.WriteString("\n")
+		}
+
+		if len(tc.Level2.ParentNodes) > 0 {
+			sb.WriteString("**Node Lineage (parents):**\n")
+			for _, pn := range tc.Level2.ParentNodes {
+				sb.WriteString(fmt.Sprintf("- %s (%s)\n", pn.Name, pn.Type))
+			}
+			sb.WriteString("\n")
+		}
+
+		if len(tc.Level2.OtherProjects) > 0 {
+			sb.WriteString("**Other Active Projects:**\n")
+			for _, p := range tc.Level2.OtherProjects {
+				sb.WriteString(fmt.Sprintf("- %s\n", p.Name))
+			}
+			sb.WriteString("\n")
+		}
+
+		if len(tc.Level2.SiblingContexts) > 0 {
+			sb.WriteString("**Related Documents:**\n")
+			for _, c := range tc.Level2.SiblingContexts {
+				sb.WriteString(fmt.Sprintf("- %s (%s)\n", c.Name, c.Type))
+			}
+			sb.WriteString("\n")
+		}
+
+		if len(tc.Level2.RelatedClients) > 0 {
+			sb.WriteString("**Related Clients:**\n")
+			for _, cl := range tc.Level2.RelatedClients {
+				sb.WriteString(fmt.Sprintf("- %s\n", cl.Name))
+			}
+			sb.WriteString("\n")
+		}
+
+		items = append(items, BudgetItem{Key: "awareness", Type: "awareness", Content: sb.String(), Priority: 30, Pinned: false})
+	}
+
+	// Level 3: on-demand registry (very low priority)
+	if tc.Level3 != nil && len(tc.Level3.AvailableEntities) > 0 {
+		var sb strings.Builder
+		sb.WriteString("### On-Demand Available Context\n\n")
+		sb.WriteString("The following entities are available via tool calls (not automatically loaded):\n")
+		for _, e := range tc.Level3.AvailableEntities {
+			sb.WriteString(fmt.Sprintf("- [%s] %s\n", e.Type, e.Name))
+		}
+		sb.WriteString("\n")
+		items = append(items, BudgetItem{Key: "on_demand", Type: "on_demand", Content: sb.String(), Priority: 10, Pinned: false})
+	}
+
+	return items
+}
+
 func (tc *TieredContext) hasLevel2Content() bool {
 	if tc.Level2 == nil {
 		return false
 	}
 	return tc.Level2.NodeInfo != nil ||
+		len(tc.Level2.ParentNodes) > 0 ||
+		len(tc.Level2.UserFacts) > 0 ||
 		len(tc.Level2.OtherProjects) > 0 ||
 		len(tc.Level2.SiblingContexts) > 0 ||
 		len(tc.Level2.RelatedClients) > 0
+}
+
+func (s *TieredContextService) getUserFacts(ctx context.Context, userID string, limit int) ([]UserFact, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, user_id, fact_key, fact_value, fact_type, confidence_score, is_active, created_at
+		FROM user_facts
+		WHERE user_id = $1 AND is_active = true
+		ORDER BY confidence_score DESC, created_at DESC
+		LIMIT $2
+	`, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var facts []UserFact
+	for rows.Next() {
+		var f UserFact
+		if err := rows.Scan(&f.ID, &f.UserID, &f.FactKey, &f.FactValue, &f.FactType, &f.ConfidenceScore, &f.IsActive, &f.CreatedAt); err != nil {
+			continue
+		}
+		facts = append(facts, f)
+	}
+	return facts, nil
+}
+
+type nodeAncestryRow struct {
+	ID        uuid.UUID
+	ParentID  *uuid.UUID
+	ContextID *uuid.UUID
+	Name      string
+	Type      string
+	Health    string
+	Purpose   string
+	Depth     int
+}
+
+// getNodeAncestry returns the node and its ancestors (root -> ... -> selected) up to maxDepth.
+// It is resilient: returns an empty slice if the node is missing or archived.
+func (s *TieredContextService) getNodeAncestry(ctx context.Context, nodeID uuid.UUID, userID string, maxDepth int) ([]nodeAncestryRow, error) {
+	if maxDepth <= 0 {
+		maxDepth = 8
+	}
+
+	query := `
+		WITH RECURSIVE chain AS (
+			SELECT n.id, n.parent_id, n.context_id, n.name,
+			       n.type::text, COALESCE(n.health::text, ''), COALESCE(n.purpose, ''),
+			       0 AS depth
+			FROM nodes n
+			WHERE n.id = $1 AND n.user_id = $2 AND n.is_archived = false
+			UNION ALL
+			SELECT p.id, p.parent_id, p.context_id, p.name,
+			       p.type::text, COALESCE(p.health::text, ''), COALESCE(p.purpose, ''),
+			       c.depth + 1 AS depth
+			FROM nodes p
+			JOIN chain c ON p.id = c.parent_id
+			WHERE p.user_id = $2 AND p.is_archived = false AND c.depth < $3
+		)
+		SELECT id, parent_id, context_id, name, type, health, purpose, depth
+		FROM chain
+		ORDER BY depth DESC;
+	`
+
+	rows, err := s.pool.Query(ctx, query, nodeID, userID, maxDepth)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chain []nodeAncestryRow
+	for rows.Next() {
+		var r nodeAncestryRow
+		if err := rows.Scan(&r.ID, &r.ParentID, &r.ContextID, &r.Name, &r.Type, &r.Health, &r.Purpose, &r.Depth); err != nil {
+			continue
+		}
+		chain = append(chain, r)
+	}
+	return chain, nil
 }
 
 // Helper functions for database queries

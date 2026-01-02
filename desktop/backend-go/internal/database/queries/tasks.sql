@@ -20,8 +20,17 @@ RETURNING *;
 
 -- name: UpdateTask :one
 UPDATE tasks
-SET title = $2, description = $3, status = $4, priority = $5, due_date = $6, project_id = $7, assignee_id = $8, updated_at = NOW()
-WHERE id = $1
+SET
+  title = COALESCE(sqlc.narg(title), title),
+  description = COALESCE(sqlc.narg(description), description),
+  status = COALESCE(sqlc.narg(status), status),
+  priority = COALESCE(sqlc.narg(priority), priority),
+  due_date = COALESCE(sqlc.narg(due_date), due_date),
+  project_id = COALESCE(sqlc.narg(project_id), project_id),
+  assignee_id = COALESCE(sqlc.narg(assignee_id), assignee_id),
+  position = COALESCE(sqlc.narg(position), position),
+  updated_at = NOW()
+WHERE id = sqlc.arg(id)
 RETURNING *;
 
 -- name: ToggleTaskStatus :one

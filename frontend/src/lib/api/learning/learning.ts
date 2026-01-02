@@ -44,7 +44,7 @@ export async function updatePersonalizationProfile(
 ): Promise<{ status: string }> {
   return request<{ status: string }>('/learning/profile', {
     method: 'PUT',
-    body: JSON.stringify(profile)
+    body: profile
   });
 }
 

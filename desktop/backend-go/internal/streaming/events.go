@@ -17,6 +17,7 @@ const (
 	EventTypeContentStart     EventType = "content_start"
 	EventTypeContentEnd       EventType = "content_end"
 	EventTypeDelegating       EventType = "delegating"
+	EventTypeBlocks           EventType = "blocks"
 	EventTypeDone             EventType = "done"
 	EventTypeError            EventType = "error"
 )

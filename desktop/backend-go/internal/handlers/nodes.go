@@ -237,6 +237,14 @@ func (h *Handlers) CreateNode(c *gin.Context) {
 		return
 	}
 
+	// Auto-activate if user has no active nodes
+	activeNode, _ := queries.GetActiveNode(c.Request.Context(), user.ID)
+	if activeNode.ID.Bytes == [16]byte{} {
+		// No active node exists, activate the newly created one
+		queries.ActivateNode(c.Request.Context(), user.ID) // Deactivate all nodes
+		queries.SetNodeActive(c.Request.Context(), node.ID) // Activate this one
+	}
+
 	c.JSON(http.StatusCreated, TransformNode(node))
 }
 

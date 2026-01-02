@@ -12,11 +12,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pgvector/pgvector-go"
 )
 
 // ConversationIntelligenceService provides intelligent analysis of conversations
 type ConversationIntelligenceService struct {
 	pool   *pgxpool.Pool
+	embed  *EmbeddingService
 	logger *slog.Logger
 }
 
@@ -140,6 +142,7 @@ type wordCount struct {
 func NewConversationIntelligenceService(pool *pgxpool.Pool, embeddingService *EmbeddingService) *ConversationIntelligenceService {
 	return &ConversationIntelligenceService{
 		pool:   pool,
+		embed:  embeddingService,
 		logger: slog.Default().With("service", "conversation_intelligence"),
 	}
 }
@@ -171,6 +174,11 @@ func (s *ConversationIntelligenceService) AnalyzeConversation(ctx context.Contex
 	if len(messages) > 1 {
 		duration := messages[len(messages)-1].Timestamp.Sub(messages[0].Timestamp)
 		analysis.Duration = duration.Round(time.Second).String()
+	}
+	// Track time range for storage
+	if analysis.Metadata != nil && len(messages) > 0 {
+		analysis.Metadata["time_range_start"] = messages[0].Timestamp
+		analysis.Metadata["time_range_end"] = messages[len(messages)-1].Timestamp
 	}
 
 	// Extract topics
@@ -214,6 +222,96 @@ func (s *ConversationIntelligenceService) AnalyzeConversation(ctx context.Contex
 	}
 
 	return analysis, nil
+}
+
+// BackfillStaleSummaries generates/updates conversation summaries that are missing or stale.
+// A summary is considered stale when its updated_at is older than the conversation's latest message.
+// If force is true, it will analyze the most recent conversations regardless of staleness.
+func (s *ConversationIntelligenceService) BackfillStaleSummaries(ctx context.Context, limit int, maxMessages int, force bool) (int, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if maxMessages <= 0 {
+		maxMessages = 200
+	}
+
+	// Select conversations with message activity, prioritize most recently active.
+	// We consider a summary stale if cs.updated_at < last_message_at or missing.
+	query := `
+		WITH last_msg AS (
+			SELECT conversation_id, MAX(created_at) AS last_at
+			FROM messages
+			GROUP BY conversation_id
+		)
+		SELECT c.id::text, c.user_id
+		FROM conversations c
+		JOIN last_msg lm ON lm.conversation_id = c.id
+		LEFT JOIN conversation_summaries cs ON cs.conversation_id = c.id
+		WHERE ($1::boolean = true) OR cs.conversation_id IS NULL OR cs.updated_at < lm.last_at
+		ORDER BY lm.last_at DESC
+		LIMIT $2
+	`
+
+	rows, err := s.pool.Query(ctx, query, force, limit)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	processed := 0
+	for rows.Next() {
+		var conversationID string
+		var userID string
+		if err := rows.Scan(&conversationID, &userID); err != nil {
+			continue
+		}
+
+		messages, err := s.fetchConversationMessages(ctx, conversationID, maxMessages)
+		if err != nil || len(messages) == 0 {
+			continue
+		}
+
+		_, err = s.AnalyzeConversation(ctx, conversationID, userID, messages)
+		if err != nil {
+			s.logger.Warn("conversation analysis failed", "conversation_id", conversationID, "error", err)
+			continue
+		}
+		processed++
+	}
+
+	return processed, nil
+}
+
+func (s *ConversationIntelligenceService) fetchConversationMessages(ctx context.Context, conversationID string, maxMessages int) ([]Message, error) {
+	// Pull the most recent N messages, then reverse to chronological.
+	rows, err := s.pool.Query(ctx, `
+		SELECT role::text, content, created_at
+		FROM messages
+		WHERE conversation_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2
+	`, conversationID, maxMessages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tmp []Message
+	for rows.Next() {
+		var role string
+		var content string
+		var ts time.Time
+		if err := rows.Scan(&role, &content, &ts); err != nil {
+			continue
+		}
+		tmp = append(tmp, Message{Role: role, Content: content, Timestamp: ts})
+	}
+
+	// Reverse to chronological order.
+	for i, j := 0, len(tmp)-1; i < j; i, j = i+1, j-1 {
+		tmp[i], tmp[j] = tmp[j], tmp[i]
+	}
+	return tmp, nil
 }
 
 // extractTopics extracts topics from messages
@@ -783,22 +881,132 @@ func (s *ConversationIntelligenceService) truncateText(text string, maxLen int) 
 
 // saveAnalysis saves the conversation analysis to the database
 func (s *ConversationIntelligenceService) saveAnalysis(ctx context.Context, analysis *ConversationAnalysis) error {
-	keyPointsJSON, _ := json.Marshal(analysis.KeyPoints)
-	topicsJSON, _ := json.Marshal(analysis.Topics)
+	// conversation_summaries has a mix of TEXT[] (for lightweight context injection)
+	// and JSONB columns (for richer structured data). Store both where possible.
+
+	// TEXT[] projections
+	topicNames := make([]string, 0, len(analysis.Topics))
+	for _, t := range analysis.Topics {
+		if t.Name != "" {
+			topicNames = append(topicNames, t.Name)
+		}
+	}
+
+	actionItemTexts := make([]string, 0, len(analysis.ActionItems))
+	for _, a := range analysis.ActionItems {
+		if strings.TrimSpace(a.Description) == "" {
+			continue
+		}
+		actionItemTexts = append(actionItemTexts, a.Description)
+	}
+
+	questionTexts := make([]string, 0, len(analysis.Questions))
+	for _, q := range analysis.Questions {
+		if strings.TrimSpace(q.Text) == "" {
+			continue
+		}
+		questionTexts = append(questionTexts, q.Text)
+	}
+
+	decisionTexts := make([]string, 0, len(analysis.Decisions))
+	for _, d := range analysis.Decisions {
+		if strings.TrimSpace(d.Description) == "" {
+			continue
+		}
+		decisionTexts = append(decisionTexts, d.Description)
+	}
+
+	// Mentioned entities summary for the legacy mentioned_entities column.
+	mentioned := map[string][]string{}
+	for _, e := range analysis.Entities {
+		name := strings.TrimSpace(e.Name)
+		if name == "" {
+			continue
+		}
+		k := strings.ToLower(strings.TrimSpace(e.Type))
+		switch k {
+		case "person", "people":
+			mentioned["people"] = append(mentioned["people"], name)
+		case "project", "projects":
+			mentioned["projects"] = append(mentioned["projects"], name)
+		case "client", "clients", "organization", "org":
+			mentioned["clients"] = append(mentioned["clients"], name)
+		case "task", "tasks":
+			mentioned["tasks"] = append(mentioned["tasks"], name)
+		default:
+			mentioned["other"] = append(mentioned["other"], name)
+		}
+	}
+
+	// JSONB payloads
 	sentimentJSON, _ := json.Marshal(analysis.Sentiment)
 	entitiesJSON, _ := json.Marshal(analysis.Entities)
-	actionItemsJSON, _ := json.Marshal(analysis.ActionItems)
-	questionsJSON, _ := json.Marshal(analysis.Questions)
-	decisionsJSON, _ := json.Marshal(analysis.Decisions)
 	codeMentionsJSON, _ := json.Marshal(analysis.CodeMentions)
+	mentionedJSON, _ := json.Marshal(mentioned)
+
+	// Keep structured details in metadata.
+	if analysis.Metadata == nil {
+		analysis.Metadata = make(map[string]interface{})
+	}
+	analysis.Metadata["topics_detail"] = analysis.Topics
+	analysis.Metadata["action_items_detail"] = analysis.ActionItems
+	analysis.Metadata["questions_detail"] = analysis.Questions
+	analysis.Metadata["decisions_detail"] = analysis.Decisions
 	metadataJSON, _ := json.Marshal(analysis.Metadata)
+
+	// Best-effort embedding of the summary for semantic search.
+	var embedding any = nil
+	if s.embed != nil {
+		embedText := strings.TrimSpace(strings.Join([]string{
+			analysis.Title,
+			analysis.Summary,
+			"Key points: " + strings.Join(analysis.KeyPoints, "; "),
+			"Topics: " + strings.Join(topicNames, ", "),
+		}, "\n"))
+		if embedText != "" {
+			if v, err := s.embed.GenerateEmbedding(ctx, embedText); err == nil {
+				embedding = pgvector.NewVector(v)
+			}
+		}
+	}
+
+	// Time range (if available)
+	var timeStart, timeEnd *time.Time
+	if v, ok := analysis.Metadata["time_range_start"].(time.Time); ok {
+		timeStart = &v
+	}
+	if v, ok := analysis.Metadata["time_range_end"].(time.Time); ok {
+		timeEnd = &v
+	}
 
 	_, err := s.pool.Exec(ctx,
 		`INSERT INTO conversation_summaries
-		 (id, conversation_id, user_id, title, summary, key_points, topics, sentiment,
-		  entities, action_items, questions, decisions, code_mentions, message_count,
-		  token_count, duration, metadata, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+		 (id, conversation_id, user_id,
+		  title, summary,
+		  key_points, topics,
+		  sentiment, entities, mentioned_entities,
+		  action_items, questions,
+		  decisions, decisions_made,
+		  code_mentions,
+		  embedding,
+		  message_count, token_count, duration,
+		  time_range_start, time_range_end,
+		  metadata,
+		  summarized_at,
+		  created_at, updated_at)
+		 VALUES ($1, $2, $3,
+		         $4, $5,
+		         $6, $7,
+		         $8, $9, $10,
+		         $11, $12,
+		         $13, $14,
+		         $15,
+		         $16,
+		         $17, $18, $19,
+		         $20, $21,
+		         $22,
+		         NOW(),
+		         $23, $24)
 		 ON CONFLICT (conversation_id) DO UPDATE SET
 		    title = EXCLUDED.title,
 		    summary = EXCLUDED.summary,
@@ -806,19 +1014,33 @@ func (s *ConversationIntelligenceService) saveAnalysis(ctx context.Context, anal
 		    topics = EXCLUDED.topics,
 		    sentiment = EXCLUDED.sentiment,
 		    entities = EXCLUDED.entities,
+		    mentioned_entities = EXCLUDED.mentioned_entities,
 		    action_items = EXCLUDED.action_items,
 		    questions = EXCLUDED.questions,
 		    decisions = EXCLUDED.decisions,
+		    decisions_made = EXCLUDED.decisions_made,
 		    code_mentions = EXCLUDED.code_mentions,
+		    embedding = EXCLUDED.embedding,
 		    message_count = EXCLUDED.message_count,
 		    token_count = EXCLUDED.token_count,
 		    duration = EXCLUDED.duration,
+		    time_range_start = EXCLUDED.time_range_start,
+		    time_range_end = EXCLUDED.time_range_end,
 		    metadata = EXCLUDED.metadata,
+		    summarized_at = NOW(),
 		    updated_at = EXCLUDED.updated_at`,
-		analysis.ID, analysis.ConversationID, analysis.UserID, analysis.Title, analysis.Summary,
-		keyPointsJSON, topicsJSON, sentimentJSON, entitiesJSON, actionItemsJSON,
-		questionsJSON, decisionsJSON, codeMentionsJSON, analysis.MessageCount,
-		analysis.TokenCount, analysis.Duration, metadataJSON, analysis.CreatedAt, analysis.UpdatedAt)
+		analysis.ID, analysis.ConversationID, analysis.UserID,
+		analysis.Title, analysis.Summary,
+		analysis.KeyPoints, topicNames,
+		sentimentJSON, entitiesJSON, mentionedJSON,
+		actionItemTexts, questionTexts,
+		decisionTexts, decisionTexts,
+		codeMentionsJSON,
+		embedding,
+		analysis.MessageCount, analysis.TokenCount, analysis.Duration,
+		timeStart, timeEnd,
+		metadataJSON,
+		analysis.CreatedAt, analysis.UpdatedAt)
 
 	return err
 }
@@ -826,33 +1048,101 @@ func (s *ConversationIntelligenceService) saveAnalysis(ctx context.Context, anal
 // GetAnalysis retrieves a conversation analysis
 func (s *ConversationIntelligenceService) GetAnalysis(ctx context.Context, conversationID string) (*ConversationAnalysis, error) {
 	var analysis ConversationAnalysis
-	var keyPointsJSON, topicsJSON, sentimentJSON, entitiesJSON []byte
-	var actionItemsJSON, questionsJSON, decisionsJSON, codeMentionsJSON, metadataJSON []byte
+	var keyPoints []string
+	var topics []string
+	var actionItems []string
+	var questions []string
+	var decisions []string
+	var sentimentJSON, entitiesJSON []byte
+	var codeMentionsJSON, metadataJSON []byte
 
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, conversation_id, user_id, title, summary, key_points, topics, sentiment,
-		        entities, action_items, questions, decisions, code_mentions, message_count,
-		        token_count, duration, metadata, created_at, updated_at
-		 FROM conversation_summaries WHERE conversation_id = $1`,
+		`SELECT id, conversation_id, user_id, title, summary,
+		        key_points, topics,
+		        sentiment, entities,
+		        action_items, questions, decisions,
+		        code_mentions,
+		        message_count, token_count, duration,
+		        metadata,
+		        created_at, updated_at
+		 FROM conversation_summaries
+		 WHERE conversation_id = $1`,
 		conversationID).Scan(
 		&analysis.ID, &analysis.ConversationID, &analysis.UserID, &analysis.Title, &analysis.Summary,
-		&keyPointsJSON, &topicsJSON, &sentimentJSON, &entitiesJSON, &actionItemsJSON,
-		&questionsJSON, &decisionsJSON, &codeMentionsJSON, &analysis.MessageCount,
-		&analysis.TokenCount, &analysis.Duration, &metadataJSON, &analysis.CreatedAt, &analysis.UpdatedAt)
+		&keyPoints, &topics,
+		&sentimentJSON, &entitiesJSON,
+		&actionItems, &questions, &decisions,
+		&codeMentionsJSON,
+		&analysis.MessageCount, &analysis.TokenCount, &analysis.Duration,
+		&metadataJSON,
+		&analysis.CreatedAt, &analysis.UpdatedAt)
 
 	if err != nil {
 		return nil, err
 	}
 
-	json.Unmarshal(keyPointsJSON, &analysis.KeyPoints)
-	json.Unmarshal(topicsJSON, &analysis.Topics)
+	analysis.KeyPoints = keyPoints
 	json.Unmarshal(sentimentJSON, &analysis.Sentiment)
 	json.Unmarshal(entitiesJSON, &analysis.Entities)
-	json.Unmarshal(actionItemsJSON, &analysis.ActionItems)
-	json.Unmarshal(questionsJSON, &analysis.Questions)
-	json.Unmarshal(decisionsJSON, &analysis.Decisions)
 	json.Unmarshal(codeMentionsJSON, &analysis.CodeMentions)
 	json.Unmarshal(metadataJSON, &analysis.Metadata)
+
+	// Rehydrate structured fields best-effort from metadata; fallback to simple text lists.
+	if analysis.Metadata != nil {
+		if raw, ok := analysis.Metadata["topics_detail"]; ok {
+			if b, err := json.Marshal(raw); err == nil {
+				var detailed []ConversationTopic
+				if json.Unmarshal(b, &detailed) == nil {
+					analysis.Topics = detailed
+				}
+			}
+		}
+		if raw, ok := analysis.Metadata["action_items_detail"]; ok {
+			if b, err := json.Marshal(raw); err == nil {
+				var detailed []ActionItem
+				if json.Unmarshal(b, &detailed) == nil {
+					analysis.ActionItems = detailed
+				}
+			}
+		}
+		if raw, ok := analysis.Metadata["questions_detail"]; ok {
+			if b, err := json.Marshal(raw); err == nil {
+				var detailed []Question
+				if json.Unmarshal(b, &detailed) == nil {
+					analysis.Questions = detailed
+				}
+			}
+		}
+		if raw, ok := analysis.Metadata["decisions_detail"]; ok {
+			if b, err := json.Marshal(raw); err == nil {
+				var detailed []ConversationDecision
+				if json.Unmarshal(b, &detailed) == nil {
+					analysis.Decisions = detailed
+				}
+			}
+		}
+	}
+
+	if len(analysis.Topics) == 0 {
+		for _, name := range topics {
+			analysis.Topics = append(analysis.Topics, ConversationTopic{Name: name, Confidence: 0})
+		}
+	}
+	if len(analysis.ActionItems) == 0 {
+		for _, t := range actionItems {
+			analysis.ActionItems = append(analysis.ActionItems, ActionItem{Description: t, Priority: "", Status: "pending"})
+		}
+	}
+	if len(analysis.Questions) == 0 {
+		for _, t := range questions {
+			analysis.Questions = append(analysis.Questions, Question{Text: t, Answered: false})
+		}
+	}
+	if len(analysis.Decisions) == 0 {
+		for _, t := range decisions {
+			analysis.Decisions = append(analysis.Decisions, ConversationDecision{Description: t})
+		}
+	}
 
 	return &analysis, nil
 }
@@ -878,20 +1168,27 @@ func (s *ConversationIntelligenceService) SearchConversations(ctx context.Contex
 	analyses := make([]ConversationAnalysis, 0)
 	for rows.Next() {
 		var a ConversationAnalysis
-		var keyPointsJSON, topicsJSON, sentimentJSON, entitiesJSON, actionItemsJSON []byte
+		var keyPoints []string
+		var topics []string
+		var actionItems []string
+		var sentimentJSON, entitiesJSON []byte
 
 		err := rows.Scan(&a.ID, &a.ConversationID, &a.UserID, &a.Title, &a.Summary,
-			&keyPointsJSON, &topicsJSON, &sentimentJSON, &entitiesJSON, &actionItemsJSON,
+			&keyPoints, &topics, &sentimentJSON, &entitiesJSON, &actionItems,
 			&a.MessageCount, &a.TokenCount, &a.Duration, &a.CreatedAt)
 		if err != nil {
 			continue
 		}
 
-		json.Unmarshal(keyPointsJSON, &a.KeyPoints)
-		json.Unmarshal(topicsJSON, &a.Topics)
+		a.KeyPoints = keyPoints
+		for _, name := range topics {
+			a.Topics = append(a.Topics, ConversationTopic{Name: name, Confidence: 0})
+		}
 		json.Unmarshal(sentimentJSON, &a.Sentiment)
 		json.Unmarshal(entitiesJSON, &a.Entities)
-		json.Unmarshal(actionItemsJSON, &a.ActionItems)
+		for _, t := range actionItems {
+			a.ActionItems = append(a.ActionItems, ActionItem{Description: t, Status: "pending"})
+		}
 
 		analyses = append(analyses, a)
 	}

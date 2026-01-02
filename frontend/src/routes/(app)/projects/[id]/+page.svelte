@@ -21,6 +21,7 @@
 	let showEditDialog = $state(false);
 	let showDeleteConfirm = $state(false);
 	let showAddTask = $state(false);
+	let showEditTask = $state(false);
 	let showLinkDocument = $state(false);
 	let showLinkClient = $state(false);
 	let showAssignTeam = $state(false);
@@ -28,6 +29,11 @@
 	let newNote = $state('');
 	let isAddingNote = $state(false);
 	let activeTab = $state<'overview' | 'tasks' | 'documents' | 'notes'>('overview');
+	let editingTask = $state<Task | null>(null);
+
+	// Drag & Drop state
+	let draggedTask = $state<Task | null>(null);
+	let dragOverTask = $state<Task | null>(null);
 
 	// Available items for linking
 	let availableDocuments = $state<ContextListItem[]>([]);
@@ -49,7 +55,11 @@
 		title: '',
 		description: '',
 		priority: 'medium',
-		due_date: ''
+		due_date: '',
+		estimated_hours: undefined,
+		start_date: undefined,
+		parent_task_id: undefined,
+		assignee_id: undefined
 	});
 
 	// Edit form state
@@ -185,6 +195,10 @@
 		try {
 			project = await api.getProject(projectId);
 			if (project) {
+				// Ensure notes is always an array
+				if (!project.notes) {
+					project.notes = [];
+				}
 				editForm = {
 					name: project.name,
 					description: project.description || '',
@@ -296,7 +310,17 @@
 			});
 			await loadTasks();
 			showAddTask = false;
-			newTask = { title: '', description: '', priority: 'medium', due_date: '' };
+			// Reset form
+			newTask = {
+				title: '',
+				description: '',
+				priority: 'medium',
+				due_date: '',
+				estimated_hours: undefined,
+				start_date: undefined,
+				parent_task_id: undefined,
+				assignee_id: undefined
+			};
 		} catch (err) {
 			console.error('Error creating task:', err);
 		}
@@ -318,6 +342,92 @@
 		} catch (err) {
 			console.error('Error deleting task:', err);
 		}
+	}
+
+	function handleEditTask(task: Task) {
+		editingTask = task;
+		showEditTask = true;
+	}
+
+	async function handleUpdateTask(e: Event) {
+		e.preventDefault();
+		if (!editingTask) return;
+
+		try {
+			await api.updateTask(editingTask.id, {
+				title: editingTask.title,
+				description: editingTask.description || '',
+				priority: editingTask.priority,
+				status: editingTask.status,
+				due_date: editingTask.due_date || ''
+			});
+			await loadTasks();
+			showEditTask = false;
+			editingTask = null;
+		} catch (err) {
+			console.error('Error updating task:', err);
+		}
+	}
+
+	// Drag & Drop handlers
+	function handleDragStart(e: DragEvent, task: Task) {
+		draggedTask = task;
+		if (e.dataTransfer) {
+			e.dataTransfer.effectAllowed = 'move';
+		}
+	}
+
+	function handleDragOver(e: DragEvent, task: Task) {
+		e.preventDefault();
+		if (e.dataTransfer) {
+			e.dataTransfer.dropEffect = 'move';
+		}
+		if (draggedTask && draggedTask.id !== task.id && draggedTask.status === task.status) {
+			dragOverTask = task;
+		}
+	}
+
+	function handleDragLeave() {
+		dragOverTask = null;
+	}
+
+	async function handleDrop(e: DragEvent, targetTask: Task) {
+		e.preventDefault();
+		dragOverTask = null;
+
+		if (!draggedTask || draggedTask.id === targetTask.id || draggedTask.status !== targetTask.status) {
+			return;
+		}
+
+		try {
+			// Get tasks in the same status group
+			const statusTasks = tasks.filter(t => t.status === targetTask.status);
+			const draggedIndex = statusTasks.findIndex(t => t.id === draggedTask.id);
+			const targetIndex = statusTasks.findIndex(t => t.id === targetTask.id);
+
+			if (draggedIndex === -1 || targetIndex === -1) return;
+
+			// Reorder the tasks array optimistically
+			const newStatusTasks = [...statusTasks];
+			const [removed] = newStatusTasks.splice(draggedIndex, 1);
+			newStatusTasks.splice(targetIndex, 0, removed);
+
+			// Update positions in backend
+			const updatePromises = newStatusTasks.map((task, index) =>
+				api.updateTask(task.id, { position: index })
+			);
+
+			await Promise.all(updatePromises);
+			await loadTasks();
+		} catch (err) {
+			console.error('Error reordering tasks:', err);
+			await loadTasks(); // Reload to revert optimistic update
+		}
+	}
+
+	function handleDragEnd() {
+		draggedTask = null;
+		dragOverTask = null;
 	}
 
 	async function updateClientLink(clientId: string | null) {
@@ -568,7 +678,7 @@
 					class="py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 {activeTab === 'notes' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}"
 				>
 					Notes
-					{#if project.notes.length > 0}
+					{#if project.notes && project.notes.length > 0}
 						<span class="px-2 py-0.5 text-xs rounded-full {activeTab === 'notes' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}">{project.notes.length}</span>
 					{/if}
 				</button>
@@ -874,7 +984,32 @@
 										</div>
 										<div class="divide-y divide-gray-100">
 											{#each group.tasks as task}
-												<div class="flex items-center gap-4 p-4 hover:bg-gray-50 group/task">
+												{@const isSubtask = !!task.parent_task_id}
+												{@const assignee = task.assignee_id ? teamMembers.find(m => m.id === task.assignee_id) : null}
+												<div
+													class="flex items-center gap-4 p-4 hover:bg-gray-50 group/task transition-all {dragOverTask?.id === task.id ? 'border-t-2 border-purple-600' : ''} {draggedTask?.id === task.id ? 'opacity-50' : 'opacity-100'} {isSubtask ? 'pl-12 bg-gray-50/50' : ''}"
+													draggable="true"
+													ondragstart={(e) => handleDragStart(e, task)}
+													ondragover={(e) => handleDragOver(e, task)}
+													ondragleave={handleDragLeave}
+													ondrop={(e) => handleDrop(e, task)}
+													ondragend={handleDragEnd}
+												>
+													<!-- Subtask Indicator -->
+													{#if isSubtask}
+														<div class="absolute left-6 w-4 h-4 flex items-center justify-center">
+															<svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+															</svg>
+														</div>
+													{/if}
+
+													<!-- Drag Handle -->
+													<div class="flex-shrink-0 cursor-move text-gray-400 hover:text-gray-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+														<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+														</svg>
+													</div>
 													<button
 														onclick={() => handleToggleTask(task.id)}
 														class="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors {task.status === 'done' ? 'bg-green-600 border-green-600 text-white' : 'border-gray-300 hover:border-purple-600'}"
@@ -891,18 +1026,53 @@
 															<p class="text-sm text-gray-500 mt-0.5 line-clamp-1">{task.description}</p>
 														{/if}
 														<div class="flex items-center gap-3 mt-1 text-xs text-gray-400">
+															{#if task.start_date}
+																<span class="flex items-center gap-1">
+																	<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+																	</svg>
+																	Start: {formatDate(task.start_date)}
+																</span>
+															{/if}
 															{#if task.due_date}
 																<span class="flex items-center gap-1 {new Date(task.due_date) < new Date() && task.status !== 'done' ? 'text-red-500' : ''}">
 																	<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 																	</svg>
-																	{formatDate(task.due_date)}
+																	Due: {formatDate(task.due_date)}
+																</span>
+															{/if}
+															{#if task.estimated_hours}
+																<span class="flex items-center gap-1">
+																	<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+																	</svg>
+																	{task.estimated_hours}h
 																</span>
 															{/if}
 														</div>
 													</div>
-													<span class="text-xs px-2 py-1 rounded font-medium {getPriorityColor(task.priority)}">{task.priority}</span>
+													<div class="flex items-center gap-2">
+														<span class="text-xs px-2 py-1 rounded font-medium {getPriorityColor(task.priority)}">{task.priority}</span>
+														{#if assignee}
+															<span class="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 font-medium flex items-center gap-1">
+																<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+																</svg>
+																{assignee.name}
+															</span>
+														{/if}
+													</div>
 													<div class="flex items-center gap-1 opacity-0 group-hover/task:opacity-100 transition-opacity">
+														<button
+															onclick={() => handleEditTask(task)}
+															class="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+															title="Edit task"
+														>
+															<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+															</svg>
+														</button>
 														<button
 															onclick={() => handleDeleteTask(task.id)}
 															class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
@@ -1121,6 +1291,51 @@
 					</div>
 				</div>
 
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label for="task-estimated" class="block text-sm font-medium text-gray-700 mb-1">Estimated Hours</label>
+						<input
+							id="task-estimated"
+							type="number"
+							min="0"
+							step="0.5"
+							bind:value={newTask.estimated_hours}
+							class="input input-square"
+							placeholder="0.0"
+						/>
+					</div>
+					<div>
+						<label for="task-start" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+						<input
+							id="task-start"
+							type="date"
+							bind:value={newTask.start_date}
+							class="input input-square"
+						/>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label for="task-parent" class="block text-sm font-medium text-gray-700 mb-1">Parent Task (optional)</label>
+						<select id="task-parent" bind:value={newTask.parent_task_id} class="input input-square">
+							<option value="">None (Top-level)</option>
+							{#each tasks.filter(t => t.status !== 'done') as task}
+								<option value={task.id}>{task.title}</option>
+							{/each}
+						</select>
+					</div>
+					<div>
+						<label for="task-assignee" class="block text-sm font-medium text-gray-700 mb-1">Assignee (optional)</label>
+						<select id="task-assignee" bind:value={newTask.assignee_id} class="input input-square">
+							<option value="">Unassigned</option>
+							{#each teamMembers as member}
+								<option value={member.id}>{member.name}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
 				<div class="flex gap-3 pt-2">
 					<button type="button" onclick={() => showAddTask = false} class="btn btn-secondary flex-1">
 						Cancel
@@ -1133,6 +1348,107 @@
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>
+
+<!-- Edit Task Dialog -->
+{#if editingTask}
+<Dialog.Root bind:open={showEditTask}>
+	<Dialog.Portal>
+		<Dialog.Overlay class="fixed inset-0 bg-black/40 z-50" />
+		<Dialog.Content class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-xl p-6 w-full max-w-md z-50">
+			<Dialog.Title class="text-lg font-semibold text-gray-900 mb-4">Edit Task</Dialog.Title>
+
+			<form onsubmit={handleUpdateTask} class="space-y-4">
+				<div>
+					<label for="edit-task-title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+					<input
+						id="edit-task-title"
+						type="text"
+						bind:value={editingTask.title}
+						class="input input-square"
+						placeholder="Task title..."
+						required
+					/>
+				</div>
+
+				<div>
+					<label for="edit-task-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+					<textarea
+						id="edit-task-description"
+						bind:value={editingTask.description}
+						class="input input-square resize-none"
+						rows="2"
+						placeholder="Add more details..."
+					></textarea>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label for="edit-task-priority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+						<select id="edit-task-priority" bind:value={editingTask.priority} class="input input-square">
+							<option value="low">Low</option>
+							<option value="medium">Medium</option>
+							<option value="high">High</option>
+							<option value="critical">Critical</option>
+						</select>
+					</div>
+					<div>
+						<label for="edit-task-due" class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+						<input
+							id="edit-task-due"
+							type="date"
+							bind:value={editingTask.due_date}
+							class="input input-square"
+						/>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label for="edit-task-estimated" class="block text-sm font-medium text-gray-700 mb-1">Estimated Hours</label>
+						<input
+							id="edit-task-estimated"
+							type="number"
+							min="0"
+							step="0.5"
+							bind:value={editingTask.estimated_hours}
+							class="input input-square"
+							placeholder="0.0"
+						/>
+					</div>
+					<div>
+						<label for="edit-task-start" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+						<input
+							id="edit-task-start"
+							type="date"
+							bind:value={editingTask.start_date}
+							class="input input-square"
+						/>
+					</div>
+				</div>
+
+				<div>
+					<label for="edit-task-status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+					<select id="edit-task-status" bind:value={editingTask.status} class="input input-square">
+						<option value="todo">To Do</option>
+						<option value="in_progress">In Progress</option>
+						<option value="done">Done</option>
+						<option value="cancelled">Cancelled</option>
+					</select>
+				</div>
+
+				<div class="flex gap-3 pt-2">
+					<button type="button" onclick={() => { showEditTask = false; editingTask = null; }} class="btn btn-secondary flex-1">
+						Cancel
+					</button>
+					<button type="submit" class="btn btn-primary flex-1">
+						Save Changes
+					</button>
+				</div>
+			</form>
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
+{/if}
 
 <!-- Edit Dialog -->
 <Dialog.Root bind:open={showEditDialog}>

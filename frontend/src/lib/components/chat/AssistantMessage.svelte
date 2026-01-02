@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { fly, fade } from 'svelte/transition';
 
+	import BlockRenderer from './BlockRenderer.svelte';
+	import type { Block } from '$lib/api/conversations/types';
+
 	interface Props {
 		content: string;
+		blocks?: Block[];
 		timestamp?: string;
 		isStreaming?: boolean;
 		model?: string;
@@ -11,7 +15,7 @@
 		onFeedback?: (type: 'good' | 'bad') => void;
 	}
 
-	let { content, timestamp, isStreaming = false, model, onCopy, onRegenerate, onFeedback }: Props = $props();
+	let { content, blocks, timestamp, isStreaming = false, model, onCopy, onRegenerate, onFeedback }: Props = $props();
 
 	let copied = $state(false);
 
@@ -61,9 +65,13 @@
 
 		<div class="bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-md px-5 py-4">
 			<div class="text-[15px] leading-relaxed text-gray-800 prose prose-sm max-w-none">
-				{@html renderContent(content)}
-				{#if isStreaming}
-					<span class="inline-block w-1.5 h-5 bg-gray-400 animate-pulse ml-0.5 rounded-sm align-middle"></span>
+				{#if blocks && blocks.length > 0}
+					<BlockRenderer {blocks} {isStreaming} />
+				{:else}
+					{@html renderContent(content)}
+					{#if isStreaming}
+						<span class="inline-block w-1.5 h-5 bg-gray-400 animate-pulse ml-0.5 rounded-sm align-middle"></span>
+					{/if}
 				{/if}
 			</div>
 		</div>

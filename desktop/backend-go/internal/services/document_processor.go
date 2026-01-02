@@ -222,7 +222,9 @@ func (p *DocumentProcessor) processDocumentAsync(docID uuid.UUID, content []byte
 		embedding, err := p.embeddingService.GenerateEmbedding(ctx, textForEmbedding)
 		if err == nil && len(embedding) > 0 {
 			vec := pgvector.NewVector(embedding)
-			p.pool.Exec(ctx, `UPDATE uploaded_documents SET embedding = $1 WHERE id = $2`, vec, docID)
+			if _, execErr := p.pool.Exec(ctx, `UPDATE uploaded_documents SET embedding = $1 WHERE id = $2`, vec, docID); execErr != nil {
+				p.logger.Warn("failed to store document embedding", "error", execErr, "doc_id", docID)
+			}
 		}
 	}
 
@@ -249,7 +251,9 @@ func (p *DocumentProcessor) processDocumentAsync(docID uuid.UUID, content []byte
 			embedding, err := p.embeddingService.GenerateEmbedding(ctx, chunk.Content)
 			if err == nil && len(embedding) > 0 {
 				vec := pgvector.NewVector(embedding)
-				p.pool.Exec(ctx, `UPDATE document_chunks SET embedding = $1 WHERE id = $2`, vec, chunkID)
+				if _, execErr := p.pool.Exec(ctx, `UPDATE document_chunks SET embedding = $1 WHERE id = $2`, vec, chunkID); execErr != nil {
+					p.logger.Warn("failed to store chunk embedding", "error", execErr, "doc_id", docID, "chunk_id", chunkID, "chunk", i)
+				}
 			}
 		}
 	}

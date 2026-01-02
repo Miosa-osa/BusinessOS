@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -310,12 +311,14 @@ func (s *LearningService) ObserveBehavior(ctx context.Context, userID, patternTy
 	// Try to update existing pattern
 	result, err := s.pool.Exec(ctx, `
 		UPDATE user_behavior_patterns
-		SET observation_count = observation_count + 1,
+		SET pattern_value = $4,
+		    pattern_description = COALESCE(pattern_description, $5),
+		    observation_count = observation_count + 1,
 		    last_observed_at = NOW(),
 		    confidence_score = LEAST(1.0, (observation_count + 1)::float / min_observations_for_confidence),
 		    updated_at = NOW()
 		WHERE user_id = $1 AND pattern_type = $2 AND pattern_key = $3
-	`, userID, patternType, patternKey)
+	`, userID, patternType, patternKey, patternValue, fmt.Sprintf("Observed %s: %s", patternType, patternKey))
 
 	if err != nil {
 		return err
@@ -334,6 +337,101 @@ func (s *LearningService) ObserveBehavior(ctx context.Context, userID, patternTy
 	}
 
 	return nil
+}
+
+func normalizeUserFactKey(raw string) string {
+	key := strings.TrimSpace(raw)
+	key = strings.ToLower(key)
+	key = strings.ReplaceAll(key, " ", "_")
+	key = strings.ReplaceAll(key, "\t", "_")
+	key = strings.ReplaceAll(key, "\n", "_")
+	key = strings.ReplaceAll(key, ":", "-")
+	key = strings.ReplaceAll(key, "/", "-")
+	key = strings.ReplaceAll(key, "\\", "-")
+	if len(key) <= 255 {
+		return key
+	}
+	h := sha1.Sum([]byte(key))
+	shortHash := fmt.Sprintf("%x", h)[:10]
+	maxPrefix := 255 - 1 - len(shortHash)
+	if maxPrefix < 0 {
+		maxPrefix = 0
+	}
+	return key[:maxPrefix] + "-" + shortHash
+}
+
+func (s *LearningService) upsertPatternAsUserFact(ctx context.Context, userID string, p BehaviorPattern) error {
+	// Store as an inactive-by-default user fact so users can Confirm/Reject via the existing UI.
+	factKey := normalizeUserFactKey(fmt.Sprintf("pattern:%s:%s", p.PatternType, p.PatternKey))
+
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO user_facts (user_id, fact_key, fact_value, fact_type, confidence_score, is_active)
+		VALUES ($1, $2, $3, 'pattern', $4, false)
+		ON CONFLICT (user_id, fact_key)
+		DO UPDATE SET
+			fact_value = EXCLUDED.fact_value,
+			fact_type = EXCLUDED.fact_type,
+			confidence_score = EXCLUDED.confidence_score,
+			updated_at = NOW()
+	`, userID, factKey, p.PatternValue, p.ConfidenceScore)
+	return err
+}
+
+// DetectPatternsToUserFacts runs pattern detection and persists high-confidence patterns into user_facts.
+// Patterns are saved as inactive by default so they can be explicitly confirmed by the user.
+func (s *LearningService) DetectPatternsToUserFacts(ctx context.Context, userID string) ([]BehaviorPattern, error) {
+	patterns, err := s.DetectPatterns(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range patterns {
+		_ = s.upsertPatternAsUserFact(ctx, userID, p) // best-effort
+	}
+
+	return patterns, nil
+}
+
+// BackfillRecentUsersBehaviorPatterns finds users with recent activity and persists detected patterns into user_facts.
+// Returns (usersProcessed, factsUpserted).
+func (s *LearningService) BackfillRecentUsersBehaviorPatterns(ctx context.Context, userLimit int) (int, int, error) {
+	if userLimit <= 0 {
+		userLimit = 50
+	}
+
+	rows, err := s.pool.Query(ctx, `
+		SELECT DISTINCT user_id
+		FROM conversations
+		WHERE created_at > NOW() - INTERVAL '30 days'
+		ORDER BY user_id
+		LIMIT $1
+	`, userLimit)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer rows.Close()
+
+	usersProcessed := 0
+	factsUpserted := 0
+	for rows.Next() {
+		var uid string
+		if err := rows.Scan(&uid); err != nil {
+			continue
+		}
+		usersProcessed++
+
+		patterns, err := s.DetectPatterns(ctx, uid)
+		if err != nil {
+			continue
+		}
+		for _, p := range patterns {
+			if err := s.upsertPatternAsUserFact(ctx, uid, p); err == nil {
+				factsUpserted++
+			}
+		}
+	}
+
+	return usersProcessed, factsUpserted, nil
 }
 
 // DetectPatterns analyzes user behavior to detect patterns
@@ -463,23 +561,34 @@ func (s *LearningService) GetPersonalizationProfile(ctx context.Context, userID 
 	var profile PersonalizationProfile
 	var workingHoursJSON []byte
 
+	// Use nullable wrappers for array types to handle NULL values
+	var expertiseAreas, learningAreas, commonTopics []string
+	var mostActiveHours []int
+
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, user_id, preferred_tone, preferred_verbosity, preferred_format,
 		       prefers_examples, prefers_analogies, prefers_code_samples, prefers_visual_aids,
-		       expertise_areas, learning_areas, common_topics, timezone, preferred_working_hours,
-		       most_active_hours, total_conversations, total_feedback_given, positive_feedback_ratio,
+		       COALESCE(expertise_areas, '{}'), COALESCE(learning_areas, '{}'), COALESCE(common_topics, '{}'),
+		       COALESCE(timezone, ''), preferred_working_hours,
+		       COALESCE(most_active_hours, '{}'), total_conversations, total_feedback_given, positive_feedback_ratio,
 		       profile_completeness, last_profile_update, created_at, updated_at
 		FROM personalization_profiles
 		WHERE user_id = $1
 	`, userID).Scan(
 		&profile.ID, &profile.UserID, &profile.PreferredTone, &profile.PreferredVerbosity,
 		&profile.PreferredFormat, &profile.PrefersExamples, &profile.PrefersAnalogies,
-		&profile.PrefersCodeSamples, &profile.PrefersVisualAids, &profile.ExpertiseAreas,
-		&profile.LearningAreas, &profile.CommonTopics, &profile.Timezone, &workingHoursJSON,
-		&profile.MostActiveHours, &profile.TotalConversations, &profile.TotalFeedbackGiven,
+		&profile.PrefersCodeSamples, &profile.PrefersVisualAids, &expertiseAreas,
+		&learningAreas, &commonTopics, &profile.Timezone, &workingHoursJSON,
+		&mostActiveHours, &profile.TotalConversations, &profile.TotalFeedbackGiven,
 		&profile.PositiveFeedbackRatio, &profile.ProfileCompleteness, &profile.LastProfileUpdate,
 		&profile.CreatedAt, &profile.UpdatedAt,
 	)
+
+	// Assign arrays after scan
+	profile.ExpertiseAreas = expertiseAreas
+	profile.LearningAreas = learningAreas
+	profile.CommonTopics = commonTopics
+	profile.MostActiveHours = mostActiveHours
 
 	if err == pgx.ErrNoRows {
 		// Create default profile
@@ -528,24 +637,42 @@ func (s *LearningService) GetPersonalizationProfile(ctx context.Context, userID 
 	return &profile, nil
 }
 
-// UpdatePersonalizationProfile updates a user's profile
+// UpdatePersonalizationProfile updates or creates a user's profile (UPSERT)
 func (s *LearningService) UpdatePersonalizationProfile(ctx context.Context, profile *PersonalizationProfile) error {
 	workingHoursJSON, _ := json.Marshal(profile.PreferredWorkingHours)
 
 	_, err := s.pool.Exec(ctx, `
-		UPDATE personalization_profiles SET
-			preferred_tone = $1, preferred_verbosity = $2, preferred_format = $3,
-			prefers_examples = $4, prefers_analogies = $5, prefers_code_samples = $6,
-			prefers_visual_aids = $7, expertise_areas = $8, learning_areas = $9,
-			common_topics = $10, timezone = $11, preferred_working_hours = $12,
-			most_active_hours = $13, profile_completeness = $14, last_profile_update = NOW(),
+		INSERT INTO personalization_profiles (
+			user_id, preferred_tone, preferred_verbosity, preferred_format,
+			prefers_examples, prefers_analogies, prefers_code_samples, prefers_visual_aids,
+			expertise_areas, learning_areas, common_topics, timezone,
+			preferred_working_hours, most_active_hours, profile_completeness,
+			last_profile_update, created_at, updated_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW(), NOW()
+		)
+		ON CONFLICT (user_id) DO UPDATE SET
+			preferred_tone = EXCLUDED.preferred_tone,
+			preferred_verbosity = EXCLUDED.preferred_verbosity,
+			preferred_format = EXCLUDED.preferred_format,
+			prefers_examples = EXCLUDED.prefers_examples,
+			prefers_analogies = EXCLUDED.prefers_analogies,
+			prefers_code_samples = EXCLUDED.prefers_code_samples,
+			prefers_visual_aids = EXCLUDED.prefers_visual_aids,
+			expertise_areas = EXCLUDED.expertise_areas,
+			learning_areas = EXCLUDED.learning_areas,
+			common_topics = EXCLUDED.common_topics,
+			timezone = EXCLUDED.timezone,
+			preferred_working_hours = EXCLUDED.preferred_working_hours,
+			most_active_hours = EXCLUDED.most_active_hours,
+			profile_completeness = EXCLUDED.profile_completeness,
+			last_profile_update = NOW(),
 			updated_at = NOW()
-		WHERE user_id = $15
-	`, profile.PreferredTone, profile.PreferredVerbosity, profile.PreferredFormat,
+	`, profile.UserID, profile.PreferredTone, profile.PreferredVerbosity, profile.PreferredFormat,
 		profile.PrefersExamples, profile.PrefersAnalogies, profile.PrefersCodeSamples,
 		profile.PrefersVisualAids, profile.ExpertiseAreas, profile.LearningAreas,
 		profile.CommonTopics, profile.Timezone, workingHoursJSON, profile.MostActiveHours,
-		profile.ProfileCompleteness, profile.UserID)
+		profile.ProfileCompleteness)
 
 	return err
 }

@@ -42,6 +42,7 @@ type AgentV2 interface {
 	SetOptions(opts services.LLMOptions)
 	SetCustomSystemPrompt(prompt string) // For custom agents with user-defined prompts
 	SetFocusModePrompt(prompt string)    // For focus mode specific prompt prefix
+	SetOutputStylePrompt(prompt string) // For output style specific instructions
 }
 
 // ContextRequirements declares what context an agent needs

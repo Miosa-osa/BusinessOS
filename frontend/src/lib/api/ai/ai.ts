@@ -7,7 +7,8 @@ import type {
   AgentInfo,
   WarmupResponse,
   Tool,
-  ToolResponse
+  ToolResponse,
+  CustomAgentsResponse
 } from './types';
 
 // AI Providers
@@ -81,4 +82,10 @@ export async function executeTool(toolName: string, args: Record<string, unknown
     method: 'POST',
     body: { tool_name: toolName, arguments: args }
   });
+}
+
+// Custom Agents
+export async function getCustomAgents(includeInactive = false) {
+  const params = includeInactive ? '?include_inactive=true' : '';
+  return request<CustomAgentsResponse>(`/ai/custom-agents${params}`);
 }

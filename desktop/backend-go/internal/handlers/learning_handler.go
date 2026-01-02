@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/rhl/businessos-backend/internal/middleware"
 	"github.com/rhl/businessos-backend/internal/services"
 )
 
@@ -24,10 +27,12 @@ func NewLearningHandler(learning *services.LearningService) *LearningHandler {
 // RecordFeedback records user feedback
 func (h *LearningHandler) RecordFeedback(c *gin.Context) {
 	ctx := c.Request.Context()
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		userID = "default-user"
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
 	}
+	userID := user.ID
 
 	var req struct {
 		TargetType      string `json:"target_type"`      // message, artifact, memory, suggestion, agent_response
@@ -86,10 +91,12 @@ func (h *LearningHandler) RecordFeedback(c *gin.Context) {
 // ObserveBehavior records a user behavior observation
 func (h *LearningHandler) ObserveBehavior(c *gin.Context) {
 	ctx := c.Request.Context()
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		userID = "default-user"
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
 	}
+	userID := user.ID
 
 	var req struct {
 		PatternType  string `json:"pattern_type"`
@@ -113,13 +120,44 @@ func (h *LearningHandler) ObserveBehavior(c *gin.Context) {
 // GetPersonalizationProfile retrieves user's personalization profile
 func (h *LearningHandler) GetPersonalizationProfile(c *gin.Context) {
 	ctx := c.Request.Context()
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		userID = "default-user"
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
 	}
+	userID := user.ID
 
 	profile, err := h.learning.GetPersonalizationProfile(ctx, userID)
 	if err != nil {
+		// Log the error for debugging
+		println("DEBUG: GetPersonalizationProfile error:", err.Error())
+		println("DEBUG: Is pgx.ErrNoRows?", errors.Is(err, pgx.ErrNoRows))
+
+		// If profile doesn't exist, return default empty profile instead of error
+		if errors.Is(err, pgx.ErrNoRows) {
+			println("DEBUG: Returning default profile")
+			defaultProfile := &services.PersonalizationProfile{
+				UserID:                userID,
+				PreferredTone:         "professional",
+				PreferredVerbosity:    "balanced",
+				PreferredFormat:       "structured",
+				PrefersExamples:       true,
+				PrefersAnalogies:      false,
+				PrefersCodeSamples:    false,
+				PrefersVisualAids:     false,
+				ExpertiseAreas:        []string{},
+				LearningAreas:         []string{},
+				CommonTopics:          []string{},
+				MostActiveHours:       []int{},
+				TotalConversations:    0,
+				TotalFeedbackGiven:    0,
+				PositiveFeedbackRatio: 0.5,
+				ProfileCompleteness:   0,
+			}
+			c.JSON(http.StatusOK, defaultProfile)
+			return
+		}
+		println("DEBUG: Returning 500 error")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get profile: " + err.Error()})
 		return
 	}
@@ -130,16 +168,21 @@ func (h *LearningHandler) GetPersonalizationProfile(c *gin.Context) {
 // UpdateProfile updates the user's personalization profile
 func (h *LearningHandler) UpdateProfile(c *gin.Context) {
 	ctx := c.Request.Context()
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		userID = "default-user"
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
 	}
+	userID := user.ID
 
 	var profile services.PersonalizationProfile
 	if err := c.ShouldBindJSON(&profile); err != nil {
+		println("DEBUG: JSON binding error:", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
 		return
 	}
+
+	println("DEBUG: Profile received - Tone:", profile.PreferredTone, "Verbosity:", profile.PreferredVerbosity)
 
 	profile.UserID = userID
 
@@ -154,12 +197,14 @@ func (h *LearningHandler) UpdateProfile(c *gin.Context) {
 // DetectPatterns triggers pattern detection analysis
 func (h *LearningHandler) DetectPatterns(c *gin.Context) {
 	ctx := c.Request.Context()
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		userID = "default-user"
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
 	}
+	userID := user.ID
 
-	patterns, err := h.learning.DetectPatterns(ctx, userID)
+	patterns, err := h.learning.DetectPatternsToUserFacts(ctx, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to detect patterns: " + err.Error()})
 		return
@@ -171,10 +216,12 @@ func (h *LearningHandler) DetectPatterns(c *gin.Context) {
 // GetLearnings retrieves learnings for a specific context
 func (h *LearningHandler) GetLearnings(c *gin.Context) {
 	ctx := c.Request.Context()
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		userID = "default-user"
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
 	}
+	userID := user.ID
 
 	agentType := c.Query("agent_type")
 	limitStr := c.Query("limit")
@@ -225,10 +272,12 @@ func (h *LearningHandler) ApplyLearning(c *gin.Context) {
 // RefreshProfile refreshes profile from detected patterns
 func (h *LearningHandler) RefreshProfile(c *gin.Context) {
 	ctx := c.Request.Context()
-	userID := c.GetHeader("X-User-ID")
-	if userID == "" {
-		userID = "default-user"
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
 	}
+	userID := user.ID
 
 	if err := h.learning.RefreshProfileFromPatterns(ctx, userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh profile: " + err.Error()})

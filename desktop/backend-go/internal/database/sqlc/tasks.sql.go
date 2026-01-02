@@ -316,25 +316,34 @@ func (q *Queries) UpdateFocusItem(ctx context.Context, arg UpdateFocusItemParams
 
 const updateTask = `-- name: UpdateTask :one
 UPDATE tasks
-SET title = $2, description = $3, status = $4, priority = $5, due_date = $6, project_id = $7, assignee_id = $8, updated_at = NOW()
-WHERE id = $1
+SET
+  title = COALESCE($1, title),
+  description = COALESCE($2, description),
+  status = COALESCE($3, status),
+  priority = COALESCE($4, priority),
+  due_date = COALESCE($5, due_date),
+  project_id = COALESCE($6, project_id),
+  assignee_id = COALESCE($7, assignee_id),
+  position = COALESCE($8, position),
+  updated_at = NOW()
+WHERE id = $9
 RETURNING id, user_id, title, description, status, priority, due_date, start_date, completed_at, project_id, assignee_id, parent_task_id, custom_status_id, position, created_at, updated_at
 `
 
 type UpdateTaskParams struct {
-	ID          pgtype.UUID      `json:"id"`
-	Title       string           `json:"title"`
+	Title       *string          `json:"title"`
 	Description *string          `json:"description"`
 	Status      NullTaskstatus   `json:"status"`
 	Priority    NullTaskpriority `json:"priority"`
 	DueDate     pgtype.Timestamp `json:"due_date"`
 	ProjectID   pgtype.UUID      `json:"project_id"`
 	AssigneeID  pgtype.UUID      `json:"assignee_id"`
+	Position    *int32           `json:"position"`
+	ID          pgtype.UUID      `json:"id"`
 }
 
 func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, error) {
 	row := q.db.QueryRow(ctx, updateTask,
-		arg.ID,
 		arg.Title,
 		arg.Description,
 		arg.Status,
@@ -342,6 +351,8 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, e
 		arg.DueDate,
 		arg.ProjectID,
 		arg.AssigneeID,
+		arg.Position,
+		arg.ID,
 	)
 	var i Task
 	err := row.Scan(
