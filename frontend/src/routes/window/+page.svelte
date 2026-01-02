@@ -16,6 +16,9 @@
 	import FolderWindow from '$lib/components/desktop/FolderWindow.svelte';
 	import SpotlightSearch from '$lib/components/desktop/SpotlightSearch.svelte';
 	import FileBrowser from '$lib/components/desktop/FileBrowser.svelte';
+	import IconPicker from '$lib/components/desktop/IconPicker.svelte';
+	import AnimatedBackground from '$lib/components/desktop/AnimatedBackground.svelte';
+	import type { CustomIconConfig } from '$lib/stores/windowStore';
 
 	const APP_VERSION = '0.0.1';
 	const session = useSession();
@@ -127,6 +130,34 @@
 
 	// Spotlight search state
 	let showSpotlight = $state(false);
+
+	// Icon picker state
+	let showIconPicker = $state(false);
+	let customizeIconId = $state<string | null>(null);
+	let customizeIconCurrentConfig = $state<CustomIconConfig | undefined>(undefined);
+
+	// Handler for icon customization
+	function handleCustomizeIcon(iconId: string) {
+		customizeIconId = iconId;
+		const icon = $windowStore.desktopIcons.find(i => i.id === iconId);
+		customizeIconCurrentConfig = icon?.customIcon;
+		showIconPicker = true;
+	}
+
+	function handleIconPickerSelect(config: CustomIconConfig | undefined) {
+		if (customizeIconId) {
+			windowStore.updateIconCustomization(customizeIconId, config);
+		}
+		showIconPicker = false;
+		customizeIconId = null;
+		customizeIconCurrentConfig = undefined;
+	}
+
+	function handleIconPickerClose() {
+		showIconPicker = false;
+		customizeIconId = null;
+		customizeIconCurrentConfig = undefined;
+	}
 
 	// Only show icons that are NOT inside a folder
 	const visibleDesktopIcons = $derived(
@@ -430,8 +461,16 @@
 			didSelectionDrag = false;
 			return;
 		}
-		// Only clear selection if clicking directly on desktop (not on icon or window)
-		if ((event.target as HTMLElement).classList.contains('desktop-workspace')) {
+		const target = event.target as HTMLElement;
+		// Clear selection if clicking on desktop, animated background, or any element that isn't an icon or window
+		const isDesktopOrBackground = target.classList.contains('desktop-workspace') ||
+			target.classList.contains('animated-background') ||
+			target.tagName === 'CANVAS';
+		const isNotIconOrWindow = !target.closest('.desktop-icon') &&
+			!target.closest('.window') &&
+			!target.closest('.context-menu');
+
+		if (isDesktopOrBackground || (target.closest('.desktop-workspace') && isNotIconOrWindow)) {
 			windowStore.clearIconSelection();
 		}
 	}
@@ -714,6 +753,16 @@
 	</div>
 {:else if $session.data}
 	<div class="desktop-environment" style={backgroundStyle()}>
+		<!-- Animated Background Effect -->
+		{#if $desktopSettings.animatedBackground.effect !== 'none'}
+			<AnimatedBackground
+				effectType={$desktopSettings.animatedBackground.effect}
+				intensity={$desktopSettings.animatedBackground.intensity}
+				colors={$desktopSettings.animatedBackground.colors}
+				speed={$desktopSettings.animatedBackground.speed}
+			/>
+		{/if}
+
 		<!-- Noise texture overlay -->
 		{#if $desktopSettings.showNoise}
 			<div class="noise-overlay"></div>
@@ -775,11 +824,13 @@
 								iconType={icon.type || 'app'}
 								folderId={icon.type === 'folder' ? icon.folderId : undefined}
 								folderColor={icon.folderColor}
+								customIcon={icon.customIcon}
 								onSelect={handleIconSelect}
 								onOpen={handleIconOpen}
 								onDragStart={handleIconDragStart}
 								onDragMove={handleIconDragMove}
 								onDragEnd={handleIconDragEnd}
+								onCustomizeIcon={handleCustomizeIcon}
 							/>
 						{/if}
 					</div>
@@ -960,6 +1011,18 @@
 
 		<!-- Spotlight Search -->
 		<SpotlightSearch open={showSpotlight} onClose={() => showSpotlight = false} />
+
+		<!-- Icon Picker Modal -->
+		{#if showIconPicker}
+			<div class="icon-picker-overlay">
+				<button class="icon-picker-backdrop" onclick={handleIconPickerClose}></button>
+				<IconPicker
+					currentIcon={customizeIconCurrentConfig}
+					onSelect={handleIconPickerSelect}
+					onClose={handleIconPickerClose}
+				/>
+			</div>
+		{/if}
 
 		<!-- Onboarding Overlay -->
 		{#if showOnboarding}
@@ -1716,5 +1779,25 @@
 	.get-started-btn:hover {
 		background: #333;
 		transform: translateY(-1px);
+	}
+
+	/* Icon Picker Modal */
+	.icon-picker-overlay {
+		position: fixed;
+		inset: 0;
+		z-index: 10000;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.icon-picker-backdrop {
+		position: absolute;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(4px);
+		-webkit-backdrop-filter: blur(4px);
+		border: none;
+		cursor: pointer;
 	}
 </style>

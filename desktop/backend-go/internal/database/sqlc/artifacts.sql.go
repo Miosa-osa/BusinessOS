@@ -135,6 +135,29 @@ func (q *Queries) GetArtifact(ctx context.Context, arg GetArtifactParams) (Artif
 	return i, err
 }
 
+const getArtifactVersion = `-- name: GetArtifactVersion :one
+SELECT id, artifact_id, version, content, created_at FROM artifact_versions
+WHERE artifact_id = $1 AND version = $2
+`
+
+type GetArtifactVersionParams struct {
+	ArtifactID pgtype.UUID `json:"artifact_id"`
+	Version    int32       `json:"version"`
+}
+
+func (q *Queries) GetArtifactVersion(ctx context.Context, arg GetArtifactVersionParams) (ArtifactVersion, error) {
+	row := q.db.QueryRow(ctx, getArtifactVersion, arg.ArtifactID, arg.Version)
+	var i ArtifactVersion
+	err := row.Scan(
+		&i.ID,
+		&i.ArtifactID,
+		&i.Version,
+		&i.Content,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getArtifactVersions = `-- name: GetArtifactVersions :many
 SELECT id, artifact_id, version, content, created_at FROM artifact_versions
 WHERE artifact_id = $1

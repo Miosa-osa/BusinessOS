@@ -10,6 +10,7 @@
 	import ArtifactEditor from '$lib/components/artifacts/ArtifactEditor.svelte';
 	import { markdownToBlocks } from '$lib/utils/markdown-blocks';
 	import { MessageActions } from '$lib/components/ai-elements';
+	import { ConversationListPanel } from '$lib/components/chat';
 
 	// Extract thinking content from message
 	// Uses flexible regex to match variations like <thinking>, <thinkingng>, <thinkingg>, etc.
@@ -1536,13 +1537,97 @@ Use this context to inform your responses.`;
 		id: string;
 		title: string;
 		timestamp: string;
+		preview?: string;
 		pinned?: boolean;
-		project_id?: string;
-		project_name?: string;
+		projectId?: string;
+		projectName?: string;
+		messageCount?: number;
+		conversationType?: 'chat' | 'focus';
+		isArchived?: boolean;
 	}
 
 	let conversations: SidebarConversation[] = $state([]);
+	let archivedConversations: SidebarConversation[] = $state([]);
 	let activeConversationId = $state<string | null>(null);
+	let showArchivedView = $state(false);
+
+	// Sidebar handlers
+	function handleArchiveConversation(id: string) {
+		// Move conversation to archived
+		const conv = conversations.find(c => c.id === id);
+		if (conv) {
+			conversations = conversations.filter(c => c.id !== id);
+			archivedConversations = [...archivedConversations, { ...conv, isArchived: true }];
+			// If archiving current conversation, clear it
+			if (activeConversationId === id) {
+				handleNewChat();
+			}
+		}
+		console.log('[Chat] Archive conversation:', id, '(client-side only - backend not implemented)');
+	}
+
+	function handleUnarchiveConversation(id: string) {
+		// Move conversation back to active
+		const conv = archivedConversations.find(c => c.id === id);
+		if (conv) {
+			archivedConversations = archivedConversations.filter(c => c.id !== id);
+			conversations = [...conversations, { ...conv, isArchived: false }];
+		}
+		console.log('[Chat] Unarchive conversation:', id, '(client-side only - backend not implemented)');
+	}
+
+	function handlePinConversation(id: string) {
+		conversations = conversations.map(c =>
+			c.id === id ? { ...c, pinned: !c.pinned } : c
+		);
+		console.log('[Chat] Toggle pin for conversation:', id, '(client-side only - backend not implemented)');
+	}
+
+	function handleRenameConversation(id: string) {
+		// TODO: Show rename dialog
+		const newTitle = prompt('Enter new title:');
+		if (newTitle) {
+			conversations = conversations.map(c =>
+				c.id === id ? { ...c, title: newTitle } : c
+			);
+			console.log('[Chat] Rename conversation:', id, 'to', newTitle, '(client-side only - backend not implemented)');
+		}
+	}
+
+	function handleExportConversation(id: string) {
+		// TODO: Export conversation to file
+		console.log('[Chat] Export conversation:', id, '(not implemented yet)');
+	}
+
+	function handleLinkProject(id: string) {
+		// TODO: Show project linking dialog
+		console.log('[Chat] Link to project:', id, '(not implemented yet)');
+	}
+
+	async function handleDeleteConversation(id: string) {
+		if (!confirm('Are you sure you want to delete this conversation?')) return;
+
+		try {
+			await apiClient.delete(`/conversations/${id}`);
+			conversations = conversations.filter(c => c.id !== id);
+			archivedConversations = archivedConversations.filter(c => c.id !== id);
+			// If deleting current conversation, clear it
+			if (activeConversationId === id) {
+				handleNewChat();
+			}
+			console.log('[Chat] Deleted conversation:', id);
+		} catch (error) {
+			console.error('[Chat] Failed to delete conversation:', error);
+		}
+	}
+
+	function handleViewArchived() {
+		showArchivedView = true;
+	}
+
+	function handleBackToChats() {
+		showArchivedView = false;
+	}
 
 	// Derived context
 	let selectedContexts = $derived<ContextListItem[]>(
@@ -3240,108 +3325,25 @@ Use this context to inform your responses.`;
 <div class="h-full flex overflow-hidden">
 	<!-- Chat Conversations Sidebar -->
 	{#if chatSidebarOpen}
-		<div class="w-64 h-full flex flex-col bg-white border-r border-gray-200 flex-shrink-0" transition:fly={{ x: -256, duration: 200 }}>
-			<!-- Header -->
-			<div class="p-4 flex-shrink-0">
-				<div class="flex items-center justify-between mb-4">
-					<h2 class="text-lg font-semibold text-gray-900">Chats</h2>
-					<button
-						onclick={handleNewChat}
-						class="w-8 h-8 flex items-center justify-center bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-					>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-						</svg>
-					</button>
-				</div>
-
-				<!-- Search -->
-				<div class="relative">
-					<svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-					</svg>
-					<input
-						type="text"
-						placeholder="Search conversations..."
-						bind:value={searchQuery}
-						class="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-					/>
-				</div>
-
-				<!-- Filter Tabs -->
-				<div class="flex items-center gap-1 mt-3">
-					<button
-						onclick={() => filterTab = 'all'}
-						class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors {filterTab === 'all' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}"
-					>
-						All
-					</button>
-					<button
-						onclick={() => filterTab = 'pinned'}
-						class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors {filterTab === 'pinned' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}"
-					>
-						Pinned
-					</button>
-					<button
-						onclick={() => filterTab = 'recent'}
-						class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors {filterTab === 'recent' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}"
-					>
-						Recent
-					</button>
-				</div>
-			</div>
-
-			<!-- Conversation List - scrollable with custom scrollbar -->
-			<div class="flex-1 overflow-y-auto px-2 sidebar-scroll">
-				{#if conversations.length === 0}
-					<div class="flex flex-col items-center justify-center py-12 text-center">
-						<svg class="w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-						</svg>
-						<p class="text-sm text-gray-500">No conversations yet</p>
-						<p class="text-xs text-gray-400 mt-1">Start a new chat to begin</p>
-					</div>
-				{:else}
-					{#each conversations as conv (conv.id)}
-						<button
-							onclick={() => selectConversation(conv.id)}
-							class="w-full text-left p-3 rounded-lg mb-1 transition-colors group {activeConversationId === conv.id ? 'bg-gray-100' : 'hover:bg-gray-50'}"
-						>
-							<div class="flex items-start gap-2">
-								<div class="flex-1 min-w-0">
-									<p class="text-sm font-medium text-gray-900 truncate">{conv.title}</p>
-									<div class="flex items-center gap-2 mt-1">
-										{#if conv.project_name}
-											<span class="inline-flex items-center gap-1 text-[10px] font-medium text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">
-												<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-												</svg>
-												{conv.project_name}
-											</span>
-										{/if}
-										<span class="text-xs text-gray-400">{formatTime(conv.timestamp)}</span>
-									</div>
-								</div>
-								{#if conv.pinned}
-									<svg class="w-3.5 h-3.5 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-										<path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2m4-2a2 2 0 012 2v0a2 2 0 01-2 2 2 2 0 01-2-2 2 2 0 012-2z" />
-									</svg>
-								{/if}
-							</div>
-						</button>
-					{/each}
-				{/if}
-			</div>
-
-			<!-- Footer -->
-			<div class="p-3 flex-shrink-0 border-t border-gray-100">
-				<button class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-					</svg>
-					View archived
-				</button>
-			</div>
+		<div class="w-72 h-full flex-shrink-0 border-r border-gray-200" transition:fly={{ x: -288, duration: 200 }}>
+			<ConversationListPanel
+				conversations={conversations}
+				archivedConversations={archivedConversations}
+				activeId={activeConversationId ?? ''}
+				showArchived={showArchivedView}
+				bind:searchQuery
+				onSelect={selectConversation}
+				onNewChat={handleNewChat}
+				onRename={handleRenameConversation}
+				onPin={handlePinConversation}
+				onDelete={handleDeleteConversation}
+				onArchive={handleArchiveConversation}
+				onUnarchive={handleUnarchiveConversation}
+				onExport={handleExportConversation}
+				onLinkProject={handleLinkProject}
+				onViewArchived={handleViewArchived}
+				onBackToChats={handleBackToChats}
+			/>
 		</div>
 	{/if}
 

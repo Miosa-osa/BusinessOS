@@ -554,3 +554,52 @@ func (q *Queries) UpdateContextBlocks(ctx context.Context, arg UpdateContextBloc
 	)
 	return i, err
 }
+
+const syncArtifactToContext = `-- name: SyncArtifactToContext :one
+UPDATE contexts
+SET content = CASE
+      WHEN content IS NULL OR content = '' THEN $2
+      ELSE content || E'\n\n---\n\n' || $2
+    END,
+    word_count = COALESCE(word_count, 0) + $3,
+    last_edited_at = NOW(),
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, user_id, name, type, content, structured_data, system_prompt_template, blocks, cover_image, icon, parent_id, is_template, is_archived, last_edited_at, word_count, is_public, share_id, property_schema, properties, client_id, created_at, updated_at
+`
+
+type SyncArtifactToContextParams struct {
+	ID        pgtype.UUID `json:"id"`
+	Content   string      `json:"content"`
+	WordCount int32       `json:"word_count"`
+}
+
+func (q *Queries) SyncArtifactToContext(ctx context.Context, arg SyncArtifactToContextParams) (Context, error) {
+	row := q.db.QueryRow(ctx, syncArtifactToContext, arg.ID, arg.Content, arg.WordCount)
+	var i Context
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Type,
+		&i.Content,
+		&i.StructuredData,
+		&i.SystemPromptTemplate,
+		&i.Blocks,
+		&i.CoverImage,
+		&i.Icon,
+		&i.ParentID,
+		&i.IsTemplate,
+		&i.IsArchived,
+		&i.LastEditedAt,
+		&i.WordCount,
+		&i.IsPublic,
+		&i.ShareID,
+		&i.PropertySchema,
+		&i.Properties,
+		&i.ClientID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

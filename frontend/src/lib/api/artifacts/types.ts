@@ -8,9 +8,11 @@ export interface ArtifactListItem {
   type: ArtifactType;
   summary: string | null;
   conversation_id: string | null;
+  message_id: string | null;
   project_id: string | null;
   context_id: string | null;
   context_name: string | null;
+  language: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -41,4 +43,12 @@ export interface ArtifactFilters {
   projectId?: string;
   contextId?: string;
   unassignedOnly?: boolean;
+}
+
+export interface ArtifactVersion {
+  id: string;
+  artifact_id: string;
+  version: number;
+  content: string;
+  created_at: string;
 }

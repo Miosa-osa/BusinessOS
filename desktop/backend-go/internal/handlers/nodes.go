@@ -609,6 +609,41 @@ func (h *Handlers) ArchiveNode(c *gin.Context) {
 	c.JSON(http.StatusOK, TransformNode(node))
 }
 
+// UnarchiveNode restores an archived node
+func (h *Handlers) UnarchiveNode(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid node ID"})
+		return
+	}
+
+	queries := sqlc.New(h.pool)
+
+	// Verify ownership
+	_, err = queries.GetNode(c.Request.Context(), sqlc.GetNodeParams{
+		ID:     pgtype.UUID{Bytes: id, Valid: true},
+		UserID: user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Node not found"})
+		return
+	}
+
+	node, err := queries.UnarchiveNode(c.Request.Context(), pgtype.UUID{Bytes: id, Valid: true})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unarchive node"})
+		return
+	}
+
+	c.JSON(http.StatusOK, TransformNode(node))
+}
+
 // DeleteNode deletes a node
 func (h *Handlers) DeleteNode(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
@@ -662,4 +697,439 @@ func stringToNodeHealth(h string) sqlc.Nodehealth {
 		return enum
 	}
 	return sqlc.NodehealthNOTSTARTED
+}
+
+// ===== NODE LINKING HANDLERS =====
+
+// GetNodeLinks returns all linked items for a node
+func (h *Handlers) GetNodeLinks(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid node ID"})
+		return
+	}
+
+	queries := sqlc.New(h.pool)
+	nodeID := pgtype.UUID{Bytes: id, Valid: true}
+
+	// Verify ownership
+	_, err = queries.GetNode(c.Request.Context(), sqlc.GetNodeParams{
+		ID:     nodeID,
+		UserID: user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Node not found"})
+		return
+	}
+
+	// Get all linked items
+	projects, _ := queries.GetNodeLinkedProjects(c.Request.Context(), nodeID)
+	contexts, _ := queries.GetNodeLinkedContexts(c.Request.Context(), nodeID)
+	conversations, _ := queries.GetNodeLinkedConversations(c.Request.Context(), nodeID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"projects":      transformNodeLinkedProjects(projects),
+		"contexts":      transformNodeLinkedContexts(contexts),
+		"conversations": transformNodeLinkedConversations(conversations),
+	})
+}
+
+// GetNodeLinkCounts returns counts of linked items for a node
+func (h *Handlers) GetNodeLinkCounts(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid node ID"})
+		return
+	}
+
+	queries := sqlc.New(h.pool)
+	nodeID := pgtype.UUID{Bytes: id, Valid: true}
+
+	// Verify ownership
+	_, err = queries.GetNode(c.Request.Context(), sqlc.GetNodeParams{
+		ID:     nodeID,
+		UserID: user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Node not found"})
+		return
+	}
+
+	counts, err := queries.GetNodeLinkCounts(c.Request.Context(), nodeID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get link counts"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"linked_projects_count":      counts.LinkedProjectsCount,
+		"linked_contexts_count":      counts.LinkedContextsCount,
+		"linked_conversations_count": counts.LinkedConversationsCount,
+	})
+}
+
+// LinkNodeProject links a project to a node
+func (h *Handlers) LinkNodeProject(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	nodeID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid node ID"})
+		return
+	}
+
+	var req struct {
+		ProjectID string `json:"project_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	projectID, err := uuid.Parse(req.ProjectID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	queries := sqlc.New(h.pool)
+
+	// Verify node ownership
+	_, err = queries.GetNode(c.Request.Context(), sqlc.GetNodeParams{
+		ID:     pgtype.UUID{Bytes: nodeID, Valid: true},
+		UserID: user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Node not found"})
+		return
+	}
+
+	err = queries.LinkNodeProject(c.Request.Context(), sqlc.LinkNodeProjectParams{
+		NodeID:    pgtype.UUID{Bytes: nodeID, Valid: true},
+		ProjectID: pgtype.UUID{Bytes: projectID, Valid: true},
+		LinkedBy:  &user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to link project"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Project linked"})
+}
+
+// UnlinkNodeProject unlinks a project from a node
+func (h *Handlers) UnlinkNodeProject(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	nodeID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid node ID"})
+		return
+	}
+
+	projectID, err := uuid.Parse(c.Param("projectId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	queries := sqlc.New(h.pool)
+
+	// Verify node ownership
+	_, err = queries.GetNode(c.Request.Context(), sqlc.GetNodeParams{
+		ID:     pgtype.UUID{Bytes: nodeID, Valid: true},
+		UserID: user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Node not found"})
+		return
+	}
+
+	err = queries.UnlinkNodeProject(c.Request.Context(), sqlc.UnlinkNodeProjectParams{
+		NodeID:    pgtype.UUID{Bytes: nodeID, Valid: true},
+		ProjectID: pgtype.UUID{Bytes: projectID, Valid: true},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unlink project"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Project unlinked"})
+}
+
+// LinkNodeContext links a context to a node
+func (h *Handlers) LinkNodeContext(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	nodeID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid node ID"})
+		return
+	}
+
+	var req struct {
+		ContextID string `json:"context_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	contextID, err := uuid.Parse(req.ContextID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid context ID"})
+		return
+	}
+
+	queries := sqlc.New(h.pool)
+
+	// Verify node ownership
+	_, err = queries.GetNode(c.Request.Context(), sqlc.GetNodeParams{
+		ID:     pgtype.UUID{Bytes: nodeID, Valid: true},
+		UserID: user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Node not found"})
+		return
+	}
+
+	err = queries.LinkNodeContext(c.Request.Context(), sqlc.LinkNodeContextParams{
+		NodeID:    pgtype.UUID{Bytes: nodeID, Valid: true},
+		ContextID: pgtype.UUID{Bytes: contextID, Valid: true},
+		LinkedBy:  &user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to link context"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Context linked"})
+}
+
+// UnlinkNodeContext unlinks a context from a node
+func (h *Handlers) UnlinkNodeContext(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	nodeID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid node ID"})
+		return
+	}
+
+	contextID, err := uuid.Parse(c.Param("contextId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid context ID"})
+		return
+	}
+
+	queries := sqlc.New(h.pool)
+
+	// Verify node ownership
+	_, err = queries.GetNode(c.Request.Context(), sqlc.GetNodeParams{
+		ID:     pgtype.UUID{Bytes: nodeID, Valid: true},
+		UserID: user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Node not found"})
+		return
+	}
+
+	err = queries.UnlinkNodeContext(c.Request.Context(), sqlc.UnlinkNodeContextParams{
+		NodeID:    pgtype.UUID{Bytes: nodeID, Valid: true},
+		ContextID: pgtype.UUID{Bytes: contextID, Valid: true},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unlink context"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Context unlinked"})
+}
+
+// LinkNodeConversation links a conversation to a node
+func (h *Handlers) LinkNodeConversation(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	nodeID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid node ID"})
+		return
+	}
+
+	var req struct {
+		ConversationID string `json:"conversation_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	conversationID, err := uuid.Parse(req.ConversationID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid conversation ID"})
+		return
+	}
+
+	queries := sqlc.New(h.pool)
+
+	// Verify node ownership
+	_, err = queries.GetNode(c.Request.Context(), sqlc.GetNodeParams{
+		ID:     pgtype.UUID{Bytes: nodeID, Valid: true},
+		UserID: user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Node not found"})
+		return
+	}
+
+	err = queries.LinkNodeConversation(c.Request.Context(), sqlc.LinkNodeConversationParams{
+		NodeID:         pgtype.UUID{Bytes: nodeID, Valid: true},
+		ConversationID: pgtype.UUID{Bytes: conversationID, Valid: true},
+		LinkedBy:       &user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to link conversation"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Conversation linked"})
+}
+
+// UnlinkNodeConversation unlinks a conversation from a node
+func (h *Handlers) UnlinkNodeConversation(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	nodeID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid node ID"})
+		return
+	}
+
+	conversationID, err := uuid.Parse(c.Param("conversationId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid conversation ID"})
+		return
+	}
+
+	queries := sqlc.New(h.pool)
+
+	// Verify node ownership
+	_, err = queries.GetNode(c.Request.Context(), sqlc.GetNodeParams{
+		ID:     pgtype.UUID{Bytes: nodeID, Valid: true},
+		UserID: user.ID,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Node not found"})
+		return
+	}
+
+	err = queries.UnlinkNodeConversation(c.Request.Context(), sqlc.UnlinkNodeConversationParams{
+		NodeID:         pgtype.UUID{Bytes: nodeID, Valid: true},
+		ConversationID: pgtype.UUID{Bytes: conversationID, Valid: true},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unlink conversation"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Conversation unlinked"})
+}
+
+// Transform functions for linked items
+func transformNodeLinkedProjects(projects []sqlc.NodeLinkedProject) []gin.H {
+	result := make([]gin.H, 0, len(projects))
+	for _, p := range projects {
+		item := gin.H{
+			"id":         uuid.UUID(p.ID.Bytes).String(),
+			"name":       p.Name,
+			"linked_at":  p.LinkedAt.Time.Format("2006-01-02T15:04:05Z"),
+		}
+		if p.Description != nil {
+			item["description"] = *p.Description
+		}
+		if p.Status.Valid {
+			item["status"] = string(p.Status.Projectstatus)
+		}
+		if p.Priority.Valid {
+			item["priority"] = string(p.Priority.Projectpriority)
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func transformNodeLinkedContexts(contexts []sqlc.NodeLinkedContext) []gin.H {
+	result := make([]gin.H, 0, len(contexts))
+	for _, ctx := range contexts {
+		item := gin.H{
+			"id":        uuid.UUID(ctx.ID.Bytes).String(),
+			"name":      ctx.Name,
+			"linked_at": ctx.LinkedAt.Time.Format("2006-01-02T15:04:05Z"),
+		}
+		if ctx.Type.Valid {
+			item["type"] = string(ctx.Type.Contexttype)
+		}
+		if ctx.Icon != nil {
+			item["icon"] = *ctx.Icon
+		}
+		if ctx.WordCount != nil {
+			item["word_count"] = *ctx.WordCount
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func transformNodeLinkedConversations(conversations []sqlc.NodeLinkedConversation) []gin.H {
+	result := make([]gin.H, 0, len(conversations))
+	for _, conv := range conversations {
+		item := gin.H{
+			"id":         uuid.UUID(conv.ID.Bytes).String(),
+			"linked_at":  conv.LinkedAt.Time.Format("2006-01-02T15:04:05Z"),
+			"created_at": conv.CreatedAt.Time.Format("2006-01-02T15:04:05Z"),
+		}
+		if conv.Title != nil {
+			item["title"] = *conv.Title
+		} else {
+			item["title"] = "New Conversation"
+		}
+		result = append(result, item)
+	}
+	return result
 }

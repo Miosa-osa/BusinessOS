@@ -54,6 +54,7 @@
 		"embla-carousel-react": "^8.6.0",
 		"frontend": "file:",
 		"lucide-react": "^0.559.0",
+		"lucide-svelte": "^0.562.0",
 		"motion": "^12.23.26",
 		"nanoid": "^5.1.6",
 		"ollama-ai-provider-v2": "^1.5.5",

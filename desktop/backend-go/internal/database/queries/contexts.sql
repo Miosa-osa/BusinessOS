@@ -66,3 +66,16 @@ WHERE id = $1 AND user_id = $2;
 SELECT * FROM contexts
 WHERE parent_id = $1 AND user_id = $2
 ORDER BY name ASC;
+
+-- name: SyncArtifactToContext :one
+-- Syncs artifact content to a context (appends or replaces based on use case)
+UPDATE contexts
+SET content = CASE
+      WHEN content IS NULL OR content = '' THEN $2
+      ELSE content || E'\n\n---\n\n' || $2
+    END,
+    word_count = COALESCE(word_count, 0) + $3,
+    last_edited_at = NOW(),
+    updated_at = NOW()
+WHERE id = $1
+RETURNING *;

@@ -1,19 +1,42 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { fly, slide } from 'svelte/transition';
-	import { api, type NodeTree, type Node, type NodeType, type NodeHealth, type CreateNodeData } from '$lib/api';
+	import { nodes } from '$lib/stores/nodes';
+	import { NodeGraphView, NodeBuildingView, NodeBuilding3D } from '$lib/components/nodes';
+	import type { NodeTree, NodeType, NodeHealth, CreateNodeData } from '$lib/api/nodes/types';
 
-	// State
-	let nodes: NodeTree[] = $state([]);
-	let activeNode: Node | null = $state(null);
-	let isLoading = $state(true);
-	let error: string | null = $state(null);
+	// Sanitize user input to prevent XSS and injection attacks
+	function sanitizeInput(input: string): string {
+		return input
+			.replace(/[<>]/g, '') // Remove angle brackets
+			.replace(/javascript:/gi, '') // Remove javascript: protocol
+			.replace(/on\w+=/gi, '') // Remove event handlers
+			.trim();
+	}
 
-	// View state
-	let viewMode: 'tree' | 'list' | 'grid' = $state('tree');
-	let searchQuery = $state('');
+	// Debounce utility for search input
+	function debounce<T extends (...args: Parameters<T>) => void>(fn: T, delay: number): T {
+		let timeoutId: ReturnType<typeof setTimeout>;
+		return ((...args: Parameters<T>) => {
+			clearTimeout(timeoutId);
+			timeoutId = setTimeout(() => fn(...args), delay);
+		}) as T;
+	}
+
+	// View state (local - UI specific)
+	let viewMode: 'tree' | 'list' | 'grid' | 'graph' | 'building' | 'building3d' = $state('tree');
+	let selectedGraphNode: string | null = $state(null);
+	let selectedBuildingNode: string | null = $state(null);
+	let searchInput = $state(''); // Raw input value
+	let searchQuery = $state(''); // Debounced value used for filtering
 	let showNewNodeModal = $state(false);
 	let expandedNodes: Set<string> = $state(new Set());
+
+	// Debounced search handler (300ms delay)
+	const updateSearchQuery = debounce((value: string) => {
+		searchQuery = value;
+	}, 300);
 
 	// Filter state
 	let showFilterDropdown = $state(false);
@@ -28,14 +51,37 @@
 	let newNodePurpose = $state('');
 	let isCreatingNode = $state(false);
 
-	// Node type config
-	const nodeTypeConfig: Record<string, { icon: string; color: string; label: string }> = {
-		business: { icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', color: 'blue', label: 'Business' },
-		project: { icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z', color: 'green', label: 'Project' },
-		learning: { icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', color: 'purple', label: 'Learning' },
-		operational: { icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', color: 'orange', label: 'Operational' },
+	// Error state (local)
+	let error: string | null = $state(null);
+
+	// Node type config with full Tailwind classes (static for purging)
+	const nodeTypeConfig: Record<string, { icon: string; bgClass: string; textClass: string; label: string }> = {
+		business: {
+			icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+			bgClass: 'bg-blue-100',
+			textClass: 'text-blue-600',
+			label: 'Business'
+		},
+		project: {
+			icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z',
+			bgClass: 'bg-green-100',
+			textClass: 'text-green-600',
+			label: 'Project'
+		},
+		learning: {
+			icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
+			bgClass: 'bg-purple-100',
+			textClass: 'text-purple-600',
+			label: 'Learning'
+		},
+		operational: {
+			icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+			bgClass: 'bg-orange-100',
+			textClass: 'text-orange-600',
+			label: 'Operational'
+		},
 	};
-	const defaultTypeConfig = { icon: 'M4 6h16M4 12h16M4 18h16', color: 'gray', label: 'Unknown' };
+	const defaultTypeConfig = { icon: 'M4 6h16M4 12h16M4 18h16', bgClass: 'bg-gray-100', textClass: 'text-gray-600', label: 'Unknown' };
 
 	// Health config
 	const healthConfig: Record<string, { color: string; label: string }> = {
@@ -56,20 +102,15 @@
 	}
 
 	async function loadData() {
-		isLoading = true;
 		error = null;
 		try {
-			const [treeData, activeData] = await Promise.all([
-				api.getNodeTree(showArchived),
-				api.getActiveNode()
+			await Promise.all([
+				nodes.loadTree(showArchived),
+				nodes.loadActive()
 			]);
-			nodes = treeData;
-			activeNode = activeData;
 		} catch (e) {
 			console.error('Failed to load nodes:', e);
 			error = 'Failed to load nodes. Please try again.';
-		} finally {
-			isLoading = false;
 		}
 	}
 
@@ -89,20 +130,19 @@
 
 	async function handleActivate(nodeId: string) {
 		try {
-			const result = await api.activateNode(nodeId);
-			activeNode = result.node;
-			await loadData();
+			await nodes.activate(nodeId);
+			await nodes.loadTree(showArchived);
 		} catch (e) {
 			console.error('Failed to activate node:', e);
 		}
 	}
 
 	async function handleDeactivate() {
+		const activeNode = $nodes.activeNode;
 		if (!activeNode) return;
 		try {
-			await api.deactivateNode(activeNode.id);
-			activeNode = null;
-			await loadData();
+			await nodes.deactivate(activeNode.id);
+			await nodes.loadTree(showArchived);
 		} catch (e) {
 			console.error('Failed to deactivate node:', e);
 		}
@@ -111,8 +151,8 @@
 	async function handleDelete(nodeId: string) {
 		if (!confirm('Are you sure you want to delete this node? All children will also be deleted.')) return;
 		try {
-			await api.deleteNode(nodeId);
-			await loadData();
+			await nodes.delete(nodeId);
+			await nodes.loadTree(showArchived);
 		} catch (e) {
 			console.error('Failed to delete node:', e);
 		}
@@ -122,20 +162,29 @@
 		if (!newNodeName.trim()) return;
 		isCreatingNode = true;
 		try {
+			// Sanitize user inputs before sending to backend
+			const sanitizedName = sanitizeInput(newNodeName);
+			const sanitizedPurpose = sanitizeInput(newNodePurpose);
+
+			if (!sanitizedName) {
+				console.error('Invalid node name after sanitization');
+				return;
+			}
+
 			const data: CreateNodeData = {
-				name: newNodeName.trim(),
+				name: sanitizedName,
 				type: newNodeType,
 			};
 			if (newNodeParentId) data.parent_id = newNodeParentId;
-			if (newNodePurpose.trim()) data.purpose = newNodePurpose.trim();
+			if (sanitizedPurpose) data.purpose = sanitizedPurpose;
 
-			await api.createNode(data);
+			await nodes.create(data);
 			showNewNodeModal = false;
 			newNodeName = '';
 			newNodeType = 'business';
 			newNodeParentId = null;
 			newNodePurpose = '';
-			await loadData();
+			await nodes.loadTree(showArchived);
 		} catch (e) {
 			console.error('Failed to create node:', e);
 		} finally {
@@ -157,7 +206,7 @@
 		}));
 	}
 
-	const filteredNodes = $derived(filterNodes(nodes));
+	const filteredNodes = $derived(filterNodes($nodes.nodeTree));
 
 	// Flatten nodes for list view
 	function flattenNodes(nodeList: NodeTree[], depth = 0): (NodeTree & { depth: number })[] {
@@ -183,7 +232,7 @@
 		return result;
 	}
 
-	const allNodes = $derived(getAllNodes(nodes));
+	const allNodes = $derived(getAllNodes($nodes.nodeTree));
 </script>
 
 <div class="h-full flex flex-col bg-white">
@@ -237,6 +286,33 @@
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
 					</svg>
 					Grid
+				</button>
+				<button
+					onclick={() => viewMode = 'graph'}
+					class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'graph' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}"
+				>
+					<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+					</svg>
+					Graph
+				</button>
+				<button
+					onclick={() => viewMode = 'building'}
+					class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'building' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}"
+				>
+					<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+					</svg>
+					2D
+				</button>
+				<button
+					onclick={() => viewMode = 'building3d'}
+					class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'building3d' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}"
+				>
+					<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+					</svg>
+					3D
 				</button>
 			</div>
 
@@ -329,7 +405,8 @@
 					<input
 						type="text"
 						placeholder="Search nodes..."
-						bind:value={searchQuery}
+						bind:value={searchInput}
+						oninput={(e) => updateSearchQuery(e.currentTarget.value)}
 						class="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
 					/>
 				</div>
@@ -338,19 +415,19 @@
 	</div>
 
 	<!-- Active Node Banner -->
-	{#if activeNode}
+	{#if $nodes.activeNode}
 		<div class="bg-blue-50 border-b border-blue-100 px-6 py-3 flex items-center justify-between flex-shrink-0" transition:slide>
 			<div class="flex items-center gap-3">
 				<svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
 					<path d="M13 10V3L4 14h7v7l9-11h-7z" />
 				</svg>
 				<span class="text-sm font-medium text-blue-900">
-					Active Node: <span class="font-semibold">{activeNode.name}</span>
+					Active Node: <span class="font-semibold">{$nodes.activeNode.name}</span>
 				</span>
 			</div>
 			<div class="flex items-center gap-2">
 				<a
-					href="/nodes/{activeNode.id}"
+					href="/nodes/{$nodes.activeNode.id}"
 					class="px-3 py-1 text-sm text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
 				>
 					View
@@ -367,7 +444,7 @@
 
 	<!-- Content -->
 	<div class="flex-1 overflow-auto p-6">
-		{#if isLoading}
+		{#if $nodes.loading}
 			<div class="flex items-center justify-center h-64">
 				<div class="animate-spin h-8 w-8 border-2 border-gray-900 border-t-transparent rounded-full"></div>
 			</div>
@@ -423,7 +500,7 @@
 							{/if}
 
 							<!-- Type Icon -->
-							<div class="w-8 h-8 rounded-lg bg-{getTypeConfig(node.type).color}-100 text-{getTypeConfig(node.type).color}-600 flex items-center justify-center flex-shrink-0">
+							<div class="w-8 h-8 rounded-lg {getTypeConfig(node.type).bgClass} {getTypeConfig(node.type).textClass} flex items-center justify-center flex-shrink-0">
 								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getTypeConfig(node.type).icon} />
 								</svg>
@@ -499,7 +576,7 @@
 							<tr class="hover:bg-gray-50">
 								<td class="px-4 py-3">
 									<div class="flex items-center gap-3" style="padding-left: {node.depth * 20}px">
-										<div class="w-8 h-8 rounded-lg bg-{getTypeConfig(node.type).color}-100 text-{getTypeConfig(node.type).color}-600 flex items-center justify-center flex-shrink-0">
+										<div class="w-8 h-8 rounded-lg {getTypeConfig(node.type).bgClass} {getTypeConfig(node.type).textClass} flex items-center justify-center flex-shrink-0">
 											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getTypeConfig(node.type).icon} />
 											</svg>
@@ -549,7 +626,7 @@
 					</tbody>
 				</table>
 			</div>
-		{:else}
+		{:else if viewMode === 'grid'}
 			<!-- Grid View -->
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
 				{#each flatNodes as node}
@@ -558,7 +635,7 @@
 						class="block p-4 bg-white border border-gray-200 rounded-xl hover:shadow-md transition-all hover:-translate-y-0.5"
 					>
 						<div class="flex items-start gap-3">
-							<div class="w-10 h-10 rounded-lg bg-{getTypeConfig(node.type).color}-100 text-{getTypeConfig(node.type).color}-600 flex items-center justify-center flex-shrink-0">
+							<div class="w-10 h-10 rounded-lg {getTypeConfig(node.type).bgClass} {getTypeConfig(node.type).textClass} flex items-center justify-center flex-shrink-0">
 								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getTypeConfig(node.type).icon} />
 								</svg>
@@ -600,6 +677,59 @@
 					</svg>
 					<span class="text-sm text-gray-500">Add New Node</span>
 				</button>
+			</div>
+		{:else if viewMode === 'graph'}
+			<!-- Graph View -->
+			<div class="h-[calc(100vh-280px)] min-h-[500px]">
+				<NodeGraphView
+					nodes={$nodes.nodeTree}
+					activeNodeId={$nodes.activeNode?.id}
+					selectedId={selectedGraphNode}
+					onSelect={(node) => { if (node?.id) selectedGraphNode = node.id; }}
+					onNavigate={(node) => { if (node?.id) goto(`/nodes/${node.id}`); }}
+				/>
+			</div>
+		{:else if viewMode === 'building'}
+			<!-- Building 2D View -->
+			<div class="h-[calc(100vh-280px)] min-h-[500px] -mx-6 -mb-6">
+				<NodeBuildingView
+					nodes={$nodes.nodeTree}
+					activeNodeId={$nodes.activeNode?.id}
+					selectedId={selectedBuildingNode}
+					onSelect={(node) => { if (node?.id) selectedBuildingNode = node.id; }}
+					onNavigate={(node) => { if (node?.id) goto(`/nodes/${node.id}`); }}
+					onCreateRoom={(floorLevel) => {
+						// Pre-select parent based on floor level
+						const flatNodes = flattenNodes($nodes.nodeTree);
+						const nodesAtDepth = flatNodes.filter(n => n.depth === floorLevel);
+						if (nodesAtDepth.length > 0) {
+							// If there are existing nodes at this level, use first one's parent
+							const firstNode = nodesAtDepth[0];
+							newNodeParentId = firstNode.parent_id || null;
+						} else if (floorLevel > 0) {
+							// For new floor, find nodes at parent level
+							const parentNodes = flatNodes.filter(n => n.depth === floorLevel - 1);
+							if (parentNodes.length > 0) {
+								newNodeParentId = parentNodes[0].id;
+							}
+						} else {
+							newNodeParentId = null;
+						}
+						showNewNodeModal = true;
+					}}
+				/>
+			</div>
+		{:else if viewMode === 'building3d'}
+			<!-- Building 3D View -->
+			<div class="h-[calc(100vh-280px)] min-h-[500px] -mx-6 -mb-6">
+				<NodeBuilding3D
+					nodes={$nodes.nodeTree}
+					activeNodeId={$nodes.activeNode?.id}
+					selectedId={selectedBuildingNode}
+					onSelect={(node) => { if (node?.id) selectedBuildingNode = node.id; }}
+					onNavigate={(node) => { if (node?.id) goto(`/nodes/${node.id}`); }}
+					onCreateRoom={() => { showNewNodeModal = true; }}
+				/>
 			</div>
 		{/if}
 	</div>
@@ -650,7 +780,7 @@
 								onclick={() => newNodeType = type as NodeType}
 								class="flex flex-col items-center gap-1 p-3 border-2 rounded-lg transition-colors {newNodeType === type ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}"
 							>
-								<svg class="w-5 h-5 text-{config.color}-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg class="w-5 h-5 {config.textClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={config.icon} />
 								</svg>
 								<span class="text-xs font-medium text-gray-700">{config.label}</span>

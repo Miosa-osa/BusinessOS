@@ -193,7 +193,7 @@
 			// Clear first to prevent re-triggering
 			editor.clearPendingBlockTypeSelection();
 			// Then handle the selection (async, but we've already cleared the pending state)
-			selectBlockType(pending.type);
+			selectBlockType(pending.type, pending.properties);
 		}
 	});
 
@@ -355,11 +355,11 @@
 	}
 
 
-	async function selectBlockType(type: BlockType) {
+	async function selectBlockType(type: BlockType, properties?: Record<string, unknown>) {
 		try {
 			// Handle page type specially - create a new sub-page
 			if (type === 'page') {
-				await createSubPage();
+				await createSubPage(properties?.icon as string | undefined);
 				return;
 			}
 
@@ -377,13 +377,22 @@
 		}
 	}
 
-	async function createSubPage() {
-		console.log('[Block] createSubPage called, parentContextId:', parentContextId);
+	async function createSubPage(icon?: string) {
+		console.log('[Block] createSubPage called, parentContextId:', parentContextId, 'icon:', icon);
+
+		// FIRST: Clear the slash command text immediately
+		editor.updateBlock(block.id, '');
+		editor.hideSlashMenu();
+		await tick();
+		if (blockElement) {
+			blockElement.innerText = '';
+		}
+
 		if (!parentContextId) {
 			console.log('[Block] No parentContextId - creating local page block only');
 			// Still change the block type even without parent context
 			editor.changeBlockType(block.id, 'page');
-			editor.updateBlock(block.id, 'New page');
+			editor.updateBlock(block.id, 'New page', { icon: icon || 'document' });
 			await tick();
 			if (blockElement) {
 				blockElement.innerText = 'New page';
@@ -392,20 +401,26 @@
 		}
 
 		try {
-			// Create new context as a child of current document
+			// Create new context as a child of current document with selected icon
 			const newContext = await contexts.createContext({
 				name: 'New page',
 				type: 'document',
 				parent_id: parentContextId,
-				blocks: []
+				blocks: [],
+				icon: icon || 'document'
 			});
 
-			// Update current block to be a page reference
-			editor.updateBlock(block.id, 'New page', { pageId: newContext.id });
+			// Update current block to be a page reference with icon
+			editor.updateBlock(block.id, 'New page', { pageId: newContext.id, icon: icon || 'document' });
 			editor.changeBlockType(block.id, 'page');
 
 			// Refresh contexts list so sidebar shows the new nested page
 			await contexts.loadContexts();
+
+			// Auto-expand the parent page in sidebar so the new child is visible
+			// Import and use kbPreferences to expand the parent
+			const { kbPreferences } = await import('$lib/stores/kb-preferences');
+			kbPreferences.expandPage(parentContextId);
 
 			// Clear the DOM element
 			await tick();
@@ -413,7 +428,7 @@
 				blockElement.innerText = 'New page';
 			}
 
-			console.log('[Block] Sub-page created:', newContext.id, 'under parent:', parentContextId);
+			console.log('[Block] Sub-page created:', newContext.id, 'under parent:', parentContextId, 'with icon:', icon);
 		} catch (e) {
 			console.error('Failed to create sub-page:', e);
 		}

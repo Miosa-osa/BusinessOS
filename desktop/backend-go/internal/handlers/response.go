@@ -767,8 +767,10 @@ type ArtifactResponse struct {
 	Title          string  `json:"title"`
 	Content        string  `json:"content"`
 	Type           string  `json:"type"`
+	Language       *string `json:"language"`
 	Summary        *string `json:"summary"`
 	ConversationID *string `json:"conversation_id"`
+	MessageID      *string `json:"message_id"`
 	ProjectID      *string `json:"project_id"`
 	ContextID      *string `json:"context_id"`
 	ContextName    *string `json:"context_name"`
@@ -792,8 +794,10 @@ func TransformArtifact(a sqlc.Artifact) ArtifactResponse {
 		Title:          a.Title,
 		Content:        a.Content,
 		Type:           artifactType,
+		Language:       a.Language,
 		Summary:        a.Summary,
 		ConversationID: pgtypeUUIDToString(a.ConversationID),
+		MessageID:      pgtypeUUIDToString(a.MessageID),
 		ProjectID:      pgtypeUUIDToString(a.ProjectID),
 		ContextID:      pgtypeUUIDToString(a.ContextID),
 		ContextName:    nil, // Populated separately if needed

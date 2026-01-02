@@ -720,6 +720,26 @@
 				const data = await modelsRes.json();
 				models = data.models || [];
 			}
+
+			// Load saved model settings
+			const settingsRes = await apiClient.get('/settings');
+			if (settingsRes.ok) {
+				const data = await settingsRes.json();
+				if (data.model_settings) {
+					modelSettings = {
+						temperature: data.model_settings.temperature ?? 0.7,
+						maxTokens: data.model_settings.maxTokens ?? 8192,
+						contextWindow: data.model_settings.contextWindow ?? 32768,
+						topP: data.model_settings.topP ?? 0.95,
+						streamResponses: data.model_settings.streamResponses ?? true,
+						showUsageInChat: data.model_settings.showUsageInChat ?? true
+					};
+				}
+				// Use default_model from settings if not set from provider
+				if (!defaultModel && data.default_model) {
+					defaultModel = data.default_model;
+				}
+			}
 		} catch (err) {
 			error = 'Failed to load AI configuration. Make sure the backend is running.';
 			console.error('Error loading config:', err);

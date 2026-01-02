@@ -1,5 +1,15 @@
--- BusinessOS Database Schema for sqlc
--- Note: Better Auth manages the "user" and "session" tables externally
+-- ===================================================================
+-- BusinessOS → Supabase Migration Script
+-- ===================================================================
+--
+-- INSTRUCTIONS:
+-- 1. Go to your Supabase dashboard: https://supabase.com/dashboard/project/fuqhjbgbjamtxcdphjpp
+-- 2. Navigate to: SQL Editor
+-- 3. Create new query and paste this entire file
+-- 4. Run the query
+--
+-- This script will create all tables, indexes, and constraints for BusinessOS
+-- ===================================================================
 
 -- Enum types (matching actual database - some use UPPERCASE values)
 CREATE TYPE messagerole AS ENUM ('USER', 'ASSISTANT', 'SYSTEM', 'user', 'assistant', 'system');
@@ -16,6 +26,48 @@ CREATE TYPE clienttype AS ENUM ('company', 'individual');
 CREATE TYPE clientstatus AS ENUM ('lead', 'prospect', 'active', 'inactive', 'churned');
 CREATE TYPE interactiontype AS ENUM ('call', 'email', 'meeting', 'note');
 CREATE TYPE dealstage AS ENUM ('qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost');
+CREATE TYPE meetingtype AS ENUM (
+    'team', 'sales', 'onboarding', 'kickoff', 'implementation',
+    'standup', 'retrospective', 'planning', 'review', 'one_on_one',
+    'client', 'internal', 'external', 'other'
+);
+CREATE TYPE projectrole AS ENUM ('owner', 'admin', 'member', 'viewer');
+
+-- ===================================================================
+-- CORE TABLES
+-- ===================================================================
+
+-- Clients table (must be created first due to FK dependencies)
+CREATE TABLE clients (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type clienttype DEFAULT 'company',
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    website VARCHAR(255),
+    industry VARCHAR(100),
+    company_size VARCHAR(50),
+    address VARCHAR(255),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    zip_code VARCHAR(20),
+    country VARCHAR(100),
+    status clientstatus DEFAULT 'lead',
+    source VARCHAR(100),
+    assigned_to VARCHAR(255),
+    lifetime_value NUMERIC(12, 2),
+    tags JSONB DEFAULT '[]',
+    custom_fields JSONB DEFAULT '{}',
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_contacted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX idx_clients_user_id ON clients(user_id);
+CREATE INDEX ix_clients_user_status ON clients(user_id, status);
+CREATE INDEX ix_clients_user_type ON clients(user_id, type);
 
 -- Contexts table (for documents, profiles)
 CREATE TABLE contexts (
@@ -38,7 +90,7 @@ CREATE TABLE contexts (
     share_id VARCHAR(32) UNIQUE,
     property_schema JSONB DEFAULT '[]',
     properties JSONB DEFAULT '{}',
-    client_id UUID,
+    client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -47,6 +99,7 @@ CREATE INDEX idx_contexts_user_id ON contexts(user_id);
 CREATE INDEX idx_contexts_parent_id ON contexts(parent_id);
 CREATE INDEX idx_contexts_is_archived ON contexts(is_archived);
 CREATE INDEX idx_contexts_share_id ON contexts(share_id);
+CREATE INDEX idx_contexts_client_id ON contexts(client_id);
 
 -- Conversations table
 CREATE TABLE conversations (
@@ -92,11 +145,9 @@ CREATE TABLE projects (
     client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
     project_type VARCHAR(100) DEFAULT 'internal',
     project_metadata JSONB,
-    -- Date tracking
     start_date DATE,
     due_date DATE,
     completed_at TIMESTAMP WITH TIME ZONE,
-    -- Visibility/sharing
     visibility VARCHAR(20) DEFAULT 'private',
     owner_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT NOW(),
@@ -108,51 +159,27 @@ CREATE INDEX idx_projects_client ON projects(client_id);
 CREATE INDEX idx_projects_status ON projects(status);
 CREATE INDEX idx_projects_due_date ON projects(due_date);
 
--- Project notes
-CREATE TABLE project_notes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Project conversations (many-to-many)
-CREATE TABLE project_conversations (
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    linked_at TIMESTAMP DEFAULT NOW(),
-    PRIMARY KEY (project_id, conversation_id)
-);
-
--- Artifacts table
-CREATE TABLE artifacts (
+-- Team members table
+CREATE TABLE team_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(255) NOT NULL,
-    conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
-    message_id UUID REFERENCES messages(id) ON DELETE SET NULL,
-    project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
-    context_id UUID REFERENCES contexts(id) ON DELETE SET NULL,
-    title VARCHAR(255) NOT NULL,
-    type artifacttype NOT NULL,
-    language VARCHAR(50),
-    content TEXT NOT NULL,
-    summary VARCHAR(500),
-    version INTEGER DEFAULT 1,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    role VARCHAR(255) NOT NULL,
+    avatar_url TEXT,
+    status memberstatus DEFAULT 'AVAILABLE',
+    capacity INTEGER DEFAULT 0,
+    manager_id UUID REFERENCES team_members(id) ON DELETE SET NULL,
+    skills JSONB,
+    hourly_rate NUMERIC(10, 2),
+    share_calendar BOOLEAN DEFAULT FALSE,
+    calendar_user_id VARCHAR(255),
+    joined_at TIMESTAMP DEFAULT NOW(),
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_artifacts_user_id ON artifacts(user_id);
-CREATE INDEX idx_artifacts_conversation_id ON artifacts(conversation_id);
-
--- Artifact versions
-CREATE TABLE artifact_versions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    artifact_id UUID NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
-    version INTEGER NOT NULL,
-    content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
+CREATE INDEX idx_team_members_user_id ON team_members(user_id);
 
 -- Nodes table
 CREATE TABLE nodes (
@@ -177,82 +204,6 @@ CREATE TABLE nodes (
 
 CREATE INDEX idx_nodes_user_id ON nodes(user_id);
 
--- Node metrics
-CREATE TABLE node_metrics (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    node_id UUID NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
-    metric_name VARCHAR(255) NOT NULL,
-    metric_value VARCHAR(500) NOT NULL,
-    recorded_at TIMESTAMP DEFAULT NOW()
-);
-
--- Node to Project links (many-to-many)
-CREATE TABLE node_projects (
-    node_id UUID NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    linked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    linked_by VARCHAR(255),
-    PRIMARY KEY (node_id, project_id)
-);
-
-CREATE INDEX idx_node_projects_node ON node_projects(node_id);
-CREATE INDEX idx_node_projects_project ON node_projects(project_id);
-
--- Node to Context links (many-to-many)
-CREATE TABLE node_contexts (
-    node_id UUID NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
-    context_id UUID NOT NULL REFERENCES contexts(id) ON DELETE CASCADE,
-    linked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    linked_by VARCHAR(255),
-    PRIMARY KEY (node_id, context_id)
-);
-
-CREATE INDEX idx_node_contexts_node ON node_contexts(node_id);
-CREATE INDEX idx_node_contexts_context ON node_contexts(context_id);
-
--- Node to Conversation links (many-to-many)
-CREATE TABLE node_conversations (
-    node_id UUID NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
-    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    linked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    linked_by VARCHAR(255),
-    PRIMARY KEY (node_id, conversation_id)
-);
-
-CREATE INDEX idx_node_conversations_node ON node_conversations(node_id);
-CREATE INDEX idx_node_conversations_conversation ON node_conversations(conversation_id);
-
--- Team members table
-CREATE TABLE team_members (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id VARCHAR(255) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    role VARCHAR(255) NOT NULL,
-    avatar_url TEXT,
-    status memberstatus DEFAULT 'AVAILABLE',
-    capacity INTEGER DEFAULT 0,
-    manager_id UUID REFERENCES team_members(id) ON DELETE SET NULL,
-    skills JSONB,
-    hourly_rate NUMERIC(10, 2),
-    share_calendar BOOLEAN DEFAULT FALSE,
-    calendar_user_id VARCHAR(255),
-    joined_at TIMESTAMP DEFAULT NOW(),
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX idx_team_members_user_id ON team_members(user_id);
-
--- Team member activities
-CREATE TABLE team_member_activities (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    member_id UUID NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
-    activity_type VARCHAR(100) NOT NULL,
-    description TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
 -- Tasks table
 CREATE TABLE tasks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -262,69 +213,82 @@ CREATE TABLE tasks (
     status taskstatus DEFAULT 'todo',
     priority taskpriority DEFAULT 'medium',
     due_date TIMESTAMP,
-    start_date TIMESTAMP,
     completed_at TIMESTAMP,
     project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
     assignee_id UUID REFERENCES team_members(id) ON DELETE SET NULL,
-    parent_task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
-    custom_status_id UUID,
-    position INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_tasks_user_id ON tasks(user_id);
-CREATE INDEX idx_tasks_parent ON tasks(parent_task_id);
-CREATE INDEX idx_tasks_position ON tasks(user_id, position);
 
--- Project custom statuses
-CREATE TABLE project_statuses (
+-- Artifacts table
+CREATE TABLE artifacts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+    message_id UUID REFERENCES messages(id) ON DELETE SET NULL,
+    project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+    context_id UUID REFERENCES contexts(id) ON DELETE SET NULL,
+    title VARCHAR(255) NOT NULL,
+    type artifacttype NOT NULL,
+    language VARCHAR(50),
+    content TEXT NOT NULL,
+    summary VARCHAR(500),
+    version INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_artifacts_user_id ON artifacts(user_id);
+CREATE INDEX idx_artifacts_conversation_id ON artifacts(conversation_id);
+
+-- ===================================================================
+-- SUPPORTING TABLES
+-- ===================================================================
+
+-- Artifact versions
+CREATE TABLE artifact_versions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    artifact_id UUID NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Project notes
+CREATE TABLE project_notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    color VARCHAR(7) DEFAULT '#6B7280',
-    position INT DEFAULT 0,
-    is_done_state BOOLEAN DEFAULT FALSE,
-    is_default BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(project_id, name)
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_project_statuses_project ON project_statuses(project_id);
+-- Project conversations (many-to-many)
+CREATE TABLE project_conversations (
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    linked_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (project_id, conversation_id)
+);
 
--- Add FK from tasks to project_statuses
-ALTER TABLE tasks ADD CONSTRAINT fk_tasks_custom_status FOREIGN KEY (custom_status_id) REFERENCES project_statuses(id) ON DELETE SET NULL;
-
--- Task assignees (many-to-many)
-CREATE TABLE task_assignees (
+-- Node metrics
+CREATE TABLE node_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    team_member_id UUID NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
-    role VARCHAR(50) DEFAULT 'assignee',
-    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    assigned_by VARCHAR(255),
-    UNIQUE(task_id, team_member_id)
+    node_id UUID NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+    metric_name VARCHAR(255) NOT NULL,
+    metric_value VARCHAR(500) NOT NULL,
+    recorded_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_task_assignees_task ON task_assignees(task_id);
-CREATE INDEX idx_task_assignees_member ON task_assignees(team_member_id);
-
--- Task dependencies
-CREATE TYPE dependencytype AS ENUM ('finish_to_start', 'start_to_start', 'finish_to_finish', 'start_to_finish');
-
-CREATE TABLE task_dependencies (
+-- Team member activities
+CREATE TABLE team_member_activities (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    predecessor_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    successor_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    dependency_type dependencytype DEFAULT 'finish_to_start',
-    lag_days INT DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(predecessor_id, successor_id)
+    member_id UUID NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
+    activity_type VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
 );
-
-CREATE INDEX idx_task_deps_predecessor ON task_dependencies(predecessor_id);
-CREATE INDEX idx_task_deps_successor ON task_dependencies(successor_id);
 
 -- Focus items table
 CREATE TABLE focus_items (
@@ -368,53 +332,15 @@ CREATE TABLE user_settings (
     sidebar_collapsed BOOLEAN DEFAULT FALSE,
     share_analytics BOOLEAN DEFAULT TRUE,
     custom_settings JSONB,
-    -- Thinking/COT settings
-    thinking_enabled BOOLEAN DEFAULT false,
-    thinking_show_in_ui BOOLEAN DEFAULT true,
-    thinking_save_traces BOOLEAN DEFAULT true,
-    thinking_default_template_id UUID,
-    thinking_max_tokens INT DEFAULT 4096,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_user_settings_user_id ON user_settings(user_id);
 
--- Clients table
-CREATE TABLE clients (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id VARCHAR(255) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    type clienttype DEFAULT 'company',
-    email VARCHAR(255),
-    phone VARCHAR(50),
-    website VARCHAR(255),
-    industry VARCHAR(100),
-    company_size VARCHAR(50),
-    address VARCHAR(255),
-    city VARCHAR(100),
-    state VARCHAR(100),
-    zip_code VARCHAR(20),
-    country VARCHAR(100),
-    status clientstatus DEFAULT 'lead',
-    source VARCHAR(100),
-    assigned_to VARCHAR(255),
-    lifetime_value NUMERIC(12, 2),
-    tags JSONB DEFAULT '[]',
-    custom_fields JSONB DEFAULT '{}',
-    notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    last_contacted_at TIMESTAMP WITH TIME ZONE
-);
-
-CREATE INDEX idx_clients_user_id ON clients(user_id);
-CREATE INDEX ix_clients_user_status ON clients(user_id, status);
-CREATE INDEX ix_clients_user_type ON clients(user_id, type);
-
--- Add FK from contexts to clients
-ALTER TABLE contexts ADD CONSTRAINT fk_contexts_client_id FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL;
-CREATE INDEX idx_contexts_client_id ON contexts(client_id);
+-- ===================================================================
+-- CLIENT MANAGEMENT TABLES
+-- ===================================================================
 
 -- Client contacts
 CREATE TABLE client_contacts (
@@ -466,6 +392,10 @@ CREATE TABLE client_deals (
 CREATE INDEX ix_client_deals_client ON client_deals(client_id);
 CREATE INDEX ix_client_deals_stage ON client_deals(stage);
 
+-- ===================================================================
+-- OAUTH & INTEGRATIONS
+-- ===================================================================
+
 -- Google OAuth tokens for calendar integration
 CREATE TABLE google_oauth_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -482,26 +412,20 @@ CREATE TABLE google_oauth_tokens (
 
 CREATE INDEX idx_google_oauth_user_id ON google_oauth_tokens(user_id);
 
--- Slack OAuth tokens for workspace integration
+-- Slack OAuth tokens
 CREATE TABLE slack_oauth_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(255) UNIQUE NOT NULL,
-    -- Workspace info
     workspace_id VARCHAR(255) NOT NULL,
     workspace_name VARCHAR(255),
-    -- Tokens - Slack provides both bot and user tokens
     bot_token TEXT NOT NULL,
     user_token TEXT,
-    -- Token metadata
     bot_user_id VARCHAR(255),
     authed_user_id VARCHAR(255),
-    -- Scopes granted
     bot_scopes TEXT[],
     user_scopes TEXT[],
-    -- Webhook URL (if configured)
     incoming_webhook_url TEXT,
     incoming_webhook_channel VARCHAR(255),
-    -- Metadata
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -509,23 +433,19 @@ CREATE TABLE slack_oauth_tokens (
 CREATE INDEX idx_slack_oauth_user_id ON slack_oauth_tokens(user_id);
 CREATE INDEX idx_slack_oauth_workspace ON slack_oauth_tokens(workspace_id);
 
--- Notion OAuth tokens for workspace integration
+-- Notion OAuth tokens
 CREATE TABLE notion_oauth_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(255) UNIQUE NOT NULL,
-    -- Workspace info
     workspace_id VARCHAR(255) NOT NULL,
     workspace_name VARCHAR(255),
     workspace_icon TEXT,
-    -- Token - Notion provides a single access token (no refresh needed)
     access_token TEXT NOT NULL,
     bot_id VARCHAR(255),
-    -- Owner info
-    owner_type VARCHAR(50), -- 'user' or 'workspace'
+    owner_type VARCHAR(50),
     owner_user_id VARCHAR(255),
     owner_user_name VARCHAR(255),
     owner_user_email VARCHAR(255),
-    -- Metadata
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -533,12 +453,9 @@ CREATE TABLE notion_oauth_tokens (
 CREATE INDEX idx_notion_oauth_user_id ON notion_oauth_tokens(user_id);
 CREATE INDEX idx_notion_oauth_workspace ON notion_oauth_tokens(workspace_id);
 
--- Meeting types enum
-CREATE TYPE meetingtype AS ENUM (
-    'team', 'sales', 'onboarding', 'kickoff', 'implementation',
-    'standup', 'retrospective', 'planning', 'review', 'one_on_one',
-    'client', 'internal', 'external', 'other'
-);
+-- ===================================================================
+-- CALENDAR EVENTS
+-- ===================================================================
 
 -- Calendar events cache with meeting management
 CREATE TABLE calendar_events (
@@ -557,23 +474,15 @@ CREATE TABLE calendar_events (
     visibility VARCHAR(50) DEFAULT 'default',
     html_link TEXT,
     source VARCHAR(50) DEFAULT 'google',
-
-    -- Meeting management fields
     meeting_type meetingtype DEFAULT 'other',
     context_id UUID REFERENCES contexts(id) ON DELETE SET NULL,
     project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
     client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
-
-    -- Recording and external links
     recording_url TEXT,
     meeting_link TEXT,
     external_links JSONB DEFAULT '[]',
-
-    -- Meeting notes and follow-ups
     meeting_notes TEXT,
     action_items JSONB DEFAULT '[]',
-
-    -- Metadata
     synced_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -588,43 +497,31 @@ CREATE INDEX idx_calendar_events_context ON calendar_events(context_id);
 CREATE INDEX idx_calendar_events_project ON calendar_events(project_id);
 CREATE INDEX idx_calendar_events_client ON calendar_events(client_id);
 
--- ===== USAGE ANALYTICS TABLES =====
+-- ===================================================================
+-- USAGE ANALYTICS
+-- ===================================================================
 
 -- AI usage tracking (per request)
 CREATE TABLE ai_usage_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(255) NOT NULL,
     conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
-
-    -- Provider and model info
     provider VARCHAR(50) NOT NULL,
     model VARCHAR(100) NOT NULL,
-
-    -- Token usage
     input_tokens INTEGER DEFAULT 0,
     output_tokens INTEGER DEFAULT 0,
     total_tokens INTEGER DEFAULT 0,
-    thinking_tokens INTEGER DEFAULT 0,  -- COT reasoning tokens (tracked separately)
-
-    -- Agent tracking
     agent_name VARCHAR(100),
     delegated_to VARCHAR(100),
     parent_request_id UUID REFERENCES ai_usage_logs(id) ON DELETE SET NULL,
-
-    -- Request context
-    request_type VARCHAR(50),  -- 'chat', 'completion', 'extract', 'analyze'
+    request_type VARCHAR(50),
     context_ids UUID[],
     node_id UUID REFERENCES nodes(id) ON DELETE SET NULL,
     project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
-
-    -- Timing
     duration_ms INTEGER DEFAULT 0,
     started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     completed_at TIMESTAMP WITH TIME ZONE,
-
-    -- Cost tracking (optional)
     estimated_cost NUMERIC(10, 6),
-
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -639,24 +536,15 @@ CREATE INDEX idx_ai_usage_date ON ai_usage_logs(started_at);
 CREATE TABLE mcp_usage_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(255) NOT NULL,
-
-    -- Tool info
     tool_name VARCHAR(255) NOT NULL,
     server_name VARCHAR(255),
-
-    -- Request details
     input_params JSONB,
     output_result JSONB,
     success BOOLEAN DEFAULT TRUE,
     error_message TEXT,
-
-    -- Timing
     duration_ms INTEGER DEFAULT 0,
-
-    -- Context
     conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
     ai_request_id UUID REFERENCES ai_usage_logs(id) ON DELETE SET NULL,
-
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -669,39 +557,23 @@ CREATE TABLE usage_daily_summary (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(255) NOT NULL,
     date DATE NOT NULL,
-
-    -- AI usage totals
     ai_requests INTEGER DEFAULT 0,
     ai_input_tokens INTEGER DEFAULT 0,
     ai_output_tokens INTEGER DEFAULT 0,
     ai_total_tokens INTEGER DEFAULT 0,
-    ai_thinking_tokens BIGINT DEFAULT 0,  -- COT reasoning tokens
     ai_estimated_cost NUMERIC(10, 4) DEFAULT 0,
-
-    -- Breakdown by provider
     provider_breakdown JSONB DEFAULT '{}',
-
-    -- Breakdown by model
     model_breakdown JSONB DEFAULT '{}',
-
-    -- Breakdown by agent
     agent_breakdown JSONB DEFAULT '{}',
-
-    -- MCP usage totals
     mcp_requests INTEGER DEFAULT 0,
     mcp_tool_breakdown JSONB DEFAULT '{}',
-
-    -- System usage
     conversations_created INTEGER DEFAULT 0,
     messages_sent INTEGER DEFAULT 0,
     artifacts_created INTEGER DEFAULT 0,
     documents_created INTEGER DEFAULT 0,
-
-    -- Context usage
     contexts_accessed UUID[],
     nodes_accessed UUID[],
     projects_accessed UUID[],
-
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, date)
@@ -710,24 +582,17 @@ CREATE TABLE usage_daily_summary (
 CREATE INDEX idx_usage_summary_user_id ON usage_daily_summary(user_id);
 CREATE INDEX idx_usage_summary_date ON usage_daily_summary(date);
 
--- System event logs (general activity tracking)
+-- System event logs
 CREATE TABLE system_event_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(255) NOT NULL,
-
-    -- Event details
-    event_type VARCHAR(100) NOT NULL,  -- 'page_view', 'action', 'api_call'
+    event_type VARCHAR(100) NOT NULL,
     event_name VARCHAR(255) NOT NULL,
     event_data JSONB,
-
-    -- Context
-    module VARCHAR(100),  -- 'chat', 'calendar', 'clients', 'nodes', etc.
+    module VARCHAR(100),
     resource_type VARCHAR(100),
     resource_id UUID,
-
-    -- Session info
     session_id VARCHAR(255),
-
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -736,18 +601,20 @@ CREATE INDEX idx_system_events_type ON system_event_logs(event_type);
 CREATE INDEX idx_system_events_module ON system_event_logs(module);
 CREATE INDEX idx_system_events_date ON system_event_logs(created_at);
 
--- ===== CUSTOM SLASH COMMANDS =====
+-- ===================================================================
+-- CUSTOM FEATURES
+-- ===================================================================
 
 -- User custom commands for AI chat
 CREATE TABLE user_commands (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(255) NOT NULL,
-    name VARCHAR(50) NOT NULL,           -- e.g., "weekly-report" (the slash command name)
-    display_name VARCHAR(100) NOT NULL,  -- e.g., "Weekly Report" (shown in UI)
-    description TEXT,                    -- Description of what the command does
-    icon VARCHAR(10),                    -- emoji icon
-    system_prompt TEXT NOT NULL,         -- Custom prompt template
-    context_sources TEXT[] DEFAULT '{}', -- What context to load: documents, projects, clients, tasks, artifacts
+    name VARCHAR(50) NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    icon VARCHAR(10),
+    system_prompt TEXT NOT NULL,
+    context_sources TEXT[] DEFAULT '{}',
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -757,78 +624,7 @@ CREATE TABLE user_commands (
 CREATE INDEX idx_user_commands_user_id ON user_commands(user_id);
 CREATE INDEX idx_user_commands_name ON user_commands(user_id, name);
 
--- ===== CUSTOM AGENTS =====
-
--- User-defined custom agents with custom system prompts and configurations
-CREATE TABLE custom_agents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id VARCHAR(255) NOT NULL,
-
-    -- Agent Identity
-    name VARCHAR(50) NOT NULL,              -- e.g., "code-reviewer" (internal name, lowercase)
-    display_name VARCHAR(100) NOT NULL,     -- e.g., "Code Reviewer" (shown in UI)
-    description TEXT,                       -- What the agent does
-    avatar VARCHAR(50),                     -- emoji or icon identifier
-
-    -- Agent Configuration
-    system_prompt TEXT NOT NULL,            -- Base system prompt for the agent
-    model_preference VARCHAR(100),          -- Preferred model (e.g., "claude-3-opus")
-    temperature DECIMAL(3,2) DEFAULT 0.7,   -- Default temperature
-    max_tokens INTEGER DEFAULT 4096,        -- Default max tokens
-
-    -- Capabilities
-    capabilities TEXT[] DEFAULT '{}',       -- e.g., ["code_review", "analysis", "writing"]
-    tools_enabled TEXT[] DEFAULT '{}',      -- Which tools the agent can use
-    context_sources TEXT[] DEFAULT '{}',    -- What context to auto-load: documents, projects, etc.
-
-    -- Behavior Settings
-    thinking_enabled BOOLEAN DEFAULT FALSE,  -- Enable COT for this agent
-    streaming_enabled BOOLEAN DEFAULT TRUE,  -- Enable streaming responses
-
-    -- Agent Type/Category
-    category VARCHAR(50) DEFAULT 'general', -- general, coding, writing, analysis, business, custom
-    is_public BOOLEAN DEFAULT FALSE,        -- Whether to share with team (future)
-
-    -- Usage & Status
-    is_active BOOLEAN DEFAULT TRUE,
-    times_used INTEGER DEFAULT 0,
-    last_used_at TIMESTAMP WITH TIME ZONE,
-
-    -- Timestamps
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    UNIQUE(user_id, name)
-);
-
-CREATE INDEX idx_custom_agents_user_id ON custom_agents(user_id);
-CREATE INDEX idx_custom_agents_name ON custom_agents(user_id, name);
-CREATE INDEX idx_custom_agents_category ON custom_agents(category);
-
--- Agent presets (built-in templates users can copy)
-CREATE TABLE agent_presets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(50) NOT NULL UNIQUE,
-    display_name VARCHAR(100) NOT NULL,
-    description TEXT,
-    avatar VARCHAR(50),
-    system_prompt TEXT NOT NULL,
-    model_preference VARCHAR(100),
-    temperature DECIMAL(3,2) DEFAULT 0.7,
-    max_tokens INTEGER DEFAULT 4096,
-    capabilities TEXT[] DEFAULT '{}',
-    tools_enabled TEXT[] DEFAULT '{}',
-    context_sources TEXT[] DEFAULT '{}',
-    thinking_enabled BOOLEAN DEFAULT FALSE,
-    category VARCHAR(50) DEFAULT 'general',
-    times_copied INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ===== VOICE NOTES =====
-
--- Voice transcription history with stats
+-- Voice transcription history
 CREATE TABLE voice_notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(255) NOT NULL,
@@ -850,10 +646,9 @@ CREATE INDEX idx_voice_notes_date ON voice_notes(created_at);
 CREATE INDEX idx_voice_notes_context ON voice_notes(context_id);
 CREATE INDEX idx_voice_notes_project ON voice_notes(project_id);
 
--- ===== PROJECT MANAGEMENT ENHANCEMENTS =====
-
--- Project role type for team assignment
-CREATE TYPE projectrole AS ENUM ('owner', 'admin', 'member', 'viewer');
+-- ===================================================================
+-- PROJECT MANAGEMENT ENHANCEMENTS
+-- ===================================================================
 
 -- Project members (team assignment)
 CREATE TABLE project_members (
@@ -925,69 +720,18 @@ CREATE TABLE project_templates (
 CREATE INDEX idx_templates_user ON project_templates(user_id);
 CREATE INDEX idx_templates_public ON project_templates(is_public) WHERE is_public = TRUE;
 
--- ===== CHAIN OF THOUGHT (COT) THINKING SYSTEM =====
-
--- Thinking type enum
-CREATE TYPE thinkingtype AS ENUM ('analysis', 'planning', 'reflection', 'tool_use', 'reasoning', 'evaluation');
-
--- Thinking/reasoning tracking
-CREATE TABLE thinking_traces (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id VARCHAR(255) NOT NULL,
-    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
-    message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
-
-    -- Thinking content
-    thinking_content TEXT NOT NULL,
-    thinking_type thinkingtype DEFAULT 'reasoning',
-    step_number INT DEFAULT 1,
-
-    -- Timing
-    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    completed_at TIMESTAMP WITH TIME ZONE,
-    duration_ms INT,
-
-    -- Token tracking
-    thinking_tokens INT DEFAULT 0,
-
-    -- Metadata
-    model_used VARCHAR(100),
-    reasoning_template_id UUID,
-    metadata JSONB DEFAULT '{}',
-
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX idx_thinking_traces_user ON thinking_traces(user_id);
-CREATE INDEX idx_thinking_traces_conversation ON thinking_traces(conversation_id);
-CREATE INDEX idx_thinking_traces_message ON thinking_traces(message_id);
-CREATE INDEX idx_thinking_traces_template ON thinking_traces(reasoning_template_id);
-
--- Custom reasoning templates/systems
-CREATE TABLE reasoning_templates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id VARCHAR(255) NOT NULL,
-
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-
-    -- Template configuration
-    system_prompt TEXT,
-    thinking_instruction TEXT,
-    output_format VARCHAR(50) DEFAULT 'streaming',
-
-    -- Options
-    show_thinking BOOLEAN DEFAULT true,
-    save_thinking BOOLEAN DEFAULT true,
-    max_thinking_tokens INT DEFAULT 4096,
-
-    -- Usage tracking
-    times_used INT DEFAULT 0,
-
-    is_default BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX idx_reasoning_templates_user ON reasoning_templates(user_id);
-CREATE INDEX idx_reasoning_templates_default ON reasoning_templates(user_id, is_default) WHERE is_default = true;
+-- ===================================================================
+-- MIGRATION COMPLETE
+-- ===================================================================
+--
+-- All tables, indexes, and constraints have been created.
+--
+-- Next steps:
+-- 1. Verify all tables were created:
+--    SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
+--
+-- 2. Check for any errors in the Supabase SQL Editor output
+--
+-- 3. Configure Row Level Security (RLS) policies if needed
+--
+-- ===================================================================

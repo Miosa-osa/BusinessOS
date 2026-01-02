@@ -10,6 +10,8 @@ export const api = {
   updateArtifact: artifactsApi.updateArtifact,
   deleteArtifact: artifactsApi.deleteArtifact,
   linkArtifact: artifactsApi.linkArtifact,
+  getArtifactVersions: artifactsApi.getArtifactVersions,
+  restoreArtifactVersion: artifactsApi.restoreArtifactVersion,
 };
 
 export default api;

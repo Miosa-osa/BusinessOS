@@ -102,6 +102,8 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		artifacts.PATCH("/:id", h.UpdateArtifact)
 		artifacts.PATCH("/:id/link", h.LinkArtifact)
 		artifacts.DELETE("/:id", h.DeleteArtifact)
+		artifacts.GET("/:id/versions", h.GetArtifactVersions)
+		artifacts.POST("/:id/restore", h.RestoreArtifactVersion)
 	}
 
 	// Contexts routes - /api/contexts
@@ -228,6 +230,17 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		nodes.DELETE("/:id", h.DeleteNode)
 		nodes.GET("/:id/children", h.GetNodeChildren)
 		nodes.POST("/:id/reorder", h.ReorderNodes)
+		nodes.POST("/:id/archive", h.ArchiveNode)
+		nodes.POST("/:id/unarchive", h.UnarchiveNode)
+		// Node linking
+		nodes.GET("/:id/links", h.GetNodeLinks)
+		nodes.GET("/:id/links/counts", h.GetNodeLinkCounts)
+		nodes.POST("/:id/links/projects", h.LinkNodeProject)
+		nodes.DELETE("/:id/links/projects/:projectId", h.UnlinkNodeProject)
+		nodes.POST("/:id/links/contexts", h.LinkNodeContext)
+		nodes.DELETE("/:id/links/contexts/:contextId", h.UnlinkNodeContext)
+		nodes.POST("/:id/links/conversations", h.LinkNodeConversation)
+		nodes.DELETE("/:id/links/conversations/:conversationId", h.UnlinkNodeConversation)
 	}
 
 	// Daily logs routes - /api/daily

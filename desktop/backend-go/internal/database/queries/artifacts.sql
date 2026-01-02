@@ -41,3 +41,7 @@ RETURNING *;
 SELECT * FROM artifact_versions
 WHERE artifact_id = $1
 ORDER BY version DESC;
+
+-- name: GetArtifactVersion :one
+SELECT * FROM artifact_versions
+WHERE artifact_id = $1 AND version = $2;

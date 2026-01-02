@@ -4,6 +4,39 @@
 	import { api, apiClient } from '$lib/api';
 
 	const iconStyle = $derived($desktopSettings.iconStyle);
+	const iconLibrary = $derived($desktopSettings.iconLibrary);
+
+	// Different libraries have EXTREMELY DRAMATIC different styles
+	const libraryStrokeWidth = $derived({
+		lucide: 2,        // Lucide - balanced, clean
+		phosphor: 3,      // Phosphor - VERY bold, thick
+		tabler: 1.2,      // Tabler - very thin, hairline
+		heroicons: 2.5    // Heroicons - solid, medium-bold
+	}[iconLibrary] || 2);
+
+	const libraryLineCap = $derived<'round' | 'square' | 'butt'>(
+		iconLibrary === 'tabler' ? 'square' : 'round'
+	);
+
+	const libraryLineJoin = $derived<'round' | 'miter' | 'bevel'>(
+		iconLibrary === 'tabler' ? 'miter' : 'round'
+	);
+
+	// Icon scale varies EXTREMELY by library
+	const libraryIconScale = $derived({
+		lucide: 1,
+		phosphor: 1.25,   // Phosphor icons 25% larger
+		tabler: 0.85,     // Tabler icons 15% smaller
+		heroicons: 1.15   // Heroicons 15% larger
+	}[iconLibrary] || 1);
+
+	// Different SVG filters per library for OBVIOUS visual differences
+	const librarySvgFilter = $derived({
+		lucide: 'none',
+		phosphor: 'drop-shadow(0 2px 3px rgba(0,0,0,0.25))',    // Noticeable shadow
+		tabler: 'saturate(0.7)',                                  // Desaturated look
+		heroicons: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2)) saturate(1.2)'  // Shadow + vivid
+	}[iconLibrary] || 'none');
 
 	// Check if any windows are open (for collapsed chat bubble state)
 	const hasOpenWindows = $derived($windowStore.windows.filter(w => !w.minimized).length > 0);
@@ -31,23 +64,17 @@
 	let selectedModel = $state<{ id: string; name: string; isLocal: boolean } | null>(null);
 	let showModelSelector = $state(false);
 	let localModels = $state<{ id: string; name: string }[]>([]);
-	let cloudModels = $state<{ id: string; name: string }[]>([
-		{ id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet' },
-		{ id: 'gpt-4o', name: 'GPT-4o' },
-		{ id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
-	]);
+	let cloudModels = $state<{ id: string; name: string }[]>([]);
 	let loadingModels = $state(false);
+	let activeProvider = $state<string>('');
+	let defaultModelId = $state<string>('');
+	let ollamaAvailable = $state<boolean | null>(null); // null = unknown, true = available, false = not available
 
 	// Model pull state
 	let isPulling = $state(false);
 	let pullingModel = $state('');
 	let pullProgress = $state<{ status: string; percent?: number } | null>(null);
-	const recommendedModels = [
-		{ id: 'llama3.2:3b', name: 'Llama 3.2 3B', size: '~2GB' },
-		{ id: 'llama3.2:latest', name: 'Llama 3.2 7B', size: '~4GB' },
-		{ id: 'mistral:7b', name: 'Mistral 7B', size: '~4GB' },
-		{ id: 'qwen2.5:7b', name: 'Qwen 2.5 7B', size: '~4GB' }
-	];
+	let recommendedModels = $state<{ id: string; name: string; size: string }[]>([]);
 
 	// Voice recording state
 	let isRecording = $state(false);
@@ -123,10 +150,39 @@
 	async function loadModels() {
 		loadingModels = true;
 		try {
-			// Load local models from Ollama API (same endpoint as chat module)
+			// 1. Load providers config to get active provider and default model from settings
+			const providersRes = await apiClient.get('/ai/providers');
+			if (providersRes.ok) {
+				const data = await providersRes.json();
+				activeProvider = data.active_provider || 'ollama_local';
+				defaultModelId = data.default_model || '';
+			}
+
+			// 2. Load all models (cloud models from configured providers)
+			const allModelsRes = await apiClient.get('/ai/models');
+			if (allModelsRes.ok) {
+				const data = await allModelsRes.json();
+				const allModels = data.models || [];
+				// Cloud models are non-local (anthropic, openai, etc.)
+				cloudModels = allModels
+					.filter((m: any) => m.provider !== 'ollama_local' && m.provider !== 'ollama')
+					.map((m: any) => ({
+						id: m.id || m.name,
+						name: m.name || m.id
+					}));
+				// Use default_model from response if not from providers
+				if (!defaultModelId && data.default_model) {
+					defaultModelId = data.default_model;
+				}
+			}
+
+			// 3. Load local models from Ollama API
 			const localRes = await apiClient.get('/ai/models/local');
 			if (localRes.ok) {
 				const data = await localRes.json();
+				// 200 OK means Ollama is running and available
+				ollamaAvailable = true;
+
 				localModels = (data.models || [])
 					.filter((m: any) => {
 						// Filter out tiny cloud reference stubs
@@ -139,19 +195,61 @@
 						id: m.id || m.name,
 						name: m.name || m.id
 					}));
+			} else {
+				// 503 or other error means Ollama not available (not installed or not running)
+				ollamaAvailable = false;
+				localModels = [];
+			}
 
-				// Set default model if none selected
-				if (!selectedModel && localModels.length > 0) {
+			// 4. Load system info for recommended models (for Ollama pulls)
+			const systemRes = await apiClient.get('/ai/system');
+			if (systemRes.ok) {
+				const systemInfo = await systemRes.json();
+				if (systemInfo.recommended_models && systemInfo.recommended_models.length > 0) {
+					recommendedModels = systemInfo.recommended_models.map((m: any) => ({
+						id: m.name || m.id,
+						name: m.name || m.id,
+						size: m.ram_required || '~4GB'
+					}));
+				}
+			}
+			// Fallback to sensible defaults if no recommended models from API
+			if (recommendedModels.length === 0) {
+				recommendedModels = [
+					{ id: 'llama3.2:3b', name: 'Llama 3.2 3B', size: '~2GB' },
+					{ id: 'llama3.2:latest', name: 'Llama 3.2 7B', size: '~4GB' },
+					{ id: 'mistral:7b', name: 'Mistral 7B', size: '~4GB' },
+					{ id: 'qwen2.5:7b', name: 'Qwen 2.5 7B', size: '~4GB' }
+				];
+			}
+
+			// 5. Set selected model based on default from settings
+			if (!selectedModel) {
+				// Try to find the default model in local or cloud models
+				const defaultInLocal = localModels.find(m => m.id === defaultModelId || m.name === defaultModelId);
+				const defaultInCloud = cloudModels.find(m => m.id === defaultModelId || m.name === defaultModelId);
+
+				if (defaultInLocal) {
+					selectedModel = { ...defaultInLocal, isLocal: true };
+				} else if (defaultInCloud) {
+					selectedModel = { ...defaultInCloud, isLocal: false };
+				} else if (localModels.length > 0) {
+					// Fallback to first local model
 					selectedModel = { ...localModels[0], isLocal: true };
-				} else if (!selectedModel && cloudModels.length > 0) {
+				} else if (cloudModels.length > 0) {
+					// Fallback to first cloud model
 					selectedModel = { ...cloudModels[0], isLocal: false };
 				}
 			}
 		} catch (error) {
 			console.error('Failed to load models:', error);
-			// Default to first cloud model
-			if (!selectedModel && cloudModels.length > 0) {
-				selectedModel = { ...cloudModels[0], isLocal: false };
+			// Default to first available model
+			if (!selectedModel) {
+				if (localModels.length > 0) {
+					selectedModel = { ...localModels[0], isLocal: true };
+				} else if (cloudModels.length > 0) {
+					selectedModel = { ...cloudModels[0], isLocal: false };
+				}
 			}
 		} finally {
 			loadingModels = false;
@@ -1223,6 +1321,15 @@
 							<div class="dropdown-header">LOCAL MODELS</div>
 							{#if loadingModels}
 								<div class="context-option empty">Loading...</div>
+							{:else if ollamaAvailable === false}
+								<div class="context-option empty">
+									<svg class="option-model-icon text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+										<line x1="12" y1="9" x2="12" y2="13"/>
+										<line x1="12" y1="17" x2="12.01" y2="17"/>
+									</svg>
+									Ollama not installed or not running
+								</div>
 							{:else if localModels.length === 0}
 								<div class="context-option empty">No local models installed</div>
 							{:else}
@@ -1242,54 +1349,66 @@
 								{/each}
 							{/if}
 
-							<!-- Recommended models to pull -->
-							<div class="dropdown-divider"></div>
-							<div class="dropdown-header">AVAILABLE TO PULL</div>
-							{#if isPulling && pullProgress}
-								<div class="context-option pull-progress">
-									<span class="pull-model">{pullingModel}</span>
-									<span class="pull-status">
-										{pullProgress.status}
-										{#if pullProgress.percent !== undefined}
-											({pullProgress.percent}%)
-										{/if}
-									</span>
-								</div>
-							{/if}
-							{#each recommendedModels as model}
-								{@const isInstalled = localModels.some(m => m.id === model.id || m.id.startsWith(model.id.split(':')[0]))}
-								{#if !isInstalled}
-									<button
-										class="context-option"
-										disabled={isPulling}
-										onclick={() => pullModel(model.id)}
-									>
-										<svg class="option-model-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-											<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-											<polyline points="7 10 12 15 17 10"/>
-											<line x1="12" y1="15" x2="12" y2="3"/>
-										</svg>
-										<span>{model.name}</span>
-										<span class="model-size">{model.size}</span>
-										<span class="model-status pull">Pull</span>
-									</button>
+							<!-- Recommended models to pull - only show if Ollama is available -->
+							{#if ollamaAvailable !== false}
+								<div class="dropdown-divider"></div>
+								<div class="dropdown-header">AVAILABLE TO PULL</div>
+								{#if isPulling && pullProgress}
+									<div class="context-option pull-progress">
+										<span class="pull-model">{pullingModel}</span>
+										<span class="pull-status">
+											{pullProgress.status}
+											{#if pullProgress.percent !== undefined}
+												({pullProgress.percent}%)
+											{/if}
+										</span>
+									</div>
 								{/if}
-							{/each}
+								{#each recommendedModels as model}
+									{@const isInstalled = localModels.some(m => m.id === model.id || m.id.startsWith(model.id.split(':')[0]))}
+									{#if !isInstalled}
+										<button
+											class="context-option"
+											disabled={isPulling}
+											onclick={() => pullModel(model.id)}
+										>
+											<svg class="option-model-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+												<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+												<polyline points="7 10 12 15 17 10"/>
+												<line x1="12" y1="15" x2="12" y2="3"/>
+											</svg>
+											<span>{model.name}</span>
+											<span class="model-size">{model.size}</span>
+											<span class="model-status pull">Pull</span>
+										</button>
+									{/if}
+								{/each}
+							{/if}
 
 							<div class="dropdown-divider"></div>
 							<div class="dropdown-header">CLOUD MODELS</div>
-							{#each cloudModels as model}
-								<button
-									class="context-option"
-									class:selected={selectedModel?.id === model.id}
-									onclick={() => { selectedModel = { ...model, isLocal: false }; showModelSelector = false; }}
-								>
-									<svg class="option-model-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							{#if cloudModels.length === 0}
+								<div class="context-option empty">
+									<svg class="option-model-icon text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 										<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
 									</svg>
-									<span>{model.name}</span>
-								</button>
-							{/each}
+									No API keys configured
+								</div>
+							{:else}
+								{#each cloudModels as model}
+									<button
+										class="context-option"
+										class:selected={selectedModel?.id === model.id}
+										onclick={() => { selectedModel = { ...model, isLocal: false }; showModelSelector = false; }}
+									>
+										<svg class="option-model-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+										</svg>
+										<span>{model.name}</span>
+										<span class="model-status ready">Ready</span>
+									</button>
+								{/each}
+							{/if}
 
 							<div class="dropdown-divider"></div>
 							<a href="/settings/ai" class="context-option settings-link" onclick={() => showModelSelector = false}>
@@ -1416,13 +1535,17 @@
 							</svg>
 						{:else}
 							<svg
-								class="dock-icon-svg"
+								class="dock-icon-svg library-{iconLibrary}"
 								viewBox="0 0 24 24"
 								fill="none"
 								stroke={icon.color}
-								stroke-width="1.5"
-								stroke-linecap="round"
-								stroke-linejoin="round"
+								stroke-width={libraryStrokeWidth}
+								stroke-linecap={libraryLineCap}
+								stroke-linejoin={libraryLineJoin}
+								style="
+									transform: scale({libraryIconScale});
+									filter: {librarySvgFilter};
+								"
 							>
 								<path d={icon.path} />
 							</svg>
@@ -2913,6 +3036,93 @@
 			0 3px 0 #333,
 			0 -3px 0 #333;
 		filter: brightness(1.1);
+	}
+
+	/* Frosted - clean frosted glass */
+	.dock-item.style-frosted .dock-icon {
+		background: rgba(255, 255, 255, 0.6) !important;
+		backdrop-filter: blur(12px) saturate(180%);
+		-webkit-backdrop-filter: blur(12px) saturate(180%);
+		border-radius: 14px;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+	}
+
+	.dock-item.style-frosted:hover .dock-icon {
+		background: rgba(255, 255, 255, 0.75) !important;
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+	}
+
+	/* Terminal */
+	.dock-item.style-terminal .dock-icon {
+		background: #0a0a0a !important;
+		border-radius: 4px;
+		border: 1px solid #00ff00;
+		box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+	}
+
+	.dock-item.style-terminal:hover .dock-icon {
+		box-shadow: 0 0 12px rgba(0, 255, 0, 0.5);
+	}
+
+	.dock-item.style-terminal .dock-icon-svg {
+		color: #00ff00 !important;
+		filter: drop-shadow(0 0 2px #00ff00);
+	}
+
+	/* Glow - soft colored glow */
+	.dock-item.style-glow .dock-icon {
+		border-radius: 14px;
+		box-shadow:
+			0 0 15px currentColor,
+			0 0 30px rgba(100, 100, 255, 0.3);
+		border: none;
+	}
+
+	.dock-item.style-glow:hover .dock-icon {
+		box-shadow:
+			0 0 20px currentColor,
+			0 0 40px rgba(100, 100, 255, 0.4);
+		transform: scale(1.02);
+	}
+
+	.dock-item.style-glow .dock-icon-svg {
+		filter: drop-shadow(0 0 3px currentColor);
+	}
+
+	/* Brutalist */
+	.dock-item.style-brutalist .dock-icon {
+		background: #fff !important;
+		border-radius: 0;
+		border: 3px solid #000;
+		box-shadow: 4px 4px 0 #000;
+	}
+
+	.dock-item.style-brutalist:hover .dock-icon {
+		transform: translate(-2px, -2px);
+		box-shadow: 6px 6px 0 #000;
+	}
+
+	.dock-item.style-brutalist .dock-icon-svg {
+		color: #000 !important;
+	}
+
+	/* Depth - layered 3D shadows */
+	.dock-item.style-depth .dock-icon {
+		border-radius: 12px;
+		border: none;
+		box-shadow:
+			0 2px 4px rgba(0, 0, 0, 0.1),
+			0 4px 8px rgba(0, 0, 0, 0.1),
+			0 8px 16px rgba(0, 0, 0, 0.08);
+	}
+
+	.dock-item.style-depth:hover .dock-icon {
+		transform: translateY(-3px);
+		box-shadow:
+			0 4px 8px rgba(0, 0, 0, 0.12),
+			0 8px 16px rgba(0, 0, 0, 0.1),
+			0 16px 32px rgba(0, 0, 0, 0.08);
 	}
 
 	/* ===== DARK MODE - MODERN APPLE STYLE ===== */

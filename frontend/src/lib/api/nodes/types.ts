@@ -81,3 +81,56 @@ export interface UpdateNodeData {
   sort_order?: number;
   context_id?: string;
 }
+
+// ===== LINKING TYPES =====
+
+export interface LinkedProject {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  priority: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+  updated_at: string;
+  linked_at: string;
+}
+
+export interface LinkedContext {
+  id: string;
+  user_id: string;
+  name: string;
+  type: string;
+  description: string | null;
+  content: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  linked_at: string;
+}
+
+export interface LinkedConversation {
+  id: string;
+  user_id: string;
+  title: string | null;
+  model: string | null;
+  provider: string | null;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+  linked_at: string;
+}
+
+export interface NodeLinks {
+  projects: LinkedProject[];
+  contexts: LinkedContext[];
+  conversations: LinkedConversation[];
+}
+
+export interface NodeLinkCounts {
+  linked_projects_count: number;
+  linked_contexts_count: number;
+  linked_conversations_count: number;
+}

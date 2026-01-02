@@ -1,11 +1,30 @@
 <script lang="ts">
-	import { desktopSettings, desktopBackgrounds, iconStyles, iconSizePresets, backgroundFitOptions, type IconStyle, type BackgroundFit } from '$lib/stores/desktopStore';
+	import {
+		desktopSettings,
+		desktopBackgrounds,
+		iconStyles,
+		iconLibraries,
+		iconSizePresets,
+		backgroundFitOptions,
+		type IconStyle,
+		type IconLibrary,
+		type BackgroundFit,
+		type AnimatedBackgroundEffect,
+		type AnimatedBackgroundIntensity,
+		type BootAnimation,
+		type WindowAnimationType,
+		type AnimationSpeed
+	} from '$lib/stores/desktopStore';
 	import { windowStore, type DesktopConfig } from '$lib/stores/windowStore';
+	import { soundStore, builtInPacks, soundEventLabels, type SoundPackId, type SoundEvent, audioFileToBase64 } from '$lib/stores/soundStore';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 
+	// Tab type
+	type SettingsTab = 'icons' | 'background' | 'sounds' | 'animations' | 'boot' | 'shortcuts' | 'permissions' | 'data';
+
 	// Local state
-	let selectedTab = $state<'icons' | 'background' | 'shortcuts' | 'permissions' | 'data'>('icons');
+	let selectedTab = $state<SettingsTab>('icons');
 
 	// Data tab state
 	let importError = $state('');
@@ -27,6 +46,59 @@
 	let accessibilityGranted = $state(false);
 	let isElectron = $state(false);
 	let isCheckingPermissions = $state(false);
+
+	// Effects preview state - allows preview before applying
+	let previewEffect = $state<AnimatedBackgroundEffect | null>(null);
+	let previewIntensity = $state<AnimatedBackgroundIntensity | null>(null);
+	let previewSpeed = $state<number | null>(null);
+	let hasUnsavedEffectChanges = $state(false);
+
+	// Get current or preview value for effects
+	const effectiveEffect = $derived(previewEffect ?? $desktopSettings.animatedBackground.effect);
+	const effectiveIntensity = $derived(previewIntensity ?? $desktopSettings.animatedBackground.intensity);
+	const effectiveSpeed = $derived(previewSpeed ?? $desktopSettings.animatedBackground.speed);
+
+	// Preview handlers - update local state without saving
+	function previewEffectChange(effect: AnimatedBackgroundEffect) {
+		previewEffect = effect;
+		hasUnsavedEffectChanges = true;
+	}
+
+	function previewIntensityChange(intensity: AnimatedBackgroundIntensity) {
+		previewIntensity = intensity;
+		hasUnsavedEffectChanges = true;
+	}
+
+	function previewSpeedChange(speed: number) {
+		previewSpeed = speed;
+		hasUnsavedEffectChanges = true;
+	}
+
+	// Apply all effect changes
+	function applyEffectChanges() {
+		const changes: Partial<typeof $desktopSettings.animatedBackground> = {};
+		if (previewEffect !== null) changes.effect = previewEffect;
+		if (previewIntensity !== null) changes.intensity = previewIntensity;
+		if (previewSpeed !== null) changes.speed = previewSpeed;
+
+		if (Object.keys(changes).length > 0) {
+			desktopSettings.setAnimatedBackground(changes);
+		}
+
+		// Reset preview state
+		previewEffect = null;
+		previewIntensity = null;
+		previewSpeed = null;
+		hasUnsavedEffectChanges = false;
+	}
+
+	// Cancel effect changes
+	function cancelEffectChanges() {
+		previewEffect = null;
+		previewIntensity = null;
+		previewSpeed = null;
+		hasUnsavedEffectChanges = false;
+	}
 
 	// Check if we're in Electron and load shortcuts
 	onMount(async () => {
@@ -252,6 +324,10 @@
 		desktopSettings.setIconStyle(style);
 	}
 
+	function handleIconLibraryChange(library: IconLibrary) {
+		desktopSettings.setIconLibrary(library);
+	}
+
 	function handleBackgroundChange(backgroundId: string) {
 		desktopSettings.setBackground(backgroundId);
 	}
@@ -290,6 +366,9 @@
 	let colorScrollContainer: HTMLDivElement | undefined = $state(undefined);
 	let gradientScrollContainer: HTMLDivElement | undefined = $state(undefined);
 	let patternScrollContainer: HTMLDivElement | undefined = $state(undefined);
+	let effectBasicScroll: HTMLDivElement | undefined = $state(undefined);
+	let effectNatureScroll: HTMLDivElement | undefined = $state(undefined);
+	let effectTechScroll: HTMLDivElement | undefined = $state(undefined);
 
 	function scrollCarousel(container: HTMLDivElement | undefined, direction: 'left' | 'right') {
 		if (!container) return;
@@ -366,44 +445,112 @@
 </script>
 
 <div class="desktop-settings">
-	<!-- Tabs -->
+	<!-- Tabs with Icons -->
 	<div class="tabs">
 		<button
 			class="tab"
 			class:active={selectedTab === 'icons'}
 			onclick={() => selectedTab = 'icons'}
+			title="Icons & Layout"
 		>
-			Icons
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<rect x="3" y="3" width="7" height="7" rx="1"/>
+				<rect x="14" y="3" width="7" height="7" rx="1"/>
+				<rect x="14" y="14" width="7" height="7" rx="1"/>
+				<rect x="3" y="14" width="7" height="7" rx="1"/>
+			</svg>
+			<span>Icons</span>
 		</button>
 		<button
 			class="tab"
 			class:active={selectedTab === 'background'}
 			onclick={() => selectedTab = 'background'}
+			title="Background & Wallpaper"
 		>
-			Background
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<rect x="3" y="3" width="18" height="18" rx="2"/>
+				<circle cx="8.5" cy="8.5" r="1.5"/>
+				<polyline points="21 15 16 10 5 21"/>
+			</svg>
+			<span>Wallpaper</span>
+		</button>
+		<button
+			class="tab"
+			class:active={selectedTab === 'sounds'}
+			onclick={() => selectedTab = 'sounds'}
+			title="System Sounds"
+		>
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+				<path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+				<path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+			</svg>
+			<span>Sounds</span>
+		</button>
+		<button
+			class="tab"
+			class:active={selectedTab === 'animations'}
+			onclick={() => selectedTab = 'animations'}
+			title="Effects & Animations"
+		>
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M12 3v1m0 16v1m9-9h-1M4 12H3"/>
+				<path d="M18.364 5.636l-.707.707M6.343 17.657l-.707.707"/>
+				<path d="M5.636 5.636l.707.707M17.657 17.657l.707.707"/>
+				<circle cx="12" cy="12" r="4"/>
+			</svg>
+			<span>Effects</span>
+		</button>
+		<button
+			class="tab"
+			class:active={selectedTab === 'boot'}
+			onclick={() => selectedTab = 'boot'}
+			title="Boot Screen"
+		>
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/>
+				<path d="M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+			</svg>
+			<span>Boot</span>
 		</button>
 		<button
 			class="tab"
 			class:active={selectedTab === 'shortcuts'}
 			onclick={() => selectedTab = 'shortcuts'}
+			title="Keyboard Shortcuts"
 		>
-			Shortcuts
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<rect x="2" y="4" width="20" height="16" rx="2"/>
+				<path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01"/>
+				<path d="M8 12h8M6 16h12"/>
+			</svg>
+			<span>Shortcuts</span>
 		</button>
 		{#if isElectron}
 			<button
 				class="tab"
 				class:active={selectedTab === 'permissions'}
 				onclick={() => selectedTab = 'permissions'}
+				title="System Permissions"
 			>
-				Permissions
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+				</svg>
+				<span>Permissions</span>
 			</button>
 		{/if}
 		<button
 			class="tab"
 			class:active={selectedTab === 'data'}
 			onclick={() => selectedTab = 'data'}
+			title="Import & Export"
 		>
-			Data
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+				<polyline points="7 10 12 15 17 10"/>
+				<line x1="12" y1="15" x2="12" y2="3"/>
+			</svg>
+			<span>Data</span>
 		</button>
 	</div>
 
@@ -498,6 +645,35 @@
 						</button>
 					{/each}
 				</div>
+			</div>
+
+			<!-- Line Weight / Icon Rendering -->
+			<div class="section">
+				<label class="section-title">Line Weight</label>
+				<div class="library-grid">
+					{#each iconLibraries as lib}
+						<button
+							class="library-option"
+							class:selected={$desktopSettings.iconLibrary === lib.id}
+							onclick={() => handleIconLibraryChange(lib.id)}
+						>
+							<div class="library-header">
+								<span class="library-name">{lib.name}</span>
+								<span class="library-preview">{lib.preview}</span>
+							</div>
+							<div class="library-desc">{lib.description}</div>
+							<!-- Visual preview of stroke weight -->
+							<div class="stroke-preview stroke-{lib.id}">
+								<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+									stroke-width={lib.id === 'lucide' ? 2 : lib.id === 'phosphor' ? 3 : lib.id === 'tabler' ? 1.2 : 2.5}
+									stroke-linecap="round" stroke-linejoin="round">
+									<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+								</svg>
+							</div>
+						</button>
+					{/each}
+				</div>
+				<p class="library-hint">Changes how thick the icon lines appear</p>
 			</div>
 
 			<!-- Toggles -->
@@ -726,6 +902,560 @@
 					</div>
 				{/if}
 			</div>
+		{:else if selectedTab === 'sounds'}
+			<!-- Sound Settings -->
+			<div class="section">
+				<div class="section-header">
+					<label class="section-title">System Sounds</label>
+					<button
+						onclick={() => soundStore.setEnabled(!$soundStore.enabled)}
+						class="toggle-switch"
+						class:active={$soundStore.enabled}
+						role="switch"
+						aria-checked={$soundStore.enabled}
+					>
+						<span class="toggle-thumb"></span>
+					</button>
+				</div>
+				<p class="section-subtitle">Enable sound effects for window events and interactions</p>
+			</div>
+
+			{#if $soundStore.enabled}
+				<div class="section">
+					<label class="section-title">Master Volume</label>
+					<div class="slider-row">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; color: #999;">
+							<path d="M11 5L6 9H2v6h4l5 4V5z"/>
+						</svg>
+						<input
+							type="range"
+							min="0"
+							max="1"
+							step="0.1"
+							value={$soundStore.masterVolume}
+							oninput={(e) => soundStore.setMasterVolume(parseFloat((e.target as HTMLInputElement).value))}
+							class="slider"
+						/>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; color: #999;">
+							<path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+						</svg>
+					</div>
+					<span class="volume-value">{Math.round($soundStore.masterVolume * 100)}%</span>
+				</div>
+
+				<div class="section">
+					<label class="section-title">Sound Pack</label>
+					<p class="section-subtitle">Choose a preset sound pack for your desktop</p>
+					<div class="sound-pack-grid">
+						{#each builtInPacks as pack}
+							<button
+								class="sound-pack-option"
+								class:selected={$soundStore.currentPack === pack.id}
+								onclick={() => {
+									soundStore.setCurrentPack(pack.id);
+									if (pack.id !== 'silent') soundStore.previewPack(pack.id);
+								}}
+							>
+								<div class="pack-icon">
+									{#if pack.id === 'silent'}
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/>
+										</svg>
+									{:else if pack.id === 'classic'}
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<path d="M9 18V5l12-2v13"/>
+											<circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+										</svg>
+									{:else if pack.id === 'modern'}
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+											<path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+										</svg>
+									{:else if pack.id === 'retro'}
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<rect x="2" y="6" width="20" height="12" rx="2"/>
+											<circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/>
+										</svg>
+									{:else if pack.id === 'minimal'}
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<circle cx="12" cy="12" r="1"/>
+											<path d="M12 8v1M12 15v1M8 12h1M15 12h1"/>
+										</svg>
+									{:else if pack.id === 'bubbly'}
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<circle cx="12" cy="12" r="5"/>
+											<circle cx="6" cy="8" r="2"/>
+											<circle cx="18" cy="16" r="3"/>
+										</svg>
+									{:else if pack.id === 'mechanical'}
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<circle cx="12" cy="12" r="3"/>
+											<path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+										</svg>
+									{:else if pack.id === 'nature'}
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<path d="M12 22c4-4 8-7 8-12a8 8 0 1 0-16 0c0 5 4 8 8 12z"/>
+											<path d="M12 12v5"/>
+											<path d="M9 15l3-3 3 3"/>
+										</svg>
+									{:else if pack.id === 'scifi'}
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<path d="M12 2L2 7l10 5 10-5-10-5z"/>
+											<path d="M2 17l10 5 10-5"/>
+											<path d="M2 12l10 5 10-5"/>
+										</svg>
+									{:else}
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"/>
+										</svg>
+									{/if}
+								</div>
+								<div class="pack-info">
+									<span class="pack-name">{pack.name}</span>
+									<span class="pack-desc">{pack.description}</span>
+								</div>
+								{#if $soundStore.currentPack === pack.id}
+									<div class="pack-check">
+										<svg viewBox="0 0 20 20" fill="currentColor">
+											<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+										</svg>
+									</div>
+								{/if}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<div class="section">
+					<label class="section-title">Sound Events</label>
+					<p class="section-subtitle">Enable or disable individual sound events</p>
+					<div class="sound-events-list">
+						{#each Object.entries(soundEventLabels) as [event, label]}
+							{@const eventConfig = $soundStore.perEventSettings[event as SoundEvent]}
+							{@const isEnabled = eventConfig?.enabled !== false}
+							<div class="sound-event-row">
+								<div class="event-info">
+									<span class="event-label">{label}</span>
+								</div>
+								<div class="event-controls">
+									<button
+										class="preview-sound-btn"
+										onclick={() => soundStore.playSound(event as SoundEvent)}
+										title="Preview sound"
+										disabled={!isEnabled}
+									>
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<polygon points="5 3 19 12 5 21 5 3"/>
+										</svg>
+									</button>
+									<button
+										onclick={() => soundStore.setEventSettings(event as SoundEvent, { enabled: !isEnabled })}
+										class="event-toggle"
+										class:active={isEnabled}
+										role="switch"
+										aria-checked={isEnabled}
+										title={isEnabled ? 'Disable sound' : 'Enable sound'}
+									>
+										<span class="toggle-thumb"></span>
+									</button>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+		{:else if selectedTab === 'animations'}
+			<!-- Animated Background Effects -->
+			<div class="section">
+				<div class="section-header-row">
+					<div>
+						<label class="section-title">Animated Background</label>
+						<p class="section-subtitle">Add subtle animated effects to your desktop background</p>
+					</div>
+					{#if hasUnsavedEffectChanges}
+						<div class="unsaved-indicator">
+							<span class="unsaved-dot"></span>
+							<span>Unsaved changes</span>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Basic Effects -->
+				<div class="effect-category">
+					<span class="effect-category-label">Basic</span>
+					<div class="carousel-container">
+						<button class="carousel-btn left" onclick={() => scrollCarousel(effectBasicScroll, 'left')}>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M15 18l-6-6 6-6"/>
+							</svg>
+						</button>
+						<div class="carousel-scroll" bind:this={effectBasicScroll}>
+							<div class="effect-carousel-grid">
+								{#each [
+									{ id: 'none', name: 'None', desc: 'No animation' },
+									{ id: 'particles', name: 'Particles', desc: 'Floating particles' },
+									{ id: 'gradient', name: 'Gradient', desc: 'Flowing colors' },
+									{ id: 'pulse', name: 'Pulse', desc: 'Gentle pulsing' },
+									{ id: 'ripples', name: 'Ripples', desc: 'Water ripples' },
+									{ id: 'dots', name: 'Dots', desc: 'Pulsing dot grid' },
+									{ id: 'floatingShapes', name: 'Shapes', desc: 'Floating shapes' },
+									{ id: 'smoke', name: 'Smoke', desc: 'Rising smoke' }
+								] as effect}
+									<button
+										class="effect-card"
+										class:selected={effectiveEffect === effect.id}
+										class:previewing={previewEffect === effect.id && previewEffect !== $desktopSettings.animatedBackground.effect}
+										onclick={() => previewEffectChange(effect.id as AnimatedBackgroundEffect)}
+									>
+										<div class="effect-card-preview anim-{effect.id}"></div>
+										<span class="effect-card-name">{effect.name}</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+						<button class="carousel-btn right" onclick={() => scrollCarousel(effectBasicScroll, 'right')}>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M9 18l6-6-6-6"/>
+							</svg>
+						</button>
+					</div>
+				</div>
+
+				<!-- Nature Effects -->
+				<div class="effect-category">
+					<span class="effect-category-label">Nature</span>
+					<div class="carousel-container">
+						<button class="carousel-btn left" onclick={() => scrollCarousel(effectNatureScroll, 'left')}>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M15 18l-6-6 6-6"/>
+							</svg>
+						</button>
+						<div class="carousel-scroll" bind:this={effectNatureScroll}>
+							<div class="effect-carousel-grid">
+								{#each [
+									{ id: 'aurora', name: 'Aurora', desc: 'Northern lights' },
+									{ id: 'starfield', name: 'Starfield', desc: 'Twinkling stars' },
+									{ id: 'waves', name: 'Waves', desc: 'Flowing waves' },
+									{ id: 'bubbles', name: 'Bubbles', desc: 'Floating bubbles' },
+									{ id: 'fireflies', name: 'Fireflies', desc: 'Glowing fireflies' },
+									{ id: 'rain', name: 'Rain', desc: 'Falling rain' },
+									{ id: 'snow', name: 'Snow', desc: 'Gentle snowfall' },
+									{ id: 'nebula', name: 'Nebula', desc: 'Space clouds' }
+								] as effect}
+									<button
+										class="effect-card"
+										class:selected={effectiveEffect === effect.id}
+										class:previewing={previewEffect === effect.id && previewEffect !== $desktopSettings.animatedBackground.effect}
+										onclick={() => previewEffectChange(effect.id as AnimatedBackgroundEffect)}
+									>
+										<div class="effect-card-preview anim-{effect.id}"></div>
+										<span class="effect-card-name">{effect.name}</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+						<button class="carousel-btn right" onclick={() => scrollCarousel(effectNatureScroll, 'right')}>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M9 18l6-6-6-6"/>
+							</svg>
+						</button>
+					</div>
+				</div>
+
+				<!-- Tech Effects -->
+				<div class="effect-category">
+					<span class="effect-category-label">Tech</span>
+					<div class="carousel-container">
+						<button class="carousel-btn left" onclick={() => scrollCarousel(effectTechScroll, 'left')}>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M15 18l-6-6 6-6"/>
+							</svg>
+						</button>
+						<div class="carousel-scroll" bind:this={effectTechScroll}>
+							<div class="effect-carousel-grid">
+								{#each [
+									{ id: 'matrix', name: 'Matrix', desc: 'Digital rain' },
+									{ id: 'geometric', name: 'Geometric', desc: 'Floating shapes' },
+									{ id: 'circuit', name: 'Circuit', desc: 'Tech circuits' },
+									{ id: 'confetti', name: 'Confetti', desc: 'Celebration' },
+									{ id: 'scanlines', name: 'Scanlines', desc: 'CRT scanlines' },
+									{ id: 'grid', name: 'Grid', desc: 'Neon grid' },
+									{ id: 'warp', name: 'Warp', desc: 'Star warp speed' },
+									{ id: 'hexgrid', name: 'Hexgrid', desc: 'Honeycomb' },
+									{ id: 'binary', name: 'Binary', desc: 'Falling 0s and 1s' }
+								] as effect}
+									<button
+										class="effect-card"
+										class:selected={effectiveEffect === effect.id}
+										class:previewing={previewEffect === effect.id && previewEffect !== $desktopSettings.animatedBackground.effect}
+										onclick={() => previewEffectChange(effect.id as AnimatedBackgroundEffect)}
+									>
+										<div class="effect-card-preview anim-{effect.id}"></div>
+										<span class="effect-card-name">{effect.name}</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+						<button class="carousel-btn right" onclick={() => scrollCarousel(effectTechScroll, 'right')}>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M9 18l6-6-6-6"/>
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+
+			{#if effectiveEffect !== 'none'}
+				<div class="section">
+					<label class="section-title">Effect Settings</label>
+					<div class="settings-row-group">
+						<div class="settings-row">
+							<div class="settings-row-label">
+								<span class="settings-label-text">Intensity</span>
+								<span class="settings-label-desc">How visible the effect appears</span>
+							</div>
+							<select
+								class="settings-select"
+								value={effectiveIntensity}
+								onchange={(e) => previewIntensityChange(e.currentTarget.value as AnimatedBackgroundIntensity)}
+							>
+								<option value="subtle">Subtle</option>
+								<option value="medium">Medium</option>
+								<option value="high">High</option>
+							</select>
+						</div>
+
+						<div class="settings-row">
+							<div class="settings-row-label">
+								<span class="settings-label-text">Animation Speed</span>
+								<span class="settings-label-desc">{effectiveSpeed}x speed</span>
+							</div>
+							<div class="slider-compact">
+								<input
+									type="range"
+									min="0.5"
+									max="2"
+									step="0.1"
+									value={effectiveSpeed}
+									oninput={(e) => previewSpeedChange(parseFloat((e.target as HTMLInputElement).value))}
+									class="slider-input"
+								/>
+							</div>
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Apply/Cancel buttons for effect changes -->
+			{#if hasUnsavedEffectChanges}
+				<div class="effect-action-bar">
+					<button class="effect-cancel-btn" onclick={cancelEffectChanges}>
+						Cancel
+					</button>
+					<button class="effect-apply-btn" onclick={applyEffectChanges}>
+						Apply Changes
+					</button>
+				</div>
+			{/if}
+
+			<!-- Window Animations -->
+			<div class="section" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e5e5;">
+				<label class="section-title">Window Animations</label>
+				<p class="section-subtitle">Customize how windows open, close, and minimize</p>
+
+				<div class="settings-row-group">
+					<div class="settings-row">
+						<div class="settings-row-label">
+							<span class="settings-label-text">Open Animation</span>
+							<span class="settings-label-desc">Effect when windows appear</span>
+						</div>
+						<select
+							class="settings-select"
+							value={$desktopSettings.windowAnimations.openAnimation}
+							onchange={(e) => desktopSettings.setWindowAnimations({ openAnimation: e.currentTarget.value as WindowAnimationType })}
+						>
+							<option value="none">None</option>
+							<option value="fade">Fade</option>
+							<option value="scale">Scale</option>
+							<option value="slide">Slide</option>
+							<option value="bounce">Bounce</option>
+						</select>
+					</div>
+
+					<div class="settings-row">
+						<div class="settings-row-label">
+							<span class="settings-label-text">Close Animation</span>
+							<span class="settings-label-desc">Effect when windows disappear</span>
+						</div>
+						<select
+							class="settings-select"
+							value={$desktopSettings.windowAnimations.closeAnimation}
+							onchange={(e) => desktopSettings.setWindowAnimations({ closeAnimation: e.currentTarget.value as WindowAnimationType })}
+						>
+							<option value="none">None</option>
+							<option value="fade">Fade</option>
+							<option value="scale">Scale</option>
+							<option value="slide">Slide</option>
+						</select>
+					</div>
+
+					<div class="settings-row">
+						<div class="settings-row-label">
+							<span class="settings-label-text">Animation Speed</span>
+							<span class="settings-label-desc">How fast animations play</span>
+						</div>
+						<select
+							class="settings-select"
+							value={$desktopSettings.windowAnimations.speed}
+							onchange={(e) => desktopSettings.setWindowAnimations({ speed: e.currentTarget.value as AnimationSpeed })}
+						>
+							<option value="fast">Fast</option>
+							<option value="normal">Normal</option>
+							<option value="slow">Slow</option>
+						</select>
+					</div>
+				</div>
+			</div>
+
+		{:else if selectedTab === 'boot'}
+			<!-- Boot Screen Customization -->
+			<div class="section">
+				<label class="section-title">Boot Animation</label>
+				<p class="section-subtitle">Choose the animation style for your boot screen</p>
+				<div class="boot-anim-grid">
+					{#each [
+						{ id: 'terminal', name: 'Terminal', desc: 'Classic terminal text' },
+						{ id: 'spinner', name: 'Spinner', desc: 'Circular loading' },
+						{ id: 'progress', name: 'Progress', desc: 'Progress bar' },
+						{ id: 'pulse', name: 'Pulse', desc: 'Breathing glow' },
+						{ id: 'glitch', name: 'Glitch', desc: 'Cyberpunk effect' }
+					] as anim}
+						<button
+							class="boot-anim-option"
+							class:selected={$desktopSettings.bootScreen.animation === anim.id}
+							onclick={() => desktopSettings.setBootScreen({ animation: anim.id as BootAnimation })}
+						>
+							<div class="boot-preview boot-{anim.id}">
+								<div class="boot-preview-inner"></div>
+							</div>
+							<span class="boot-name">{anim.name}</span>
+							<span class="boot-desc">{anim.desc}</span>
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<div class="section">
+				<label class="section-title">Boot Messages</label>
+				<div class="toggle-row" style="padding: 0;">
+					<div class="toggle-info">
+						<div class="toggle-label">Show Boot Messages</div>
+						<div class="toggle-desc">Display loading messages during boot</div>
+					</div>
+					<button
+						onclick={() => desktopSettings.setBootScreen({
+							messages: { ...$desktopSettings.bootScreen.messages, enabled: !$desktopSettings.bootScreen.messages.enabled }
+						})}
+						class="toggle-switch"
+						class:active={$desktopSettings.bootScreen.messages.enabled}
+						role="switch"
+						aria-checked={$desktopSettings.bootScreen.messages.enabled}
+					>
+						<span class="toggle-thumb"></span>
+					</button>
+				</div>
+			</div>
+
+			<div class="section">
+				<div class="section-header">
+					<label class="section-title">Boot Duration</label>
+					<span class="section-value">{$desktopSettings.bootScreen.duration}s</span>
+				</div>
+				<div class="slider-row">
+					<span class="slider-label">Fast</span>
+					<input
+						type="range"
+						min="1"
+						max="10"
+						step="0.5"
+						value={$desktopSettings.bootScreen.duration}
+						oninput={(e) => desktopSettings.setBootScreen({ duration: parseFloat((e.target as HTMLInputElement).value) })}
+						class="slider"
+					/>
+					<span class="slider-label">Slow</span>
+				</div>
+			</div>
+
+			<div class="section">
+				<label class="section-title">Boot Colors</label>
+				<div class="color-pickers">
+					<div class="color-picker-row">
+						<span class="color-label">Background</span>
+						<div class="color-input-wrapper">
+							<input
+								type="color"
+								value={$desktopSettings.bootScreen.colors.background}
+								oninput={(e) => desktopSettings.setBootScreen({
+									colors: { ...$desktopSettings.bootScreen.colors, background: (e.target as HTMLInputElement).value }
+								})}
+								class="color-input"
+							/>
+							<input
+								type="text"
+								value={$desktopSettings.bootScreen.colors.background}
+								oninput={(e) => desktopSettings.setBootScreen({
+									colors: { ...$desktopSettings.bootScreen.colors, background: (e.target as HTMLInputElement).value }
+								})}
+								class="color-text-input"
+							/>
+						</div>
+					</div>
+					<div class="color-picker-row">
+						<span class="color-label">Text</span>
+						<div class="color-input-wrapper">
+							<input
+								type="color"
+								value={$desktopSettings.bootScreen.colors.text}
+								oninput={(e) => desktopSettings.setBootScreen({
+									colors: { ...$desktopSettings.bootScreen.colors, text: (e.target as HTMLInputElement).value }
+								})}
+								class="color-input"
+							/>
+							<input
+								type="text"
+								value={$desktopSettings.bootScreen.colors.text}
+								oninput={(e) => desktopSettings.setBootScreen({
+									colors: { ...$desktopSettings.bootScreen.colors, text: (e.target as HTMLInputElement).value }
+								})}
+								class="color-text-input"
+							/>
+						</div>
+					</div>
+					<div class="color-picker-row">
+						<span class="color-label">Accent</span>
+						<div class="color-input-wrapper">
+							<input
+								type="color"
+								value={$desktopSettings.bootScreen.colors.accent}
+								oninput={(e) => desktopSettings.setBootScreen({
+									colors: { ...$desktopSettings.bootScreen.colors, accent: (e.target as HTMLInputElement).value }
+								})}
+								class="color-input"
+							/>
+							<input
+								type="text"
+								value={$desktopSettings.bootScreen.colors.accent}
+								oninput={(e) => desktopSettings.setBootScreen({
+									colors: { ...$desktopSettings.bootScreen.colors, accent: (e.target as HTMLInputElement).value }
+								})}
+								class="color-text-input"
+							/>
+						</div>
+					</div>
+				</div>
+			</div>
+
 		{:else if selectedTab === 'shortcuts'}
 			<!-- Accessibility Permission Banner -->
 			{#if isElectron && !accessibilityGranted}
@@ -1195,28 +1925,62 @@
 		border-bottom: 1px solid #e5e5e5;
 		background: white;
 		flex-shrink: 0;
+		padding: 0 8px;
+		gap: 2px;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	.tabs::-webkit-scrollbar {
+		display: none;
 	}
 
 	.tab {
-		flex: 1;
-		padding: 12px 16px;
-		font-size: 13px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 4px;
+		padding: 10px 12px 8px;
+		font-size: 10px;
 		font-weight: 500;
-		color: #666;
+		color: #888;
 		background: none;
 		border: none;
 		cursor: pointer;
 		border-bottom: 2px solid transparent;
 		transition: all 0.15s ease;
+		white-space: nowrap;
+		min-width: fit-content;
+	}
+
+	.tab svg {
+		width: 18px;
+		height: 18px;
+		stroke-width: 1.5;
+		transition: all 0.15s ease;
+	}
+
+	.tab span {
+		line-height: 1;
 	}
 
 	.tab:hover {
-		color: #333;
+		color: #555;
+		background: #f5f5f5;
+		border-radius: 6px 6px 0 0;
+	}
+
+	.tab:hover svg {
+		stroke-width: 2;
 	}
 
 	.tab.active {
 		color: #111;
 		border-bottom-color: #111;
+	}
+
+	.tab.active svg {
+		stroke-width: 2;
 	}
 
 	.content {
@@ -1280,6 +2044,33 @@
 		background: #333;
 		border-radius: 50%;
 		cursor: pointer;
+	}
+
+	/* Compact slider for settings rows */
+	.slider-compact {
+		width: 120px;
+	}
+
+	.slider-input {
+		width: 100%;
+		height: 4px;
+		background: #e5e5e5;
+		border-radius: 2px;
+		appearance: none;
+		cursor: pointer;
+	}
+
+	.slider-input::-webkit-slider-thumb {
+		appearance: none;
+		width: 14px;
+		height: 14px;
+		background: #333;
+		border-radius: 50%;
+		cursor: pointer;
+	}
+
+	.slider-input::-webkit-slider-thumb:hover {
+		background: #555;
 	}
 
 	.size-preview {
@@ -1357,6 +2148,96 @@
 		font-size: 10px;
 		color: #999;
 		margin-top: 2px;
+	}
+
+	/* Icon Library Grid */
+	.library-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 8px;
+	}
+
+	.library-option {
+		padding: 12px;
+		border-radius: 8px;
+		border: 2px solid #e5e5e5;
+		background: white;
+		cursor: pointer;
+		text-align: left;
+		transition: all 0.15s ease;
+	}
+
+	.library-option:hover {
+		border-color: #ccc;
+		background: #fafafa;
+	}
+
+	.library-option.selected {
+		border-color: #0077cc;
+		background: #e8f4fc;
+	}
+
+	.library-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 4px;
+	}
+
+	.library-name {
+		font-size: 13px;
+		font-weight: 600;
+		color: #333;
+	}
+
+	.library-preview {
+		font-size: 9px;
+		font-weight: 500;
+		font-family: monospace;
+		color: #666;
+		background: #f0f0f0;
+		padding: 2px 6px;
+		border-radius: 4px;
+	}
+
+	.library-option.selected .library-preview {
+		background: #cce5f7;
+		color: #0066aa;
+	}
+
+	.library-desc {
+		font-size: 11px;
+		color: #666;
+		margin-bottom: 8px;
+	}
+
+	.stroke-preview {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		padding: 8px;
+		background: #f8f8f8;
+		border-radius: 6px;
+		color: #333;
+	}
+
+	.stroke-preview.stroke-phosphor svg {
+		filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+	}
+
+	.stroke-preview.stroke-tabler {
+		opacity: 0.7;
+	}
+
+	.library-option.selected .stroke-preview {
+		background: #d8eef9;
+	}
+
+	.library-hint {
+		font-size: 11px;
+		color: #999;
+		margin-top: 8px;
+		text-align: center;
 	}
 
 	.toggles {
@@ -1539,6 +2420,626 @@
 	.pattern-swatch.selected {
 		border-color: #333;
 		box-shadow: 0 0 0 2px white, 0 0 0 4px #333;
+	}
+
+	/* Effect Category Carousel */
+	.effect-category {
+		margin-bottom: 16px;
+	}
+
+	.effect-category-label {
+		display: block;
+		font-size: 11px;
+		font-weight: 600;
+		color: #666;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		margin-bottom: 8px;
+	}
+
+	.effect-carousel-grid {
+		display: flex;
+		gap: 12px;
+		padding: 4px 0;
+	}
+
+	.effect-card {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		padding: 12px;
+		min-width: 100px;
+		background: #fafafa;
+		border: 2px solid transparent;
+		border-radius: 12px;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		flex-shrink: 0;
+	}
+
+	.effect-card:hover {
+		background: #f0f0f0;
+		transform: translateY(-2px);
+	}
+
+	.effect-card.selected {
+		background: #e8f4fc;
+		border-color: #0077cc;
+	}
+
+	.effect-card.previewing:not(.selected) {
+		background: #fff8e6;
+		border-color: #ffaa00;
+	}
+
+	.effect-card-preview {
+		width: 64px;
+		height: 40px;
+		border-radius: 8px;
+		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		position: relative;
+		overflow: hidden;
+	}
+
+	/* Effect preview animations */
+	.effect-card-preview.anim-none {
+		background: #f5f5f5;
+	}
+
+	.effect-card-preview.anim-particles::before {
+		content: '';
+		position: absolute;
+		width: 4px;
+		height: 4px;
+		background: rgba(255,255,255,0.8);
+		border-radius: 50%;
+		top: 30%;
+		left: 20%;
+		box-shadow:
+			20px 10px 0 rgba(255,255,255,0.6),
+			40px -5px 0 rgba(255,255,255,0.7),
+			10px 20px 0 rgba(255,255,255,0.5);
+		animation: float 2s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-gradient {
+		background: linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c);
+		background-size: 300% 300%;
+		animation: gradientShift 3s ease infinite;
+	}
+
+	.effect-card-preview.anim-aurora {
+		background: linear-gradient(to bottom, #0a0a1f, #1a1a3f);
+	}
+
+	.effect-card-preview.anim-aurora::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(45deg,
+			transparent 20%,
+			rgba(0,255,127,0.3) 40%,
+			rgba(0,191,255,0.3) 60%,
+			transparent 80%);
+		animation: aurora 3s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-starfield {
+		background: #0a0a1f;
+	}
+
+	.effect-card-preview.anim-starfield::before {
+		content: '';
+		position: absolute;
+		width: 2px;
+		height: 2px;
+		background: white;
+		border-radius: 50%;
+		top: 20%;
+		left: 30%;
+		box-shadow:
+			20px 15px 0 rgba(255,255,255,0.8),
+			10px 25px 0 rgba(255,255,255,0.6),
+			35px 8px 0 rgba(255,255,255,0.9),
+			45px 22px 0 rgba(255,255,255,0.7);
+		animation: twinkle 1.5s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-waves {
+		background: linear-gradient(180deg, #1a5276 0%, #2980b9 100%);
+	}
+
+	.effect-card-preview.anim-waves::before {
+		content: '';
+		position: absolute;
+		bottom: 0;
+		left: -50%;
+		width: 200%;
+		height: 60%;
+		background: rgba(255,255,255,0.1);
+		border-radius: 50% 50% 0 0;
+		animation: wave 2s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-bubbles {
+		background: linear-gradient(180deg, #2193b0 0%, #6dd5ed 100%);
+	}
+
+	.effect-card-preview.anim-bubbles::before {
+		content: '';
+		position: absolute;
+		width: 8px;
+		height: 8px;
+		background: rgba(255,255,255,0.4);
+		border-radius: 50%;
+		bottom: 5px;
+		left: 25%;
+		animation: bubble 2s ease-in-out infinite;
+		box-shadow:
+			15px 5px 0 5px rgba(255,255,255,0.3),
+			30px 10px 0 3px rgba(255,255,255,0.5);
+	}
+
+	.effect-card-preview.anim-matrix {
+		background: #000;
+	}
+
+	.effect-card-preview.anim-matrix::before {
+		content: '01';
+		position: absolute;
+		color: #00ff00;
+		font-size: 10px;
+		font-family: monospace;
+		top: 5px;
+		left: 10px;
+		text-shadow:
+			20px 10px 0 #00ff00,
+			10px 20px 0 #00aa00,
+			30px 5px 0 #00dd00;
+		animation: matrixFall 1s linear infinite;
+		opacity: 0.8;
+	}
+
+	.effect-card-preview.anim-geometric {
+		background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+	}
+
+	.effect-card-preview.anim-geometric::before {
+		content: '';
+		position: absolute;
+		width: 0;
+		height: 0;
+		border-left: 12px solid transparent;
+		border-right: 12px solid transparent;
+		border-bottom: 20px solid rgba(255,255,255,0.2);
+		top: 10px;
+		left: 20px;
+		animation: geoFloat 3s ease-in-out infinite;
+	}
+
+	/* New effects */
+	.effect-card-preview.anim-pulse {
+		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		animation: pulseEffect 2s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-ripples {
+		background: linear-gradient(180deg, #1a5276 0%, #2980b9 100%);
+	}
+
+	.effect-card-preview.anim-ripples::before {
+		content: '';
+		position: absolute;
+		width: 20px;
+		height: 20px;
+		border: 2px solid rgba(255,255,255,0.3);
+		border-radius: 50%;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		animation: ripple 2s ease-out infinite;
+	}
+
+	.effect-card-preview.anim-fireflies {
+		background: linear-gradient(180deg, #1a1a2e 0%, #0f0f23 100%);
+	}
+
+	.effect-card-preview.anim-fireflies::before {
+		content: '';
+		position: absolute;
+		width: 4px;
+		height: 4px;
+		background: #ffff88;
+		border-radius: 50%;
+		top: 30%;
+		left: 25%;
+		box-shadow:
+			25px 10px 0 #ffff66,
+			10px -8px 0 #ffffaa,
+			40px 15px 0 #ffff88;
+		animation: fireflyGlow 2s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-rain {
+		background: linear-gradient(180deg, #4a5568 0%, #2d3748 100%);
+	}
+
+	.effect-card-preview.anim-rain::before {
+		content: '';
+		position: absolute;
+		width: 1px;
+		height: 8px;
+		background: rgba(255,255,255,0.4);
+		top: 0;
+		left: 20%;
+		box-shadow:
+			15px 5px 0 rgba(255,255,255,0.3),
+			30px -3px 0 rgba(255,255,255,0.5),
+			45px 8px 0 rgba(255,255,255,0.4);
+		animation: rainFall 0.8s linear infinite;
+	}
+
+	.effect-card-preview.anim-snow {
+		background: linear-gradient(180deg, #a0aec0 0%, #718096 100%);
+	}
+
+	.effect-card-preview.anim-snow::before {
+		content: '';
+		position: absolute;
+		width: 4px;
+		height: 4px;
+		background: white;
+		border-radius: 50%;
+		top: 5px;
+		left: 20%;
+		box-shadow:
+			20px 8px 0 white,
+			40px 3px 0 white,
+			10px 15px 0 white,
+			35px 20px 0 white;
+		animation: snowFall 3s linear infinite;
+	}
+
+	.effect-card-preview.anim-nebula {
+		background: linear-gradient(135deg, #0a0a1f 0%, #1a0a2e 50%, #0f1a2e 100%);
+	}
+
+	.effect-card-preview.anim-nebula::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: radial-gradient(ellipse at 30% 50%, rgba(138,43,226,0.4) 0%, transparent 50%),
+					radial-gradient(ellipse at 70% 60%, rgba(0,191,255,0.3) 0%, transparent 40%);
+		animation: nebulaShift 4s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-circuit {
+		background: #0a1628;
+	}
+
+	.effect-card-preview.anim-circuit::before {
+		content: '';
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		background:
+			linear-gradient(90deg, transparent 45%, rgba(0,255,136,0.3) 50%, transparent 55%),
+			linear-gradient(0deg, transparent 45%, rgba(0,255,136,0.3) 50%, transparent 55%);
+		background-size: 20px 20px;
+		animation: circuitPulse 2s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-confetti {
+		background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+	}
+
+	.effect-card-preview.anim-confetti::before {
+		content: '';
+		position: absolute;
+		width: 6px;
+		height: 6px;
+		background: #ff6b6b;
+		top: 10%;
+		left: 20%;
+		box-shadow:
+			15px 5px 0 #4ecdc4,
+			30px 10px 0 #ffe66d,
+			10px 20px 0 #95e1d3,
+			40px 15px 0 #f38181;
+		animation: confettiFall 2s ease-in-out infinite;
+	}
+
+	/* New Basic Effects */
+	.effect-card-preview.anim-dots {
+		background: #f0f4f8;
+	}
+
+	.effect-card-preview.anim-dots::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background:
+			radial-gradient(circle at 20% 30%, #667eea 3px, transparent 3px),
+			radial-gradient(circle at 50% 50%, #667eea 3px, transparent 3px),
+			radial-gradient(circle at 80% 70%, #667eea 3px, transparent 3px),
+			radial-gradient(circle at 35% 80%, #667eea 3px, transparent 3px),
+			radial-gradient(circle at 65% 20%, #667eea 3px, transparent 3px);
+		animation: dotPulse 2s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-floatingShapes {
+		background: linear-gradient(135deg, #fef9f3 0%, #f0e6f6 100%);
+	}
+
+	.effect-card-preview.anim-floatingShapes::before {
+		content: '';
+		position: absolute;
+		width: 12px;
+		height: 12px;
+		background: transparent;
+		border: 2px solid rgba(102,126,234,0.4);
+		top: 20%;
+		left: 25%;
+		transform: rotate(45deg);
+		box-shadow:
+			25px 15px 0 0 rgba(118,75,162,0.3),
+			10px 25px 0 0 rgba(102,126,234,0.3);
+		animation: shapeFloat 3s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-smoke {
+		background: linear-gradient(180deg, #1a1a2e 0%, #2d2d44 100%);
+	}
+
+	.effect-card-preview.anim-smoke::before {
+		content: '';
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		background:
+			radial-gradient(ellipse at 30% 90%, rgba(150,150,150,0.4) 0%, transparent 40%),
+			radial-gradient(ellipse at 60% 85%, rgba(120,120,120,0.3) 0%, transparent 35%),
+			radial-gradient(ellipse at 45% 80%, rgba(100,100,100,0.2) 0%, transparent 30%);
+		animation: smokeRise 3s ease-out infinite;
+	}
+
+	/* New Tech Effects */
+	.effect-card-preview.anim-scanlines {
+		background: #0a0a0a;
+	}
+
+	.effect-card-preview.anim-scanlines::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: repeating-linear-gradient(
+			0deg,
+			transparent,
+			transparent 2px,
+			rgba(0,255,0,0.1) 2px,
+			rgba(0,255,0,0.1) 4px
+		);
+		animation: scanlineMove 0.1s linear infinite;
+	}
+
+	.effect-card-preview.anim-scanlines::after {
+		content: '';
+		position: absolute;
+		width: 100%;
+		height: 4px;
+		background: linear-gradient(90deg, transparent, rgba(0,255,0,0.4), transparent);
+		animation: scanlineSweep 2s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-grid {
+		background: #0a0a1f;
+	}
+
+	.effect-card-preview.anim-grid::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background:
+			linear-gradient(90deg, rgba(59,130,246,0.2) 1px, transparent 1px),
+			linear-gradient(0deg, rgba(59,130,246,0.2) 1px, transparent 1px);
+		background-size: 10px 10px;
+		animation: gridPulse 2s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-warp {
+		background: radial-gradient(ellipse at center, #0f172a 0%, #000000 100%);
+	}
+
+	.effect-card-preview.anim-warp::before {
+		content: '';
+		position: absolute;
+		width: 2px;
+		height: 2px;
+		background: white;
+		top: 50%;
+		left: 50%;
+		box-shadow:
+			10px -5px 0 white,
+			-8px 10px 0 white,
+			15px 8px 0 white,
+			-12px -8px 0 white,
+			5px 12px 0 white;
+		animation: warpSpeed 0.5s linear infinite;
+	}
+
+	.effect-card-preview.anim-hexgrid {
+		background: #0a0a1f;
+	}
+
+	.effect-card-preview.anim-hexgrid::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background:
+			conic-gradient(from 30deg at 25% 33%, transparent 60deg, rgba(102,126,234,0.3) 60deg, rgba(102,126,234,0.3) 120deg, transparent 120deg),
+			conic-gradient(from 30deg at 75% 33%, transparent 60deg, rgba(102,126,234,0.3) 60deg, rgba(102,126,234,0.3) 120deg, transparent 120deg),
+			conic-gradient(from 30deg at 50% 75%, transparent 60deg, rgba(102,126,234,0.3) 60deg, rgba(102,126,234,0.3) 120deg, transparent 120deg);
+		animation: hexPulse 3s ease-in-out infinite;
+	}
+
+	.effect-card-preview.anim-binary {
+		background: #000000;
+	}
+
+	.effect-card-preview.anim-binary::before {
+		content: '10110100';
+		position: absolute;
+		font-family: monospace;
+		font-size: 8px;
+		color: #00ff00;
+		top: 5%;
+		left: 10%;
+		text-shadow: 0 15px 0 rgba(0,255,0,0.6), 0 30px 0 rgba(0,255,0,0.3);
+		animation: binaryFall 2s linear infinite;
+	}
+
+	.effect-card-name {
+		font-size: 12px;
+		font-weight: 500;
+		color: #333;
+	}
+
+	.effect-card.selected .effect-card-name {
+		color: #0077cc;
+	}
+
+	/* Effect preview keyframes */
+	@keyframes float {
+		0%, 100% { transform: translateY(0); }
+		50% { transform: translateY(-5px); }
+	}
+
+	@keyframes gradientShift {
+		0% { background-position: 0% 50%; }
+		50% { background-position: 100% 50%; }
+		100% { background-position: 0% 50%; }
+	}
+
+	@keyframes aurora {
+		0%, 100% { transform: translateX(-20%); opacity: 0.5; }
+		50% { transform: translateX(20%); opacity: 0.8; }
+	}
+
+	@keyframes twinkle {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.4; }
+	}
+
+	@keyframes wave {
+		0%, 100% { transform: translateX(0) translateY(0); }
+		50% { transform: translateX(5px) translateY(-3px); }
+	}
+
+	@keyframes bubble {
+		0% { transform: translateY(0) scale(1); opacity: 0.4; }
+		100% { transform: translateY(-30px) scale(0.5); opacity: 0; }
+	}
+
+	@keyframes matrixFall {
+		0% { transform: translateY(-5px); opacity: 0; }
+		50% { opacity: 0.8; }
+		100% { transform: translateY(25px); opacity: 0; }
+	}
+
+	@keyframes geoFloat {
+		0%, 100% { transform: translateY(0) rotate(0deg); }
+		50% { transform: translateY(-5px) rotate(15deg); }
+	}
+
+	@keyframes pulseEffect {
+		0%, 100% { transform: scale(1); opacity: 1; }
+		50% { transform: scale(1.05); opacity: 0.8; }
+	}
+
+	@keyframes ripple {
+		0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.8; }
+		100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+	}
+
+	@keyframes fireflyGlow {
+		0%, 100% { opacity: 0.3; }
+		50% { opacity: 1; }
+	}
+
+	@keyframes rainFall {
+		0% { transform: translateY(-10px); }
+		100% { transform: translateY(40px); }
+	}
+
+	@keyframes snowFall {
+		0% { transform: translateY(0) translateX(0); }
+		50% { transform: translateY(15px) translateX(3px); }
+		100% { transform: translateY(30px) translateX(0); }
+	}
+
+	@keyframes nebulaShift {
+		0%, 100% { opacity: 0.6; transform: scale(1); }
+		50% { opacity: 1; transform: scale(1.1); }
+	}
+
+	@keyframes circuitPulse {
+		0%, 100% { opacity: 0.3; }
+		50% { opacity: 0.8; }
+	}
+
+	@keyframes confettiFall {
+		0% { transform: translateY(0) rotate(0deg); }
+		100% { transform: translateY(25px) rotate(180deg); }
+	}
+
+	/* New effect keyframes */
+	@keyframes dotPulse {
+		0%, 100% { opacity: 0.5; transform: scale(1); }
+		50% { opacity: 1; transform: scale(1.2); }
+	}
+
+	@keyframes shapeFloat {
+		0%, 100% { transform: rotate(45deg) translateY(0); }
+		50% { transform: rotate(50deg) translateY(-5px); }
+	}
+
+	@keyframes smokeRise {
+		0% { transform: translateY(0); opacity: 0.5; }
+		100% { transform: translateY(-20px); opacity: 0; }
+	}
+
+	@keyframes scanlineMove {
+		0% { transform: translateY(0); }
+		100% { transform: translateY(4px); }
+	}
+
+	@keyframes scanlineSweep {
+		0% { top: 0; }
+		100% { top: 100%; }
+	}
+
+	@keyframes gridPulse {
+		0%, 100% { opacity: 0.5; }
+		50% { opacity: 1; }
+	}
+
+	@keyframes warpSpeed {
+		0% { transform: scale(0.5); opacity: 0; }
+		50% { transform: scale(1); opacity: 1; }
+		100% { transform: scale(2); opacity: 0; }
+	}
+
+	@keyframes hexPulse {
+		0%, 100% { opacity: 0.4; }
+		50% { opacity: 0.8; }
+	}
+
+	@keyframes binaryFall {
+		0% { transform: translateY(-10px); opacity: 0; }
+		10% { opacity: 1; }
+		90% { opacity: 1; }
+		100% { transform: translateY(40px); opacity: 0; }
 	}
 
 	.hidden-file-input {
@@ -2392,5 +3893,586 @@
 	@keyframes spin {
 		from { transform: rotate(0deg); }
 		to { transform: rotate(360deg); }
+	}
+
+	/* Sound Settings Styles */
+	.volume-value {
+		display: block;
+		text-align: center;
+		font-size: 12px;
+		color: #666;
+		margin-top: 8px;
+	}
+
+	.sound-pack-grid {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.sound-pack-option {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 12px 14px;
+		background: white;
+		border: 2px solid #e5e5e5;
+		border-radius: 10px;
+		cursor: pointer;
+		transition: all 0.15s ease;
+		text-align: left;
+	}
+
+	.sound-pack-option:hover {
+		border-color: #ccc;
+	}
+
+	.sound-pack-option.selected {
+		border-color: #333;
+		background: #f9f9f9;
+	}
+
+	.pack-icon {
+		width: 40px;
+		height: 40px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #f5f5f5;
+		border-radius: 8px;
+		flex-shrink: 0;
+	}
+
+	.sound-pack-option.selected .pack-icon {
+		background: #333;
+	}
+
+	.pack-icon svg {
+		width: 20px;
+		height: 20px;
+		color: #666;
+	}
+
+	.sound-pack-option.selected .pack-icon svg {
+		color: white;
+	}
+
+	.pack-info {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.pack-name {
+		font-size: 13px;
+		font-weight: 600;
+		color: #333;
+	}
+
+	.pack-desc {
+		font-size: 11px;
+		color: #999;
+	}
+
+	.pack-check {
+		width: 24px;
+		height: 24px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #28a745;
+		border-radius: 50%;
+		color: white;
+	}
+
+	.pack-check svg {
+		width: 14px;
+		height: 14px;
+	}
+
+	.sound-events-list {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 8px;
+		background: white;
+		border-radius: 8px;
+		padding: 12px;
+	}
+
+	.sound-event-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 8px 10px;
+		background: #f9f9f9;
+		border-radius: 6px;
+	}
+
+	.event-label {
+		font-size: 12px;
+		font-weight: 500;
+		color: #555;
+	}
+
+	.preview-sound-btn {
+		width: 28px;
+		height: 28px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #333;
+		border: none;
+		border-radius: 50%;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.preview-sound-btn:hover {
+		background: #555;
+		transform: scale(1.1);
+	}
+
+	.preview-sound-btn svg {
+		width: 12px;
+		height: 12px;
+		color: white;
+		margin-left: 2px;
+	}
+
+	.preview-sound-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+		transform: none;
+	}
+
+	.preview-sound-btn:disabled:hover {
+		background: #333;
+		transform: none;
+	}
+
+	.event-info {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.event-controls {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.event-toggle {
+		width: 36px;
+		height: 20px;
+		background: #ccc;
+		border: none;
+		border-radius: 10px;
+		position: relative;
+		cursor: pointer;
+		transition: background 0.2s ease;
+	}
+
+	.event-toggle.active {
+		background: #333;
+	}
+
+	.event-toggle .toggle-thumb {
+		position: absolute;
+		top: 2px;
+		left: 2px;
+		width: 16px;
+		height: 16px;
+		background: white;
+		border-radius: 50%;
+		transition: transform 0.2s ease;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+	}
+
+	.event-toggle.active .toggle-thumb {
+		transform: translateX(16px);
+	}
+
+	/* Animation Settings Styles */
+	.animation-effect-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+		gap: 8px;
+	}
+
+	.animation-option {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		padding: 12px 8px;
+		background: white;
+		border: 2px solid #e5e5e5;
+		border-radius: 10px;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.animation-option:hover {
+		border-color: #ccc;
+	}
+
+	.animation-option.selected {
+		border-color: #333;
+		background: #f9f9f9;
+	}
+
+	.animation-option.previewing {
+		border-color: #3B82F6;
+		background: #EFF6FF;
+		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+	}
+
+	.anim-preview {
+		width: 48px;
+		height: 48px;
+		border-radius: 8px;
+		background: #f0f0f0;
+		overflow: hidden;
+		position: relative;
+	}
+
+	.anim-none { background: #f0f0f0; }
+	.anim-particles { background: linear-gradient(135deg, #667eea20, #764ba220); }
+	.anim-gradient { background: linear-gradient(135deg, #667eea, #764ba2); }
+	.anim-aurora { background: linear-gradient(180deg, #1a1a2e, #16213e, #0f3460); }
+	.anim-starfield { background: #0f172a; }
+	.anim-matrix { background: linear-gradient(180deg, #000000, #003300); }
+	.anim-waves { background: linear-gradient(180deg, #1e3a5f, #3b82f6); }
+	.anim-bubbles { background: linear-gradient(135deg, #e0f7fa, #80deea); }
+	.anim-geometric { background: linear-gradient(135deg, #f8f9fa, #e9ecef); }
+
+	.anim-name {
+		font-size: 11px;
+		font-weight: 600;
+		color: #333;
+	}
+
+	.anim-desc {
+		font-size: 10px;
+		color: #999;
+	}
+
+	/* Effects preview UI */
+	.section-header-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		margin-bottom: 12px;
+	}
+
+	.unsaved-indicator {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 10px;
+		background: #FEF3C7;
+		border-radius: 12px;
+		font-size: 11px;
+		font-weight: 500;
+		color: #92400E;
+	}
+
+	.unsaved-dot {
+		width: 6px;
+		height: 6px;
+		background: #F59E0B;
+		border-radius: 50%;
+		animation: pulse-dot 1.5s ease-in-out infinite;
+	}
+
+	@keyframes pulse-dot {
+		0%, 100% { opacity: 1; transform: scale(1); }
+		50% { opacity: 0.6; transform: scale(0.9); }
+	}
+
+	.effect-action-bar {
+		display: flex;
+		justify-content: flex-end;
+		gap: 10px;
+		padding: 16px 0;
+		margin-top: 16px;
+		border-top: 1px solid #e5e5e5;
+		position: sticky;
+		bottom: 0;
+		background: linear-gradient(180deg, transparent 0%, #f9f9f9 20%);
+		padding-bottom: 8px;
+	}
+
+	.effect-cancel-btn {
+		padding: 10px 20px;
+		background: #f5f5f5;
+		border: 1px solid #e0e0e0;
+		border-radius: 8px;
+		font-size: 13px;
+		font-weight: 500;
+		color: #666;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.effect-cancel-btn:hover {
+		background: #eee;
+		color: #333;
+	}
+
+	.effect-apply-btn {
+		padding: 10px 24px;
+		background: #333;
+		border: none;
+		border-radius: 8px;
+		font-size: 13px;
+		font-weight: 600;
+		color: white;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.effect-apply-btn:hover {
+		background: #444;
+	}
+
+	/* Settings Row Styles (for dropdowns) */
+	.settings-row-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+		background: #fafafa;
+		border: 1px solid #e5e5e5;
+		border-radius: 8px;
+		overflow: hidden;
+	}
+
+	.settings-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 12px 16px;
+		border-bottom: 1px solid #e5e5e5;
+	}
+
+	.settings-row:last-child {
+		border-bottom: none;
+	}
+
+	.settings-row-label {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.settings-label-text {
+		font-size: 13px;
+		font-weight: 500;
+		color: #333;
+	}
+
+	.settings-label-desc {
+		font-size: 11px;
+		color: #888;
+	}
+
+	.settings-select {
+		padding: 8px 32px 8px 12px;
+		background: white;
+		border: 1px solid #e0e0e0;
+		border-radius: 6px;
+		font-size: 13px;
+		color: #333;
+		cursor: pointer;
+		min-width: 120px;
+		appearance: none;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 10px center;
+		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	}
+
+	.settings-select:hover {
+		border-color: #999;
+	}
+
+	.settings-select:focus {
+		outline: none;
+		border-color: #666;
+		box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08);
+	}
+
+	/* Boot Settings Styles */
+	.boot-anim-grid {
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		gap: 8px;
+	}
+
+	.boot-anim-option {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		padding: 12px 8px;
+		background: white;
+		border: 2px solid #e5e5e5;
+		border-radius: 10px;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.boot-anim-option:hover {
+		border-color: #ccc;
+	}
+
+	.boot-anim-option.selected {
+		border-color: #333;
+		background: #f9f9f9;
+	}
+
+	.boot-preview {
+		width: 48px;
+		height: 48px;
+		border-radius: 8px;
+		background: #1a1a1a;
+		overflow: hidden;
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.boot-preview-inner {
+		width: 16px;
+		height: 16px;
+		background: #28a745;
+		border-radius: 2px;
+	}
+
+	.boot-terminal .boot-preview-inner {
+		width: 24px;
+		height: 2px;
+		background: #28a745;
+		animation: blink 1s infinite;
+	}
+
+	.boot-spinner .boot-preview-inner {
+		width: 20px;
+		height: 20px;
+		border: 2px solid #333;
+		border-top-color: #28a745;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
+	.boot-progress .boot-preview-inner {
+		width: 32px;
+		height: 4px;
+		background: linear-gradient(90deg, #28a745 50%, #333 50%);
+		border-radius: 2px;
+	}
+
+	.boot-pulse .boot-preview-inner {
+		width: 16px;
+		height: 16px;
+		background: #28a745;
+		border-radius: 50%;
+		animation: pulse 1.5s ease-in-out infinite;
+	}
+
+	.boot-glitch .boot-preview-inner {
+		width: 24px;
+		height: 12px;
+		background: #28a745;
+		animation: glitch 0.5s infinite;
+	}
+
+	@keyframes blink {
+		0%, 50% { opacity: 1; }
+		51%, 100% { opacity: 0; }
+	}
+
+	@keyframes pulse {
+		0%, 100% { transform: scale(1); opacity: 0.8; }
+		50% { transform: scale(1.2); opacity: 1; }
+	}
+
+	@keyframes glitch {
+		0% { transform: translate(0); }
+		20% { transform: translate(-2px, 1px); }
+		40% { transform: translate(2px, -1px); }
+		60% { transform: translate(-1px, 2px); }
+		80% { transform: translate(1px, -2px); }
+		100% { transform: translate(0); }
+	}
+
+	.boot-name {
+		font-size: 11px;
+		font-weight: 600;
+		color: #333;
+	}
+
+	.boot-desc {
+		font-size: 10px;
+		color: #999;
+	}
+
+	.color-pickers {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		background: white;
+		border-radius: 8px;
+		padding: 16px;
+	}
+
+	.color-picker-row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.color-label {
+		font-size: 13px;
+		font-weight: 500;
+		color: #555;
+		width: 80px;
+		flex-shrink: 0;
+	}
+
+	.color-input-wrapper {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex: 1;
+	}
+
+	.color-input {
+		width: 40px;
+		height: 40px;
+		padding: 2px;
+		border: 1px solid #ddd;
+		border-radius: 8px;
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+
+	.color-text-input {
+		flex: 1;
+		padding: 10px 12px;
+		border: 1px solid #ddd;
+		border-radius: 6px;
+		font-size: 13px;
+		font-family: 'SF Mono', Monaco, 'Fira Code', monospace;
+		text-transform: uppercase;
+		outline: none;
+		transition: border-color 0.15s ease;
+	}
+
+	.color-text-input:focus {
+		border-color: #333;
 	}
 </style>

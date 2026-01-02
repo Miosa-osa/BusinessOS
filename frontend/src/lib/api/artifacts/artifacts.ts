@@ -1,5 +1,5 @@
 import { request } from '../base';
-import type { Artifact, ArtifactListItem, CreateArtifactData, UpdateArtifactData, ArtifactFilters } from './types';
+import type { Artifact, ArtifactListItem, CreateArtifactData, UpdateArtifactData, ArtifactFilters, ArtifactVersion } from './types';
 
 export async function getArtifacts(filters?: ArtifactFilters) {
   const params = new URLSearchParams();
@@ -28,6 +28,14 @@ export async function deleteArtifact(id: string) {
   return request(`/artifacts/${id}`, { method: 'DELETE' });
 }
 
-export async function linkArtifact(id: string, data: { project_id?: string; context_id?: string }) {
+export async function linkArtifact(id: string, data: { project_id?: string; context_id?: string; sync_to_kb?: boolean }) {
   return request<Artifact>(`/artifacts/${id}/link`, { method: 'PATCH', body: data });
+}
+
+export async function getArtifactVersions(id: string) {
+  return request<ArtifactVersion[]>(`/artifacts/${id}/versions`);
+}
+
+export async function restoreArtifactVersion(id: string, version: number) {
+  return request<Artifact>(`/artifacts/${id}/restore`, { method: 'POST', body: { version } });
 }
