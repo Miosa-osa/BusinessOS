@@ -103,7 +103,7 @@ const defaultState: Desktop3DState = {
 	viewMode: 'orb',
 	windows: [],
 	focusedWindowId: null,
-	sphereRadius: 65,  // Tighter radius for hexagonal ball appearance
+	sphereRadius: 95,  // Expanded radius for more spacing between windows
 	gridColumns: 4,
 	gridSpacing: 130,
 	autoRotate: true,
@@ -121,8 +121,7 @@ interface RingConfig {
 }
 
 function getRingLayout(total: number): RingConfig[] {
-	// For 12 modules: top=3, middle=6, bottom=3
-	// For other counts, distribute proportionally
+	// 3-RING SPHERE LAYOUT: top, middle, bottom
 	if (total <= 3) {
 		return [{ y: 0, count: total, startIndex: 0 }];
 	}
@@ -130,8 +129,8 @@ function getRingLayout(total: number): RingConfig[] {
 		const top = Math.floor(total / 2);
 		const bottom = total - top;
 		return [
-			{ y: 0.6, count: top, startIndex: 0 },
-			{ y: -0.6, count: bottom, startIndex: top }
+			{ y: 0.5, count: top, startIndex: 0 },
+			{ y: -0.5, count: bottom, startIndex: top }
 		];
 	}
 	if (total <= 9) {
@@ -140,9 +139,9 @@ function getRingLayout(total: number): RingConfig[] {
 		const top = Math.ceil(remaining / 2);
 		const bottom = remaining - top;
 		return [
-			{ y: 0.7, count: top, startIndex: 0 },
+			{ y: 0.6, count: top, startIndex: 0 },
 			{ y: 0, count: middle, startIndex: top },
-			{ y: -0.7, count: bottom, startIndex: top + middle }
+			{ y: -0.6, count: bottom, startIndex: top + middle }
 		];
 	}
 	// 10+ modules: 3 top, N middle, 3 bottom
@@ -150,9 +149,9 @@ function getRingLayout(total: number): RingConfig[] {
 	const bottom = 3;
 	const middle = total - top - bottom;
 	return [
-		{ y: 0.7, count: top, startIndex: 0 },
+		{ y: 0.6, count: top, startIndex: 0 },
 		{ y: 0, count: middle, startIndex: top },
-		{ y: -0.7, count: bottom, startIndex: top + middle }
+		{ y: -0.6, count: bottom, startIndex: top + middle }
 	];
 }
 
@@ -279,17 +278,17 @@ function createDesktop3DStore() {
 					if (!window.isOpen) return window;
 
 					const index = openWindows.findIndex((w) => w.id === window.id);
-					let targetPosition: [number, number, number];
+					let newPosition: [number, number, number];
 
 					if (state.viewMode === 'grid') {
-						targetPosition = calculateGridPosition(
+						newPosition = calculateGridPosition(
 							index,
 							openWindows.length,
 							state.gridColumns,
 							state.gridSpacing
 						);
 					} else {
-						targetPosition = calculateOrbPosition(
+						newPosition = calculateOrbPosition(
 							index,
 							openWindows.length,
 							state.sphereRadius,
@@ -297,7 +296,8 @@ function createDesktop3DStore() {
 						);
 					}
 
-					return { ...window, targetPosition };
+					// Update BOTH position and targetPosition so windows actually move
+					return { ...window, position: newPosition, targetPosition: newPosition };
 				});
 
 				return { ...state, windows };

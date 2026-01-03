@@ -2,7 +2,7 @@
 	import { T } from '@threlte/core';
 	import { HTML } from '@threlte/extras';
 	import { spring } from 'svelte/motion';
-	import type { Window3DState, ViewMode } from '$lib/stores/desktop3dStore';
+	import { desktop3dStore, type Window3DState, type ViewMode } from '$lib/stores/desktop3dStore';
 
 	interface Props {
 		window: Window3DState;
@@ -38,7 +38,13 @@
 		stiffness: 0.08,
 		damping: 0.7
 	});
-	let animatedRotation = spring<Vec3>([0, 0, 0], {
+	// Separate springs for Y rotation (facing) and X rotation (tilt)
+	// This allows proper rotation order: Y first, then X
+	let animatedYRotation = spring(0, {
+		stiffness: 0.08,
+		damping: 0.7
+	});
+	let animatedXRotation = spring(0, {
 		stiffness: 0.08,
 		damping: 0.7
 	});
@@ -47,30 +53,26 @@
 		damping: 0.6
 	});
 
-	// Handle resize button clicks - must stop ALL event propagation
+	// Handle resize button clicks - call store DIRECTLY to bypass prop chain issues in 3D HTML
 	function handleSizeIncrease(e: MouseEvent | Event) {
 		e.stopPropagation();
 		if ('stopImmediatePropagation' in e) e.stopImmediatePropagation();
 		e.preventDefault();
-		if (onResize) {
-			onResize(100, 75);
-		}
+		desktop3dStore.resizeFocusedWindow(100, 75);
 	}
 	function handleSizeDecrease(e: MouseEvent | Event) {
 		e.stopPropagation();
 		if ('stopImmediatePropagation' in e) e.stopImmediatePropagation();
 		e.preventDefault();
-		if (onResize) {
-			onResize(-100, -75);
-		}
+		desktop3dStore.resizeFocusedWindow(-100, -75);
 	}
 
 	// Current opacity (not animated)
 	// All windows always visible, just dimmed in focus mode
 	let currentOpacity = $derived.by(() => {
 		if (isFocused) return 1;
-		if (isNextWindow || isPrevWindow) return 0.9; // Side previews clearly visible
-		if (viewMode === 'focused') return 0.3; // Others dimmed but visible
+		if (isNextWindow || isPrevWindow) return 0.85; // Side previews clearly visible
+		if (viewMode === 'focused') return 0.15; // Others very faded, orb in background
 		return 1;
 	});
 
@@ -125,45 +127,60 @@
 	// Calculate target position based on state
 	function getTargetPosition(): Vec3 {
 		if (isFocused) {
-			// Focused window: bring forward but keep in 3D context
-			// Not too far forward since camera is backed up
-			return [0, 0, 80];
+			// Focused window: always come to front center, facing camera
+			return [0, 10, 200];
 		}
 		if (isPrevWindow) {
-			// Previous window: show on LEFT side
-			return [-100, 0, 50];
+			// Previous window: to the left
+			return [-200, 10, 150];
 		}
 		if (isNextWindow) {
-			// Next window: show on RIGHT side
-			return [100, 0, 50];
+			// Next window: to the right
+			return [200, 10, 150];
 		}
 		// Other windows: stay in orb positions
 		return window.position;
 	}
 
-	// Calculate target rotation - windows wrap around sphere like stickers
-	// Windows stay in LANDSCAPE orientation (flat like monitors)
-	function getTargetRotation(): Vec3 {
-		// When focused or adjacent, face camera for readability
+	// Calculate Y rotation - face outward from sphere center
+	// This is applied FIRST (outer group) so tilt works correctly
+	function getTargetYRotation(): number {
+		const [x, , z] = window.position;
+
+		// When focused or adjacent, face the camera (no Y rotation)
 		if (isFocused || isNextWindow || isPrevWindow) {
-			return [0, 0, 0];
+			return 0;
 		}
 
-		// Use ORIGINAL window position for rotation (not animated)
-		const [x, y, z] = window.position;
+		// Face outward from sphere center
+		return Math.atan2(x, z);
+	}
 
-		// Y rotation only - face outward from sphere center
-		// Keep windows FLAT (no X tilt) for proper click detection
-		const angleY = Math.atan2(x, z);
+	// Calculate X rotation (tilt) - applied AFTER Y rotation
+	// Top windows tilt UP (face upward), bottom windows tilt DOWN (face downward)
+	function getTargetXRotation(): number {
+		const [, y] = window.position;
 
-		return [0, angleY, 0];
+		// When focused or adjacent, no tilt
+		if (isFocused || isNextWindow || isPrevWindow) {
+			return 0;
+		}
+
+		// Normalize Y position based on sphere radius
+		const normalizedY = y / 95;
+
+		// Top windows (positive Y) = negative tilt = face DOWNWARD ~45 degrees
+		// Bottom windows (negative Y) = positive tilt = face UPWARD ~45 degrees
+		// Middle windows (y near 0) = minimal tilt
+		// 0.785 radians = 45 degrees
+		return -normalizedY * 0.785;
 	}
 
 	// Calculate target scale
 	function getTargetScale(): number {
-		if (isFocused) return 2.5; // Larger since camera is backed up
-		if (isNextWindow || isPrevWindow) return 1.0; // Side previews visible
-		if (viewMode === 'focused') return 0.7; // Background windows smaller
+		if (isFocused) return 2.2; // Large focused window
+		if (isNextWindow || isPrevWindow) return 0.9; // Side previews visible
+		if (viewMode === 'focused') return 0.5; // Background windows much smaller
 		return 1;
 	}
 
@@ -174,8 +191,13 @@
 	});
 
 	$effect(() => {
-		const targetRot = getTargetRotation();
-		animatedRotation.set(targetRot);
+		const targetY = getTargetYRotation();
+		animatedYRotation.set(targetY);
+	});
+
+	$effect(() => {
+		const targetX = getTargetXRotation();
+		animatedXRotation.set(targetX);
 	});
 
 	$effect(() => {
@@ -216,7 +238,10 @@
 	{/if}
 	<!-- NOTE: No click mesh for prev/next windows - they use HTML pointer events -->
 
-	<T.Group position={$animatedPosition} rotation={$animatedRotation}>
+	<!-- Nested groups for proper rotation order: Y first (face outward), then X (tilt) -->
+	<T.Group position={$animatedPosition}>
+	<T.Group rotation={[0, $animatedYRotation, 0]}>
+	<T.Group rotation={[$animatedXRotation, 0, 0]}>
 	<HTML
 		transform
 		scale={htmlScale * $animatedScale}
@@ -253,26 +278,26 @@
 							>
 								<button
 									type="button"
-									class="size-btn"
-									onclick={(e) => handleSizeDecrease(e)}
-									onpointerdown={(e) => e.stopPropagation()}
-									onmousedown={(e) => e.stopPropagation()}
-									title="Smaller (-)"
+									class="size-btn decrease-btn"
+									onclick={(e) => { e.stopPropagation(); e.preventDefault(); handleSizeDecrease(e); }}
+									onpointerdown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+									onmousedown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+									title="Click to make smaller"
 								>
-									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
 										<path d="M5 12h14" />
 									</svg>
 								</button>
-								<span class="size-label">{window.width} x {window.height}</span>
+								<span class="size-label">{window.width}x{window.height}</span>
 								<button
 									type="button"
-									class="size-btn"
-									onclick={(e) => handleSizeIncrease(e)}
-									onpointerdown={(e) => e.stopPropagation()}
-									onmousedown={(e) => e.stopPropagation()}
-									title="Larger (+)"
+									class="size-btn increase-btn"
+									onclick={(e) => { e.stopPropagation(); e.preventDefault(); handleSizeIncrease(e); }}
+									onpointerdown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+									onmousedown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+									title="Click to make larger"
 								>
-									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
 										<path d="M12 5v14M5 12h14" />
 									</svg>
 								</button>
@@ -304,6 +329,8 @@
 			{/if}
 		</div>
 	</HTML>
+	</T.Group>
+	</T.Group>
 </T.Group>
 {/if}
 
@@ -313,6 +340,8 @@
 		flex-direction: column;
 		align-items: center;
 		cursor: pointer;
+		backface-visibility: visible;
+		-webkit-backface-visibility: visible;
 	}
 
 	.window-wrapper.dimmed {
@@ -359,6 +388,8 @@
 		flex-direction: column;
 		transition: box-shadow 0.3s ease, transform 0.3s ease;
 		border: 1px solid rgba(0, 0, 0, 0.1);
+		backface-visibility: visible;
+		-webkit-backface-visibility: visible;
 	}
 
 	.window-label {
@@ -395,6 +426,9 @@
 		border-bottom: 1px solid #e0e0e0;
 		user-select: none;
 		flex-shrink: 0;
+		pointer-events: auto !important;
+		position: relative;
+		z-index: 10;
 	}
 
 	.module-title {
@@ -424,34 +458,47 @@
 	.size-controls {
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		padding: 2px 8px;
-		background: rgba(0, 0, 0, 0.05);
-		border-radius: 6px;
+		gap: 8px;
+		padding: 4px 12px;
+		background: rgba(74, 158, 255, 0.1);
+		border: 1px solid rgba(74, 158, 255, 0.2);
+		border-radius: 8px;
 		position: relative;
-		z-index: 1000;
+		z-index: 10000;
 		pointer-events: auto !important;
+		touch-action: manipulation;
+		user-select: none;
 	}
 
 	.size-btn {
-		width: 24px;
-		height: 24px;
-		padding: 0;
-		background: rgba(0, 0, 0, 0.1);
-		border: none;
-		border-radius: 4px;
+		width: 28px;
+		height: 28px;
+		padding: 4px;
+		background: rgba(74, 158, 255, 0.2);
+		border: 1px solid rgba(74, 158, 255, 0.4);
+		border-radius: 6px;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: background 0.2s;
+		transition: all 0.2s;
 		pointer-events: auto !important;
 		position: relative;
-		z-index: 1001;
+		z-index: 10000;
+		touch-action: manipulation;
+		user-select: none;
+		-webkit-user-select: none;
 	}
 
 	.size-btn:hover {
-		background: rgba(0, 0, 0, 0.15);
+		background: rgba(74, 158, 255, 0.4);
+		border-color: rgba(74, 158, 255, 0.6);
+		transform: scale(1.1);
+	}
+
+	.size-btn:active {
+		background: rgba(74, 158, 255, 0.6);
+		transform: scale(0.95);
 	}
 
 	.size-btn svg {
