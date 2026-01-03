@@ -1362,12 +1362,13 @@
 <style>
 	.help-page {
 		display: flex;
-		min-height: 100vh;
+		height: 100vh;
 		background: #F8FAFC;
+		overflow: hidden;
 	}
 
 	.help-page.embedded {
-		min-height: 100%;
+		height: 100%;
 	}
 
 	/* ===== SIDEBAR ===== */
@@ -2496,5 +2497,674 @@
 		.stage-arrow {
 			transform: rotate(90deg);
 		}
+	}
+
+	/* ===== DARK MODE ===== */
+	:global(.dark) .help-page {
+		background: #0f0f0f;
+	}
+
+	:global(.dark) .help-sidebar {
+		background: #1a1a1a;
+		border-color: rgba(255, 255, 255, 0.1);
+	}
+
+	:global(.dark) .sidebar-search {
+		background: #2a2a2a;
+		border-color: rgba(255, 255, 255, 0.1);
+		color: #fff;
+	}
+
+	:global(.dark) .sidebar-search::placeholder {
+		color: #888;
+	}
+
+	:global(.dark) .nav-section-title {
+		color: #888;
+	}
+
+	:global(.dark) .nav-item {
+		color: #aaa;
+	}
+
+	:global(.dark) .nav-item:hover {
+		background: rgba(255, 255, 255, 0.05);
+		color: #fff;
+	}
+
+	:global(.dark) .nav-item.active {
+		background: rgba(99, 102, 241, 0.15);
+		color: #818cf8;
+	}
+
+	:global(.dark) .sub-item {
+		color: #888;
+	}
+
+	:global(.dark) .sub-item:hover,
+	:global(.dark) .sub-item.active {
+		color: #818cf8;
+	}
+
+	:global(.dark) .help-content {
+		background: #0f0f0f;
+	}
+
+	:global(.dark) .section {
+		background: #1a1a1a;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .section-title {
+		color: #fff;
+	}
+
+	:global(.dark) .section-desc {
+		color: #888;
+	}
+
+	:global(.dark) .feature-card {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .feature-card:hover {
+		border-color: rgba(99, 102, 241, 0.4);
+	}
+
+	:global(.dark) .feature-card h3 {
+		color: #fff;
+	}
+
+	:global(.dark) .feature-card p {
+		color: #aaa;
+	}
+
+	:global(.dark) .info-card {
+		background: rgba(99, 102, 241, 0.1);
+		border-color: rgba(99, 102, 241, 0.2);
+	}
+
+	:global(.dark) .info-card h4 {
+		color: #818cf8;
+	}
+
+	:global(.dark) .info-card p {
+		color: #aaa;
+	}
+
+	:global(.dark) .tip-card {
+		background: rgba(16, 185, 129, 0.1);
+		border-color: rgba(16, 185, 129, 0.2);
+	}
+
+	:global(.dark) .tip-card h4 {
+		color: #34d399;
+	}
+
+	:global(.dark) .tip-card p,
+	:global(.dark) .tip-card li {
+		color: #aaa;
+	}
+
+	:global(.dark) .mode-card {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .mode-card h3 {
+		color: #fff;
+	}
+
+	:global(.dark) .mode-card p {
+		color: #aaa;
+	}
+
+	:global(.dark) .mode-card ul li {
+		color: #888;
+	}
+
+	:global(.dark) .concept-card {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .concept-card h3 {
+		color: #fff;
+	}
+
+	:global(.dark) .concept-card p {
+		color: #aaa;
+	}
+
+	:global(.dark) .shortcut-category h3 {
+		color: #fff;
+	}
+
+	:global(.dark) .shortcut {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .shortcut span {
+		color: #aaa;
+	}
+
+	:global(.dark) .shortcut kbd {
+		background: #333;
+		border-color: rgba(255, 255, 255, 0.15);
+		color: #fff;
+	}
+
+	:global(.dark) .module-showcase-card {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .module-showcase-card h3 {
+		color: #fff;
+	}
+
+	:global(.dark) .module-showcase-card > p {
+		color: #888;
+	}
+
+	:global(.dark) .showcase-features li {
+		color: #aaa;
+	}
+
+	:global(.dark) .mini-module {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .mini-module h4 {
+		color: #fff;
+	}
+
+	:global(.dark) .mini-module p {
+		color: #888;
+	}
+
+	:global(.dark) .node-type {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .node-type h4 {
+		color: #fff;
+	}
+
+	:global(.dark) .node-type p {
+		color: #888;
+	}
+
+	:global(.dark) .pipeline-stage {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .stage-icon {
+		background: rgba(99, 102, 241, 0.15);
+	}
+
+	:global(.dark) .pipeline-stage h4 {
+		color: #fff;
+	}
+
+	:global(.dark) .pipeline-stage p {
+		color: #888;
+	}
+
+	:global(.dark) .stage-arrow {
+		color: #444;
+	}
+
+	:global(.dark) .command-card {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .command-card h4 {
+		color: #fff;
+	}
+
+	:global(.dark) .command-card p {
+		color: #888;
+	}
+
+	:global(.dark) .setting-card {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .setting-card h3 {
+		color: #fff;
+	}
+
+	:global(.dark) .setting-card p {
+		color: #888;
+	}
+
+	:global(.dark) .setting-option {
+		background: #1a1a1a;
+	}
+
+	:global(.dark) .setting-option span {
+		color: #aaa;
+	}
+
+	:global(.dark) .feature-item {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .item-icon {
+		background: rgba(99, 102, 241, 0.15);
+	}
+
+	:global(.dark) .item-content h4 {
+		color: #fff;
+	}
+
+	:global(.dark) .item-content p {
+		color: #888;
+	}
+
+	:global(.dark) .help-footer {
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .footer-content h3 {
+		color: #fff;
+	}
+
+	:global(.dark) .footer-content > p {
+		color: #888;
+	}
+
+	:global(.dark) .footer-btn {
+		background: #2a2a2a;
+		color: #aaa;
+	}
+
+	:global(.dark) .footer-btn:hover {
+		background: #333;
+		color: #fff;
+	}
+
+	:global(.dark) .footer-btn.primary {
+		background: #6366F1;
+		color: white;
+	}
+
+	:global(.dark) .footer-btn.primary:hover {
+		background: #4F46E5;
+	}
+
+	/* ===== DARK MODE - Additional Components ===== */
+
+	/* Sidebar Header & Footer */
+	:global(.dark) .sidebar-header {
+		border-color: rgba(255, 255, 255, 0.1);
+	}
+
+	:global(.dark) .header-text h2 {
+		color: #fff;
+	}
+
+	:global(.dark) .header-text .version {
+		color: #666;
+	}
+
+	:global(.dark) .sidebar-search input {
+		background: #2a2a2a;
+		border-color: rgba(255, 255, 255, 0.1);
+		color: #fff;
+	}
+
+	:global(.dark) .sidebar-search input::placeholder {
+		color: #666;
+	}
+
+	:global(.dark) .sidebar-search input:focus {
+		border-color: #6366F1;
+		background: #333;
+	}
+
+	:global(.dark) .sidebar-search :global(.search-icon) {
+		color: #666;
+	}
+
+	:global(.dark) .sidebar-footer {
+		border-color: rgba(255, 255, 255, 0.1);
+		background: #1a1a1a;
+	}
+
+	:global(.dark) .footer-link {
+		color: #888;
+	}
+
+	:global(.dark) .footer-link:hover {
+		color: #6366F1;
+	}
+
+	/* Navigation */
+	:global(.dark) .nav-chevron {
+		color: #666;
+	}
+
+	:global(.dark) .nav-subitem {
+		color: #777;
+	}
+
+	:global(.dark) .nav-subitem:hover {
+		color: #aaa;
+	}
+
+	:global(.dark) .nav-subitem.active {
+		color: #818cf8;
+	}
+
+	/* Section Headers */
+	:global(.dark) .section-header h1 {
+		color: #fff;
+	}
+
+	:global(.dark) .section-subtitle {
+		color: #888;
+	}
+
+	/* Card Icons */
+	:global(.dark) .card-icon {
+		background: rgba(99, 102, 241, 0.15);
+	}
+
+	:global(.dark) .card-icon.blue {
+		background: rgba(59, 130, 246, 0.2);
+		color: #60a5fa;
+	}
+
+	:global(.dark) .card-icon.purple {
+		background: rgba(139, 92, 246, 0.2);
+		color: #a78bfa;
+	}
+
+	:global(.dark) .card-icon.green {
+		background: rgba(16, 185, 129, 0.2);
+		color: #34d399;
+	}
+
+	:global(.dark) .card-icon.orange {
+		background: rgba(245, 158, 11, 0.2);
+		color: #fbbf24;
+	}
+
+	/* Subsections */
+	:global(.dark) .subsection h2 {
+		color: #fff;
+	}
+
+	:global(.dark) .subsection-intro {
+		color: #aaa;
+	}
+
+	/* Intro Card */
+	:global(.dark) .intro-card {
+		background: #1a1a1a;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .intro-card p {
+		color: #bbb;
+	}
+
+	/* Steps List */
+	:global(.dark) .step-item {
+		background: #1a1a1a;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .step-number {
+		background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+		color: white;
+	}
+
+	:global(.dark) .step-content h4 {
+		color: #fff;
+	}
+
+	:global(.dark) .step-content p {
+		color: #aaa;
+	}
+
+	:global(.dark) .step-content kbd {
+		background: #333;
+		border-color: rgba(255, 255, 255, 0.15);
+		color: #fff;
+	}
+
+	/* Concept Cards */
+	:global(.dark) .concept-card h4 {
+		color: #fff;
+	}
+
+	/* Mode Cards */
+	:global(.dark) .mode-header {
+		color: #fff;
+	}
+
+	:global(.dark) .mode-header h3 {
+		color: #fff;
+	}
+
+	:global(.dark) .mode-options {
+		background: rgba(255, 255, 255, 0.03);
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .mode-options h5 {
+		color: #888;
+	}
+
+	:global(.dark) .mode-options li {
+		color: #aaa;
+	}
+
+	:global(.dark) .mode-options li strong {
+		color: #ddd;
+	}
+
+	:global(.dark) .mode-example {
+		background: rgba(255, 255, 255, 0.05);
+		border-color: rgba(255, 255, 255, 0.1);
+		color: #aaa;
+	}
+
+	:global(.dark) .example-label {
+		color: #888;
+	}
+
+	/* Spotlight Preview */
+	:global(.dark) .spotlight-preview {
+		background: #1a1a1a;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .spotlight-mock {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.1);
+	}
+
+	:global(.dark) .mock-search {
+		background: #333;
+		border-color: rgba(255, 255, 255, 0.1);
+		color: #888;
+	}
+
+	/* Modules Showcase */
+	:global(.dark) .modules-showcase {
+		background: transparent;
+	}
+
+	:global(.dark) .module-header {
+		background: rgba(99, 102, 241, 0.1);
+	}
+
+	:global(.dark) .module-header h3 {
+		color: #fff;
+	}
+
+	:global(.dark) .module-icon {
+		background: rgba(99, 102, 241, 0.2);
+	}
+
+	:global(.dark) .module-tagline {
+		color: #aaa;
+	}
+
+	:global(.dark) .module-detail {
+		background: #1a1a1a;
+	}
+
+	:global(.dark) .module-detail > p {
+		color: #aaa;
+	}
+
+	:global(.dark) .module-features span {
+		background: rgba(99, 102, 241, 0.15);
+		color: #818cf8;
+	}
+
+	:global(.dark) .more-modules h3 {
+		color: #fff;
+	}
+
+	/* Mini Modules */
+	:global(.dark) .mini-module h5 {
+		color: #fff;
+	}
+
+	:global(.dark) .mini-icon {
+		background: rgba(99, 102, 241, 0.15);
+		color: #818cf8;
+	}
+
+	/* Node Types */
+	:global(.dark) .node-icon {
+		background: rgba(99, 102, 241, 0.15);
+	}
+
+	:global(.dark) .node-icon.business {
+		background: rgba(59, 130, 246, 0.2);
+	}
+
+	:global(.dark) .node-icon.project {
+		background: rgba(139, 92, 246, 0.2);
+	}
+
+	:global(.dark) .node-icon.operational {
+		background: rgba(16, 185, 129, 0.2);
+	}
+
+	:global(.dark) .node-icon.learning {
+		background: rgba(245, 158, 11, 0.2);
+	}
+
+	/* Pipeline Stages */
+	:global(.dark) .stage {
+		background: #1a1a1a;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .stage h5 {
+		color: #fff;
+	}
+
+	:global(.dark) .stage p {
+		color: #888;
+	}
+
+	:global(.dark) .stage-dot {
+		background: #6366F1;
+	}
+
+	/* Commands */
+	:global(.dark) .commands-section h3 {
+		color: #fff;
+	}
+
+	:global(.dark) .commands-section > p {
+		color: #888;
+	}
+
+	:global(.dark) .command {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+		color: #aaa;
+	}
+
+	:global(.dark) .command code {
+		background: rgba(99, 102, 241, 0.2);
+		color: #818cf8;
+	}
+
+	/* Customization Cards */
+	:global(.dark) .customization-card {
+		background: #242424;
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .customization-card h4 {
+		color: #fff;
+	}
+
+	:global(.dark) .customization-card > p {
+		color: #aaa;
+	}
+
+	:global(.dark) .customization-card li {
+		color: #888;
+	}
+
+	/* Keyboard Hints */
+	:global(.dark) .keyboard-hint {
+		background: #333;
+		border-color: rgba(255, 255, 255, 0.15);
+		color: #fff;
+	}
+
+	/* Shortcut Rows */
+	:global(.dark) .shortcut-row {
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .shortcut-row .keys kbd {
+		background: #333;
+		border-color: rgba(255, 255, 255, 0.15);
+		color: #fff;
+	}
+
+	:global(.dark) .shortcut-row .desc {
+		color: #aaa;
+	}
+
+	/* Privacy Note */
+	:global(.dark) .privacy-note {
+		background: rgba(16, 185, 129, 0.1);
+		border-color: rgba(16, 185, 129, 0.2);
+	}
+
+	:global(.dark) .privacy-note p {
+		color: #aaa;
+	}
+
+	/* Setting Card Heading Fix */
+	:global(.dark) .setting-card h4 {
+		color: #fff;
+	}
+
+	:global(.dark) .setting-card > :global(svg) {
+		color: #818cf8;
 	}
 </style>

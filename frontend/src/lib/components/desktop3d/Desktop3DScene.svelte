@@ -39,6 +39,7 @@
 	let hoveredWindowId: string | null = $state(null);
 
 	// Handle zoom out while focused - exit focus mode
+	// Only trigger on significant zoom out, not rotation
 	function handleControlsChange(e: any) {
 		if (!focusedWindowId || !orbitControlsRef) return;
 
@@ -46,8 +47,8 @@
 		const controls = orbitControlsRef;
 		if (controls?.object) {
 			const distance = controls.object.position.distanceTo(controls.target);
-			// If zoomed out far enough while focused, unfocus
-			if (distance > 400) {
+			// Only unfocus if zoomed WAY out (past the orb view distance)
+			if (distance > 600) {
 				onZoomOut?.();
 			}
 		}
@@ -56,10 +57,25 @@
 
 	// Initial camera position - OrbitControls will manage from here
 	// No spring - let user freely rotate/zoom
-	const initialCameraPosition: [number, number, number] = [0, 30, 220];
+	// Backed up to accommodate larger sphere radius (95)
+	const initialCameraPosition: [number, number, number] = [0, 40, 300];
 
 	// Effective auto-rotate (disabled when focused)
 	let effectiveAutoRotate = $derived(autoRotate && !focusedWindowId);
+
+	// Reset camera to front view when focusing a window
+	$effect(() => {
+		if (focusedWindowId && orbitControlsRef) {
+			// Smoothly move camera to face the focused window (which is at z=200)
+			const controls = orbitControlsRef;
+			if (controls?.object) {
+				// Reset camera to front position
+				controls.object.position.set(0, 40, 350);
+				controls.target.set(0, 0, 0);
+				controls.update();
+			}
+		}
+	});
 
 	// Calculate indices for prev/next windows
 	let focusedIndex = $derived(windows.findIndex(w => w.id === focusedWindowId));
@@ -85,8 +101,8 @@
 		dampingFactor={0.08}
 		autoRotate={effectiveAutoRotate}
 		autoRotateSpeed={0.3}
-		minDistance={100}
-		maxDistance={600}
+		minDistance={150}
+		maxDistance={800}
 		minPolarAngle={0.1}
 		maxPolarAngle={Math.PI * 0.9}
 		enablePan={false}

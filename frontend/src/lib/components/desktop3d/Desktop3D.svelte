@@ -140,11 +140,36 @@
 		onSelect={handleDockSelect}
 	/>
 
-	<!-- Focused Window Title -->
+	<!-- Focused Window Title + Size Controls -->
 	{#if $focusedWindow}
 		<div class="focused-title">
 			<span class="focused-dot" style="background-color: {$focusedWindow.color}"></span>
 			{$focusedWindow.title}
+
+			<!-- SIZE CONTROLS - Positioned in overlay for guaranteed clicks -->
+			<div class="size-controls-overlay">
+				<button
+					type="button"
+					class="size-btn-overlay"
+					onclick={() => desktop3dStore.resizeFocusedWindow(-100, -75)}
+					title="Smaller"
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+						<path d="M5 12h14" />
+					</svg>
+				</button>
+				<span class="size-label-overlay">{$focusedWindow.width}x{$focusedWindow.height}</span>
+				<button
+					type="button"
+					class="size-btn-overlay"
+					onclick={() => desktop3dStore.resizeFocusedWindow(100, 75)}
+					title="Larger"
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+						<path d="M12 5v14M5 12h14" />
+					</svg>
+				</button>
+			</div>
 		</div>
 
 		<!-- Navigation Arrows -->
@@ -165,7 +190,7 @@
 	.desktop-3d {
 		position: fixed;
 		inset: 0;
-		/* Knowledge Graph style: white top, gray bottom - floating room effect */
+		/* Light mode: white top, gray bottom - floating room effect */
 		background: linear-gradient(180deg,
 			#ffffff 0%,
 			#fafafa 30%,
@@ -173,6 +198,16 @@
 			#c8c8c8 100%
 		);
 		overflow: hidden;
+	}
+
+	/* Dark mode background - darker gradient */
+	:global(.dark) .desktop-3d {
+		background: linear-gradient(180deg,
+			#1a1a1a 0%,
+			#141414 30%,
+			#0d0d0d 70%,
+			#080808 100%
+		);
 	}
 
 	.canvas-container {
@@ -192,16 +227,16 @@
 		align-items: center;
 		gap: 10px;
 		padding: 10px 20px;
-		background: rgba(255, 255, 255, 0.85);
+		background: rgba(255, 255, 255, 0.95);
 		backdrop-filter: blur(12px);
 		border: 1px solid rgba(0, 0, 0, 0.08);
-		border-radius: 12px;
+		border-radius: 16px;
 		color: #333333;
 		font-size: 16px;
 		font-weight: 500;
-		pointer-events: none;
-		z-index: 100;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+		pointer-events: auto;
+		z-index: 200;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 	}
 
 	.focused-dot {
@@ -250,4 +285,100 @@
 		right: 30px;
 	}
 
+	/* Size Controls in Overlay - GUARANTEED to work */
+	.size-controls-overlay {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin-left: 20px;
+		padding: 6px 12px;
+		background: rgba(74, 158, 255, 0.15);
+		border: 1px solid rgba(74, 158, 255, 0.3);
+		border-radius: 10px;
+	}
+
+	.size-btn-overlay {
+		width: 32px;
+		height: 32px;
+		padding: 0;
+		background: rgba(74, 158, 255, 0.2);
+		border: 2px solid rgba(74, 158, 255, 0.5);
+		border-radius: 8px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.2s ease;
+		color: #1a1a1a;
+	}
+
+	.size-btn-overlay:hover {
+		background: rgba(74, 158, 255, 0.4);
+		border-color: rgba(74, 158, 255, 0.8);
+		transform: scale(1.1);
+	}
+
+	.size-btn-overlay:active {
+		background: rgba(74, 158, 255, 0.6);
+		transform: scale(0.95);
+	}
+
+	.size-btn-overlay svg {
+		width: 18px;
+		height: 18px;
+		stroke: #333;
+	}
+
+	.size-label-overlay {
+		font-size: 13px;
+		font-weight: 600;
+		color: #333;
+		min-width: 80px;
+		text-align: center;
+	}
+
+	/* ===== DARK MODE STYLES ===== */
+	:global(.dark) .focused-title {
+		background: rgba(44, 44, 46, 0.95);
+		border-color: rgba(255, 255, 255, 0.12);
+		color: #ffffff;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+	}
+
+	:global(.dark) .nav-arrow {
+		background: rgba(44, 44, 46, 0.9);
+		border-color: rgba(255, 255, 255, 0.12);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+	}
+
+	:global(.dark) .nav-arrow:hover {
+		background: rgba(58, 58, 60, 0.95);
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+	}
+
+	:global(.dark) .nav-arrow svg {
+		stroke: #ffffff;
+	}
+
+	:global(.dark) .size-controls-overlay {
+		background: rgba(74, 158, 255, 0.2);
+		border-color: rgba(74, 158, 255, 0.4);
+	}
+
+	:global(.dark) .size-btn-overlay {
+		background: rgba(74, 158, 255, 0.3);
+		border-color: rgba(74, 158, 255, 0.6);
+	}
+
+	:global(.dark) .size-btn-overlay:hover {
+		background: rgba(74, 158, 255, 0.5);
+	}
+
+	:global(.dark) .size-btn-overlay svg {
+		stroke: #ffffff;
+	}
+
+	:global(.dark) .size-label-overlay {
+		color: #ffffff;
+	}
 </style>

@@ -199,4 +199,68 @@
 		font-size: 11px;
 		color: #333333;
 	}
+
+	/* ===== DARK MODE STYLES ===== */
+	:global(.dark) .control-btn {
+		background: rgba(44, 44, 46, 0.85);
+		border-color: rgba(255, 255, 255, 0.12);
+		color: #ffffff;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	}
+
+	:global(.dark) .control-btn:hover {
+		background: rgba(58, 58, 60, 0.95);
+		border-color: rgba(255, 255, 255, 0.18);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+	}
+
+	:global(.dark) .control-btn.active {
+		background: rgba(74, 158, 255, 0.25);
+		border-color: rgba(74, 158, 255, 0.5);
+		color: #6eb5ff;
+	}
+
+	:global(.dark) .control-btn svg {
+		stroke: #ffffff;
+	}
+
+	:global(.dark) .control-btn.active svg {
+		stroke: #6eb5ff;
+	}
+
+	:global(.dark) .exit-btn {
+		background: rgba(80, 30, 30, 0.85);
+		border-color: rgba(255, 100, 100, 0.3);
+		color: #ff8888;
+	}
+
+	:global(.dark) .exit-btn:hover {
+		background: rgba(100, 40, 40, 0.95);
+		border-color: rgba(255, 100, 100, 0.5);
+	}
+
+	:global(.dark) .exit-btn svg {
+		stroke: #ff8888;
+	}
+
+	:global(.dark) .instructions {
+		background: rgba(44, 44, 46, 0.85);
+		border-color: rgba(255, 255, 255, 0.12);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	}
+
+	:global(.dark) .focused-instructions {
+		background: rgba(74, 158, 255, 0.15);
+		border-color: rgba(74, 158, 255, 0.3);
+	}
+
+	:global(.dark) .instruction {
+		color: #aaaaaa;
+	}
+
+	:global(.dark) .instruction kbd {
+		background: rgba(255, 255, 255, 0.1);
+		border-color: rgba(255, 255, 255, 0.15);
+		color: #ffffff;
+	}
 </style>

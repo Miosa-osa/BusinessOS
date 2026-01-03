@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { MODULE_INFO, ALL_MODULES, CORE_MODULES, type ModuleId, type Window3DState } from '$lib/stores/desktop3dStore';
+	import { desktopSettings } from '$lib/stores/desktopStore';
 
 	interface Props {
 		windows: Window3DState[];
 		focusedWindowId: string | null;
 		onSelect?: (module: ModuleId) => void;
-		onUnfocus?: () => void; // Called to exit focus mode
+		onUnfocus?: () => void;
 	}
 
 	let {
@@ -15,7 +16,13 @@
 		onUnfocus
 	}: Props = $props();
 
-	// Icon SVG paths for each module (from main Dock)
+	// Get icon style from desktop settings
+	const iconStyle = $derived($desktopSettings.iconStyle);
+
+	// Hover state for tooltips
+	let hoveredModule: ModuleId | null = $state(null);
+
+	// Icon SVG paths for each module
 	const moduleIcons: Record<string, { path: string; bgColor: string }> = {
 		dashboard: {
 			path: 'M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zm0 6a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1h-4a1 1 0 01-1-1v-5zm-10 1a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3z',
@@ -54,7 +61,7 @@
 			bgColor: '#E53935'
 		},
 		daily: {
-			path: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+			path: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
 			bgColor: '#039BE5'
 		},
 		settings: {
@@ -81,20 +88,13 @@
 
 	// Get all available modules for dock
 	let dockModules = $derived.by(() => {
-		// Core modules first, then any open modules
-		const openModules = new Set(windows.map(w => w.module));
 		const modules: ModuleId[] = [];
-
-		// Add core modules
 		CORE_MODULES.forEach(m => modules.push(m));
-
-		// Add other open modules
 		windows.forEach(w => {
 			if (!CORE_MODULES.includes(w.module as any)) {
 				modules.push(w.module);
 			}
 		});
-
 		return modules;
 	});
 
@@ -122,34 +122,26 @@
 			{@const icon = getIcon(module)}
 			{@const focused = isModuleFocused(module)}
 			<button
-				class="dock-item"
+				class="dock-item style-{iconStyle}"
 				class:focused={focused}
-				class:core={CORE_MODULES.includes(module as any)}
 				onclick={() => handleClick(module)}
-				title={info.title}
+				onmouseenter={() => hoveredModule = module}
+				onmouseleave={() => hoveredModule = null}
 			>
 				<div class="dock-icon" style="background-color: {icon.bgColor}">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<svg class="dock-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d={icon.path} />
 					</svg>
 				</div>
 				{#if focused}
 					<div class="dock-indicator"></div>
 				{/if}
+				<!-- Tooltip -->
+				{#if hoveredModule === module}
+					<div class="dock-tooltip">{info.title}</div>
+				{/if}
 			</button>
 		{/each}
-
-		<!-- Separator -->
-		<div class="dock-separator"></div>
-
-		<!-- Add Module Button -->
-		<button class="dock-item add-btn" title="Open Module">
-			<div class="dock-icon add-icon">
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<path d="M12 4v16m8-8H4" />
-				</svg>
-			</div>
-		</button>
 	</div>
 </div>
 
@@ -205,7 +197,7 @@
 		transition: box-shadow 0.2s;
 	}
 
-	.dock-icon svg {
+	.dock-icon-svg {
 		width: 24px;
 		height: 24px;
 		stroke: white;
@@ -228,28 +220,155 @@
 		border-radius: 50%;
 	}
 
-	.dock-separator {
-		width: 1px;
-		height: 40px;
-		background: rgba(0, 0, 0, 0.1);
-		margin: 0 8px;
+	/* Tooltip */
+	.dock-tooltip {
+		position: absolute;
+		bottom: 100%;
+		left: 50%;
+		transform: translateX(-50%);
+		margin-bottom: 12px;
+		padding: 8px 14px;
+		background: rgba(30, 30, 30, 0.95);
+		color: white;
+		font-size: 13px;
+		font-weight: 500;
+		border-radius: 8px;
+		white-space: nowrap;
+		pointer-events: none;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+		z-index: 1000;
+		animation: tooltipFadeIn 0.15s ease;
 	}
 
-	.add-icon {
-		background: rgba(0, 0, 0, 0.05);
-		border: 2px dashed rgba(0, 0, 0, 0.2);
+	.dock-tooltip::after {
+		content: '';
+		position: absolute;
+		top: 100%;
+		left: 50%;
+		transform: translateX(-50%);
+		border: 6px solid transparent;
+		border-top-color: rgba(30, 30, 30, 0.95);
 	}
 
-	.add-icon svg {
-		stroke: rgba(0, 0, 0, 0.4);
+	@keyframes tooltipFadeIn {
+		from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+		to { opacity: 1; transform: translateX(-50%) translateY(0); }
 	}
 
-	.add-btn:hover .add-icon {
-		background: rgba(0, 0, 0, 0.08);
-		border-color: rgba(0, 0, 0, 0.3);
+	/* ===== ICON STYLE VARIANTS ===== */
+
+	/* Minimal */
+	.dock-item.style-minimal .dock-icon {
+		box-shadow: none;
+		background: transparent !important;
 	}
 
-	.add-btn:hover .add-icon svg {
-		stroke: rgba(0, 0, 0, 0.6);
+	.dock-item.style-minimal:hover .dock-icon {
+		background: rgba(0, 0, 0, 0.08) !important;
+	}
+
+	.dock-item.style-minimal .dock-icon-svg {
+		stroke: #333;
+	}
+
+	/* Rounded */
+	.dock-item.style-rounded .dock-icon {
+		border-radius: 50%;
+	}
+
+	/* Square */
+	.dock-item.style-square .dock-icon {
+		border-radius: 4px;
+	}
+
+	/* macOS */
+	.dock-item.style-macos .dock-icon {
+		border-radius: 22%;
+		width: 52px;
+		height: 52px;
+	}
+
+	.dock-item.style-macos .dock-icon-svg {
+		width: 28px;
+		height: 28px;
+	}
+
+	/* Outlined */
+	.dock-item.style-outlined .dock-icon {
+		box-shadow: none;
+		background: transparent !important;
+		border: 2px solid currentColor;
+	}
+
+	.dock-item.style-outlined .dock-icon-svg {
+		stroke: #333;
+	}
+
+	/* Glassmorphism */
+	.dock-item.style-glassmorphism .dock-icon {
+		background: rgba(255, 255, 255, 0.2) !important;
+		backdrop-filter: blur(8px);
+		border: 1px solid rgba(255, 255, 255, 0.3);
+	}
+
+	/* Paper */
+	.dock-item.style-paper .dock-icon {
+		background: white !important;
+		border: 1px solid rgba(0, 0, 0, 0.1);
+		box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
+	}
+
+	.dock-item.style-paper .dock-icon-svg {
+		stroke: #333;
+	}
+
+	/* ===== DARK MODE STYLES ===== */
+	:global(.dark) .dock {
+		background: rgba(44, 44, 46, 0.85);
+		border-color: rgba(255, 255, 255, 0.12);
+		box-shadow:
+			0 0 0 0.5px rgba(255, 255, 255, 0.08),
+			0 8px 32px rgba(0, 0, 0, 0.4);
+	}
+
+	:global(.dark) .dock-indicator {
+		background: #fff;
+	}
+
+	:global(.dark) .dock-tooltip {
+		background: rgba(44, 44, 46, 0.98);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+	}
+
+	:global(.dark) .dock-tooltip::after {
+		border-top-color: rgba(44, 44, 46, 0.98);
+	}
+
+	/* Dark mode style variants */
+	:global(.dark) .dock-item.style-minimal .dock-icon-svg {
+		stroke: #fff;
+	}
+
+	:global(.dark) .dock-item.style-minimal:hover .dock-icon {
+		background: rgba(255, 255, 255, 0.1) !important;
+	}
+
+	:global(.dark) .dock-item.style-outlined .dock-icon-svg {
+		stroke: #fff;
+	}
+
+	:global(.dark) .dock-item.style-glassmorphism .dock-icon {
+		background: rgba(255, 255, 255, 0.1) !important;
+		border-color: rgba(255, 255, 255, 0.2);
+	}
+
+	:global(.dark) .dock-item.style-paper .dock-icon {
+		background: #2c2c2e !important;
+		border-color: rgba(255, 255, 255, 0.1);
+		box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+	}
+
+	:global(.dark) .dock-item.style-paper .dock-icon-svg {
+		stroke: #fff;
 	}
 </style>

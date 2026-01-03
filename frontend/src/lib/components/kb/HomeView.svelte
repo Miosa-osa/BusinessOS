@@ -27,10 +27,10 @@
 	}
 
 	// Recent pages (last 8)
-	const displayRecentPages = $derived(recentPages.slice(0, 8));
+	const displayRecentPages = $derived(recentPages?.slice(0, 8) ?? []);
 
 	// Recent memories (last 4)
-	const displayRecentMemories = $derived(memories.slice(0, 4));
+	const displayRecentMemories = $derived(memories?.slice(0, 4) ?? []);
 
 	// Filtered and sorted pages
 	const filteredPages = $derived.by(() => {
