@@ -7,6 +7,7 @@
 	import { themeStore } from '$lib/stores/themeStore';
 	import { learning } from '$lib/stores/learning';
 	import type { PersonalizationProfile, DetectedPattern } from '$lib/api/learning';
+	import UserFactsPanel from '$lib/components/settings/UserFactsPanel.svelte';
 
 	const session = useSession();
 
