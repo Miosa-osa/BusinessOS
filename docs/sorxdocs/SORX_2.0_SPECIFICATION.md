@@ -46,6 +46,690 @@ Just as USB-C is a universal connector that works with any device, Sorx 2.0 is a
 
 ---
 
+## Foundational Architecture: Open/Closed Model
+
+### The Two-Layer System
+
+Sorx 2.0 operates as a bridge between two distinct architectural layers:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    OPEN/CLOSED ARCHITECTURE MODEL                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │                                                                       │  │
+│   │                      CLOSED ARCHITECTURE                              │  │
+│   │                        (BusinessOS Core)                              │  │
+│   │                                                                       │  │
+│   │   ┌───────────────────────────────────────────────────────────────┐ │  │
+│   │   │                    OBJECTIVE DATABASE                          │ │  │
+│   │   │                                                                │ │  │
+│   │   │   • Data points that define task completion                   │ │  │
+│   │   │   • Controlled by BusinessOS                                  │ │  │
+│   │   │   • Source of truth for workflows                             │ │  │
+│   │   │   • Never exposed directly to external systems                │ │  │
+│   │   │                                                                │ │  │
+│   │   └───────────────────────────────────────────────────────────────┘ │  │
+│   │                                                                       │  │
+│   │   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐              │  │
+│   │   │ DEPARTMENTS │   │    ROLES    │   │    NODES    │              │  │
+│   │   │             │   │             │   │  (Workers)  │              │  │
+│   │   │  Sales      │   │  @sales     │   │  Node-001   │              │  │
+│   │   │  Support    │   │  @support   │   │  Node-002   │              │  │
+│   │   │  Finance    │   │  @finance   │   │  Node-003   │              │  │
+│   │   │  Marketing  │   │  @marketing │   │  ...        │              │  │
+│   │   │  Operations │   │  @ops       │   │             │              │  │
+│   │   └─────────────┘   └─────────────┘   └─────────────┘              │  │
+│   │                                                                       │  │
+│   │   WE CONTROL:                                                        │  │
+│   │   ✓ What "done" means (objective data points)                       │  │
+│   │   ✓ Who can do what (role permissions)                              │  │
+│   │   ✓ How work flows (workflow logic)                                 │  │
+│   │   ✓ What success looks like (completion criteria)                   │  │
+│   │                                                                       │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                     │                                       │
+│                                     │ Skills bridge the gap                 │
+│                                     ▼                                       │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │                                                                       │  │
+│   │                       OPEN ARCHITECTURE                               │  │
+│   │                     (Sorx 2.0 Skill Layer)                            │  │
+│   │                                                                       │  │
+│   │   External world: APIs, services, systems, integrations              │  │
+│   │                                                                       │  │
+│   │   ┌─────────────────────────────────────────────────────────────┐   │  │
+│   │   │                    ROLE-BASED SKILLS                         │   │  │
+│   │   │               (Not RPA - These are like PEOPLE)              │   │  │
+│   │   │                                                              │   │  │
+│   │   │   @sales-role                    @support-role               │   │  │
+│   │   │   ├─ hubspot_qualify_lead        ├─ zendesk_triage_ticket   │   │  │
+│   │   │   ├─ gmail_outreach_sequence     ├─ slack_respond_customer  │   │  │
+│   │   │   ├─ calendly_book_meeting       ├─ notion_create_kb_article│   │  │
+│   │   │   └─ hubspot_close_deal          └─ jira_escalate_issue     │   │  │
+│   │   │                                                              │   │  │
+│   │   │   @finance-role                  @ops-role                   │   │  │
+│   │   │   ├─ quickbooks_create_invoice   ├─ clickup_create_project  │   │  │
+│   │   │   ├─ stripe_process_payment      ├─ asana_assign_tasks      │   │  │
+│   │   │   ├─ xero_reconcile_accounts     ├─ monday_update_status    │   │  │
+│   │   │   └─ excel_generate_report       └─ zapier_trigger_workflow │   │  │
+│   │   │                                                              │   │  │
+│   │   └─────────────────────────────────────────────────────────────┘   │  │
+│   │                                                                       │  │
+│   │   SKILLS CONNECT TO:                                                 │  │
+│   │   → HubSpot, Salesforce, Pipedrive (CRM)                            │  │
+│   │   → Gmail, Outlook, Slack, Teams (Communication)                    │  │
+│   │   → QuickBooks, Xero, Stripe (Finance)                              │  │
+│   │   → ClickUp, Asana, Monday, Notion (Productivity)                   │  │
+│   │   → Any external system with an interface                           │  │
+│   │                                                                       │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Objective Database: The Source of Truth
+
+The **Objective Database** is the closed-architecture core that defines:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         OBJECTIVE DATABASE                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   DATA POINTS (Define what "done" means)                                    │
+│   ═════════════════════════════════════                                     │
+│                                                                             │
+│   Task: "Close the deal with Acme Corp"                                     │
+│                                                                             │
+│   Objective Data Points:                                                    │
+│   □ deal.status = "closed_won"           ← Must be true                    │
+│   □ deal.contract_signed = true          ← Must be true                    │
+│   □ deal.payment_terms_agreed = true     ← Must be true                    │
+│   □ client.onboarding_scheduled = true   ← Must be true                    │
+│   □ invoice.created = true               ← Must be true                    │
+│                                                                             │
+│   The task is NOT complete until ALL data points are satisfied.            │
+│   Skills execute to achieve each data point.                               │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   WORKFLOW LOGIC (How we get there)                                         │
+│   ═════════════════════════════════                                         │
+│                                                                             │
+│   The system knows:                                                         │
+│   1. Current state of all data points                                      │
+│   2. Which skills can change which data points                             │
+│   3. Dependencies (can't invoice before contract signed)                   │
+│   4. Optimal path to completion (minimize movement)                        │
+│                                                                             │
+│   ┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐            │
+│   │ Current │────▶│ Gap     │────▶│ Skills  │────▶│ Execute │            │
+│   │ State   │     │ Analysis│     │ Needed  │     │ Optimal │            │
+│   └─────────┘     └─────────┘     └─────────┘     └─────────┘            │
+│                                                                             │
+│   MINIMIZE MOVEMENT = Find the shortest path through data points           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Roles: Not RPA, These are Like PEOPLE
+
+Skills don't exist in isolation - they belong to **Roles**, just like skills belong to people in a real company:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           ROLE-BASED ORGANIZATION                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   THIS IS NOT RPA                                                           │
+│   ═══════════════                                                           │
+│                                                                             │
+│   RPA = "Click button, fill form, repeat"  ❌ Mechanical                   │
+│   Sorx = "Role with skills, learns, adapts" ✓ Human-like                   │
+│                                                                             │
+│   Think of it like hiring for a company:                                    │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │                         DEPARTMENT: SALES                            │  │
+│   │                                                                       │  │
+│   │   @sales-role (The "person" doing sales work)                        │  │
+│   │   │                                                                   │  │
+│   │   ├─ SKILLS THIS ROLE HAS:                                           │  │
+│   │   │   ├─ hubspot_qualify_lead      (learned)                        │  │
+│   │   │   ├─ hubspot_update_deal       (learned)                        │  │
+│   │   │   ├─ gmail_send_proposal       (learned)                        │  │
+│   │   │   ├─ calendly_schedule_call    (learned)                        │  │
+│   │   │   ├─ slack_notify_team         (learned)                        │  │
+│   │   │   └─ [can learn more as needed]                                 │  │
+│   │   │                                                                   │  │
+│   │   ├─ PERMISSIONS:                                                    │  │
+│   │   │   ├─ ✓ Can access CRM data                                      │  │
+│   │   │   ├─ ✓ Can send emails on behalf of sales                       │  │
+│   │   │   ├─ ✓ Can schedule meetings                                    │  │
+│   │   │   ├─ ✗ Cannot access financial data                             │  │
+│   │   │   └─ ✗ Cannot modify contracts                                  │  │
+│   │   │                                                                   │  │
+│   │   └─ NODES ASSIGNED: Node-001, Node-002, Node-003                   │  │
+│   │                                                                       │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │                        DEPARTMENT: FINANCE                           │  │
+│   │                                                                       │  │
+│   │   @finance-role                                                      │  │
+│   │   │                                                                   │  │
+│   │   ├─ SKILLS:                                                         │  │
+│   │   │   ├─ quickbooks_create_invoice  (learned)                       │  │
+│   │   │   ├─ stripe_process_refund      (learned)                       │  │
+│   │   │   ├─ xero_reconcile             (learned)                       │  │
+│   │   │   └─ excel_financial_report     (learned)                       │  │
+│   │   │                                                                   │  │
+│   │   ├─ PERMISSIONS:                                                    │  │
+│   │   │   ├─ ✓ Can access financial data                                │  │
+│   │   │   ├─ ✓ Can create/modify invoices                               │  │
+│   │   │   ├─ ✓ Can process payments                                     │  │
+│   │   │   └─ ✗ Cannot access sales pipeline                             │  │
+│   │   │                                                                   │  │
+│   │   └─ NODES ASSIGNED: Node-010, Node-011                             │  │
+│   │                                                                       │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Skill Reliability Tiers
+
+### Two Types of Skills: Deterministic vs AI-Driven
+
+Not all skills are created equal. Some are **100% reliable** (hardcoded), others are **AI-driven** (can fail):
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        SKILL RELIABILITY TIERS                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   TIER 1: DETERMINISTIC (100% Uptime)                                       │
+│   ════════════════════════════════════                                      │
+│                                                                             │
+│   These skills are HARDCODED. Like RPA, but smarter.                        │
+│   Zero AI involvement at execution time.                                    │
+│   If API is up, skill WILL succeed.                                         │
+│                                                                             │
+│   Examples:                                                                 │
+│   ├─ hubspot_create_contact    → API call, fixed parameters               │
+│   ├─ slack_send_message        → API call, fixed format                   │
+│   ├─ gmail_send_email          → SMTP, well-defined                       │
+│   ├─ quickbooks_create_invoice → API call, structured data                │
+│   └─ clickup_create_task       → API call, known schema                   │
+│                                                                             │
+│   Characteristics:                                                          │
+│   ✓ 100% success rate (when external API is up)                            │
+│   ✓ No model needed for execution                                          │
+│   ✓ Instant execution                                                      │
+│   ✓ Predictable, testable, auditable                                       │
+│                                                                             │
+│   Model: NONE (pure code execution)                                         │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   TIER 2: STRUCTURED AI (95-99% Uptime)                                     │
+│   ══════════════════════════════════════                                    │
+│                                                                             │
+│   AI involvement for parameter extraction or simple decisions.              │
+│   Core execution is still deterministic.                                    │
+│                                                                             │
+│   Examples:                                                                 │
+│   ├─ email_smart_reply        → AI drafts, but SMTP is deterministic      │
+│   ├─ ticket_auto_categorize   → AI classifies, but API call is fixed      │
+│   ├─ lead_score_update        → AI scores, but HubSpot update is fixed    │
+│   └─ meeting_smart_schedule   → AI picks time, but Calendly is fixed      │
+│                                                                             │
+│   Characteristics:                                                          │
+│   ✓ High success rate                                                      │
+│   ✓ Small model sufficient (Haiku)                                         │
+│   ✓ Fast execution                                                         │
+│   ✓ Fallback to human if AI unsure                                         │
+│                                                                             │
+│   Model: HAIKU (fast, cheap, good enough)                                   │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   TIER 3: REASONING AI (80-95% Uptime)                                      │
+│   ════════════════════════════════════                                      │
+│                                                                             │
+│   Complex reasoning required. Multiple steps. Decision trees.               │
+│   May need human-in-the-loop for edge cases.                               │
+│                                                                             │
+│   Examples:                                                                 │
+│   ├─ proposal_generation      → AI writes, formats, customizes            │
+│   ├─ contract_negotiation     → AI suggests terms, handles objections     │
+│   ├─ support_complex_issue    → AI diagnoses, proposes solutions          │
+│   └─ financial_analysis       → AI interprets data, makes recommendations │
+│                                                                             │
+│   Characteristics:                                                          │
+│   ~ Variable success rate                                                   │
+│   ~ Larger model needed (Sonnet/Opus)                                       │
+│   ~ Slower execution                                                        │
+│   ~ May require approval                                                    │
+│                                                                             │
+│   Model: SONNET (balanced) or OPUS (complex reasoning)                     │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   TIER 4: GENERATIVE AI (Variable Uptime)                                   │
+│   ════════════════════════════════════════                                  │
+│                                                                             │
+│   New skill generation. Novel situations. First-time execution.             │
+│   Higher risk, higher reward.                                               │
+│                                                                             │
+│   Examples:                                                                 │
+│   ├─ skill_creator            → Generates new skills from description     │
+│   ├─ workflow_optimizer       → Redesigns processes                       │
+│   ├─ integration_builder      → Creates new API connections               │
+│   └─ automation_designer      → Builds complex multi-step workflows       │
+│                                                                             │
+│   Characteristics:                                                          │
+│   ~ Unpredictable success rate until validated                             │
+│   ~ Largest model needed (Opus)                                            │
+│   ~ Requires testing before production use                                 │
+│   ~ Human review recommended                                               │
+│                                                                             │
+│   Model: OPUS (maximum capability)                                          │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Model Selection by Skill Complexity
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     MODEL SELECTION MATRIX                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   SKILL COMPLEXITY           MODEL          COST      LATENCY    SUCCESS   │
+│   ════════════════           ═════          ════      ═══════    ═══════   │
+│                                                                             │
+│   Deterministic (Tier 1)     NONE           $0        <100ms     100%     │
+│   Structured AI (Tier 2)     HAIKU          $         <500ms     95-99%   │
+│   Reasoning AI (Tier 3)      SONNET         $$        <2s        80-95%   │
+│   Complex Reasoning          OPUS           $$$       <5s        70-90%   │
+│   Generative (Tier 4)        OPUS           $$$$      <10s       Variable │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   AUTOMATIC MODEL SELECTION                                                 │
+│   ═════════════════════════                                                 │
+│                                                                             │
+│   When a skill is created or executed:                                      │
+│                                                                             │
+│   1. Analyze skill complexity                                               │
+│      └─ Parameter count, decision points, output type                      │
+│                                                                             │
+│   2. Check historical performance                                           │
+│      └─ What model succeeded before? What failed?                          │
+│                                                                             │
+│   3. Select minimum viable model                                            │
+│      └─ Don't use Opus if Haiku will work                                  │
+│                                                                             │
+│   4. Upgrade if failures occur                                              │
+│      └─ If Haiku fails 3x, try Sonnet                                      │
+│      └─ If Sonnet fails 3x, try Opus                                       │
+│                                                                             │
+│   5. Downgrade if overqualified                                             │
+│      └─ If Opus has 100% success on simple task, try Sonnet               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Skill Auto-Splitting: Self-Healing Skills
+
+### When Skills Fail, The System Learns
+
+When a skill starts accumulating errors, the system doesn't just retry - it **learns** and **splits**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          SKILL AUTO-SPLITTING                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   THE PROBLEM                                                               │
+│   ═══════════                                                               │
+│                                                                             │
+│   Skill: email_send_followup (v1)                                          │
+│   Success Rate: Dropping from 95% → 75% → 60%                              │
+│                                                                             │
+│   Why? The skill handles too many different situations:                     │
+│   • Cold leads (different tone)                                            │
+│   • Warm leads (different content)                                         │
+│   • Post-meeting (different context)                                       │
+│   • Post-proposal (different urgency)                                      │
+│                                                                             │
+│   One skill trying to do too much = errors                                 │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   THE SOLUTION: AUTO-SPLIT                                                  │
+│   ════════════════════════════                                              │
+│                                                                             │
+│   When error rate exceeds threshold (e.g., 20%):                           │
+│                                                                             │
+│   1. ANALYZE FAILURES                                                       │
+│      └─ What patterns do failed executions have in common?                 │
+│      └─ What was different about successful ones?                          │
+│                                                                             │
+│   2. IDENTIFY SPLIT POINTS                                                  │
+│      └─ "Failures mostly occur when lead_status = 'cold'"                 │
+│      └─ "Failures mostly occur when days_since_meeting > 7"               │
+│                                                                             │
+│   3. CREATE SKILL TREE                                                      │
+│      └─ Split one skill into multiple specialized skills                   │
+│      └─ Add decision node at the root                                      │
+│                                                                             │
+│   BEFORE:                                                                   │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │                                                                       │  │
+│   │                    email_send_followup (v1)                          │  │
+│   │                         60% success                                   │  │
+│   │                                                                       │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│   AFTER (Auto-Split):                                                       │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │                                                                       │  │
+│   │                    email_followup_router (decision node)             │  │
+│   │                              │                                        │  │
+│   │          ┌──────────────────┼──────────────────┐                    │  │
+│   │          │                  │                  │                    │  │
+│   │          ▼                  ▼                  ▼                    │  │
+│   │   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐              │  │
+│   │   │ cold_lead   │   │ warm_lead   │   │ post_meeting│              │  │
+│   │   │ _followup   │   │ _followup   │   │ _followup   │              │  │
+│   │   │   95%       │   │   98%       │   │   97%       │              │  │
+│   │   └─────────────┘   └─────────────┘   └─────────────┘              │  │
+│   │                                                                       │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│   OVERALL SUCCESS: 97% (up from 60%)                                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Skill Tree Structure
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           SKILL TREE STRUCTURE                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   class SkillTree:                                                          │
+│       id: str                     # "email_followup_tree"                  │
+│       root: SkillNode             # Decision node                          │
+│       created_from: str           # "email_send_followup_v1" (parent)      │
+│       split_reason: str           # "High error rate in cold lead cases"  │
+│       overall_success_rate: float # Weighted average of leaves            │
+│                                                                             │
+│   class SkillNode:                                                          │
+│       type: "decision" | "skill"                                           │
+│       condition: str              # "lead.status == 'cold'"                │
+│       skill_id: str               # For leaf nodes                         │
+│       children: list[SkillNode]   # For decision nodes                     │
+│                                                                             │
+│   EXAMPLE TREE:                                                             │
+│                                                                             │
+│   {                                                                         │
+│     "id": "email_followup_tree",                                           │
+│     "root": {                                                              │
+│       "type": "decision",                                                  │
+│       "conditions": [                                                      │
+│         {                                                                  │
+│           "if": "lead.status == 'cold'",                                  │
+│           "then": {"type": "skill", "skill_id": "cold_lead_followup_v1"} │
+│         },                                                                 │
+│         {                                                                  │
+│           "if": "lead.status == 'warm'",                                  │
+│           "then": {"type": "skill", "skill_id": "warm_lead_followup_v1"} │
+│         },                                                                 │
+│         {                                                                  │
+│           "if": "lead.last_meeting != null",                              │
+│           "then": {"type": "skill", "skill_id": "post_meeting_followup"}  │
+│         },                                                                 │
+│         {                                                                  │
+│           "default": true,                                                │
+│           "then": {"type": "skill", "skill_id": "generic_followup_v1"}   │
+│         }                                                                  │
+│       ]                                                                    │
+│     }                                                                       │
+│   }                                                                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Error Threshold and Split Logic
+
+```python
+# skill_health_monitor.py
+
+class SkillHealthMonitor:
+    """Monitors skill performance and triggers auto-splitting."""
+
+    def __init__(self):
+        self.error_threshold = 0.20        # 20% error rate triggers analysis
+        self.min_executions = 50           # Need enough data before splitting
+        self.analysis_window = timedelta(days=7)
+
+    def check_skill_health(self, skill_id: str) -> HealthStatus:
+        """Check if a skill needs intervention."""
+
+        metrics = get_skill_metrics(
+            skill_id,
+            window=self.analysis_window
+        )
+
+        if metrics.execution_count < self.min_executions:
+            return HealthStatus.INSUFFICIENT_DATA
+
+        error_rate = metrics.failures / metrics.execution_count
+
+        if error_rate < 0.05:  # < 5% errors
+            return HealthStatus.HEALTHY
+
+        if error_rate < self.error_threshold:  # 5-20%
+            return HealthStatus.DEGRADED
+
+        # > 20% errors - needs splitting
+        return HealthStatus.NEEDS_SPLIT
+
+    def analyze_failures(self, skill_id: str) -> SplitAnalysis:
+        """Analyze failure patterns to determine split points."""
+
+        failures = get_failed_executions(skill_id)
+        successes = get_successful_executions(skill_id)
+
+        # Find distinguishing features
+        failure_patterns = extract_common_patterns(failures)
+        success_patterns = extract_common_patterns(successes)
+
+        # Identify split conditions
+        split_points = []
+        for pattern in failure_patterns:
+            if pattern not in success_patterns:
+                split_points.append({
+                    "condition": pattern.as_condition(),
+                    "failure_rate_when_true": pattern.failure_rate,
+                    "sample_size": pattern.count
+                })
+
+        return SplitAnalysis(
+            skill_id=skill_id,
+            recommended_splits=split_points,
+            confidence=calculate_confidence(split_points)
+        )
+
+    def execute_split(self, skill_id: str, analysis: SplitAnalysis) -> SkillTree:
+        """Create a skill tree from split analysis."""
+
+        # Create specialized skills for each split point
+        new_skills = []
+        for split in analysis.recommended_splits:
+            new_skill = generate_specialized_skill(
+                parent_skill_id=skill_id,
+                specialization=split.condition
+            )
+            new_skills.append(new_skill)
+
+        # Create decision tree
+        tree = SkillTree(
+            id=f"{skill_id}_tree",
+            created_from=skill_id,
+            root=build_decision_tree(new_skills)
+        )
+
+        # Retire original skill
+        deprecate_skill(skill_id, replacement=tree.id)
+
+        return tree
+```
+
+---
+
+## Workflow Completion: Objective Data Points
+
+### Task is Done When ALL Data Points Are Satisfied
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      WORKFLOW COMPLETION LOGIC                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   A task is NOT complete until ALL objective data points are TRUE.          │
+│                                                                             │
+│   EXAMPLE: "Onboard new client Acme Corp"                                   │
+│   ════════════════════════════════════════                                  │
+│                                                                             │
+│   Objective Data Points:                                                    │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │ □ contract.signed = true                           [PENDING]        │  │
+│   │ □ payment.first_invoice_paid = true                [PENDING]        │  │
+│   │ □ project.created = true                           [PENDING]        │  │
+│   │ □ project.kickoff_scheduled = true                 [PENDING]        │  │
+│   │ □ team.assigned = true                             [PENDING]        │  │
+│   │ □ client.welcome_email_sent = true                 [PENDING]        │  │
+│   │ □ client.access_provisioned = true                 [PENDING]        │  │
+│   │ □ documentation.client_wiki_created = true         [PENDING]        │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│   TASK STATUS: 0/8 complete → NOT DONE                                     │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   EXECUTION FLOW                                                            │
+│   ══════════════                                                            │
+│                                                                             │
+│   1. System analyzes current state (all data points = false)               │
+│                                                                             │
+│   2. System identifies skills needed:                                       │
+│      ├─ docusign_send_contract     → contract.signed                       │
+│      ├─ quickbooks_create_invoice  → payment.first_invoice_paid            │
+│      ├─ clickup_create_project     → project.created                       │
+│      ├─ calendly_schedule_meeting  → project.kickoff_scheduled             │
+│      ├─ clickup_assign_team        → team.assigned                         │
+│      ├─ gmail_send_welcome         → client.welcome_email_sent             │
+│      ├─ okta_provision_access      → client.access_provisioned             │
+│      └─ notion_create_wiki         → documentation.client_wiki_created     │
+│                                                                             │
+│   3. System finds optimal execution order:                                  │
+│      (Respecting dependencies, parallelizing where possible)               │
+│                                                                             │
+│      PARALLEL:                                                              │
+│      ├─ docusign_send_contract                                             │
+│      ├─ clickup_create_project                                             │
+│      └─ notion_create_wiki                                                  │
+│                                                                             │
+│      AFTER contract.signed:                                                 │
+│      ├─ quickbooks_create_invoice                                          │
+│      └─ gmail_send_welcome                                                  │
+│                                                                             │
+│      AFTER project.created:                                                 │
+│      ├─ clickup_assign_team                                                │
+│      └─ calendly_schedule_meeting                                          │
+│                                                                             │
+│      AFTER payment.first_invoice_paid:                                     │
+│      └─ okta_provision_access                                              │
+│                                                                             │
+│   4. Execute skills, update data points as each completes                  │
+│                                                                             │
+│   5. Continue until ALL data points = true                                 │
+│                                                                             │
+│   TASK STATUS: 8/8 complete → DONE                                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Minimize Movement: Optimal Path
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          MINIMIZE MOVEMENT                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   PRINCIPLE: Do the least amount of work to achieve all data points.       │
+│                                                                             │
+│   BAD PATH (unnecessary steps):                                             │
+│   ────────────────────────────                                              │
+│   1. Create project                                                        │
+│   2. Send welcome email                                                    │
+│   3. Wait for response                     ← UNNECESSARY                   │
+│   4. Send follow-up                        ← UNNECESSARY                   │
+│   5. Create invoice                                                        │
+│   6. Send invoice reminder                 ← UNNECESSARY                   │
+│   7. Create wiki page                                                      │
+│   8. Notify team                           ← COULD BE PARALLEL             │
+│   9. Assign team                                                           │
+│   10. Schedule kickoff                                                     │
+│                                                                             │
+│   10 steps, sequential, slow                                               │
+│                                                                             │
+│   OPTIMAL PATH (minimum movement):                                          │
+│   ─────────────────────────────────                                         │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │  PARALLEL EXECUTION                                                   │  │
+│   │                                                                       │  │
+│   │  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐        │  │
+│   │  │ Contract  │  │  Create   │  │  Create   │  │  Create   │        │  │
+│   │  │  (DocuSign)│ │  Project  │  │   Wiki    │  │  Invoice  │        │  │
+│   │  └─────┬─────┘  └─────┬─────┘  └───────────┘  └─────┬─────┘        │  │
+│   │        │              │                              │              │  │
+│   │        │              ├────────────┐                │              │  │
+│   │        │              ▼            ▼                ▼              │  │
+│   │        │        ┌───────────┐ ┌───────────┐  ┌───────────┐        │  │
+│   │        │        │  Assign   │ │ Schedule  │  │  Welcome  │        │  │
+│   │        │        │   Team    │ │  Kickoff  │  │   Email   │        │  │
+│   │        │        └───────────┘ └───────────┘  └─────┬─────┘        │  │
+│   │        │                                           │              │  │
+│   │        └───────────────────────────────────────────┘              │  │
+│   │                              │                                     │  │
+│   │                              ▼                                     │  │
+│   │                        ┌───────────┐                              │  │
+│   │                        │ Provision │                              │  │
+│   │                        │  Access   │                              │  │
+│   │                        └───────────┘                              │  │
+│   │                                                                   │  │
+│   └─────────────────────────────────────────────────────────────────┘  │
+│                                                                         │
+│   7 skills, parallel where possible, fast                               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Core Concept: Skills
 
 ### What is a Skill?
