@@ -823,7 +823,7 @@
 										Add Task
 									</button>
 									<a
-										href="/contexts{embedSuffix}"
+										href="/knowledge{embedSuffix}"
 										class="btn btn-secondary w-full text-sm justify-start"
 									>
 										<svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1132,7 +1132,7 @@
 										</button>
 									</div>
 								{/if}
-								<a href="/contexts{embedSuffix}" class="btn btn-primary text-sm">
+								<a href="/knowledge{embedSuffix}" class="btn btn-primary text-sm">
 									<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 									</svg>
@@ -1154,7 +1154,7 @@
 								</div>
 								<h3 class="text-lg font-medium text-gray-900 mb-1">No documents yet</h3>
 								<p class="text-gray-500 mb-4">Create documents in the Knowledge Base to link them here</p>
-								<a href="/contexts{embedSuffix}" class="btn btn-primary">
+								<a href="/knowledge{embedSuffix}" class="btn btn-primary">
 									Go to Knowledge Base
 								</a>
 							</div>
@@ -1624,7 +1624,7 @@
 
 				<!-- Open in full page -->
 				<a
-					href="/contexts/{selectedDocument.id}{embedSuffix}"
+					href="/knowledge/{selectedDocument.id}{embedSuffix}"
 					class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors ml-1"
 					title="Open in full page"
 				>
@@ -1752,7 +1752,7 @@
 					</div>
 
 					<a
-						href="/contexts/{selectedDocument.id}{embedSuffix}"
+						href="/knowledge/{selectedDocument.id}{embedSuffix}"
 						class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
 						title="Open in full page"
 					>
@@ -1889,7 +1889,7 @@
 				</div>
 
 				<a
-					href="/contexts/{selectedDocument.id}{embedSuffix}"
+					href="/knowledge/{selectedDocument.id}{embedSuffix}"
 					class="btn btn-secondary text-sm ml-2"
 					title="Open in Knowledge Base"
 				>

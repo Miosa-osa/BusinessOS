@@ -20,6 +20,7 @@ import (
 	"github.com/rhl/businessos-backend/internal/handlers"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	redisClient "github.com/rhl/businessos-backend/internal/redis"
+	"github.com/rhl/businessos-backend/internal/security"
 	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/terminal"
 )
@@ -34,6 +35,31 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// ===== SECURITY INITIALIZATION =====
+	// Validate production security configuration
+	if err := security.ValidateAndFail(
+		cfg.Environment,
+		cfg.SecretKey,
+		cfg.TokenEncryptionKey,
+		cfg.RedisKeyHMACSecret,
+	); err != nil {
+		log.Fatalf("SECURITY ERROR: %v", err)
+	}
+
+	// Initialize token encryption (for OAuth tokens in database)
+	if cfg.TokenEncryptionKey != "" {
+		if err := security.InitGlobalEncryption(cfg.TokenEncryptionKey); err != nil {
+			log.Fatalf("Failed to initialize token encryption: %v", err)
+		}
+		log.Printf("Token encryption initialized (AES-256-GCM)")
+	} else {
+		// In development, warn about plaintext storage
+		warnings := security.WarnDevelopmentInsecure(cfg.TokenEncryptionKey, cfg.RedisKeyHMACSecret)
+		for _, w := range warnings {
+			log.Printf("WARNING: %s", w)
+		}
 	}
 
 	// Generate unique instance ID for pub/sub (avoid message echo)

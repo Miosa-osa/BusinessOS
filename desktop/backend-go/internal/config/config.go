@@ -20,6 +20,7 @@ type Config struct {
 
 	// Server
 	ServerPort string `mapstructure:"SERVER_PORT"`
+	BaseURL    string `mapstructure:"BASE_URL"`
 
 	// JWT Auth (kept for compatibility, Better Auth handles auth)
 	SecretKey                string `mapstructure:"SECRET_KEY"`
@@ -61,6 +62,11 @@ type Config struct {
 	// Used to hash session tokens before storing as Redis keys
 	RedisKeyHMACSecret string `mapstructure:"REDIS_KEY_HMAC_SECRET"`
 
+	// Security: Token encryption key for OAuth tokens stored in database
+	// CRITICAL: Must be set in production - 32-byte base64-encoded key
+	// Generate with: openssl rand -base64 32
+	TokenEncryptionKey string `mapstructure:"TOKEN_ENCRYPTION_KEY"`
+
 	// Supermemory
 	SupermemoryAPIKey string `mapstructure:"SUPERMEMORY_API_KEY"`
 
@@ -79,6 +85,31 @@ type Config struct {
 	NotionClientID     string `mapstructure:"NOTION_CLIENT_ID"`
 	NotionClientSecret string `mapstructure:"NOTION_CLIENT_SECRET"`
 	NotionRedirectURI  string `mapstructure:"NOTION_REDIRECT_URI"`
+
+	// HubSpot OAuth
+	HubSpotClientID     string `mapstructure:"HUBSPOT_CLIENT_ID"`
+	HubSpotClientSecret string `mapstructure:"HUBSPOT_CLIENT_SECRET"`
+	HubSpotRedirectURI  string `mapstructure:"HUBSPOT_REDIRECT_URI"`
+
+	// Linear OAuth
+	LinearClientID     string `mapstructure:"LINEAR_CLIENT_ID"`
+	LinearClientSecret string `mapstructure:"LINEAR_CLIENT_SECRET"`
+	LinearRedirectURI  string `mapstructure:"LINEAR_REDIRECT_URI"`
+
+	// ClickUp OAuth
+	ClickUpClientID     string `mapstructure:"CLICKUP_CLIENT_ID"`
+	ClickUpClientSecret string `mapstructure:"CLICKUP_CLIENT_SECRET"`
+	ClickUpRedirectURI  string `mapstructure:"CLICKUP_REDIRECT_URI"`
+
+	// Airtable OAuth
+	AirtableClientID     string `mapstructure:"AIRTABLE_CLIENT_ID"`
+	AirtableClientSecret string `mapstructure:"AIRTABLE_CLIENT_SECRET"`
+	AirtableRedirectURI  string `mapstructure:"AIRTABLE_REDIRECT_URI"`
+
+	// Microsoft 365 OAuth
+	MicrosoftClientID     string `mapstructure:"MICROSOFT_CLIENT_ID"`
+	MicrosoftClientSecret string `mapstructure:"MICROSOFT_CLIENT_SECRET"`
+	MicrosoftRedirectURI  string `mapstructure:"MICROSOFT_REDIRECT_URI"`
 
 	// Web Search Providers
 	// Priority: Brave > Serper > Tavily > DuckDuckGo (fallback)
@@ -117,6 +148,7 @@ func Load() (*Config, error) {
 	// Set defaults
 	viper.SetDefault("ENVIRONMENT", "development")
 	viper.SetDefault("SERVER_PORT", "8001")
+	viper.SetDefault("BASE_URL", "http://localhost:8001")
 	viper.SetDefault("DATABASE_URL", "postgres://postgres:password@localhost:5432/business_os")
 	viper.SetDefault("DATABASE_REQUIRED", true)
 	viper.SetDefault("ENABLE_LOCAL_MODELS", true) // Disable in production
@@ -152,6 +184,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("REDIS_PASSWORD", "")
 	viper.SetDefault("REDIS_TLS_ENABLED", false)
 	viper.SetDefault("REDIS_KEY_HMAC_SECRET", "") // CRITICAL: Set strong value in production (min 32 bytes)
+	viper.SetDefault("TOKEN_ENCRYPTION_KEY", "") // CRITICAL: Set in production for OAuth token encryption
 
 	// Other services
 	viper.SetDefault("SUPERMEMORY_API_KEY", "")
@@ -165,6 +198,12 @@ func Load() (*Config, error) {
 	viper.SetDefault("NOTION_CLIENT_ID", "")
 	viper.SetDefault("NOTION_CLIENT_SECRET", "")
 	viper.SetDefault("NOTION_REDIRECT_URI", "http://localhost:8001/api/integrations/notion/callback")
+	viper.SetDefault("HUBSPOT_CLIENT_ID", "")
+	viper.SetDefault("HUBSPOT_CLIENT_SECRET", "")
+	viper.SetDefault("HUBSPOT_REDIRECT_URI", "http://localhost:8001/api/integrations/hubspot/callback")
+	viper.SetDefault("LINEAR_CLIENT_ID", "")
+	viper.SetDefault("LINEAR_CLIENT_SECRET", "")
+	viper.SetDefault("LINEAR_REDIRECT_URI", "http://localhost:8001/api/integrations/linear/callback")
 
 	// Web Search Providers
 	viper.SetDefault("BRAVE_SEARCH_API_KEY", "")

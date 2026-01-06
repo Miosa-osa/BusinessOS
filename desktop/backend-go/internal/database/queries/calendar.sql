@@ -1,8 +1,10 @@
 -- name: ListCalendarEvents :many
+-- Get events that overlap with the date range (start_time < range_end AND end_time > range_start)
+-- Params: $1=user_id, $2=range_end (EndTime), $3=range_start (StartTime)
 SELECT * FROM calendar_events
 WHERE user_id = $1
-  AND start_time >= $2
-  AND end_time <= $3
+  AND start_time < $2
+  AND end_time > $3
 ORDER BY start_time ASC;
 
 -- name: ListCalendarEventsByType :many
@@ -64,9 +66,9 @@ RETURNING *;
 INSERT INTO calendar_events (
     user_id, google_event_id, calendar_id, title, description,
     start_time, end_time, all_day, location, attendees,
-    status, visibility, html_link, source
+    status, visibility, html_link, source, meeting_link, external_links
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 )
 ON CONFLICT (user_id, google_event_id) DO UPDATE SET
     title = EXCLUDED.title,
@@ -79,6 +81,8 @@ ON CONFLICT (user_id, google_event_id) DO UPDATE SET
     status = EXCLUDED.status,
     visibility = EXCLUDED.visibility,
     html_link = EXCLUDED.html_link,
+    meeting_link = EXCLUDED.meeting_link,
+    external_links = EXCLUDED.external_links,
     synced_at = NOW(),
     updated_at = NOW()
 RETURNING *;
@@ -172,3 +176,14 @@ WHERE user_id = $1
   )
 ORDER BY start_time DESC
 LIMIT $3;
+
+-- name: GetCalendarStats :one
+SELECT
+    COUNT(*) as total_events,
+    COUNT(CASE WHEN source = 'google' THEN 1 END) as google_events,
+    COUNT(CASE WHEN source = 'local' OR source IS NULL THEN 1 END) as local_events,
+    MIN(start_time) as date_range_from,
+    MAX(end_time) as date_range_to,
+    MAX(synced_at) as last_sync
+FROM calendar_events
+WHERE user_id = $1;

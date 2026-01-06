@@ -9,6 +9,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
+	"github.com/rhl/businessos-backend/internal/integrations/google"
+	"github.com/rhl/businessos-backend/internal/integrations/notion"
+	"github.com/rhl/businessos-backend/internal/integrations/slack"
 )
 
 type MCPTool struct {
@@ -21,12 +24,12 @@ type MCPTool struct {
 type MCPService struct {
 	pool            *pgxpool.Pool
 	userID          string
-	calendarService *GoogleCalendarService
-	slackService    *SlackService
-	notionService   *NotionService
+	calendarService *google.CalendarService
+	slackService    *slack.ChannelService
+	notionService   *notion.DatabaseService
 }
 
-func NewMCPService(pool *pgxpool.Pool, userID string, calendarService *GoogleCalendarService, slackService *SlackService, notionService *NotionService) *MCPService {
+func NewMCPService(pool *pgxpool.Pool, userID string, calendarService *google.CalendarService, slackService *slack.ChannelService, notionService *notion.DatabaseService) *MCPService {
 	return &MCPService{
 		pool:            pool,
 		userID:          userID,

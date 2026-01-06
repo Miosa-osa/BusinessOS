@@ -21,6 +21,7 @@ export * from './ai';
 export * from './profile';
 export * from './memory';
 export * from './context-tree';
+export * from './gmail';
 
 // Pedro Tasks API modules
 export * from './learning';

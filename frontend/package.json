@@ -41,6 +41,7 @@
 		"@radix-ui/react-tooltip": "^1.2.8",
 		"@radix-ui/react-use-controllable-state": "^1.2.2",
 		"@threlte/core": "^8.3.1",
+		"@threlte/extras": "^9.7.1",
 		"@types/three": "^0.182.0",
 		"@xterm/addon-fit": "^0.11.0",
 		"@xterm/addon-search": "^0.16.0",

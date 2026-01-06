@@ -36,10 +36,10 @@ type RateLimiterConfig struct {
 // DefaultRateLimiterConfig returns production-safe defaults
 func DefaultRateLimiterConfig() *RateLimiterConfig {
 	return &RateLimiterConfig{
-		RequestsPerSecond:     100,     // 100 requests/sec per IP
-		BurstSize:             20,      // Allow burst of 20 requests
-		UserRequestsPerSecond: 200,     // Authenticated users get higher limit
-		UserBurstSize:         40,      // Larger burst for authenticated users
+		RequestsPerSecond:     500,     // 500 requests/sec per IP
+		BurstSize:             100,     // Allow burst of 100 requests
+		UserRequestsPerSecond: 1000,    // Authenticated users get higher limit
+		UserBurstSize:         200,     // Larger burst for authenticated users
 		CleanupInterval:       10 * time.Minute,
 		ExcludePaths: []string{
 			"/health",

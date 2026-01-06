@@ -212,7 +212,7 @@ func (m *MCPService) ExecuteCalendarTool(ctx context.Context, toolName string, a
 			return nil, fmt.Errorf("invalid event data: %w", err)
 		}
 
-		createdEvent, err := m.calendarService.CreateEvent(ctx, m.userID, event)
+		createdEvent, err := m.calendarService.CreateGoogleEvent(ctx, m.userID, event)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create calendar event: %w", err)
 		}
@@ -256,7 +256,7 @@ func (m *MCPService) ExecuteCalendarTool(ctx context.Context, toolName string, a
 			return nil, fmt.Errorf("event_id is required")
 		}
 
-		srv, err := m.calendarService.GetCalendarService(ctx, m.userID)
+		srv, err := m.calendarService.GetCalendarAPI(ctx, m.userID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to Google Calendar: %w", err)
 		}
@@ -268,7 +268,7 @@ func (m *MCPService) ExecuteCalendarTool(ctx context.Context, toolName string, a
 
 		applyEventUpdates(existingEvent, arguments)
 
-		updatedEvent, err := m.calendarService.UpdateEvent(ctx, m.userID, eventID, existingEvent)
+		updatedEvent, err := m.calendarService.UpdateGoogleEvent(ctx, m.userID, eventID, existingEvent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to update calendar event: %w", err)
 		}

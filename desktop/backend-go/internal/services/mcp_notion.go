@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/rhl/businessos-backend/internal/integrations/notion"
 )
 
 func IsNotionTool(toolName string) bool {
@@ -202,7 +204,7 @@ func (s *MCPService) executeNotionListDatabases(ctx context.Context, userID stri
 	for _, db := range databases {
 		result = append(result, map[string]interface{}{
 			"id":               db.ID,
-			"title":            GetDatabaseTitle(&db),
+			"title":            notion.GetDatabaseTitle(&db),
 			"url":              db.URL,
 			"created_time":     db.CreatedTime,
 			"last_edited_time": db.LastEditedTime,
@@ -230,7 +232,7 @@ func (s *MCPService) executeNotionGetDatabase(ctx context.Context, userID string
 
 	return map[string]interface{}{
 		"id":               database.ID,
-		"title":            GetDatabaseTitle(database),
+		"title":            notion.GetDatabaseTitle(database),
 		"url":              database.URL,
 		"properties":       database.Properties,
 		"created_time":     database.CreatedTime,
@@ -267,7 +269,7 @@ func (s *MCPService) executeNotionQueryDatabase(ctx context.Context, userID stri
 	for _, page := range queryResp.Results {
 		pages = append(pages, map[string]interface{}{
 			"id":               page.ID,
-			"title":            GetPageTitle(&page),
+			"title":            notion.GetPageTitle(&page),
 			"url":              page.URL,
 			"properties":       page.Properties,
 			"created_time":     page.CreatedTime,
@@ -302,7 +304,7 @@ func (s *MCPService) executeNotionGetPage(ctx context.Context, userID string, ar
 
 	return map[string]interface{}{
 		"id":               page.ID,
-		"title":            GetPageTitle(page),
+		"title":            notion.GetPageTitle(page),
 		"url":              page.URL,
 		"properties":       page.Properties,
 		"created_time":     page.CreatedTime,
@@ -350,7 +352,7 @@ func (s *MCPService) executeNotionCreatePage(ctx context.Context, userID string,
 
 	return map[string]interface{}{
 		"id":           page.ID,
-		"title":        GetPageTitle(page),
+		"title":        notion.GetPageTitle(page),
 		"url":          page.URL,
 		"created_time": page.CreatedTime,
 		"message":      "Page created successfully",
@@ -375,7 +377,7 @@ func (s *MCPService) executeNotionUpdatePage(ctx context.Context, userID string,
 
 	return map[string]interface{}{
 		"id":               page.ID,
-		"title":            GetPageTitle(page),
+		"title":            notion.GetPageTitle(page),
 		"url":              page.URL,
 		"last_edited_time": page.LastEditedTime,
 		"message":          "Page updated successfully",

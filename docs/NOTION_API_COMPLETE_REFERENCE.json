@@ -1,0 +1,1178 @@
+{
+  "notion_api_reference": {
+    "api_version": "2025-09-03",
+    "base_url": "https://api.notion.com",
+    "authentication": {
+      "types": [
+        {
+          "type": "Internal Integration",
+          "description": "Direct authentication within a single workspace",
+          "authentication_method": "Bearer token",
+          "scope": "Single workspace",
+          "use_case": "Private/internal business operating systems"
+        },
+        {
+          "type": "Public Integration",
+          "description": "OAuth 2.0 for multi-workspace access",
+          "authentication_method": "OAuth 2.0",
+          "scope": "Multiple workspaces",
+          "use_case": "Distributed products and services"
+        },
+        {
+          "type": "SAML SSO",
+          "description": "Enterprise single sign-on",
+          "authentication_method": "SAML 2.0",
+          "scope": "Enterprise workspaces",
+          "use_case": "Enterprise deployments"
+        }
+      ],
+      "required_headers": {
+        "Authorization": "Bearer YOUR_INTEGRATION_TOKEN",
+        "Notion-Version": "2025-09-03"
+      }
+    },
+    "rate_limits": {
+      "requests_per_second": "3 requests/second per integration",
+      "burst_allowance": "Yes (details in documentation)",
+      "pagination_max_page_size": 100,
+      "pagination_default_page_size": 100,
+      "list_endpoint_max_items": 100,
+      "recovery_strategy": "Exponential backoff recommended",
+      "rate_limit_headers": [
+        "X-RateLimit-Limit",
+        "X-RateLimit-Remaining",
+        "X-RateLimit-Reset"
+      ]
+    },
+    "core_objects": {
+      "databases": {
+        "description": "Collections of pages with structured properties",
+        "breaking_change_2025_09_03": "Databases now contain data_sources instead of direct properties",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID identifier for the database"
+          },
+          "object": {
+            "type": "string",
+            "value": "database"
+          },
+          "created_time": {
+            "type": "ISO 8601 string",
+            "description": "When database was created"
+          },
+          "last_edited_time": {
+            "type": "ISO 8601 string",
+            "description": "When database was last modified"
+          },
+          "title": {
+            "type": "array<rich_text>",
+            "description": "Database display name"
+          },
+          "description": {
+            "type": "array<rich_text>",
+            "description": "Optional database description"
+          },
+          "data_sources": {
+            "type": "array",
+            "description": "Array of child data sources with id and name",
+            "items": {
+              "id": "string (UUID)",
+              "name": "string"
+            },
+            "required": true
+          },
+          "parent": {
+            "type": "object",
+            "description": "Parent page or workspace"
+          },
+          "is_inline": {
+            "type": "boolean",
+            "description": "Whether database is inline (deprecated)"
+          }
+        },
+        "endpoints": {
+          "create": {
+            "method": "POST",
+            "url": "/v1/databases",
+            "requires": [
+              "parent (page or workspace)",
+              "properties (schema definition)"
+            ],
+            "limitations": [
+              "Cannot create status properties directly",
+              "Parent must be a page or wiki database"
+            ]
+          },
+          "retrieve": {
+            "method": "GET",
+            "url": "/v1/databases/{database_id}",
+            "returns": "Full database object with data_sources array"
+          },
+          "update": {
+            "method": "PATCH",
+            "url": "/v1/databases/{database_id}",
+            "can_update": [
+              "title",
+              "description"
+            ]
+          },
+          "query_legacy": {
+            "method": "POST",
+            "url": "/v1/databases/{database_id}/query",
+            "deprecated": "Use data_sources endpoint instead",
+            "note": "Still works for backwards compatibility"
+          }
+        },
+        "migration_required": "Yes - must fetch data_sources and use those IDs for queries"
+      },
+      "data_sources": {
+        "description": "Individual schema containers within databases (new in 2025-09-03)",
+        "parent_relationship": "One or more data_sources belong to each database",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique data source identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "Data source name"
+          },
+          "properties": {
+            "type": "object",
+            "description": "Schema definition with property types",
+            "key_examples": [
+              "Title",
+              "Status",
+              "Date",
+              "People",
+              "etc."
+            ]
+          }
+        },
+        "endpoints": {
+          "retrieve": {
+            "method": "GET",
+            "url": "/v1/data_sources/{data_source_id}",
+            "returns": "Data source object with properties schema"
+          },
+          "query": {
+            "method": "POST",
+            "url": "/v1/data_sources/{data_source_id}/query",
+            "body": {
+              "filter": "object (optional)",
+              "sorts": "array (optional)",
+              "start_cursor": "string (optional)",
+              "page_size": "number (optional, max 100)"
+            }
+          }
+        },
+        "capabilities": [
+          "Query with filters",
+          "Sort results",
+          "Paginate through results",
+          "Access schema information"
+        ]
+      },
+      "pages": {
+        "description": "Individual documents in Notion workspaces",
+        "properties": {
+          "id": {
+            "type": "string (UUIDv4)",
+            "description": "Unique page identifier"
+          },
+          "object": {
+            "type": "string",
+            "value": "page"
+          },
+          "created_time": {
+            "type": "ISO 8601 string"
+          },
+          "last_edited_time": {
+            "type": "ISO 8601 string"
+          },
+          "created_by": {
+            "type": "user_object",
+            "description": "User who created the page"
+          },
+          "last_edited_by": {
+            "type": "user_object",
+            "description": "User who last edited"
+          },
+          "archived": {
+            "type": "boolean",
+            "description": "Whether page is archived"
+          },
+          "in_trash": {
+            "type": "boolean",
+            "description": "Whether page is in trash"
+          },
+          "icon": {
+            "type": "emoji_object | file_object | null",
+            "description": "Page emoji or custom icon"
+          },
+          "cover": {
+            "type": "file_object | null",
+            "description": "Cover image for page"
+          },
+          "parent": {
+            "type": "object",
+            "description": "Parent location (data_source, page, or workspace)",
+            "possible_parents": [
+              "data_source",
+              "page_id",
+              "workspace"
+            ]
+          },
+          "properties": {
+            "type": "object",
+            "description": "Property values conforming to data_source schema",
+            "note": "Only includes title if not in a data_source"
+          },
+          "url": {
+            "type": "string",
+            "description": "Notion workspace URL"
+          },
+          "public_url": {
+            "type": "string | null",
+            "description": "Public URL if published to web"
+          }
+        },
+        "endpoints": {
+          "create": {
+            "method": "POST",
+            "url": "/v1/pages",
+            "required_body": {
+              "parent": "object (data_source, page, or workspace)",
+              "properties": "object (with Title required)"
+            }
+          },
+          "retrieve": {
+            "method": "GET",
+            "url": "/v1/pages/{page_id}",
+            "returns": "Full page object with all properties"
+          },
+          "update_properties": {
+            "method": "PATCH",
+            "url": "/v1/pages/{page_id}",
+            "can_update": [
+              "properties",
+              "archived",
+              "icon",
+              "cover"
+            ]
+          },
+          "list_children_blocks": {
+            "method": "GET",
+            "url": "/v1/blocks/{page_id}/children",
+            "pagination": "cursor-based, max 100"
+          }
+        }
+      },
+      "blocks": {
+        "description": "Content units that compose pages",
+        "total_types_supported": 30,
+        "unsupported_types": "Returned as type: 'unsupported'",
+        "common_properties": {
+          "object": "string (value: 'block')",
+          "id": "UUID",
+          "parent": "object",
+          "type": "string (block type)",
+          "created_time": "ISO 8601",
+          "last_edited_time": "ISO 8601",
+          "archived": "boolean",
+          "in_trash": "boolean",
+          "has_children": "boolean"
+        },
+        "block_types": {
+          "text_blocks": {
+            "description": "Text content with rich formatting",
+            "types": [
+              {
+                "name": "paragraph",
+                "properties": [
+                  "rich_text (array)",
+                  "color (text and background colors)",
+                  "children (optional)"
+                ]
+              },
+              {
+                "name": "heading_1",
+                "properties": [
+                  "rich_text",
+                  "color",
+                  "is_toggleable"
+                ]
+              },
+              {
+                "name": "heading_2",
+                "properties": [
+                  "rich_text",
+                  "color",
+                  "is_toggleable"
+                ]
+              },
+              {
+                "name": "heading_3",
+                "properties": [
+                  "rich_text",
+                  "color",
+                  "is_toggleable"
+                ]
+              },
+              {
+                "name": "quote",
+                "properties": [
+                  "rich_text",
+                  "color"
+                ]
+              },
+              {
+                "name": "code",
+                "properties": [
+                  "rich_text",
+                  "language (python, javascript, etc.)",
+                  "caption"
+                ]
+              }
+            ]
+          },
+          "list_blocks": {
+            "description": "List and checklist content",
+            "types": [
+              {
+                "name": "bulleted_list_item",
+                "properties": [
+                  "rich_text",
+                  "color",
+                  "children"
+                ]
+              },
+              {
+                "name": "numbered_list_item",
+                "properties": [
+                  "rich_text",
+                  "color",
+                  "children"
+                ]
+              },
+              {
+                "name": "to_do",
+                "properties": [
+                  "rich_text",
+                  "checked (boolean)",
+                  "color",
+                  "children"
+                ]
+              }
+            ]
+          },
+          "interactive_blocks": {
+            "description": "Interactive content elements",
+            "types": [
+              {
+                "name": "toggle",
+                "properties": [
+                  "rich_text",
+                  "color",
+                  "children"
+                ]
+              },
+              {
+                "name": "callout",
+                "properties": [
+                  "rich_text",
+                  "icon (emoji or file)",
+                  "color",
+                  "children"
+                ]
+              },
+              {
+                "name": "template",
+                "properties": [
+                  "rich_text (template name)",
+                  "children"
+                ]
+              }
+            ]
+          },
+          "structural_blocks": {
+            "description": "Layout and organizational blocks",
+            "types": [
+              {
+                "name": "divider",
+                "properties": []
+              },
+              {
+                "name": "table_of_contents",
+                "properties": [
+                  "color"
+                ]
+              },
+              {
+                "name": "breadcrumb",
+                "properties": []
+              },
+              {
+                "name": "column_list",
+                "properties": [
+                  "children (columns)"
+                ]
+              },
+              {
+                "name": "column",
+                "properties": [
+                  "children"
+                ]
+              }
+            ]
+          },
+          "media_blocks": {
+            "description": "Media content embedding",
+            "types": [
+              {
+                "name": "image",
+                "properties": [
+                  "image (file or external url)",
+                  "caption"
+                ]
+              },
+              {
+                "name": "video",
+                "properties": [
+                  "video (YouTube, external URL, or file upload)",
+                  "caption"
+                ]
+              },
+              {
+                "name": "audio",
+                "properties": [
+                  "audio (file)",
+                  "caption"
+                ]
+              },
+              {
+                "name": "file",
+                "properties": [
+                  "file",
+                  "caption"
+                ]
+              },
+              {
+                "name": "pdf",
+                "properties": [
+                  "pdf (file)",
+                  "caption"
+                ]
+              },
+              {
+                "name": "bookmark",
+                "properties": [
+                  "url",
+                  "caption"
+                ]
+              }
+            ]
+          },
+          "database_blocks": {
+            "description": "Nested database references",
+            "types": [
+              {
+                "name": "child_database",
+                "properties": [
+                  "title"
+                ]
+              },
+              {
+                "name": "child_page",
+                "properties": [
+                  "title"
+                ]
+              }
+            ]
+          },
+          "advanced_blocks": {
+            "description": "Complex content types",
+            "types": [
+              {
+                "name": "table",
+                "properties": [
+                  "table_width (number of columns)",
+                  "has_column_header",
+                  "has_row_header",
+                  "children (table rows)"
+                ]
+              },
+              {
+                "name": "table_row",
+                "properties": [
+                  "cells (array of cell content)"
+                ]
+              },
+              {
+                "name": "synced_block",
+                "properties": [
+                  "synced_from (original block reference or null)",
+                  "children"
+                ]
+              },
+              {
+                "name": "embed",
+                "properties": [
+                  "url (Figma, Codepen, Gist, etc.)"
+                ]
+              },
+              {
+                "name": "equation",
+                "properties": [
+                  "expression (LaTeX)"
+                ]
+              },
+              {
+                "name": "link_preview",
+                "properties": [
+                  "url"
+                ]
+              }
+            ]
+          }
+        },
+        "rich_text": {
+          "description": "Formatting system for text content",
+          "annotations": [
+            "bold",
+            "italic",
+            "strikethrough",
+            "underline",
+            "code",
+            "color (text and background)"
+          ],
+          "color_options": [
+            "default",
+            "gray",
+            "brown",
+            "orange",
+            "yellow",
+            "green",
+            "blue",
+            "purple",
+            "pink",
+            "red"
+          ],
+          "background_colors": [
+            "gray_background",
+            "brown_background",
+            "orange_background",
+            "yellow_background",
+            "green_background",
+            "blue_background",
+            "purple_background",
+            "pink_background",
+            "red_background"
+          ],
+          "rich_text_objects": [
+            {
+              "type": "text",
+              "properties": [
+                "content (string)",
+                "link (optional url or page reference)"
+              ]
+            },
+            {
+              "type": "mention",
+              "subtypes": [
+                {
+                  "type": "user",
+                  "represents": "Reference to workspace user"
+                },
+                {
+                  "type": "page",
+                  "represents": "Link to another page"
+                },
+                {
+                  "type": "database",
+                  "represents": "Link to database"
+                },
+                {
+                  "type": "date",
+                  "represents": "Inline date with formatting options"
+                },
+                {
+                  "type": "link_preview",
+                  "represents": "Rich preview of external link"
+                },
+                {
+                  "type": "template_mention",
+                  "subtypes": [
+                    "template_mention_date (today, tomorrow, etc.)",
+                    "template_mention_user (me, current user)"
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "equation",
+              "properties": [
+                "expression (LaTeX math)"
+              ]
+            }
+          ]
+        },
+        "endpoints": {
+          "retrieve": {
+            "method": "GET",
+            "url": "/v1/blocks/{block_id}"
+          },
+          "list_children": {
+            "method": "GET",
+            "url": "/v1/blocks/{block_id}/children",
+            "pagination": "cursor-based, max 100"
+          },
+          "append_children": {
+            "method": "PATCH",
+            "url": "/v1/blocks/{block_id}/children",
+            "body": {
+              "children": "array of block objects to append"
+            }
+          },
+          "update": {
+            "method": "PATCH",
+            "url": "/v1/blocks/{block_id}",
+            "note": "Can update specific block properties"
+          },
+          "delete": {
+            "method": "DELETE",
+            "url": "/v1/blocks/{block_id}"
+          }
+        }
+      },
+      "pages_content": {
+        "description": "Operations on page content and blocks",
+        "endpoints": {
+          "retrieve_page_content": {
+            "method": "GET",
+            "url": "/v1/blocks/{page_id}/children",
+            "returns": "Top-level blocks on page"
+          },
+          "retrieve_nested_content": {
+            "method": "GET",
+            "url": "/v1/blocks/{block_id}/children",
+            "returns": "Child blocks of specified block"
+          },
+          "append_content": {
+            "method": "PATCH",
+            "url": "/v1/blocks/{page_id}/children",
+            "returns": "New block children appended to page"
+          }
+        }
+      },
+      "users": {
+        "description": "Workspace members and bot users",
+        "user_types": [
+          {
+            "type": "person",
+            "description": "Workspace members and guests",
+            "properties": [
+              "id (UUID)",
+              "object (user)",
+              "type (person)",
+              "name (display name)",
+              "avatar_url (profile image)",
+              "person.email (requires user capabilities)"
+            ]
+          },
+          {
+            "type": "bot",
+            "description": "Integration and API users",
+            "properties": [
+              "id (UUID)",
+              "object (user)",
+              "type (bot)",
+              "name (bot display name)",
+              "avatar_url (bot icon)",
+              "owner (workspace or user object)",
+              "workspace_name (owning workspace)",
+              "workspace_id (workspace ID)",
+              "workspace_limits (max_file_upload_size_in_bytes)"
+            ]
+          }
+        ],
+        "universal_properties": {
+          "id": "UUID identifier",
+          "object": "string (value: 'user')",
+          "type": "string ('person' or 'bot')",
+          "name": "string (display name)",
+          "avatar_url": "string | null (profile/bot image)"
+        },
+        "endpoints": {
+          "list": {
+            "method": "GET",
+            "url": "/v1/users",
+            "pagination": "cursor-based"
+          },
+          "retrieve": {
+            "method": "GET",
+            "url": "/v1/users/{user_id}"
+          },
+          "me": {
+            "method": "GET",
+            "url": "/v1/users/me",
+            "returns": "Current bot user information"
+          }
+        },
+        "permission_requirements": "Email visible only with 'user' capability"
+      },
+      "comments": {
+        "description": "Discussion threads on pages",
+        "endpoints": {
+          "create": {
+            "method": "POST",
+            "url": "/v1/comments"
+          },
+          "list": {
+            "method": "GET",
+            "url": "/v1/comments",
+            "query_params": [
+              "block_id",
+              "page_id"
+            ]
+          },
+          "retrieve": {
+            "method": "GET",
+            "url": "/v1/comments/{comment_id}"
+          }
+        },
+        "note": "API documentation incomplete in sources"
+      },
+      "search": {
+        "description": "Full-text search across workspace",
+        "endpoints": {
+          "search": {
+            "method": "POST",
+            "url": "/v1/search",
+            "body": {
+              "query": "string (search text)",
+              "filter": "object (optional - limit to 'page' or 'database')"
+            },
+            "pagination": "cursor-based",
+            "scope": "All pages and data_sources shared with integration"
+          }
+        },
+        "filters": {
+          "object": {
+            "type": "string",
+            "options": [
+              "page",
+              "database"
+            ],
+            "description": "Filter results to specific object type"
+          }
+        },
+        "important_notes": [
+          "Searches within shared content only",
+          "For searching within specific data_source, use data_source query endpoint",
+          "Returns all results when query is empty",
+          "Respects integration capability limitations"
+        ]
+      }
+    },
+    "property_types": {
+      "description": "All 24+ database property types",
+      "basic_properties": [
+        {
+          "type": "title",
+          "description": "Required property for every database",
+          "required": true,
+          "unique_constraint": "Exactly one per database",
+          "value_type": "rich_text"
+        },
+        {
+          "type": "rich_text",
+          "description": "Text with formatting",
+          "value_type": "rich_text array"
+        },
+        {
+          "type": "checkbox",
+          "description": "Boolean checkbox",
+          "value_type": "boolean"
+        },
+        {
+          "type": "number",
+          "description": "Numeric value",
+          "configuration": [
+            "format (number, percent, money, etc.)"
+          ],
+          "value_type": "number"
+        },
+        {
+          "type": "email",
+          "description": "Email address",
+          "value_type": "string"
+        },
+        {
+          "type": "phone_number",
+          "description": "Phone number",
+          "value_type": "string"
+        },
+        {
+          "type": "url",
+          "description": "URL/link",
+          "value_type": "string"
+        }
+      ],
+      "selection_properties": [
+        {
+          "type": "select",
+          "description": "Single-select dropdown",
+          "configuration": [
+            "options (array of selectable values)",
+            "colors for each option"
+          ],
+          "value_type": "option object"
+        },
+        {
+          "type": "multi_select",
+          "description": "Multi-select dropdown",
+          "configuration": [
+            "options (array of selectable values)"
+          ],
+          "value_type": "array<option>"
+        },
+        {
+          "type": "status",
+          "description": "Status property with options",
+          "limitation": "Cannot be created directly via API",
+          "value_type": "status object"
+        }
+      ],
+      "date_properties": [
+        {
+          "type": "date",
+          "description": "Date and optional time",
+          "configuration": [
+            "include_time (boolean)",
+            "date_format (string, US formats, international)"
+          ],
+          "value_type": "date object (start, end, timezone)"
+        },
+        {
+          "type": "created_time",
+          "description": "Auto-populated creation timestamp",
+          "read_only": true,
+          "value_type": "ISO 8601"
+        },
+        {
+          "type": "last_edited_time",
+          "description": "Auto-populated last edit timestamp",
+          "read_only": true,
+          "value_type": "ISO 8601"
+        }
+      ],
+      "relationship_properties": [
+        {
+          "type": "people",
+          "description": "User references",
+          "value_type": "array<user_object>"
+        },
+        {
+          "type": "created_by",
+          "description": "User who created page",
+          "read_only": true,
+          "value_type": "user_object"
+        },
+        {
+          "type": "last_edited_by",
+          "description": "User who last edited",
+          "read_only": true,
+          "value_type": "user_object"
+        },
+        {
+          "type": "relation",
+          "description": "Link to other database pages",
+          "configuration": [
+            "database_id (target database)",
+            "synced_property_name (optional two-way sync)"
+          ],
+          "value_type": "array<page_reference>"
+        }
+      ],
+      "advanced_properties": [
+        {
+          "type": "files",
+          "description": "File attachments",
+          "value_type": "array<file_object>"
+        },
+        {
+          "type": "formula",
+          "description": "Computed values from expressions",
+          "read_only": true,
+          "expression_language": "Notion formula language"
+        },
+        {
+          "type": "rollup",
+          "description": "Aggregation of related records",
+          "configuration": [
+            "relation_property_name",
+            "rollup_property_name",
+            "function (count, sum, average, etc.)"
+          ]
+        },
+        {
+          "type": "unique_id",
+          "description": "Auto-generated unique identifier",
+          "read_only": true,
+          "formats": [
+            "sequential number",
+            "hex random"
+          ]
+        },
+        {
+          "type": "place",
+          "description": "Geographic location",
+          "value_type": "place object"
+        }
+      ]
+    },
+    "query_capabilities": {
+      "description": "Filtering and sorting for data_source queries",
+      "filter_conditions": {
+        "text_filters": [
+          "equals",
+          "does_not_equal",
+          "contains",
+          "does_not_contain",
+          "starts_with",
+          "ends_with"
+        ],
+        "number_filters": [
+          "equals",
+          "does_not_equal",
+          "greater_than",
+          "less_than",
+          "greater_than_or_equal_to",
+          "less_than_or_equal_to"
+        ],
+        "checkbox_filters": [
+          "equals",
+          "does_not_equal"
+        ],
+        "select_filters": [
+          "equals",
+          "does_not_equal"
+        ],
+        "multi_select_filters": [
+          "contains",
+          "does_not_contain"
+        ],
+        "date_filters": [
+          "equals",
+          "before",
+          "after",
+          "on_or_before",
+          "on_or_after",
+          "past_week",
+          "past_month",
+          "past_year",
+          "next_week",
+          "next_month",
+          "next_year",
+          "this_week",
+          "this_month",
+          "this_year"
+        ],
+        "people_filters": [
+          "contains",
+          "does_not_contain"
+        ],
+        "files_filters": [
+          "is_empty",
+          "is_not_empty"
+        ],
+        "relation_filters": [
+          "contains",
+          "does_not_contain"
+        ]
+      },
+      "compound_filters": {
+        "description": "Combine multiple conditions",
+        "operators": [
+          "and",
+          "or"
+        ]
+      },
+      "sort": {
+        "description": "Order results",
+        "properties": [
+          "property (property name or 'created_time' or 'last_edited_time')",
+          "direction (ascending or descending)"
+        ],
+        "multiple_sorts": "Yes, applied in order"
+      },
+      "pagination": {
+        "cursor_based": true,
+        "max_page_size": 100,
+        "default_page_size": 100
+      }
+    },
+    "sync_best_practices": {
+      "overview": "Efficient strategies for syncing Notion data to external systems",
+      "critical_migration_steps": [
+        "Discover data_source_id by fetching database",
+        "Store data_source_id for subsequent queries",
+        "Update all database endpoints to use data_source endpoints",
+        "Test with new API version before full deployment"
+      ],
+      "api_version_migration": {
+        "old_version": "2022-06-28",
+        "new_version": "2025-09-03",
+        "breaking_changes": [
+          "Databases no longer contain direct properties",
+          "Must use data_sources for queries and property access",
+          "Search results now include data_source objects"
+        ],
+        "compatibility": "Old integrations using 2022-06-28 cannot interact with multi-source databases"
+      },
+      "full_sync_strategy": {
+        "step_1_discovery": {
+          "action": "Fetch all databases shared with integration",
+          "endpoint": "GET /v1/search (no query)",
+          "store": ["database_id", "data_source_id", "data_source_name"]
+        },
+        "step_2_schema_sync": {
+          "action": "Retrieve schema for each data_source",
+          "endpoint": "GET /v1/data_sources/{data_source_id}",
+          "store": ["property_names", "property_types", "configurations"]
+        },
+        "step_3_initial_data_sync": {
+          "action": "Query all pages in each data_source",
+          "endpoint": "POST /v1/data_sources/{data_source_id}/query",
+          "cursor_pagination": "Use start_cursor for pagination",
+          "store": ["all_pages", "properties", "values"]
+        },
+        "step_4_content_sync": {
+          "action": "Fetch page blocks for each page",
+          "endpoint": "GET /v1/blocks/{page_id}/children",
+          "recursive": "Follow has_children for nested blocks"
+        }
+      },
+      "incremental_sync_strategy": {
+        "overview": "Efficient updates after initial sync",
+        "approach_1_poll_with_timestamp": {
+          "description": "Query for pages modified since last sync",
+          "filter": "Use last_edited_time with date filters",
+          "frequency": "Every 5-15 minutes (adjust based on needs)",
+          "pros": "Simple, respects rate limits",
+          "cons": "Not real-time, eventual consistency"
+        },
+        "approach_2_webhook_integration": {
+          "description": "Listen for Notion change events",
+          "requires": "Notion webhooks API (separate from REST API)",
+          "pros": "Real-time updates",
+          "cons": "More complex setup"
+        },
+        "recommended_frequency": "5-15 minute intervals for background sync",
+        "rate_limit_aware": "3 requests/second = 180 requests/minute"
+      },
+      "handling_nested_structures": {
+        "databases_in_pages": "Query child_database blocks separately",
+        "nested_pages": "Follow parent references to reconstruct hierarchy",
+        "related_records": "Use relation properties to build relationship graph"
+      },
+      "error_handling": {
+        "rate_limit_exceeded": {
+          "http_status": 429,
+          "action": "Exponential backoff (2^retry seconds)",
+          "max_retries": 5
+        },
+        "validation_errors": {
+          "http_status": 400,
+          "action": "Check request body format and parameters"
+        },
+        "not_found": {
+          "http_status": 404,
+          "action": "Object may be archived, deleted, or inaccessible"
+        },
+        "unauthorized": {
+          "http_status": 401,
+          "action": "Token expired or invalid, refresh if possible"
+        }
+      },
+      "performance_optimization": {
+        "batch_operations": "Append multiple blocks at once",
+        "selective_queries": "Use filters to reduce data transferred",
+        "caching": "Cache schema and static reference data",
+        "compression": "Consider gzip for large data transfers",
+        "connection_pooling": "Reuse HTTP connections for multiple requests"
+      },
+      "data_consistency": {
+        "eventual_consistency": "Updates may take seconds to propagate",
+        "deleted_pages": "Check archived and in_trash fields",
+        "permission_changes": "Re-query after sharing changes",
+        "schema_changes": "Re-fetch data_source for schema updates"
+      }
+    },
+    "security_considerations": {
+      "authentication": [
+        "Use internal integrations for single workspace",
+        "Use OAuth 2.0 for multi-workspace products",
+        "Store tokens securely (never in client code)",
+        "Rotate tokens periodically"
+      ],
+      "permissions": [
+        "Request minimum necessary access",
+        "Integrations inherit user permissions",
+        "Cannot bypass user access controls",
+        "Shared access is granular per page/database"
+      ],
+      "data_handling": [
+        "HTTPS required for all requests",
+        "Validate and sanitize user inputs",
+        "Use rate limits responsibly",
+        "Log access for audit trails"
+      ]
+    },
+    "common_use_cases": {
+      "business_operating_system": {
+        "description": "Centralized workspace management",
+        "entities": [
+          "Projects database (tasks, milestones, status)",
+          "Team database (members, roles, skills)",
+          "Clients database (contact info, projects)",
+          "Tasks database (assignments, deadlines, priority)",
+          "Resources database (documents, files, links)",
+          "Calendar/Timeline (dates, events, dependencies)"
+        ],
+        "sync_pattern": "15-minute incremental sync with webhook listeners"
+      },
+      "knowledge_base": {
+        "description": "Searchable content repository",
+        "entities": [
+          "Articles (title, content, tags, author)",
+          "Categories (organization, hierarchy)",
+          "Search index (full-text, metadata)"
+        ],
+        "sync_pattern": "On-demand with caching, search optimization"
+      },
+      "crm": {
+        "description": "Customer relationship management",
+        "entities": [
+          "Contacts (people, companies, interactions)",
+          "Deals (status, value, timeline)",
+          "Activities (calls, emails, meetings)",
+          "Files (attachments, documents)"
+        ],
+        "sync_pattern": "Real-time with webhooks for critical updates"
+      },
+      "project_management": {
+        "description": "Task and timeline tracking",
+        "entities": [
+          "Projects (scope, status, team)",
+          "Tasks (assignee, due date, priority, status)",
+          "Milestones (key dates, deliverables)",
+          "Dependencies (relationships between tasks)"
+        ],
+        "sync_pattern": "Push updates immediately, pull every 5 minutes"
+      }
+    }
+  }
+}

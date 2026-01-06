@@ -279,6 +279,115 @@ func (ns NullDependencytype) Value() (driver.Value, error) {
 	return string(ns.Dependencytype), nil
 }
 
+type ImportSourceType string
+
+const (
+	ImportSourceTypeChatgptExport      ImportSourceType = "chatgpt_export"
+	ImportSourceTypeClaudeExport       ImportSourceType = "claude_export"
+	ImportSourceTypeCustomChatExport   ImportSourceType = "custom_chat_export"
+	ImportSourceTypeHubspotContacts    ImportSourceType = "hubspot_contacts"
+	ImportSourceTypeHubspotDeals       ImportSourceType = "hubspot_deals"
+	ImportSourceTypeHubspotCompanies   ImportSourceType = "hubspot_companies"
+	ImportSourceTypeSalesforceContacts ImportSourceType = "salesforce_contacts"
+	ImportSourceTypeSalesforceAccounts ImportSourceType = "salesforce_accounts"
+	ImportSourceTypeLinearIssues       ImportSourceType = "linear_issues"
+	ImportSourceTypeNotionDatabase     ImportSourceType = "notion_database"
+	ImportSourceTypeAsanaTasks         ImportSourceType = "asana_tasks"
+	ImportSourceTypeJiraIssues         ImportSourceType = "jira_issues"
+	ImportSourceTypeGoogleCalendar     ImportSourceType = "google_calendar"
+	ImportSourceTypeOutlookCalendar    ImportSourceType = "outlook_calendar"
+	ImportSourceTypeFathomAnalytics    ImportSourceType = "fathom_analytics"
+	ImportSourceTypePlausibleAnalytics ImportSourceType = "plausible_analytics"
+	ImportSourceTypeGoogleDrive        ImportSourceType = "google_drive"
+	ImportSourceTypeDropbox            ImportSourceType = "dropbox"
+	ImportSourceTypeNotionPages        ImportSourceType = "notion_pages"
+	ImportSourceTypeCsvGeneric         ImportSourceType = "csv_generic"
+	ImportSourceTypeJsonGeneric        ImportSourceType = "json_generic"
+	ImportSourceTypeCustom             ImportSourceType = "custom"
+)
+
+func (e *ImportSourceType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ImportSourceType(s)
+	case string:
+		*e = ImportSourceType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ImportSourceType: %T", src)
+	}
+	return nil
+}
+
+type NullImportSourceType struct {
+	ImportSourceType ImportSourceType `json:"import_source_type"`
+	Valid            bool             `json:"valid"` // Valid is true if ImportSourceType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullImportSourceType) Scan(value interface{}) error {
+	if value == nil {
+		ns.ImportSourceType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ImportSourceType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullImportSourceType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ImportSourceType), nil
+}
+
+type ImportStatus string
+
+const (
+	ImportStatusPending    ImportStatus = "pending"
+	ImportStatusValidating ImportStatus = "validating"
+	ImportStatusMapping    ImportStatus = "mapping"
+	ImportStatusProcessing ImportStatus = "processing"
+	ImportStatusCompleted  ImportStatus = "completed"
+	ImportStatusFailed     ImportStatus = "failed"
+	ImportStatusCancelled  ImportStatus = "cancelled"
+)
+
+func (e *ImportStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ImportStatus(s)
+	case string:
+		*e = ImportStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ImportStatus: %T", src)
+	}
+	return nil
+}
+
+type NullImportStatus struct {
+	ImportStatus ImportStatus `json:"import_status"`
+	Valid        bool         `json:"valid"` // Valid is true if ImportStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullImportStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ImportStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ImportStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullImportStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ImportStatus), nil
+}
+
 type Interactiontype string
 
 const (
@@ -865,6 +974,44 @@ type AiUsageLog struct {
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 }
 
+type AirtableBasis struct {
+	ID              pgtype.UUID        `json:"id"`
+	UserID          string             `json:"user_id"`
+	BaseID          string             `json:"base_id"`
+	Name            string             `json:"name"`
+	PermissionLevel *string            `json:"permission_level"`
+	SyncedAt        pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AirtableRecord struct {
+	ID                  pgtype.UUID        `json:"id"`
+	UserID              string             `json:"user_id"`
+	RecordID            string             `json:"record_id"`
+	TableID             string             `json:"table_id"`
+	BaseID              string             `json:"base_id"`
+	Fields              []byte             `json:"fields"`
+	CreatedTimeAirtable pgtype.Timestamptz `json:"created_time_airtable"`
+	SyncedAt            pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AirtableTable struct {
+	ID             pgtype.UUID        `json:"id"`
+	UserID         string             `json:"user_id"`
+	TableID        string             `json:"table_id"`
+	BaseID         string             `json:"base_id"`
+	Name           string             `json:"name"`
+	PrimaryFieldID *string            `json:"primary_field_id"`
+	Fields         []byte             `json:"fields"`
+	Views          []byte             `json:"views"`
+	SyncedAt       pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Artifact struct {
 	ID             pgtype.UUID      `json:"id"`
 	UserID         string           `json:"user_id"`
@@ -918,6 +1065,139 @@ type CalendarEvent struct {
 	SyncedAt      pgtype.Timestamptz `json:"synced_at"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Synced communication channels from Slack/Discord/Teams
+type Channel struct {
+	ID                    pgtype.UUID        `json:"id"`
+	UserID                string             `json:"user_id"`
+	Provider              string             `json:"provider"`
+	ExternalID            string             `json:"external_id"`
+	ExternalWorkspaceID   *string            `json:"external_workspace_id"`
+	ExternalWorkspaceName *string            `json:"external_workspace_name"`
+	Name                  string             `json:"name"`
+	Description           *string            `json:"description"`
+	Topic                 *string            `json:"topic"`
+	IsPrivate             *bool              `json:"is_private"`
+	IsArchived            *bool              `json:"is_archived"`
+	IsDm                  *bool              `json:"is_dm"`
+	MemberCount           *int32             `json:"member_count"`
+	UnreadCount           *int32             `json:"unread_count"`
+	LastMessageAt         pgtype.Timestamptz `json:"last_message_at"`
+	SyncedAt              pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Messages within communication channels
+type ChannelMessage struct {
+	ID              pgtype.UUID        `json:"id"`
+	ChannelID       pgtype.UUID        `json:"channel_id"`
+	UserID          string             `json:"user_id"`
+	ExternalID      string             `json:"external_id"`
+	SenderID        *string            `json:"sender_id"`
+	SenderName      *string            `json:"sender_name"`
+	SenderAvatar    *string            `json:"sender_avatar"`
+	Content         *string            `json:"content"`
+	ContentHtml     *string            `json:"content_html"`
+	Attachments     []byte             `json:"attachments"`
+	Reactions       []byte             `json:"reactions"`
+	Mentions        []byte             `json:"mentions"`
+	ThreadTs        *string            `json:"thread_ts"`
+	ParentMessageID pgtype.UUID        `json:"parent_message_id"`
+	ReplyCount      *int32             `json:"reply_count"`
+	IsThreadRoot    *bool              `json:"is_thread_root"`
+	IsEdited        *bool              `json:"is_edited"`
+	IsDeleted       *bool              `json:"is_deleted"`
+	SentAt          pgtype.Timestamptz `json:"sent_at"`
+	EditedAt        pgtype.Timestamptz `json:"edited_at"`
+	SyncedAt        pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+type ClickupFolder struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    string             `json:"user_id"`
+	FolderID  string             `json:"folder_id"`
+	SpaceID   string             `json:"space_id"`
+	Name      string             `json:"name"`
+	Hidden    *bool              `json:"hidden"`
+	Archived  *bool              `json:"archived"`
+	SyncedAt  pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ClickupList struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    string             `json:"user_id"`
+	ListID    string             `json:"list_id"`
+	FolderID  *string            `json:"folder_id"`
+	SpaceID   string             `json:"space_id"`
+	Name      string             `json:"name"`
+	Archived  *bool              `json:"archived"`
+	TaskCount *int32             `json:"task_count"`
+	SyncedAt  pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ClickupSpace struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      string             `json:"user_id"`
+	SpaceID     string             `json:"space_id"`
+	WorkspaceID string             `json:"workspace_id"`
+	Name        string             `json:"name"`
+	Color       *string            `json:"color"`
+	Private     *bool              `json:"private"`
+	Archived    *bool              `json:"archived"`
+	SyncedAt    pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ClickupTask struct {
+	ID            pgtype.UUID        `json:"id"`
+	UserID        string             `json:"user_id"`
+	TaskID        string             `json:"task_id"`
+	CustomID      *string            `json:"custom_id"`
+	ListID        string             `json:"list_id"`
+	FolderID      *string            `json:"folder_id"`
+	SpaceID       string             `json:"space_id"`
+	Name          string             `json:"name"`
+	Description   *string            `json:"description"`
+	Status        *string            `json:"status"`
+	StatusColor   *string            `json:"status_color"`
+	Priority      *string            `json:"priority"`
+	PriorityColor *string            `json:"priority_color"`
+	DueDate       pgtype.Timestamptz `json:"due_date"`
+	StartDate     pgtype.Timestamptz `json:"start_date"`
+	DateCreated   pgtype.Timestamptz `json:"date_created"`
+	DateUpdated   pgtype.Timestamptz `json:"date_updated"`
+	DateClosed    pgtype.Timestamptz `json:"date_closed"`
+	TimeSpent     *int64             `json:"time_spent"`
+	TimeEstimate  *int64             `json:"time_estimate"`
+	ParentTaskID  *string            `json:"parent_task_id"`
+	Assignees     []byte             `json:"assignees"`
+	Creator       []byte             `json:"creator"`
+	Tags          []byte             `json:"tags"`
+	Url           *string            `json:"url"`
+	SyncedAt      pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ClickupWorkspace struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      string             `json:"user_id"`
+	WorkspaceID string             `json:"workspace_id"`
+	Name        string             `json:"name"`
+	Color       *string            `json:"color"`
+	Avatar      *string            `json:"avatar"`
+	MemberCount *int32             `json:"member_count"`
+	SyncedAt    pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Client struct {
@@ -1027,6 +1307,26 @@ type ConversationTag struct {
 	CreatedAt      pgtype.Timestamp `json:"created_at"`
 }
 
+type CredentialVault struct {
+	ID                    pgtype.UUID        `json:"id"`
+	UserID                string             `json:"user_id"`
+	ProviderID            string             `json:"provider_id"`
+	CredentialType        string             `json:"credential_type"`
+	EncryptedData         []byte             `json:"encrypted_data"`
+	EncryptionVersion     *int32             `json:"encryption_version"`
+	ExpiresAt             pgtype.Timestamptz `json:"expires_at"`
+	ExternalAccountID     *string            `json:"external_account_id"`
+	ExternalAccountEmail  *string            `json:"external_account_email"`
+	ExternalWorkspaceID   *string            `json:"external_workspace_id"`
+	ExternalWorkspaceName *string            `json:"external_workspace_name"`
+	Scopes                []string           `json:"scopes"`
+	Metadata              []byte             `json:"metadata"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+	LastUsedAt            pgtype.Timestamptz `json:"last_used_at"`
+	LastRotatedAt         pgtype.Timestamptz `json:"last_rotated_at"`
+}
+
 type CustomAgent struct {
 	ID               pgtype.UUID        `json:"id"`
 	UserID           string             `json:"user_id"`
@@ -1065,6 +1365,129 @@ type DailyLog struct {
 	UpdatedAt           pgtype.Timestamp `json:"updated_at"`
 }
 
+type DataSyncMapping struct {
+	ID             pgtype.UUID        `json:"id"`
+	UserID         string             `json:"user_id"`
+	SourceProvider string             `json:"source_provider"`
+	SourceEntity   string             `json:"source_entity"`
+	TargetModule   string             `json:"target_module"`
+	TargetEntity   *string            `json:"target_entity"`
+	FieldMappings  []byte             `json:"field_mappings"`
+	TransformRules []byte             `json:"transform_rules"`
+	Enabled        *bool              `json:"enabled"`
+	SyncDirection  *string            `json:"sync_direction"`
+	SyncFrequency  *string            `json:"sync_frequency"`
+	LastSyncedAt   pgtype.Timestamptz `json:"last_synced_at"`
+	RecordsSynced  *int32             `json:"records_synced"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Synced emails from Gmail and other providers
+type Email struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      string             `json:"user_id"`
+	Provider    string             `json:"provider"`
+	ExternalID  string             `json:"external_id"`
+	ThreadID    *string            `json:"thread_id"`
+	Subject     *string            `json:"subject"`
+	Snippet     *string            `json:"snippet"`
+	FromEmail   *string            `json:"from_email"`
+	FromName    *string            `json:"from_name"`
+	ToEmails    []byte             `json:"to_emails"`
+	CcEmails    []byte             `json:"cc_emails"`
+	BccEmails   []byte             `json:"bcc_emails"`
+	ReplyTo     *string            `json:"reply_to"`
+	BodyText    *string            `json:"body_text"`
+	BodyHtml    *string            `json:"body_html"`
+	Attachments []byte             `json:"attachments"`
+	IsRead      *bool              `json:"is_read"`
+	IsStarred   *bool              `json:"is_starred"`
+	IsImportant *bool              `json:"is_important"`
+	IsDraft     *bool              `json:"is_draft"`
+	IsSent      *bool              `json:"is_sent"`
+	IsArchived  *bool              `json:"is_archived"`
+	IsTrash     *bool              `json:"is_trash"`
+	Labels      []byte             `json:"labels"`
+	Date        pgtype.Timestamptz `json:"date"`
+	ReceivedAt  pgtype.Timestamptz `json:"received_at"`
+	SyncedAt    pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type FathomAggregation struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      string             `json:"user_id"`
+	SiteID      string             `json:"site_id"`
+	Date        pgtype.Date        `json:"date"`
+	Visits      *int32             `json:"visits"`
+	Uniques     *int32             `json:"uniques"`
+	Pageviews   *int32             `json:"pageviews"`
+	AvgDuration pgtype.Numeric     `json:"avg_duration"`
+	BounceRate  pgtype.Numeric     `json:"bounce_rate"`
+	SyncedAt    pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type FathomEvent struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      string             `json:"user_id"`
+	SiteID      string             `json:"site_id"`
+	EventID     string             `json:"event_id"`
+	EventName   string             `json:"event_name"`
+	Count       *int32             `json:"count"`
+	PeriodStart pgtype.Date        `json:"period_start"`
+	PeriodEnd   pgtype.Date        `json:"period_end"`
+	SyncedAt    pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type FathomPage struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      string             `json:"user_id"`
+	SiteID      string             `json:"site_id"`
+	Pathname    string             `json:"pathname"`
+	Hostname    *string            `json:"hostname"`
+	Visits      *int32             `json:"visits"`
+	Uniques     *int32             `json:"uniques"`
+	Pageviews   *int32             `json:"pageviews"`
+	AvgDuration pgtype.Numeric     `json:"avg_duration"`
+	BounceRate  pgtype.Numeric     `json:"bounce_rate"`
+	PeriodStart pgtype.Date        `json:"period_start"`
+	PeriodEnd   pgtype.Date        `json:"period_end"`
+	SyncedAt    pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type FathomReferrer struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      string             `json:"user_id"`
+	SiteID      string             `json:"site_id"`
+	Referrer    string             `json:"referrer"`
+	Visits      *int32             `json:"visits"`
+	Uniques     *int32             `json:"uniques"`
+	PeriodStart pgtype.Date        `json:"period_start"`
+	PeriodEnd   pgtype.Date        `json:"period_end"`
+	SyncedAt    pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type FathomSite struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      string             `json:"user_id"`
+	SiteID      string             `json:"site_id"`
+	Name        *string            `json:"name"`
+	SharingUrl  *string            `json:"sharing_url"`
+	ShareConfig *string            `json:"share_config"`
+	SyncedAt    pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type FocusItem struct {
 	ID        pgtype.UUID      `json:"id"`
 	UserID    string           `json:"user_id"`
@@ -1073,6 +1496,75 @@ type FocusItem struct {
 	FocusDate pgtype.Timestamp `json:"focus_date"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+}
+
+type GoogleContact struct {
+	ID            pgtype.UUID        `json:"id"`
+	UserID        string             `json:"user_id"`
+	ResourceName  string             `json:"resource_name"`
+	DisplayName   *string            `json:"display_name"`
+	GivenName     *string            `json:"given_name"`
+	FamilyName    *string            `json:"family_name"`
+	MiddleName    *string            `json:"middle_name"`
+	Emails        []byte             `json:"emails"`
+	PhoneNumbers  []byte             `json:"phone_numbers"`
+	Addresses     []byte             `json:"addresses"`
+	Organization  *string            `json:"organization"`
+	JobTitle      *string            `json:"job_title"`
+	Department    *string            `json:"department"`
+	PhotoUrl      *string            `json:"photo_url"`
+	ContactGroups []byte             `json:"contact_groups"`
+	Metadata      []byte             `json:"metadata"`
+	CreatedTime   pgtype.Timestamptz `json:"created_time"`
+	ModifiedTime  pgtype.Timestamptz `json:"modified_time"`
+	SyncedAt      pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+type GoogleDoc struct {
+	ID           pgtype.UUID        `json:"id"`
+	UserID       string             `json:"user_id"`
+	DocumentID   string             `json:"document_id"`
+	DriveFileID  pgtype.UUID        `json:"drive_file_id"`
+	Title        string             `json:"title"`
+	BodyText     *string            `json:"body_text"`
+	WordCount    *int32             `json:"word_count"`
+	Headers      []byte             `json:"headers"`
+	Locale       *string            `json:"locale"`
+	CreatedTime  pgtype.Timestamptz `json:"created_time"`
+	ModifiedTime pgtype.Timestamptz `json:"modified_time"`
+	SyncedAt     pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type GoogleDriveFile struct {
+	ID                pgtype.UUID        `json:"id"`
+	UserID            string             `json:"user_id"`
+	FileID            string             `json:"file_id"`
+	Name              string             `json:"name"`
+	MimeType          *string            `json:"mime_type"`
+	FileExtension     *string            `json:"file_extension"`
+	SizeBytes         *int64             `json:"size_bytes"`
+	ParentFolderID    *string            `json:"parent_folder_id"`
+	ParentFolderName  *string            `json:"parent_folder_name"`
+	Path              *string            `json:"path"`
+	Shared            *bool              `json:"shared"`
+	SharingUser       *string            `json:"sharing_user"`
+	Permissions       []byte             `json:"permissions"`
+	WebViewLink       *string            `json:"web_view_link"`
+	WebContentLink    *string            `json:"web_content_link"`
+	ThumbnailLink     *string            `json:"thumbnail_link"`
+	IconLink          *string            `json:"icon_link"`
+	CreatedTime       pgtype.Timestamptz `json:"created_time"`
+	ModifiedTime      pgtype.Timestamptz `json:"modified_time"`
+	ViewedByMeTime    pgtype.Timestamptz `json:"viewed_by_me_time"`
+	Owners            []byte             `json:"owners"`
+	LastModifyingUser []byte             `json:"last_modifying_user"`
+	SyncedAt          pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 }
 
 type GoogleOauthToken struct {
@@ -1086,6 +1578,317 @@ type GoogleOauthToken struct {
 	GoogleEmail  *string            `json:"google_email"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type GoogleSheet struct {
+	ID            pgtype.UUID        `json:"id"`
+	UserID        string             `json:"user_id"`
+	SpreadsheetID string             `json:"spreadsheet_id"`
+	DriveFileID   pgtype.UUID        `json:"drive_file_id"`
+	Title         string             `json:"title"`
+	Locale        *string            `json:"locale"`
+	TimeZone      *string            `json:"time_zone"`
+	SheetCount    *int32             `json:"sheet_count"`
+	Sheets        []byte             `json:"sheets"`
+	NamedRanges   []byte             `json:"named_ranges"`
+	CreatedTime   pgtype.Timestamptz `json:"created_time"`
+	ModifiedTime  pgtype.Timestamptz `json:"modified_time"`
+	SyncedAt      pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+type GoogleSlide struct {
+	ID             pgtype.UUID        `json:"id"`
+	UserID         string             `json:"user_id"`
+	PresentationID string             `json:"presentation_id"`
+	DriveFileID    pgtype.UUID        `json:"drive_file_id"`
+	Title          string             `json:"title"`
+	Locale         *string            `json:"locale"`
+	SlideCount     *int32             `json:"slide_count"`
+	Slides         []byte             `json:"slides"`
+	PageWidth      pgtype.Numeric     `json:"page_width"`
+	PageHeight     pgtype.Numeric     `json:"page_height"`
+	CreatedTime    pgtype.Timestamptz `json:"created_time"`
+	ModifiedTime   pgtype.Timestamptz `json:"modified_time"`
+	SyncedAt       pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type GoogleTask struct {
+	ID           pgtype.UUID        `json:"id"`
+	UserID       string             `json:"user_id"`
+	TaskID       string             `json:"task_id"`
+	TaskListID   string             `json:"task_list_id"`
+	Title        string             `json:"title"`
+	Notes        *string            `json:"notes"`
+	Status       *string            `json:"status"`
+	Due          pgtype.Timestamptz `json:"due"`
+	Completed    pgtype.Timestamptz `json:"completed"`
+	Deleted      *bool              `json:"deleted"`
+	Hidden       *bool              `json:"hidden"`
+	ParentTaskID *string            `json:"parent_task_id"`
+	Position     *string            `json:"position"`
+	Links        []byte             `json:"links"`
+	Updated      pgtype.Timestamptz `json:"updated"`
+	SyncedAt     pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type GoogleTaskList struct {
+	ID         pgtype.UUID        `json:"id"`
+	UserID     string             `json:"user_id"`
+	TaskListID string             `json:"task_list_id"`
+	Title      string             `json:"title"`
+	Kind       *string            `json:"kind"`
+	Updated    pgtype.Timestamptz `json:"updated"`
+	SyncedAt   pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type HubspotCompany struct {
+	ID                pgtype.UUID        `json:"id"`
+	UserID            string             `json:"user_id"`
+	HubspotID         string             `json:"hubspot_id"`
+	Name              *string            `json:"name"`
+	Domain            *string            `json:"domain"`
+	Industry          *string            `json:"industry"`
+	NumberOfEmployees *int32             `json:"number_of_employees"`
+	AnnualRevenue     pgtype.Numeric     `json:"annual_revenue"`
+	City              *string            `json:"city"`
+	State             *string            `json:"state"`
+	Country           *string            `json:"country"`
+	OwnerID           *string            `json:"owner_id"`
+	Properties        []byte             `json:"properties"`
+	CreatedAtHubspot  pgtype.Timestamptz `json:"created_at_hubspot"`
+	UpdatedAtHubspot  pgtype.Timestamptz `json:"updated_at_hubspot"`
+	SyncedAt          pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
+type HubspotContact struct {
+	ID               pgtype.UUID        `json:"id"`
+	UserID           string             `json:"user_id"`
+	HubspotID        string             `json:"hubspot_id"`
+	Email            *string            `json:"email"`
+	FirstName        *string            `json:"first_name"`
+	LastName         *string            `json:"last_name"`
+	Phone            *string            `json:"phone"`
+	Company          *string            `json:"company"`
+	JobTitle         *string            `json:"job_title"`
+	LifecycleStage   *string            `json:"lifecycle_stage"`
+	LeadStatus       *string            `json:"lead_status"`
+	OwnerID          *string            `json:"owner_id"`
+	Properties       []byte             `json:"properties"`
+	CreatedAtHubspot pgtype.Timestamptz `json:"created_at_hubspot"`
+	UpdatedAtHubspot pgtype.Timestamptz `json:"updated_at_hubspot"`
+	SyncedAt         pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
+type HubspotDeal struct {
+	ID                   pgtype.UUID        `json:"id"`
+	UserID               string             `json:"user_id"`
+	HubspotID            string             `json:"hubspot_id"`
+	DealName             *string            `json:"deal_name"`
+	Amount               pgtype.Numeric     `json:"amount"`
+	Pipeline             *string            `json:"pipeline"`
+	DealStage            *string            `json:"deal_stage"`
+	CloseDate            pgtype.Date        `json:"close_date"`
+	OwnerID              *string            `json:"owner_id"`
+	AssociatedCompanyIds []byte             `json:"associated_company_ids"`
+	AssociatedContactIds []byte             `json:"associated_contact_ids"`
+	Properties           []byte             `json:"properties"`
+	CreatedAtHubspot     pgtype.Timestamptz `json:"created_at_hubspot"`
+	UpdatedAtHubspot     pgtype.Timestamptz `json:"updated_at_hubspot"`
+	SyncedAt             pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ImportJob struct {
+	ID               pgtype.UUID        `json:"id"`
+	UserID           string             `json:"user_id"`
+	SourceType       ImportSourceType   `json:"source_type"`
+	SourceProvider   *string            `json:"source_provider"`
+	OriginalFilename *string            `json:"original_filename"`
+	FileSizeBytes    *int64             `json:"file_size_bytes"`
+	ContentType      *string            `json:"content_type"`
+	Status           NullImportStatus   `json:"status"`
+	ProgressPercent  *int32             `json:"progress_percent"`
+	TotalRecords     *int32             `json:"total_records"`
+	ProcessedRecords *int32             `json:"processed_records"`
+	ImportedRecords  *int32             `json:"imported_records"`
+	SkippedRecords   *int32             `json:"skipped_records"`
+	FailedRecords    *int32             `json:"failed_records"`
+	FieldMapping     []byte             `json:"field_mapping"`
+	TransformRules   []byte             `json:"transform_rules"`
+	ImportOptions    []byte             `json:"import_options"`
+	TargetModule     string             `json:"target_module"`
+	TargetEntity     *string            `json:"target_entity"`
+	ResultSummary    []byte             `json:"result_summary"`
+	ErrorLog         []byte             `json:"error_log"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	StartedAt        pgtype.Timestamptz `json:"started_at"`
+	CompletedAt      pgtype.Timestamptz `json:"completed_at"`
+	ErrorMessage     *string            `json:"error_message"`
+	ErrorDetails     []byte             `json:"error_details"`
+}
+
+type ImportMappingTemplate struct {
+	ID               pgtype.UUID        `json:"id"`
+	SourceType       ImportSourceType   `json:"source_type"`
+	TargetModule     string             `json:"target_module"`
+	TemplateName     string             `json:"template_name"`
+	FieldMappings    []byte             `json:"field_mappings"`
+	TransformRules   []byte             `json:"transform_rules"`
+	DefaultValues    []byte             `json:"default_values"`
+	Description      *string            `json:"description"`
+	IsSystemTemplate *bool              `json:"is_system_template"`
+	CreatedBy        *string            `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ImportedConversation struct {
+	ID                     pgtype.UUID        `json:"id"`
+	UserID                 string             `json:"user_id"`
+	ImportJobID            pgtype.UUID        `json:"import_job_id"`
+	SourceType             ImportSourceType   `json:"source_type"`
+	ExternalConversationID *string            `json:"external_conversation_id"`
+	Title                  *string            `json:"title"`
+	Model                  *string            `json:"model"`
+	Messages               []byte             `json:"messages"`
+	MessageCount           *int32             `json:"message_count"`
+	OriginalCreatedAt      pgtype.Timestamptz `json:"original_created_at"`
+	OriginalUpdatedAt      pgtype.Timestamptz `json:"original_updated_at"`
+	Metadata               []byte             `json:"metadata"`
+	LinkedContextID        pgtype.UUID        `json:"linked_context_id"`
+	LinkedProjectID        pgtype.UUID        `json:"linked_project_id"`
+	Tags                   []string           `json:"tags"`
+	SearchContent          *string            `json:"search_content"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ImportedRecord struct {
+	ID               pgtype.UUID        `json:"id"`
+	UserID           string             `json:"user_id"`
+	ImportJobID      pgtype.UUID        `json:"import_job_id"`
+	SourceType       ImportSourceType   `json:"source_type"`
+	SourceProvider   *string            `json:"source_provider"`
+	ExternalID       string             `json:"external_id"`
+	TargetModule     string             `json:"target_module"`
+	TargetEntity     *string            `json:"target_entity"`
+	TargetRecordID   pgtype.UUID        `json:"target_record_id"`
+	ExternalDataHash *string            `json:"external_data_hash"`
+	LastSyncedAt     pgtype.Timestamptz `json:"last_synced_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
+type IntegrationProvider struct {
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	Description *string            `json:"description"`
+	Category    string             `json:"category"`
+	IconUrl     *string            `json:"icon_url"`
+	OauthConfig []byte             `json:"oauth_config"`
+	Modules     []string           `json:"modules"`
+	Skills      []string           `json:"skills"`
+	Status      *string            `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Log of all integration sync operations
+type IntegrationSyncLog struct {
+	ID                pgtype.UUID        `json:"id"`
+	UserIntegrationID pgtype.UUID        `json:"user_integration_id"`
+	ModuleID          *string            `json:"module_id"`
+	SyncType          string             `json:"sync_type"`
+	Direction         string             `json:"direction"`
+	Status            string             `json:"status"`
+	RecordsProcessed  *int32             `json:"records_processed"`
+	RecordsCreated    *int32             `json:"records_created"`
+	RecordsUpdated    *int32             `json:"records_updated"`
+	RecordsFailed     *int32             `json:"records_failed"`
+	ErrorMessage      *string            `json:"error_message"`
+	ErrorDetails      []byte             `json:"error_details"`
+	StartedAt         pgtype.Timestamptz `json:"started_at"`
+	CompletedAt       pgtype.Timestamptz `json:"completed_at"`
+}
+
+type IntegrationWebhook struct {
+	ID                     pgtype.UUID        `json:"id"`
+	UserID                 string             `json:"user_id"`
+	ProviderID             string             `json:"provider_id"`
+	WebhookUrl             string             `json:"webhook_url"`
+	WebhookSecretEncrypted []byte             `json:"webhook_secret_encrypted"`
+	Events                 []string           `json:"events"`
+	Status                 *string            `json:"status"`
+	LastTriggeredAt        pgtype.Timestamptz `json:"last_triggered_at"`
+	FailureCount           *int32             `json:"failure_count"`
+	LastError              *string            `json:"last_error"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Synced Linear issues
+type LinearIssue struct {
+	ID                pgtype.UUID        `json:"id"`
+	UserID            string             `json:"user_id"`
+	ExternalID        string             `json:"external_id"`
+	Identifier        string             `json:"identifier"`
+	Title             string             `json:"title"`
+	Description       *string            `json:"description"`
+	State             string             `json:"state"`
+	Priority          *int32             `json:"priority"`
+	Assignee          *string            `json:"assignee"`
+	Project           *string            `json:"project"`
+	Team              string             `json:"team"`
+	DueDate           pgtype.Date        `json:"due_date"`
+	ExternalCreatedAt pgtype.Timestamptz `json:"external_created_at"`
+	ExternalUpdatedAt pgtype.Timestamptz `json:"external_updated_at"`
+	SyncedAt          pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Synced Linear projects
+type LinearProject struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      string             `json:"user_id"`
+	ExternalID  string             `json:"external_id"`
+	Name        string             `json:"name"`
+	Description *string            `json:"description"`
+	State       string             `json:"state"`
+	Progress    pgtype.Numeric     `json:"progress"`
+	StartDate   pgtype.Date        `json:"start_date"`
+	TargetDate  pgtype.Date        `json:"target_date"`
+	Team        *string            `json:"team"`
+	SyncedAt    pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Synced Linear teams
+type LinearTeam struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      string             `json:"user_id"`
+	ExternalID  string             `json:"external_id"`
+	Key         string             `json:"key"`
+	Name        string             `json:"name"`
+	Description *string            `json:"description"`
+	IssueCount  *int32             `json:"issue_count"`
+	SyncedAt    pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type McpUsageLog struct {
@@ -1112,6 +1915,224 @@ type Message struct {
 	MessageMetadata []byte           `json:"message_metadata"`
 }
 
+// Synced Outlook calendar events
+type MicrosoftCalendarEvent struct {
+	ID                         pgtype.UUID        `json:"id"`
+	UserID                     string             `json:"user_id"`
+	EventID                    string             `json:"event_id"`
+	CalendarID                 *string            `json:"calendar_id"`
+	CalendarName               *string            `json:"calendar_name"`
+	Subject                    *string            `json:"subject"`
+	BodyPreview                *string            `json:"body_preview"`
+	BodyContent                *string            `json:"body_content"`
+	BodyContentType            *string            `json:"body_content_type"`
+	LocationDisplayName        *string            `json:"location_display_name"`
+	LocationAddress            []byte             `json:"location_address"`
+	LocationCoordinates        []byte             `json:"location_coordinates"`
+	StartDatetime              pgtype.Timestamptz `json:"start_datetime"`
+	StartTimezone              *string            `json:"start_timezone"`
+	EndDatetime                pgtype.Timestamptz `json:"end_datetime"`
+	EndTimezone                *string            `json:"end_timezone"`
+	IsAllDay                   *bool              `json:"is_all_day"`
+	Recurrence                 []byte             `json:"recurrence"`
+	SeriesMasterID             *string            `json:"series_master_id"`
+	Type                       *string            `json:"type"`
+	Attendees                  []byte             `json:"attendees"`
+	OrganizerEmail             *string            `json:"organizer_email"`
+	OrganizerName              *string            `json:"organizer_name"`
+	IsOnlineMeeting            *bool              `json:"is_online_meeting"`
+	OnlineMeetingProvider      *string            `json:"online_meeting_provider"`
+	OnlineMeetingUrl           *string            `json:"online_meeting_url"`
+	OnlineMeetingJoinUrl       *string            `json:"online_meeting_join_url"`
+	ResponseStatus             *string            `json:"response_status"`
+	ResponseTime               pgtype.Timestamptz `json:"response_time"`
+	Importance                 *string            `json:"importance"`
+	Sensitivity                *string            `json:"sensitivity"`
+	ShowAs                     *string            `json:"show_as"`
+	IsCancelled                *bool              `json:"is_cancelled"`
+	IsReminderOn               *bool              `json:"is_reminder_on"`
+	ReminderMinutesBeforeStart *int32             `json:"reminder_minutes_before_start"`
+	Categories                 []byte             `json:"categories"`
+	CreatedDatetime            pgtype.Timestamptz `json:"created_datetime"`
+	LastModifiedDatetime       pgtype.Timestamptz `json:"last_modified_datetime"`
+	SyncedAt                   pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                  pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Synced Outlook contacts
+type MicrosoftContact struct {
+	ID                   pgtype.UUID        `json:"id"`
+	UserID               string             `json:"user_id"`
+	ContactID            string             `json:"contact_id"`
+	DisplayName          *string            `json:"display_name"`
+	GivenName            *string            `json:"given_name"`
+	Surname              *string            `json:"surname"`
+	MiddleName           *string            `json:"middle_name"`
+	Nickname             *string            `json:"nickname"`
+	Title                *string            `json:"title"`
+	EmailAddresses       []byte             `json:"email_addresses"`
+	PhoneNumbers         []byte             `json:"phone_numbers"`
+	Addresses            []byte             `json:"addresses"`
+	ImAddresses          []byte             `json:"im_addresses"`
+	Websites             []byte             `json:"websites"`
+	CompanyName          *string            `json:"company_name"`
+	Department           *string            `json:"department"`
+	JobTitle             *string            `json:"job_title"`
+	OfficeLocation       *string            `json:"office_location"`
+	Profession           *string            `json:"profession"`
+	Manager              *string            `json:"manager"`
+	AssistantName        *string            `json:"assistant_name"`
+	Birthday             pgtype.Date        `json:"birthday"`
+	SpouseName           *string            `json:"spouse_name"`
+	PersonalNotes        *string            `json:"personal_notes"`
+	PhotoUrl             *string            `json:"photo_url"`
+	Categories           []byte             `json:"categories"`
+	ParentFolderID       *string            `json:"parent_folder_id"`
+	CreatedDatetime      pgtype.Timestamptz `json:"created_datetime"`
+	LastModifiedDatetime pgtype.Timestamptz `json:"last_modified_datetime"`
+	SyncedAt             pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Synced Outlook email messages
+type MicrosoftMailMessage struct {
+	ID                   pgtype.UUID        `json:"id"`
+	UserID               string             `json:"user_id"`
+	MessageID            string             `json:"message_id"`
+	ConversationID       *string            `json:"conversation_id"`
+	Subject              *string            `json:"subject"`
+	BodyPreview          *string            `json:"body_preview"`
+	BodyContent          *string            `json:"body_content"`
+	BodyContentType      *string            `json:"body_content_type"`
+	Importance           *string            `json:"importance"`
+	FromEmail            *string            `json:"from_email"`
+	FromName             *string            `json:"from_name"`
+	ToRecipients         []byte             `json:"to_recipients"`
+	CcRecipients         []byte             `json:"cc_recipients"`
+	BccRecipients        []byte             `json:"bcc_recipients"`
+	ReplyTo              []byte             `json:"reply_to"`
+	IsRead               *bool              `json:"is_read"`
+	IsDraft              *bool              `json:"is_draft"`
+	HasAttachments       *bool              `json:"has_attachments"`
+	FolderID             *string            `json:"folder_id"`
+	FolderName           *string            `json:"folder_name"`
+	Categories           []byte             `json:"categories"`
+	FlagStatus           *string            `json:"flag_status"`
+	Attachments          []byte             `json:"attachments"`
+	ReceivedDatetime     pgtype.Timestamptz `json:"received_datetime"`
+	SentDatetime         pgtype.Timestamptz `json:"sent_datetime"`
+	CreatedDatetime      pgtype.Timestamptz `json:"created_datetime"`
+	LastModifiedDatetime pgtype.Timestamptz `json:"last_modified_datetime"`
+	SyncedAt             pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Microsoft 365 OAuth tokens for users
+type MicrosoftOauthToken struct {
+	ID             pgtype.UUID        `json:"id"`
+	UserID         string             `json:"user_id"`
+	AccessToken    string             `json:"access_token"`
+	RefreshToken   *string            `json:"refresh_token"`
+	Expiry         pgtype.Timestamptz `json:"expiry"`
+	Scopes         []string           `json:"scopes"`
+	MicrosoftID    *string            `json:"microsoft_id"`
+	MicrosoftEmail *string            `json:"microsoft_email"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Synced OneDrive files and folders
+type MicrosoftOnedriveFile struct {
+	ID                      pgtype.UUID        `json:"id"`
+	UserID                  string             `json:"user_id"`
+	ItemID                  string             `json:"item_id"`
+	Name                    string             `json:"name"`
+	Description             *string            `json:"description"`
+	MimeType                *string            `json:"mime_type"`
+	SizeBytes               *int64             `json:"size_bytes"`
+	ParentReferenceID       *string            `json:"parent_reference_id"`
+	ParentReferencePath     *string            `json:"parent_reference_path"`
+	WebUrl                  *string            `json:"web_url"`
+	IsFolder                *bool              `json:"is_folder"`
+	FolderChildCount        *int32             `json:"folder_child_count"`
+	FileHash                *string            `json:"file_hash"`
+	Shared                  *bool              `json:"shared"`
+	SharedScope             *string            `json:"shared_scope"`
+	SharedLink              []byte             `json:"shared_link"`
+	Permissions             []byte             `json:"permissions"`
+	CreatedByUserEmail      *string            `json:"created_by_user_email"`
+	CreatedByUserName       *string            `json:"created_by_user_name"`
+	LastModifiedByUserEmail *string            `json:"last_modified_by_user_email"`
+	LastModifiedByUserName  *string            `json:"last_modified_by_user_name"`
+	CreatedDatetime         pgtype.Timestamptz `json:"created_datetime"`
+	LastModifiedDatetime    pgtype.Timestamptz `json:"last_modified_datetime"`
+	DownloadUrl             *string            `json:"download_url"`
+	Thumbnails              []byte             `json:"thumbnails"`
+	SyncedAt                pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt               pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Microsoft To Do task lists
+type MicrosoftTodoList struct {
+	ID                pgtype.UUID        `json:"id"`
+	UserID            string             `json:"user_id"`
+	ListID            string             `json:"list_id"`
+	DisplayName       string             `json:"display_name"`
+	IsOwner           *bool              `json:"is_owner"`
+	IsShared          *bool              `json:"is_shared"`
+	WellknownListName *string            `json:"wellknown_list_name"`
+	SyncedAt          pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Microsoft To Do tasks
+type MicrosoftTodoTask struct {
+	ID                   pgtype.UUID        `json:"id"`
+	UserID               string             `json:"user_id"`
+	TaskID               string             `json:"task_id"`
+	ListID               string             `json:"list_id"`
+	Title                string             `json:"title"`
+	BodyContent          *string            `json:"body_content"`
+	BodyContentType      *string            `json:"body_content_type"`
+	Importance           *string            `json:"importance"`
+	Status               *string            `json:"status"`
+	DueDatetime          pgtype.Timestamptz `json:"due_datetime"`
+	DueTimezone          *string            `json:"due_timezone"`
+	StartDatetime        pgtype.Timestamptz `json:"start_datetime"`
+	StartTimezone        *string            `json:"start_timezone"`
+	CompletedDatetime    pgtype.Timestamptz `json:"completed_datetime"`
+	CompletedTimezone    *string            `json:"completed_timezone"`
+	Recurrence           []byte             `json:"recurrence"`
+	IsReminderOn         *bool              `json:"is_reminder_on"`
+	ReminderDatetime     pgtype.Timestamptz `json:"reminder_datetime"`
+	Categories           []byte             `json:"categories"`
+	LinkedResources      []byte             `json:"linked_resources"`
+	ChecklistItems       []byte             `json:"checklist_items"`
+	CreatedDatetime      pgtype.Timestamptz `json:"created_datetime"`
+	LastModifiedDatetime pgtype.Timestamptz `json:"last_modified_datetime"`
+	SyncedAt             pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ModuleIntegrationSetting struct {
+	ID             pgtype.UUID        `json:"id"`
+	UserID         string             `json:"user_id"`
+	ModuleID       string             `json:"module_id"`
+	ProviderID     string             `json:"provider_id"`
+	Enabled        *bool              `json:"enabled"`
+	SyncDirection  *string            `json:"sync_direction"`
+	SyncFrequency  *string            `json:"sync_frequency"`
+	CustomSettings []byte             `json:"custom_settings"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Node struct {
 	ID              pgtype.UUID      `json:"id"`
 	UserID          string           `json:"user_id"`
@@ -1132,12 +2153,49 @@ type Node struct {
 	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
 }
 
+type NodeContext struct {
+	NodeID    pgtype.UUID        `json:"node_id"`
+	ContextID pgtype.UUID        `json:"context_id"`
+	LinkedAt  pgtype.Timestamptz `json:"linked_at"`
+	LinkedBy  *string            `json:"linked_by"`
+}
+
+type NodeConversation struct {
+	NodeID         pgtype.UUID        `json:"node_id"`
+	ConversationID pgtype.UUID        `json:"conversation_id"`
+	LinkedAt       pgtype.Timestamptz `json:"linked_at"`
+	LinkedBy       *string            `json:"linked_by"`
+}
+
 type NodeMetric struct {
 	ID          pgtype.UUID      `json:"id"`
 	NodeID      pgtype.UUID      `json:"node_id"`
 	MetricName  string           `json:"metric_name"`
 	MetricValue string           `json:"metric_value"`
 	RecordedAt  pgtype.Timestamp `json:"recorded_at"`
+}
+
+type NodeProject struct {
+	NodeID    pgtype.UUID        `json:"node_id"`
+	ProjectID pgtype.UUID        `json:"project_id"`
+	LinkedAt  pgtype.Timestamptz `json:"linked_at"`
+	LinkedBy  *string            `json:"linked_by"`
+}
+
+// Synced Notion databases with their property schemas
+type NotionDatabase struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      string             `json:"user_id"`
+	NotionID    string             `json:"notion_id"`
+	Title       *string            `json:"title"`
+	Description *string            `json:"description"`
+	Icon        *string            `json:"icon"`
+	Cover       *string            `json:"cover"`
+	Url         *string            `json:"url"`
+	Properties  []byte             `json:"properties"`
+	SyncedAt    pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type NotionOauthToken struct {
@@ -1154,6 +2212,45 @@ type NotionOauthToken struct {
 	OwnerUserEmail *string            `json:"owner_user_email"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Synced Notion pages/database entries
+type NotionPage struct {
+	ID         pgtype.UUID        `json:"id"`
+	UserID     string             `json:"user_id"`
+	NotionID   string             `json:"notion_id"`
+	DatabaseID pgtype.UUID        `json:"database_id"`
+	Title      *string            `json:"title"`
+	Icon       *string            `json:"icon"`
+	Cover      *string            `json:"cover"`
+	Url        *string            `json:"url"`
+	Archived   *bool              `json:"archived"`
+	Properties []byte             `json:"properties"`
+	Content    []byte             `json:"content"`
+	SyncedAt   pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type PendingDecision struct {
+	ID             pgtype.UUID        `json:"id"`
+	ExecutionID    string             `json:"execution_id"`
+	SkillID        string             `json:"skill_id"`
+	StepID         string             `json:"step_id"`
+	UserID         string             `json:"user_id"`
+	Question       string             `json:"question"`
+	Description    *string            `json:"description"`
+	Options        []string           `json:"options"`
+	InputFields    []byte             `json:"input_fields"`
+	Context        []byte             `json:"context"`
+	Priority       *string            `json:"priority"`
+	Status         *string            `json:"status"`
+	Decision       *string            `json:"decision"`
+	DecisionInputs []byte             `json:"decision_inputs"`
+	DecidedBy      *string            `json:"decided_by"`
+	DecidedAt      pgtype.Timestamptz `json:"decided_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
 }
 
 type Project struct {
@@ -1261,6 +2358,59 @@ type ReasoningTemplate struct {
 	IsDefault           *bool              `json:"is_default"`
 	CreatedAt           pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+}
+
+type SkillExecution struct {
+	ID          pgtype.UUID        `json:"id"`
+	SkillID     string             `json:"skill_id"`
+	UserID      string             `json:"user_id"`
+	Status      string             `json:"status"`
+	CurrentStep *int32             `json:"current_step"`
+	Params      []byte             `json:"params"`
+	Result      []byte             `json:"result"`
+	Error       *string            `json:"error"`
+	Context     []byte             `json:"context"`
+	StepResults []byte             `json:"step_results"`
+	Metrics     []byte             `json:"metrics"`
+	StartedAt   pgtype.Timestamptz `json:"started_at"`
+	CompletedAt pgtype.Timestamptz `json:"completed_at"`
+}
+
+// Synced Slack channels, DMs, and group messages
+type SlackChannel struct {
+	ID           pgtype.UUID        `json:"id"`
+	UserID       string             `json:"user_id"`
+	SlackID      string             `json:"slack_id"`
+	Name         string             `json:"name"`
+	IsPrivate    *bool              `json:"is_private"`
+	IsDm         *bool              `json:"is_dm"`
+	IsMpim       *bool              `json:"is_mpim"`
+	MemberCount  *int32             `json:"member_count"`
+	Topic        *string            `json:"topic"`
+	Purpose      *string            `json:"purpose"`
+	UnreadCount  *int32             `json:"unread_count"`
+	LastActivity pgtype.Timestamptz `json:"last_activity"`
+	SyncedAt     pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Synced Slack messages from channels
+type SlackMessage struct {
+	ID         pgtype.UUID        `json:"id"`
+	UserID     string             `json:"user_id"`
+	ChannelID  pgtype.UUID        `json:"channel_id"`
+	SlackTs    string             `json:"slack_ts"`
+	SenderID   *string            `json:"sender_id"`
+	SenderName *string            `json:"sender_name"`
+	Content    *string            `json:"content"`
+	ThreadTs   *string            `json:"thread_ts"`
+	ReplyCount *int32             `json:"reply_count"`
+	IsEdited   *bool              `json:"is_edited"`
+	SentAt     pgtype.Timestamptz `json:"sent_at"`
+	SyncedAt   pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
 type SlackOauthToken struct {
@@ -1413,6 +2563,44 @@ type UserCommand struct {
 	IsActive       *bool              `json:"is_active"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type UserIntegration struct {
+	ID                    pgtype.UUID        `json:"id"`
+	UserID                string             `json:"user_id"`
+	ProviderID            string             `json:"provider_id"`
+	Status                *string            `json:"status"`
+	ConnectedAt           pgtype.Timestamptz `json:"connected_at"`
+	LastUsedAt            pgtype.Timestamptz `json:"last_used_at"`
+	AccessTokenEncrypted  []byte             `json:"access_token_encrypted"`
+	RefreshTokenEncrypted []byte             `json:"refresh_token_encrypted"`
+	TokenExpiresAt        pgtype.Timestamptz `json:"token_expires_at"`
+	Scopes                []string           `json:"scopes"`
+	ExternalAccountID     *string            `json:"external_account_id"`
+	ExternalAccountName   *string            `json:"external_account_name"`
+	ExternalWorkspaceID   *string            `json:"external_workspace_id"`
+	ExternalWorkspaceName *string            `json:"external_workspace_name"`
+	Metadata              []byte             `json:"metadata"`
+	Settings              []byte             `json:"settings"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+}
+
+type UserModelPreference struct {
+	ID                         pgtype.UUID        `json:"id"`
+	UserID                     string             `json:"user_id"`
+	Tier2Model                 []byte             `json:"tier_2_model"`
+	Tier3Model                 []byte             `json:"tier_3_model"`
+	Tier4Model                 []byte             `json:"tier_4_model"`
+	Tier2Fallbacks             []byte             `json:"tier_2_fallbacks"`
+	Tier3Fallbacks             []byte             `json:"tier_3_fallbacks"`
+	Tier4Fallbacks             []byte             `json:"tier_4_fallbacks"`
+	SkillOverrides             []byte             `json:"skill_overrides"`
+	AllowModelUpgradeOnFailure *bool              `json:"allow_model_upgrade_on_failure"`
+	MaxLatencyMs               *int32             `json:"max_latency_ms"`
+	PreferLocal                *bool              `json:"prefer_local"`
+	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                  pgtype.Timestamptz `json:"updated_at"`
 }
 
 type UserSetting struct {

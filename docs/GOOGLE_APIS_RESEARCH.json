@@ -1,0 +1,913 @@
+{
+  "title": "Google APIs Data Research for BusinessOS",
+  "research_date": "2026-01-05",
+  "overview": {
+    "description": "Comprehensive mapping of Google APIs and available data fields relevant for a business operating system integration",
+    "purpose": "Enable informed decisions on data synchronization, field mapping, and feature implementation",
+    "scope": "Google Calendar API v3, Gmail API v1, Google Drive API v3"
+  },
+  "apis": {
+    "google_calendar_v3": {
+      "name": "Google Calendar API v3",
+      "documentation_url": "https://developers.google.com/calendar/api",
+      "authentication": "OAuth 2.0",
+      "base_url": "https://www.googleapis.com/calendar/v3",
+      "primary_use_cases": [
+        "Sync calendar events",
+        "Create/update events",
+        "Manage attendees and RSVP status",
+        "Extract meeting links (Google Meet, Zoom, Teams)",
+        "Track recurring events",
+        "Manage reminders and notifications",
+        "Sync with daily logs and tasks"
+      ],
+      "required_scopes": [
+        "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/calendar.readonly"
+      ],
+      "optional_scopes": [
+        "https://www.googleapis.com/auth/calendar.events",
+        "https://www.googleapis.com/auth/calendar.events.readonly",
+        "https://www.googleapis.com/auth/calendar.settings.readonly"
+      ],
+      "endpoints": {
+        "calendars_list": {
+          "method": "GET",
+          "path": "/calendars",
+          "description": "List all calendars accessible to the user",
+          "returns": {
+            "calendars": [
+              {
+                "id": "string",
+                "summary": "string",
+                "description": "string",
+                "location": "string",
+                "timeZone": "string",
+                "primary": "boolean"
+              }
+            ]
+          }
+        },
+        "events_list": {
+          "method": "GET",
+          "path": "/calendars/{calendarId}/events",
+          "description": "List events for a specific calendar",
+          "query_parameters": {
+            "timeMin": "RFC3339 timestamp (required for efficient queries)",
+            "timeMax": "RFC3339 timestamp",
+            "maxResults": "integer, default 25, max 2500",
+            "singleEvents": "boolean (expand recurring events)",
+            "orderBy": "startTime or updated",
+            "q": "search query string"
+          },
+          "returns": {
+            "items": [
+              {
+                "kind": "calendar#event",
+                "etag": "string",
+                "id": "string",
+                "created": "RFC3339 timestamp",
+                "updated": "RFC3339 timestamp",
+                "summary": "string",
+                "description": "string",
+                "location": "string",
+                "start": {
+                  "dateTime": "RFC3339 (timed events)",
+                  "date": "YYYY-MM-DD (all-day events)",
+                  "timeZone": "string"
+                },
+                "end": {
+                  "dateTime": "RFC3339",
+                  "date": "YYYY-MM-DD",
+                  "timeZone": "string"
+                },
+                "status": "confirmed|tentative|cancelled",
+                "attendees": [
+                  {
+                    "email": "string",
+                    "displayName": "string",
+                    "responseStatus": "needsAction|declined|tentative|accepted",
+                    "optional": "boolean",
+                    "comment": "string",
+                    "additionalGuests": "integer"
+                  }
+                ],
+                "organizer": {
+                  "email": "string",
+                  "displayName": "string",
+                  "self": "boolean"
+                },
+                "recurrence": [
+                  "RRULE:FREQ=DAILY;COUNT=5",
+                  "EXDATE:20230101,20230102"
+                ],
+                "recurringEventId": "string",
+                "originalStartTime": "RFC3339 timestamp (for recurring instances)",
+                "transparency": "opaque|transparent",
+                "visibility": "public|private|confidential",
+                "iCalUID": "string",
+                "sequence": "integer",
+                "hangoutLink": "string (deprecated, use conferenceData)",
+                "conferenceData": {
+                  "createRequest": {
+                    "requestId": "string",
+                    "conferenceSolutionKey": {
+                      "type": "eventType (hangoutsMeet, addOnType, etc.)"
+                    }
+                  },
+                  "entryPoints": [
+                    {
+                      "entryPointType": "video|phone|more",
+                      "uri": "string (the actual link)",
+                      "label": "string",
+                      "pin": "string",
+                      "accessCode": "string",
+                      "meetingCode": "string",
+                      "passcode": "string"
+                    }
+                  ],
+                  "conferenceSolution": {
+                    "key": {
+                      "type": "eventType"
+                    },
+                    "name": "Google Meet|Zoom|Teams|etc.",
+                    "iconUri": "string"
+                  },
+                  "conferenceId": "string",
+                  "signature": "string",
+                  "notes": "string"
+                },
+                "reminders": {
+                  "useDefault": "boolean",
+                  "overrides": [
+                    {
+                      "method": "email|popup|sms",
+                      "minutes": "integer (15, 30, 60, 1440, 10080, etc.)"
+                    }
+                  ]
+                },
+                "eventType": "default|outOfOffice|focusTime|workingLocation",
+                "workingLocationProperties": {
+                  "type": "homeOffice|officeLocation|customLocation",
+                  "customLocation": {
+                    "label": "string"
+                  },
+                  "officeLocation": {
+                    "buildingId": "string",
+                    "label": "string",
+                    "floorId": "string",
+                    "floorLabel": "string",
+                    "deskId": "string",
+                    "deskLabel": "string"
+                  }
+                },
+                "focusTimeProperties": {
+                  "autoDeclineMode": "declineOnlyEventWithoutGuests|declineAllEvents|doNotDecline"
+                },
+                "outOfOfficeProperties": {
+                  "autoDeclineMode": "declineOnlyEventWithoutGuests|declineAllEvents|declineNone",
+                  "isOutOfOffice": "boolean"
+                },
+                "gadget": "object (deprecated)",
+                "privateCopy": "boolean",
+                "locked": "boolean",
+                "source": {
+                  "title": "string",
+                  "url": "string"
+                },
+                "attachments": [
+                  {
+                    "fileUrl": "string",
+                    "title": "string",
+                    "mimeType": "string",
+                    "iconLink": "string",
+                    "fileId": "string"
+                  }
+                ],
+                "colorId": "string (1-11, maps to calendar colors)",
+                "htmlLink": "string",
+                "kind": "calendar#event"
+              }
+            ]
+          }
+        },
+        "events_insert": {
+          "method": "POST",
+          "path": "/calendars/{calendarId}/events",
+          "description": "Create a new calendar event",
+          "request_body": "Event object (see events_list returns for fields)",
+          "query_parameters": {
+            "supportsAttachments": "boolean",
+            "conferenceDataVersion": "0 or 1 (required for Meet/video links)",
+            "maxAttendees": "integer"
+          }
+        },
+        "events_update": {
+          "method": "PUT",
+          "path": "/calendars/{calendarId}/events/{eventId}",
+          "description": "Update an existing event",
+          "query_parameters": {
+            "supportsAttachments": "boolean",
+            "conferenceDataVersion": "0 or 1",
+            "maxAttendees": "integer"
+          }
+        },
+        "events_delete": {
+          "method": "DELETE",
+          "path": "/calendars/{calendarId}/events/{eventId}",
+          "description": "Delete an event"
+        }
+      },
+      "rate_limits": {
+        "free_tier": "1,000,000 queries per day",
+        "quota_units": "Per API call complexity varies",
+        "rate_per_second": "No strict per-second limit but fair use applies"
+      },
+      "sync_strategy": {
+        "initial_sync": {
+          "recommended_approach": "Fetch all calendars, then events from each",
+          "time_window": "Last 6 months to +6 months is optimal",
+          "pagination": "Use pageToken for large result sets",
+          "estimated_time": "5-10 minutes for typical user"
+        },
+        "incremental_sync": {
+          "approach": "Use updatedMin parameter",
+          "frequency": "Daily or hourly is typical",
+          "watch_api": "Available for push-based changes (requires webhook)",
+          "challenge": "Handles recurring event expansions automatically with singleEvents=true"
+        }
+      },
+      "key_data_fields": [
+        "Event ID (immutable identifier)",
+        "Summary/Title",
+        "Description/Notes",
+        "Location",
+        "Start/End times with timezone",
+        "All-day indicator",
+        "Status (confirmed/tentative/cancelled)",
+        "Attendees (with names, emails, RSVP status)",
+        "Organizer info",
+        "Recurrence rules (RRULE format)",
+        "Meeting links (conferenceData - Google Meet, Zoom, Teams)",
+        "Reminders (email, popup, sms)",
+        "Color ID (visual organization)",
+        "Attachments (files, links)",
+        "Event type (working location, focus time, out of office)",
+        "Transparency (busy/free)",
+        "Visibility (public/private/confidential)",
+        "Created/Updated timestamps"
+      ],
+      "businessos_mapping": {
+        "calendar_module": "Primary integration point",
+        "daily_log": "Auto-populate with day's events",
+        "tasks": "Convert events to tasks if needed",
+        "nodes": "Each event becomes a node",
+        "estimated_nodes": "20-100 per initial sync"
+      },
+      "current_implementation": {
+        "file": "/Users/rhl/Desktop/BusinessOS2/desktop/backend-go/internal/integrations/google/calendar.go",
+        "status": "Partially implemented",
+        "features": [
+          "SyncEvents - fetches events within date range",
+          "CreateEvent - creates local and pushes to Google",
+          "DeleteEvent - deletes from both local and Google",
+          "GetEvents - retrieves from local database",
+          "FetchEvents - native Google types for MCP",
+          "CreateGoogleEvent - full feature support",
+          "UpdateGoogleEvent - full feature support"
+        ],
+        "missing_features": [
+          "Event update via UI",
+          "Full attendee management",
+          "Recurring event expansion details",
+          "Watch API (push-based sync)",
+          "Multi-calendar sync (only primary)"
+        ]
+      }
+    },
+    "gmail_v1": {
+      "name": "Gmail API v1",
+      "documentation_url": "https://developers.google.com/gmail/api",
+      "authentication": "OAuth 2.0",
+      "base_url": "https://www.googleapis.com/gmail/v1",
+      "primary_use_cases": [
+        "Sync incoming emails",
+        "Extract email content and metadata",
+        "Parse attachments",
+        "Search emails with powerful query syntax",
+        "Send emails",
+        "Manage labels and folders",
+        "Track conversation threads",
+        "Extract sender/recipient info for contacts",
+        "Integrate with daily logs and chat modules"
+      ],
+      "required_scopes": [
+        "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/gmail.modify"
+      ],
+      "optional_scopes": [
+        "https://www.googleapis.com/auth/gmail.send",
+        "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/gmail.insert",
+        "https://www.googleapis.com/auth/gmail.labels",
+        "https://www.googleapis.com/auth/gmail.settings.basic",
+        "https://www.googleapis.com/auth/gmail.settings.sharing"
+      ],
+      "endpoints": {
+        "users_messages_list": {
+          "method": "GET",
+          "path": "/users/{userId}/messages",
+          "userId": "me (authenticated user)",
+          "description": "List message IDs in a mailbox",
+          "query_parameters": {
+            "q": "Gmail search query (complex filtering)",
+            "maxResults": "integer, max 500",
+            "pageToken": "string for pagination",
+            "labelIds": "array of label IDs to filter"
+          },
+          "returns": {
+            "messages": [
+              {
+                "id": "string (unique message ID)",
+                "threadId": "string"
+              }
+            ],
+            "nextPageToken": "string"
+          },
+          "search_syntax_examples": [
+            "in:inbox",
+            "in:sent",
+            "in:draft",
+            "is:unread",
+            "is:starred",
+            "from:example@example.com",
+            "to:example@example.com",
+            "subject:important",
+            "has:attachment",
+            "before:2023-01-01",
+            "after:2023-01-01",
+            "larger:1000000",
+            "filename:pdf"
+          ]
+        },
+        "users_messages_get": {
+          "method": "GET",
+          "path": "/users/{userId}/messages/{id}",
+          "description": "Get full message details",
+          "query_parameters": {
+            "format": "full|minimal|raw",
+            "metadataHeaders": "array of header names to include"
+          },
+          "returns": {
+            "id": "string",
+            "threadId": "string",
+            "labelIds": [
+              "INBOX",
+              "SENT",
+              "DRAFT",
+              "STARRED",
+              "IMPORTANT",
+              "UNREAD",
+              "TRASH",
+              "SPAM",
+              "CATEGORY_PERSONAL",
+              "CATEGORY_SOCIAL",
+              "CATEGORY_PROMOTIONS",
+              "CATEGORY_UPDATES",
+              "CATEGORY_FORUMS",
+              "CUSTOM_LABEL_ID"
+            ],
+            "snippet": "string (preview text)",
+            "internalDate": "milliseconds since epoch",
+            "payload": {
+              "mimeType": "text/plain|text/html|multipart/alternative|multipart/mixed",
+              "filename": "string (if attachment)",
+              "headers": [
+                {
+                  "name": "From|To|Cc|Bcc|Subject|Date|Reply-To|Content-Type|etc.",
+                  "value": "string"
+                }
+              ],
+              "body": {
+                "size": "integer",
+                "data": "string (base64-encoded content)",
+                "attachmentId": "string (for attachments)"
+              },
+              "parts": [
+                "nested parts for multipart messages"
+              ]
+            },
+            "sizeEstimate": "integer (bytes)"
+          }
+        },
+        "users_messages_send": {
+          "method": "POST",
+          "path": "/users/{userId}/messages/send",
+          "description": "Send an email message",
+          "request_body": {
+            "raw": "string (base64-encoded RFC 2822 formatted message)"
+          },
+          "returns": {
+            "id": "string (message ID)",
+            "threadId": "string"
+          }
+        },
+        "users_messages_modify": {
+          "method": "POST",
+          "path": "/users/{userId}/messages/{id}/modify",
+          "description": "Modify labels, mark read/unread, star/unstar, archive",
+          "request_body": {
+            "addLabelIds": ["STARRED", "IMPORTANT"],
+            "removeLabelIds": ["UNREAD", "INBOX"]
+          }
+        },
+        "users_messages_trash": {
+          "method": "POST",
+          "path": "/users/{userId}/messages/{id}/trash",
+          "description": "Move message to trash"
+        },
+        "users_messages_delete": {
+          "method": "DELETE",
+          "path": "/users/{userId}/messages/{id}",
+          "description": "Permanently delete a message (cannot be undone)"
+        },
+        "users_messages_attachments_get": {
+          "method": "GET",
+          "path": "/users/{userId}/messages/{messageId}/attachments/{id}",
+          "description": "Download an attachment",
+          "returns": {
+            "size": "integer (bytes)",
+            "data": "string (base64-encoded file content)"
+          }
+        },
+        "users_threads_list": {
+          "method": "GET",
+          "path": "/users/{userId}/threads",
+          "description": "List conversation threads",
+          "query_parameters": {
+            "q": "Gmail search query",
+            "maxResults": "integer, max 500",
+            "pageToken": "string"
+          }
+        },
+        "users_threads_get": {
+          "method": "GET",
+          "path": "/users/{userId}/threads/{id}",
+          "description": "Get full thread with all messages",
+          "query_parameters": {
+            "format": "full|minimal"
+          }
+        },
+        "users_labels_list": {
+          "method": "GET",
+          "path": "/users/{userId}/labels",
+          "description": "List all labels",
+          "returns": {
+            "labels": [
+              {
+                "id": "string",
+                "name": "string (user-created labels)",
+                "type": "system|user",
+                "messagesTotal": "integer",
+                "messagesUnread": "integer",
+                "labelListVisibility": "labelShow|labelShowIfUnread|labelHide",
+                "messageListVisibility": "show|hide"
+              }
+            ]
+          }
+        }
+      },
+      "rate_limits": {
+        "free_tier": "1,000,000 requests per day",
+        "quota_units": "1 unit per API call",
+        "rate_per_second": "250 requests per second (per user)",
+        "batch_operations": "Up to 1000 messages per batch request"
+      },
+      "sync_strategy": {
+        "initial_sync": {
+          "approach": "Fetch recent emails in batches using pagination",
+          "recommended_query": "in:inbox OR in:sent (excludes drafts/spam)",
+          "batch_size": "Fetch 100-500 at a time",
+          "estimated_time": "15-30 minutes for 2000+ emails"
+        },
+        "incremental_sync": {
+          "approach": "Use internalDate to track new emails",
+          "frequency": "Daily or on-demand",
+          "challenge": "Must fetch full message for content (multiple API calls)",
+          "optimization": "Cache email metadata, update details as needed"
+        },
+        "attachment_handling": {
+          "approach": "Only download when needed",
+          "size_consideration": "Check sizeEstimate before downloading",
+          "storage": "Store in cloud (GCS) or reference external"
+        }
+      },
+      "key_data_fields": [
+        "Message ID (immutable, unique to Gmail)",
+        "Thread ID (conversation grouping)",
+        "Subject line",
+        "From (sender email and name)",
+        "To (recipient emails)",
+        "Cc/Bcc (carbon copy recipients)",
+        "Date/Timestamp",
+        "Body text (plain text version)",
+        "Body HTML (formatted version)",
+        "Snipper (preview text)",
+        "Labels (Gmail labels/folders)",
+        "Is Read flag",
+        "Is Starred flag",
+        "Is Important flag",
+        "Is Draft flag",
+        "Is Sent flag",
+        "Is Archived flag",
+        "Is Trash flag",
+        "Attachments (file metadata and content)",
+        "Reply-To header",
+        "In-Reply-To header (thread references)",
+        "Size estimate (bytes)"
+      ],
+      "businessos_mapping": {
+        "communication_module": "Primary integration point",
+        "daily_log": "Auto-populate with key emails",
+        "chat": "Store conversations as memories",
+        "tasks": "Extract action items from emails",
+        "nodes": "Important emails become nodes",
+        "estimated_nodes": "50-200 per initial sync"
+      },
+      "current_implementation": {
+        "file": "/Users/rhl/Desktop/BusinessOS2/desktop/backend-go/internal/integrations/google/gmail.go",
+        "status": "Fully implemented for core operations",
+        "features": [
+          "SyncEmails - fetches emails with full content",
+          "GetEmails - retrieves from database with folder filtering",
+          "GetEmail - gets single email by ID",
+          "GetEmailByID - alias for GetEmail",
+          "MarkAsRead - updates read status",
+          "ArchiveEmail - archives emails",
+          "DeleteEmail - moves to trash",
+          "SendEmail - sends via Gmail"
+        ],
+        "capabilities": [
+          "Parses email headers (subject, from, to, cc, reply-to, date)",
+          "Extracts body text and HTML",
+          "Parses email addresses with names",
+          "Extracts attachments with metadata",
+          "Maps Gmail labels to status flags",
+          "Handles date parsing in multiple formats",
+          "Stores in PostgreSQL with JSON arrays for addresses"
+        ]
+      }
+    },
+    "google_drive_v3": {
+      "name": "Google Drive API v3",
+      "documentation_url": "https://developers.google.com/drive/api",
+      "authentication": "OAuth 2.0",
+      "base_url": "https://www.googleapis.com/drive/v3",
+      "primary_use_cases": [
+        "List files and folders in user's Drive",
+        "Search for specific files",
+        "Get file metadata (name, size, created/modified dates)",
+        "Download file content",
+        "Get sharing permissions",
+        "Track file changes and activity",
+        "Extract comments and revisions",
+        "Build knowledge base from documents",
+        "Index file contents for search"
+      ],
+      "required_scopes": [
+        "https://www.googleapis.com/auth/drive.readonly",
+        "https://www.googleapis.com/auth/drive"
+      ],
+      "optional_scopes": [
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/drive.appdata",
+        "https://www.googleapis.com/auth/drive.photos.readonly",
+        "https://www.googleapis.com/auth/drive.metadata"
+      ],
+      "endpoints": {
+        "files_list": {
+          "method": "GET",
+          "path": "/files",
+          "description": "List files and folders",
+          "query_parameters": {
+            "q": "File search query (MIME types, ownership, dates, etc.)",
+            "spaces": "drive|appDataFolder|photos|teamDrive (default: drive)",
+            "pageSize": "integer, 1-1000, default 100",
+            "pageToken": "string for pagination",
+            "orderBy": "createdTime|modifiedTime|name|starred|recency",
+            "fields": "CSV of fields to return (customize response)"
+          },
+          "returns": {
+            "files": [
+              {
+                "kind": "drive#file",
+                "id": "string (unique file ID)",
+                "name": "string",
+                "mimeType": "string",
+                "description": "string",
+                "size": "string (bytes, only for files)",
+                "createdTime": "RFC3339 timestamp",
+                "modifiedTime": "RFC3339 timestamp",
+                "modifiedByMeTime": "RFC3339 timestamp",
+                "viewedByMeTime": "RFC3339 timestamp",
+                "parents": [
+                  "string (folder IDs)"
+                ],
+                "webViewLink": "string (link to open in Drive)",
+                "webContentLink": "string (direct download link, if available)",
+                "owners": [
+                  {
+                    "displayName": "string",
+                    "emailAddress": "string",
+                    "kind": "drive#user",
+                    "picture": {
+                      "url": "string"
+                    }
+                  }
+                ],
+                "permissions": [
+                  {
+                    "kind": "drive#permission",
+                    "id": "string",
+                    "type": "user|group|domain|anyone",
+                    "role": "owner|organizer|fileOrganizer|editor|commenter|viewer",
+                    "displayName": "string",
+                    "emailAddress": "string"
+                  }
+                ],
+                "starred": "boolean",
+                "trashed": "boolean",
+                "explicitlyTrashed": "boolean",
+                "shared": "boolean",
+                "ownedByMe": "boolean",
+                "capabilities": {
+                  "canEdit": "boolean",
+                  "canDelete": "boolean",
+                  "canShare": "boolean",
+                  "canCopy": "boolean",
+                  "canDownload": "boolean",
+                  "canAddChildren": "boolean (for folders)"
+                },
+                "hasThumbnail": "boolean",
+                "thumbnailLink": "string",
+                "fileExtension": "string",
+                "md5Checksum": "string",
+                "originalFilename": "string",
+                "lastModifyingUser": {
+                  "displayName": "string",
+                  "emailAddress": "string"
+                },
+                "quotaBytesUsed": "string",
+                "isAppAuthorized": "boolean",
+                "properties": {
+                  "custom_key": "custom_value (user-defined metadata)"
+                },
+                "folderColorRgb": "string (hex color code, for folders)"
+              }
+            ],
+            "nextPageToken": "string"
+          },
+          "search_query_examples": [
+            "name contains 'project'",
+            "mimeType='application/vnd.google-apps.document'",
+            "trashed=false",
+            "starred=true",
+            "'folder_id' in parents",
+            "createdTime>'2023-01-01T00:00:00'",
+            "modifiedTime>'2023-12-01T00:00:00'"
+          ]
+        },
+        "files_get": {
+          "method": "GET",
+          "path": "/files/{fileId}",
+          "description": "Get full file metadata",
+          "query_parameters": {
+            "fields": "CSV of specific fields",
+            "supportsAllDrives": "boolean (include Shared Drives)"
+          }
+        },
+        "files_download": {
+          "method": "GET",
+          "path": "/files/{fileId}?alt=media",
+          "description": "Download file content (binary data)",
+          "notes": "Use with caution - returns raw file content, not JSON"
+        },
+        "revisions_list": {
+          "method": "GET",
+          "path": "/files/{fileId}/revisions",
+          "description": "List all revisions of a file",
+          "returns": {
+            "revisions": [
+              {
+                "kind": "drive#revision",
+                "id": "string",
+                "mimeType": "string",
+                "publishedOutsideDomain": "boolean",
+                "lastModifyingUser": {
+                  "displayName": "string",
+                  "emailAddress": "string"
+                },
+                "modifiedTime": "RFC3339 timestamp",
+                "size": "string (bytes)",
+                "originalFilename": "string",
+                "md5Checksum": "string",
+                "keepForever": "boolean",
+                "published": "boolean"
+              }
+            ]
+          }
+        },
+        "comments_list": {
+          "method": "GET",
+          "path": "/files/{fileId}/comments",
+          "description": "List comments on a file (Docs/Sheets/Slides only)",
+          "query_parameters": {
+            "pageSize": "integer",
+            "pageToken": "string",
+            "includeDeleted": "boolean"
+          },
+          "returns": {
+            "comments": [
+              {
+                "kind": "drive#comment",
+                "id": "string",
+                "author": {
+                  "displayName": "string",
+                  "emailAddress": "string",
+                  "picture": {
+                    "url": "string"
+                  }
+                },
+                "content": "string",
+                "createdTime": "RFC3339 timestamp",
+                "modifiedTime": "RFC3339 timestamp",
+                "deleted": "boolean",
+                "replies": [
+                  {
+                    "kind": "drive#reply",
+                    "id": "string",
+                    "author": {},
+                    "content": "string",
+                    "createdTime": "RFC3339 timestamp",
+                    "modifiedTime": "RFC3339 timestamp",
+                    "deleted": "boolean"
+                  }
+                ],
+                "quotedFileContent": {
+                  "mimeType": "string",
+                  "value": "string"
+                }
+              }
+            ]
+          }
+        },
+        "files_permissions": {
+          "method": "GET",
+          "path": "/files/{fileId}/permissions",
+          "description": "List file sharing permissions",
+          "returns": {
+            "permissions": [
+              {
+                "kind": "drive#permission",
+                "etag": "string",
+                "id": "string",
+                "type": "user|group|domain|anyone",
+                "role": "owner|organizer|fileOrganizer|editor|commenter|viewer",
+                "displayName": "string",
+                "emailAddress": "string (for user/group)",
+                "domain": "string (for domain)",
+                "allowFileDiscovery": "boolean",
+                "expirationTime": "RFC3339 timestamp",
+                "teamDrivePermissionDetails": "array"
+              }
+            ]
+          }
+        }
+      },
+      "rate_limits": {
+        "free_tier": "1,000,000 queries per day",
+        "quota_units": "1 unit per read request, 10 units per write",
+        "storage": "15 GB shared across all Google services"
+      },
+      "sync_strategy": {
+        "initial_sync": {
+          "approach": "Tree traversal from root, paginate through folders",
+          "recursive_strategy": "Use 'parents' relationship to build hierarchy",
+          "optimization": "Request only needed fields via 'fields' parameter",
+          "estimated_time": "20-40 minutes for large Drive (1000+ files)"
+        },
+        "incremental_sync": {
+          "approach": "Use changeNotification or periodic scan",
+          "track_changes": "Google Drive doesn't provide direct change tracking without setup",
+          "alternative": "Use modifiedTime > lastSync for delta sync",
+          "watch_api": "Available for push notifications (requires webhook setup)"
+        },
+        "file_indexing": {
+          "approach": "Index metadata only, download content on-demand",
+          "text_extraction": "Parse Google Docs/Sheets/Slides for text",
+          "pdf_handling": "Use OCR service for scanned documents",
+          "optimization": "Cache file metadata, lazy-load content"
+        }
+      },
+      "key_data_fields": [
+        "File ID (immutable unique identifier)",
+        "File name",
+        "MIME type (document type)",
+        "Description/notes",
+        "File size (bytes)",
+        "Created date",
+        "Modified date",
+        "Modified by user",
+        "Owner(s) with email",
+        "Parent folder ID(s)",
+        "Is starred",
+        "Is trashed",
+        "Is shared",
+        "Owned by me",
+        "Sharing permissions (users, groups, domains, public)",
+        "Web view link (Drive UI)",
+        "Web content link (direct download)",
+        "Capabilities (can edit, delete, share, etc.)",
+        "MD5 checksum (integrity verification)",
+        "Revisions (version history)",
+        "Comments and replies (Docs/Sheets/Slides)",
+        "Custom properties (user-defined metadata)",
+        "Folder color",
+        "Thumbnail available"
+      ],
+      "businessos_mapping": {
+        "storage_module": "Primary integration point",
+        "contexts": "Files become knowledge nodes",
+        "projects": "Shared Drive/folder organization",
+        "artifacts": "Attach to tasks and projects",
+        "estimated_nodes": "50-300 per initial sync"
+      },
+      "not_yet_implemented": "Google Drive integration is in planning phase, not yet in codebase"
+    }
+  },
+  "cross_api_patterns": {
+    "oauth_flow": {
+      "description": "All Google APIs use OAuth 2.0 with refresh tokens",
+      "token_storage": "Encrypted in PostgreSQL (google_oauth_tokens table)",
+      "token_refresh": "Automatic refresh on expiration via token source",
+      "scope_management": "Request all needed scopes upfront",
+      "user_identification": "Use 'me' in API calls for authenticated user"
+    },
+    "pagination": {
+      "calendar": "pageToken parameter",
+      "gmail": "pageToken parameter, max 500 per request",
+      "drive": "pageToken parameter, max 1000 per request"
+    },
+    "timestamps": {
+      "format": "RFC3339 (ISO 8601)",
+      "example": "2023-12-15T10:30:00-05:00",
+      "timezone": "Included in timestamp, timezone-aware"
+    },
+    "rate_limiting": {
+      "strategy": "Implement exponential backoff retry",
+      "quota": "1,000,000 daily across APIs",
+      "per_second": "250 requests/second (Gmail), others higher"
+    },
+    "error_handling": {
+      "approach": "Check error codes, retry transient failures",
+      "credentials_invalid": "Force re-authentication",
+      "quota_exceeded": "Implement backoff or defer sync",
+      "not_found": "Handle gracefully, skip or mark for manual review"
+    }
+  },
+  "businessos_integration_recommendations": {
+    "data_flow": {
+      "pull_strategy": "Sync on login, daily background job, on-demand trigger",
+      "bidirectional_sync": "Calendar events (create/update/delete), Email (mark read/archive/send)",
+      "conflict_resolution": "Last-write-wins for most data, user chooses for events"
+    },
+    "storage_optimization": {
+      "calendar": "Store full events, deduplicate by googleId",
+      "email": "Store metadata only initially, download attachments on-demand",
+      "drive": "Index metadata, lazy-load file content"
+    },
+    "node_generation": {
+      "calendar_events": "1 node per event, link to attendees as relationships",
+      "emails": "1 node per email thread, extract action items to tasks",
+      "drive_files": "1 node per file, full-text index for search"
+    },
+    "privacy_considerations": {
+      "scope_minimization": "Request only necessary scopes per user preference",
+      "data_retention": "Let users control what's synced and how long kept",
+      "encryption": "Store sensitive data (tokens, email content) encrypted",
+      "audit_logs": "Track all API calls for compliance"
+    },
+    "performance_tips": {
+      "batch_requests": "Use batch API where available (Gmail)",
+      "caching": "Cache metadata, invalidate on changes",
+      "async_jobs": "Queue sync tasks for background processing",
+      "webhook_setup": "Use Google Watch API for push notifications"
+    }
+  },
+  "implementation_roadmap": {
+    "phase_1": "Calendar API - core sync, event CRUD, attendees",
+    "phase_2": "Gmail API - email sync, search, send, folder operations",
+    "phase_3": "Google Drive API - file indexing, search integration, comments",
+    "phase_4": "Advanced features - Watch API, batch operations, full-text search"
+  }
+}

@@ -90,6 +90,8 @@ func AuthMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 
 		// Store user in context
 		c.Set(UserContextKey, &user)
+		// Also set user_id as string for integration handlers
+		c.Set("user_id", user.ID)
 		c.Next()
 	}
 }

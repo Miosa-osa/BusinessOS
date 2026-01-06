@@ -240,6 +240,41 @@ func (q *Queries) GetCalendarEventByGoogleId(ctx context.Context, arg GetCalenda
 	return i, err
 }
 
+const getCalendarStats = `-- name: GetCalendarStats :one
+SELECT
+    COUNT(*) as total_events,
+    COUNT(CASE WHEN source = 'google' THEN 1 END) as google_events,
+    COUNT(CASE WHEN source = 'local' OR source IS NULL THEN 1 END) as local_events,
+    MIN(start_time) as date_range_from,
+    MAX(end_time) as date_range_to,
+    MAX(synced_at) as last_sync
+FROM calendar_events
+WHERE user_id = $1
+`
+
+type GetCalendarStatsRow struct {
+	TotalEvents   int64       `json:"total_events"`
+	GoogleEvents  int64       `json:"google_events"`
+	LocalEvents   int64       `json:"local_events"`
+	DateRangeFrom interface{} `json:"date_range_from"`
+	DateRangeTo   interface{} `json:"date_range_to"`
+	LastSync      interface{} `json:"last_sync"`
+}
+
+func (q *Queries) GetCalendarStats(ctx context.Context, userID string) (GetCalendarStatsRow, error) {
+	row := q.db.QueryRow(ctx, getCalendarStats, userID)
+	var i GetCalendarStatsRow
+	err := row.Scan(
+		&i.TotalEvents,
+		&i.GoogleEvents,
+		&i.LocalEvents,
+		&i.DateRangeFrom,
+		&i.DateRangeTo,
+		&i.LastSync,
+	)
+	return i, err
+}
+
 const getEventsForClient = `-- name: GetEventsForClient :many
 SELECT id, user_id, google_event_id, calendar_id, title, description, start_time, end_time, all_day, location, attendees, status, visibility, html_link, source, meeting_type, context_id, project_id, client_id, recording_url, meeting_link, external_links, meeting_notes, action_items, synced_at, created_at, updated_at FROM calendar_events
 WHERE client_id = $1
@@ -618,8 +653,8 @@ func (q *Queries) GetUpcomingEvents(ctx context.Context, arg GetUpcomingEventsPa
 const listCalendarEvents = `-- name: ListCalendarEvents :many
 SELECT id, user_id, google_event_id, calendar_id, title, description, start_time, end_time, all_day, location, attendees, status, visibility, html_link, source, meeting_type, context_id, project_id, client_id, recording_url, meeting_link, external_links, meeting_notes, action_items, synced_at, created_at, updated_at FROM calendar_events
 WHERE user_id = $1
-  AND start_time >= $2
-  AND end_time <= $3
+  AND start_time < $2
+  AND end_time > $3
 ORDER BY start_time ASC
 `
 
@@ -629,6 +664,8 @@ type ListCalendarEventsParams struct {
 	EndTime   pgtype.Timestamptz `json:"end_time"`
 }
 
+// Get events that overlap with the date range (start_time < range_end AND end_time > range_start)
+// Params: $1=user_id, $2=range_end (EndTime), $3=range_start (StartTime)
 func (q *Queries) ListCalendarEvents(ctx context.Context, arg ListCalendarEventsParams) ([]CalendarEvent, error) {
 	rows, err := q.db.Query(ctx, listCalendarEvents, arg.UserID, arg.StartTime, arg.EndTime)
 	if err != nil {
@@ -1001,9 +1038,9 @@ const upsertCalendarEvent = `-- name: UpsertCalendarEvent :one
 INSERT INTO calendar_events (
     user_id, google_event_id, calendar_id, title, description,
     start_time, end_time, all_day, location, attendees,
-    status, visibility, html_link, source
+    status, visibility, html_link, source, meeting_link, external_links
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 )
 ON CONFLICT (user_id, google_event_id) DO UPDATE SET
     title = EXCLUDED.title,
@@ -1016,6 +1053,8 @@ ON CONFLICT (user_id, google_event_id) DO UPDATE SET
     status = EXCLUDED.status,
     visibility = EXCLUDED.visibility,
     html_link = EXCLUDED.html_link,
+    meeting_link = EXCLUDED.meeting_link,
+    external_links = EXCLUDED.external_links,
     synced_at = NOW(),
     updated_at = NOW()
 RETURNING id, user_id, google_event_id, calendar_id, title, description, start_time, end_time, all_day, location, attendees, status, visibility, html_link, source, meeting_type, context_id, project_id, client_id, recording_url, meeting_link, external_links, meeting_notes, action_items, synced_at, created_at, updated_at
@@ -1036,6 +1075,8 @@ type UpsertCalendarEventParams struct {
 	Visibility    *string            `json:"visibility"`
 	HtmlLink      *string            `json:"html_link"`
 	Source        *string            `json:"source"`
+	MeetingLink   *string            `json:"meeting_link"`
+	ExternalLinks []byte             `json:"external_links"`
 }
 
 func (q *Queries) UpsertCalendarEvent(ctx context.Context, arg UpsertCalendarEventParams) (CalendarEvent, error) {
@@ -1054,6 +1095,8 @@ func (q *Queries) UpsertCalendarEvent(ctx context.Context, arg UpsertCalendarEve
 		arg.Visibility,
 		arg.HtmlLink,
 		arg.Source,
+		arg.MeetingLink,
+		arg.ExternalLinks,
 	)
 	var i CalendarEvent
 	err := row.Scan(

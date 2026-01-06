@@ -48,6 +48,57 @@ WHERE ui.id = $1 AND ui.user_id = $2;
 SELECT * FROM user_integrations
 WHERE user_id = $1 AND provider_id = $2;
 
+-- name: UpsertUserIntegrationConnection :one
+-- Used by unified provider system
+INSERT INTO user_integrations (
+    user_id, provider_id, status,
+    external_account_id, external_account_name,
+    scopes, connected_at
+) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+ON CONFLICT (user_id, provider_id)
+DO UPDATE SET
+    status = EXCLUDED.status,
+    external_account_id = COALESCE(EXCLUDED.external_account_id, user_integrations.external_account_id),
+    external_account_name = COALESCE(EXCLUDED.external_account_name, user_integrations.external_account_name),
+    scopes = COALESCE(EXCLUDED.scopes, user_integrations.scopes),
+    connected_at = CASE
+        WHEN EXCLUDED.status = 'connected' AND user_integrations.status != 'connected'
+        THEN NOW()
+        ELSE user_integrations.connected_at
+    END,
+    updated_at = NOW()
+RETURNING *;
+
+-- name: UpdateUserIntegrationDisconnect :exec
+-- Disconnect an integration
+UPDATE user_integrations SET
+    status = 'disconnected',
+    updated_at = NOW()
+WHERE user_id = $1 AND provider_id = $2;
+
+-- name: UpdateUserIntegrationSyncTime :exec
+-- Update last used/sync time
+UPDATE user_integrations SET
+    last_used_at = NOW(),
+    updated_at = NOW()
+WHERE user_id = $1 AND provider_id = $2;
+
+-- name: GetUserIntegrationStats :one
+-- Get sync stats for an integration
+SELECT
+    ui.id,
+    ui.status,
+    ui.connected_at,
+    ui.last_used_at,
+    ui.external_account_name,
+    ui.scopes,
+    COALESCE(
+        (SELECT COUNT(*) FROM calendar_events WHERE user_id = ui.user_id AND source = 'google'),
+        0
+    )::int as calendar_events_count
+FROM user_integrations ui
+WHERE ui.user_id = $1 AND ui.provider_id = $2;
+
 -- name: CreateUserIntegration :one
 INSERT INTO user_integrations (
     user_id, provider_id, status,

@@ -289,6 +289,7 @@ func CachedAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.HandlerFu
 					UpdatedAt:     cached.UpdatedAt,
 				}
 				c.Set(UserContextKey, user)
+			c.Set("user_id", user.ID) // Also set user_id for integration handlers
 				c.Next()
 				return
 			}
@@ -332,6 +333,7 @@ func CachedAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.HandlerFu
 		}
 
 		c.Set(UserContextKey, &user)
+		c.Set("user_id", user.ID) // Also set user_id for integration handlers
 		c.Next()
 	}
 }
@@ -372,6 +374,7 @@ func CachedOptionalAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.H
 					UpdatedAt:     cached.UpdatedAt,
 				}
 				c.Set(UserContextKey, user)
+				c.Set("user_id", user.ID) // Also set user_id for integration handlers
 				c.Next()
 				return
 			}
@@ -399,6 +402,7 @@ func CachedOptionalAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.H
 
 		if err == nil {
 			c.Set(UserContextKey, &user)
+			c.Set("user_id", user.ID) // Also set user_id for integration handlers
 			// Cache for next time
 			if cache != nil {
 				_ = cache.Set(ctx, sessionToken, &user)

@@ -4,15 +4,25 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rhl/businessos-backend/internal/integrations/google"
+	"github.com/rhl/businessos-backend/internal/integrations/notion"
+	"github.com/rhl/businessos-backend/internal/integrations/slack"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	"github.com/rhl/businessos-backend/internal/services"
 )
 
 func (h *Handlers) createMCPService(userID string) *services.MCPService {
-	calendarService := services.NewGoogleCalendarService(h.pool)
-	slackService := services.NewSlackService(h.pool)
-	notionService := services.NewNotionService(h.pool)
-	return services.NewMCPService(h.pool, userID, calendarService, slackService, notionService)
+	// Create providers and services for each integration
+	googleProvider := google.NewProviderWithAllFeatures(h.pool)
+	calendarService := google.NewCalendarService(googleProvider)
+
+	slackProvider := slack.NewProvider(h.pool)
+	slackChannelService := slack.NewChannelService(slackProvider)
+
+	notionProvider := notion.NewProvider(h.pool)
+	notionDBService := notion.NewDatabaseService(notionProvider)
+
+	return services.NewMCPService(h.pool, userID, calendarService, slackChannelService, notionDBService)
 }
 
 func (h *Handlers) ListMCPTools(c *gin.Context) {

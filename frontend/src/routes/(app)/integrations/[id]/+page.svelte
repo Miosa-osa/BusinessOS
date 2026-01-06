@@ -4,13 +4,14 @@
 	import { goto } from '$app/navigation';
 	import { useSession } from '$lib/auth-client';
 	import * as integrationsApi from '$lib/api/integrations';
-	import type { UserIntegration, IntegrationSettings } from '$lib/api/integrations';
+	import type { UserIntegration, IntegrationSettings, IntegrationSyncStats, SyncHistoryEntry, AvailablePermission } from '$lib/api/integrations';
 
 	const session = useSession();
 
 	// State
 	let isLoading = $state(true);
 	let isSaving = $state(false);
+	let isSyncing = $state(false);
 	let integration = $state<UserIntegration | null>(null);
 	let settings = $state<IntegrationSettings>({
 		enabledSkills: [],
@@ -41,7 +42,13 @@
 		try {
 			const response = await integrationsApi.getUserIntegration(integrationId);
 			integration = response.integration;
-			settings = { ...response.integration.settings };
+			// Ensure we have default values for settings
+			const apiSettings = response.integration.settings || {};
+			settings = {
+				enabledSkills: apiSettings.enabledSkills || [],
+				notifications: apiSettings.notifications ?? true,
+				syncSettings: apiSettings.syncSettings || {}
+			};
 		} catch (err) {
 			console.error('Failed to load integration:', err);
 			error = 'Failed to load integration details';
@@ -83,22 +90,70 @@
 	}
 
 	async function triggerSync() {
-		if (!integrationId) return;
+		if (!integrationId || isSyncing) return;
+		isSyncing = true;
+		error = null;
 		try {
 			const response = await integrationsApi.triggerIntegrationSync(integrationId);
-			successMessage = response.message || 'Sync started';
-			setTimeout(() => (successMessage = null), 3000);
+			successMessage = response.message || 'Sync completed';
+			// Reload integration to get updated stats
+			await loadIntegration();
+			setTimeout(() => (successMessage = null), 5000);
 		} catch (err) {
 			console.error('Failed to trigger sync:', err);
 			error = 'Failed to trigger sync';
+		} finally {
+			isSyncing = false;
+		}
+	}
+
+	// Helper functions for formatting
+	function formatDate(dateStr: string | null | undefined): string {
+		if (!dateStr) return 'Never';
+		return new Date(dateStr).toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
+
+	function formatRelativeTime(dateStr: string | null | undefined): string {
+		if (!dateStr) return 'Never';
+		const date = new Date(dateStr);
+		const now = new Date();
+		const diff = now.getTime() - date.getTime();
+		const minutes = Math.floor(diff / 60000);
+		const hours = Math.floor(diff / 3600000);
+		const days = Math.floor(diff / 86400000);
+
+		if (minutes < 1) return 'Just now';
+		if (minutes < 60) return `${minutes}m ago`;
+		if (hours < 24) return `${hours}h ago`;
+		if (days < 7) return `${days}d ago`;
+		return formatDate(dateStr);
+	}
+
+	function getSyncStatusColor(status: string | null | undefined): string {
+		switch (status) {
+			case 'completed':
+				return 'text-green-600 dark:text-green-400';
+			case 'failed':
+				return 'text-red-600 dark:text-red-400';
+			case 'in_progress':
+				return 'text-blue-600 dark:text-blue-400';
+			default:
+				return 'text-gray-600 dark:text-gray-400';
 		}
 	}
 
 	function toggleSkill(skillId: string) {
-		if (settings.enabledSkills.includes(skillId)) {
-			settings.enabledSkills = settings.enabledSkills.filter((s) => s !== skillId);
+		const currentSkills = settings.enabledSkills || [];
+		if (currentSkills.includes(skillId)) {
+			settings.enabledSkills = currentSkills.filter((s) => s !== skillId);
 		} else {
-			settings.enabledSkills = [...settings.enabledSkills, skillId];
+			settings.enabledSkills = [...currentSkills, skillId];
 		}
 	}
 
@@ -223,6 +278,73 @@
 			{/if}
 
 			<div class="space-y-6">
+				<!-- Sync Stats Banner -->
+				{#if integration.sync_stats}
+					{@const stats = integration.sync_stats}
+					<div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-6">
+						<div class="flex items-center justify-between mb-4">
+							<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Sync Statistics</h2>
+							<button
+								onclick={triggerSync}
+								disabled={isSyncing}
+								class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+							>
+								{#if isSyncing}
+									<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" />
+										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+									</svg>
+									Syncing...
+								{:else}
+									<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+									</svg>
+									Sync Now
+								{/if}
+							</button>
+						</div>
+						<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+							<div class="bg-white dark:bg-gray-800 rounded-lg p-4">
+								<div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.total_items}</div>
+								<div class="text-sm text-gray-500 dark:text-gray-400">Total Items</div>
+							</div>
+							<div class="bg-white dark:bg-gray-800 rounded-lg p-4">
+								<div class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{stats.sync_count}</div>
+								<div class="text-sm text-gray-500 dark:text-gray-400">Total Syncs</div>
+							</div>
+							<div class="bg-white dark:bg-gray-800 rounded-lg p-4">
+								<div class="text-sm font-medium {getSyncStatusColor(stats.last_sync_status)}">{stats.last_sync_status || 'N/A'}</div>
+								<div class="text-sm text-gray-500 dark:text-gray-400">Last Status</div>
+							</div>
+							<div class="bg-white dark:bg-gray-800 rounded-lg p-4">
+								<div class="text-sm font-medium text-gray-900 dark:text-white">{formatRelativeTime(stats.last_sync)}</div>
+								<div class="text-sm text-gray-500 dark:text-gray-400">Last Sync</div>
+							</div>
+						</div>
+						{#if stats.items_by_type && Object.keys(stats.items_by_type).length > 0}
+							<div class="mt-4 pt-4 border-t border-blue-200 dark:border-blue-700">
+								<div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Data Breakdown</div>
+								<div class="flex flex-wrap gap-2">
+									{#each Object.entries(stats.items_by_type) as [type, count]}
+										<span class="px-3 py-1 bg-white dark:bg-gray-800 rounded-full text-sm">
+											<span class="font-medium text-gray-900 dark:text-white">{count}</span>
+											<span class="text-gray-500 dark:text-gray-400 ml-1 capitalize">{type}</span>
+										</span>
+									{/each}
+								</div>
+							</div>
+						{/if}
+						{#if stats.date_range}
+							<div class="mt-4 pt-4 border-t border-blue-200 dark:border-blue-700">
+								<div class="text-sm text-gray-600 dark:text-gray-400">
+									Data Range: <span class="font-medium text-gray-900 dark:text-white">{formatDate(stats.date_range.from)}</span>
+									to <span class="font-medium text-gray-900 dark:text-white">{formatDate(stats.date_range.to)}</span>
+								</div>
+							</div>
+						{/if}
+					</div>
+				{/if}
+
 				<!-- Connection Info -->
 				<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
 					<h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -246,14 +368,14 @@
 						<div>
 							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Connected</dt>
 							<dd class="mt-1 text-sm text-gray-900 dark:text-white">
-								{new Date(integration.connected_at).toLocaleDateString()}
+								{formatDate(integration.connected_at)}
 							</dd>
 						</div>
 						{#if integration.last_used_at}
 							<div>
 								<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Used</dt>
 								<dd class="mt-1 text-sm text-gray-900 dark:text-white">
-									{new Date(integration.last_used_at).toLocaleDateString()}
+									{formatRelativeTime(integration.last_used_at)}
 								</dd>
 							</div>
 						{/if}
@@ -263,27 +385,13 @@
 								{integration.category}
 							</dd>
 						</div>
-						{#if integration.scopes?.length > 0}
-							<div class="sm:col-span-2">
-								<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Permissions</dt>
-								<dd class="mt-1 flex flex-wrap gap-1">
-									{#each integration.scopes as scope}
-										<span class="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
-											{scope}
-										</span>
-									{/each}
-								</dd>
-							</div>
-						{/if}
+						<div>
+							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Provider ID</dt>
+							<dd class="mt-1 text-sm text-gray-900 dark:text-white font-mono">
+								{integration.provider_id}
+							</dd>
+						</div>
 					</dl>
-					<div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-						<button
-							onclick={triggerSync}
-							class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-						>
-							Sync Now
-						</button>
-					</div>
 				</div>
 
 				<!-- Skills -->
@@ -300,7 +408,7 @@
 								<label class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
 									<input
 										type="checkbox"
-										checked={settings.enabledSkills.includes(skill)}
+										checked={settings.enabledSkills?.includes(skill) ?? false}
 										onchange={() => toggleSkill(skill)}
 										class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
 									/>
@@ -325,6 +433,89 @@
 								>
 									{mod}
 								</a>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Available Permissions -->
+				{#if integration.available_permissions && integration.available_permissions.length > 0}
+					<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+						<h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+							Permissions
+						</h2>
+						<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+							Data access permissions for this integration.
+						</p>
+						<div class="space-y-3">
+							{#each integration.available_permissions as permission}
+								<div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+									<div class="flex items-center gap-3">
+										<div class="w-8 h-8 rounded-full flex items-center justify-center {permission.granted ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-200 dark:bg-gray-600'}">
+											{#if permission.granted}
+												<svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+												</svg>
+											{:else}
+												<svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+												</svg>
+											{/if}
+										</div>
+										<div>
+											<div class="text-sm font-medium text-gray-900 dark:text-white">{permission.name}</div>
+											<div class="text-xs text-gray-500 dark:text-gray-400">{permission.description}</div>
+										</div>
+									</div>
+									<span class="text-xs px-2 py-1 rounded-full {permission.granted ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-400'}">
+										{permission.granted ? 'Granted' : 'Not Granted'}
+									</span>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Sync History -->
+				{#if integration.sync_history && integration.sync_history.length > 0}
+					<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+						<h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+							Sync History
+						</h2>
+						<div class="space-y-2">
+							{#each integration.sync_history as sync}
+								<div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+									<div class="flex items-center gap-3">
+										<div class="w-8 h-8 rounded-full flex items-center justify-center {sync.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30' : sync.status === 'failed' ? 'bg-red-100 dark:bg-red-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}">
+											{#if sync.status === 'completed'}
+												<svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+												</svg>
+											{:else if sync.status === 'failed'}
+												<svg class="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+												</svg>
+											{:else}
+												<svg class="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+													<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+													<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+												</svg>
+											{/if}
+										</div>
+										<div>
+											<div class="text-sm font-medium text-gray-900 dark:text-white capitalize">{sync.sync_type} sync</div>
+											<div class="text-xs text-gray-500 dark:text-gray-400">
+												{formatRelativeTime(sync.started_at)}
+												{#if sync.records_synced}
+													 - {sync.records_synced} records
+												{/if}
+											</div>
+										</div>
+									</div>
+									<span class="text-xs px-2 py-1 rounded-full capitalize {sync.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : sync.status === 'failed' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'}">
+										{sync.status}
+									</span>
+								</div>
 							{/each}
 						</div>
 					</div>

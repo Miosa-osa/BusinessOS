@@ -262,12 +262,49 @@ export interface UserIntegration {
   skills: string[];
   modules: string[];
   metadata?: Record<string, unknown>;
+  // New fields from enhanced API
+  sync_stats?: IntegrationSyncStats;
+  sync_history?: SyncHistoryEntry[];
+  available_permissions?: AvailablePermission[];
 }
 
 export interface IntegrationSettings {
   enabledSkills: string[];
   notifications: boolean;
   syncSettings?: Record<string, unknown>;
+}
+
+// Sync Stats returned by backend
+export interface IntegrationSyncStats {
+  total_items: number;
+  items_by_type: Record<string, number>;
+  date_range: {
+    from: string | null;
+    to: string | null;
+  } | null;
+  last_sync: string | null;
+  last_sync_status: string | null;
+  sync_count: number;
+}
+
+// Sync History entry
+export interface SyncHistoryEntry {
+  id: string;
+  sync_type: string;
+  direction: string;
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+  records_synced: number | null;
+  error_message: string | null;
+}
+
+// Available Permission for a provider
+export interface AvailablePermission {
+  scope: string;
+  name: string;
+  description: string;
+  granted: boolean;
 }
 
 export interface ModuleIntegrations {
