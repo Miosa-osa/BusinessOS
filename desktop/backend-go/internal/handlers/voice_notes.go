@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -118,7 +119,7 @@ func (h *VoiceNotesHandler) UploadVoiceNote(c *gin.Context) {
 		result, err := h.whisper.TranscribeFile(c.Request.Context(), filePath)
 		if err != nil {
 			// Log but don't fail - save note without transcript
-			fmt.Printf("Transcription failed: %v\n", err)
+			slog.Warn("transcription failed", "error", err)
 		} else {
 			transcript = result.Text
 			duration = result.Duration
@@ -176,7 +177,7 @@ func (h *VoiceNotesHandler) UploadVoiceNote(c *gin.Context) {
 				}
 			}
 		} else {
-			fmt.Printf("Failed to save voice note to database: %v\n", err)
+			slog.Warn("failed to save voice note to database", "error", err)
 		}
 	}
 

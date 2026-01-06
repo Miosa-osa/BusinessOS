@@ -2,7 +2,7 @@ package services
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/rhl/businessos-backend/internal/config"
@@ -139,7 +139,7 @@ type ExtendedThinkingService interface {
 // NewLLMService creates the appropriate LLM service based on configuration
 func NewLLMService(cfg *config.Config, model string) LLMService {
 	provider := cfg.GetActiveProvider()
-	fmt.Printf("[LLM] Creating service for provider=%q, model=%q\n", provider, model)
+	slog.Debug("creating LLM service", "provider", provider, "model", model)
 	switch provider {
 	case "ollama_cloud":
 		return NewOllamaCloudService(cfg, model)
@@ -157,7 +157,7 @@ func NewLLMService(cfg *config.Config, model string) LLMService {
 // Returns the service and a boolean indicating if extended thinking is supported
 func NewLLMServiceWithThinking(cfg *config.Config, model string) (LLMService, bool) {
 	provider := cfg.GetActiveProvider()
-	fmt.Printf("[LLM] Creating thinking-aware service for provider=%q, model=%q\n", provider, model)
+	slog.Debug("creating thinking-aware LLM service", "provider", provider, "model", model)
 
 	switch provider {
 	case "anthropic":

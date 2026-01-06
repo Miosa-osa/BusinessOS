@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -85,7 +86,7 @@ func (h *Handlers) UploadProfilePhoto(c *gin.Context) {
 	_, err = h.pool.Exec(ctx, `UPDATE "user" SET image = $1, "updatedAt" = NOW() WHERE id = $2`, fileURL, user.ID)
 	if err != nil {
 		// Still return success since file was uploaded, just log the error
-		fmt.Printf("Failed to update user image in database: %v\n", err)
+		slog.Warn("failed to update user image in database", "error", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -140,7 +141,7 @@ func (h *Handlers) DeleteProfilePhoto(c *gin.Context) {
 
 	_, err := h.pool.Exec(ctx, `UPDATE "user" SET image = NULL, "updatedAt" = NOW() WHERE id = $1`, user.ID)
 	if err != nil {
-		fmt.Printf("Failed to clear user image in database: %v\n", err)
+		slog.Warn("failed to clear user image in database", "error", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Profile photo deleted"})

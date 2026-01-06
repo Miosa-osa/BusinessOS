@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -485,7 +486,7 @@ func (c *Config) Validate() error {
 		// WARNING: Local models should typically be disabled in production
 		if c.EnableLocalModels {
 			// This is a warning, not an error - some deployments may need this
-			fmt.Println("WARNING: ENABLE_LOCAL_MODELS is true in production - ensure this is intentional")
+			slog.Warn("ENABLE_LOCAL_MODELS is true in production - ensure this is intentional")
 		}
 	}
 

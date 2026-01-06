@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,7 +33,7 @@ func NewWhisperService() *WhisperService {
 	modelPath := findWhisperModel()
 
 	// Log what we found
-	fmt.Printf("Whisper service init: binary=%s, model=%s\n", whisperPath, modelPath)
+	slog.Info("whisper service init", "binary", whisperPath, "model", modelPath)
 
 	return &WhisperService{
 		whisperPath: whisperPath,

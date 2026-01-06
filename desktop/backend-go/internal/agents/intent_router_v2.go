@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"time"
@@ -437,7 +438,7 @@ Respond ONLY with valid JSON:
 	}, "You are an intent classifier. Respond only with JSON.")
 
 	if err != nil {
-		fmt.Printf("[IntentRouter] LLM classification failed: %v\n", err)
+		slog.Warn("intent router LLM classification failed", "error", err)
 		return Intent{Category: "general", ShouldDelegate: false, TargetAgent: AgentTypeV2Orchestrator, Confidence: 0.5}
 	}
 
@@ -453,7 +454,7 @@ Respond ONLY with valid JSON:
 	}
 
 	if err := json.Unmarshal([]byte(jsonStr), &classification); err != nil {
-		fmt.Printf("[IntentRouter] Failed to parse LLM response: %v\n", err)
+		slog.Warn("intent router failed to parse LLM response", "error", err)
 		return Intent{Category: "general", ShouldDelegate: false, TargetAgent: AgentTypeV2Orchestrator, Confidence: 0.5}
 	}
 

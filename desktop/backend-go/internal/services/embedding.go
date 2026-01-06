@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -151,7 +152,7 @@ func (s *EmbeddingService) IndexDocument(ctx context.Context, contextID uuid.UUI
 		embedding, err := s.GenerateEmbedding(ctx, content)
 		if err != nil {
 			// Log but continue with other blocks
-			fmt.Printf("Failed to embed block %s: %v\n", block.ID, err)
+			slog.Warn("failed to embed block", "block_id", block.ID, "error", err)
 			continue
 		}
 
