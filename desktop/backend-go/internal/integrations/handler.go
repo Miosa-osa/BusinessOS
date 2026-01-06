@@ -3,9 +3,11 @@ package integrations
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -142,17 +144,14 @@ type SyncResponse struct {
 
 // getUserID extracts the user ID from the Gin context.
 // Returns empty string if not authenticated.
+// SECURITY: Only trusts user_id from auth middleware context, never from headers.
 func getUserID(c *gin.Context) string {
-	// Try to get from context (set by auth middleware)
+	// Only trust user_id set by auth middleware in the context
+	// NEVER accept user ID from headers - that would allow impersonation
 	if userID, exists := c.Get("user_id"); exists {
 		if id, ok := userID.(string); ok {
 			return id
 		}
-	}
-
-	// Try to get from header (for development/testing)
-	if userID := c.GetHeader("X-User-ID"); userID != "" {
-		return userID
 	}
 
 	return ""
@@ -248,8 +247,9 @@ func (h *Handler) StartOAuth(c *gin.Context) {
 	}
 
 	// Store state in cookie for verification on callback
-	// Secure=true in production, HttpOnly=true always
-	c.SetCookie("oauth_state", state, 600, "/", "", false, true)
+	// Secure=true in production (when not localhost), HttpOnly=true always
+	isSecure := os.Getenv("ENV") == "production" || os.Getenv("GIN_MODE") == "release"
+	c.SetCookie("oauth_state", state, 600, "/", "", isSecure, true)
 
 	// Get the authorization URL
 	authURL := provider.GetAuthURL(state)
@@ -280,15 +280,17 @@ func (h *Handler) OAuthCallback(c *gin.Context) {
 		return
 	}
 
-	// Verify state matches cookie
+	// Verify state matches cookie using constant-time comparison
+	// This prevents timing attacks that could leak state information
 	storedState, err := c.Cookie("oauth_state")
-	if err != nil || storedState != state {
+	if err != nil || subtle.ConstantTimeCompare([]byte(storedState), []byte(state)) != 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid state parameter"})
 		return
 	}
 
-	// Clear the state cookie
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
+	// Clear the state cookie (use same secure setting)
+	clearSecure := os.Getenv("ENV") == "production" || os.Getenv("GIN_MODE") == "release"
+	c.SetCookie("oauth_state", "", -1, "/", "", clearSecure, true)
 
 	// Get user ID - required for callback
 	userID := requireUserID(c)

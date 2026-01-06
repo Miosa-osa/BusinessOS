@@ -573,8 +573,6 @@ func (s *ContextService) SearchTree(ctx context.Context, userID string, params T
 		params.MaxResults = 10
 	}
 
-	var results []TreeSearchResult
-
 	switch params.SearchType {
 	case "semantic":
 		return s.semanticSearch(ctx, userID, params)
@@ -585,8 +583,6 @@ func (s *ContextService) SearchTree(ctx context.Context, userID string, params T
 	default:
 		return s.titleSearch(ctx, userID, params)
 	}
-
-	return results, nil
 }
 
 // semanticSearch performs semantic search using embeddings

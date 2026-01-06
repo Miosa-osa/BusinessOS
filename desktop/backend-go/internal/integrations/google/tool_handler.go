@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -145,11 +148,8 @@ func (h *ToolHandler) HandleCallback(c *gin.Context) {
 	}
 
 	// Redirect to frontend success page
-	frontendURL := c.Query("redirect_uri")
-	if frontendURL == "" {
-		frontendURL = "http://localhost:5173/integrations?connected=" + h.provider.ID()
-	}
-
+	// SECURITY: Validate redirect_uri to prevent open redirect attacks
+	frontendURL := getSafeRedirectURL(c.Query("redirect_uri"), h.provider.ID())
 	c.Redirect(http.StatusTemporaryRedirect, frontendURL)
 }
 
@@ -406,6 +406,62 @@ func extractToolState(state string) (userID, toolID string) {
 		return "", ""
 	}
 	return data["user_id"], data["tool_id"]
+}
+
+// getSafeRedirectURL validates and returns a safe redirect URL.
+// SECURITY: Prevents open redirect attacks by only allowing known-safe origins.
+func getSafeRedirectURL(requestedURL string, toolID string) string {
+	// Default safe URL
+	defaultURL := "http://localhost:5173/integrations?connected=" + toolID
+
+	// Get allowed origins from environment
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:5173"
+	}
+
+	// If no redirect requested, use default
+	if requestedURL == "" {
+		return defaultURL
+	}
+
+	// Parse the requested URL
+	parsed, err := url.Parse(requestedURL)
+	if err != nil {
+		log.Printf("Invalid redirect URL: %v", err)
+		return defaultURL
+	}
+
+	// Allowed origins whitelist
+	allowedOrigins := []string{
+		"http://localhost:5173",
+		"http://localhost:3000",
+		"https://localhost:5173",
+		"https://localhost:3000",
+	}
+
+	// Add configured frontend URL if set
+	if frontendURL != "" {
+		allowedOrigins = append(allowedOrigins, frontendURL)
+	}
+
+	// Add production URLs if configured
+	if prodURL := os.Getenv("PRODUCTION_FRONTEND_URL"); prodURL != "" {
+		allowedOrigins = append(allowedOrigins, prodURL)
+	}
+
+	// Check if the origin is allowed
+	requestedOrigin := parsed.Scheme + "://" + parsed.Host
+	for _, allowed := range allowedOrigins {
+		if strings.HasPrefix(allowed, requestedOrigin) || requestedOrigin == allowed {
+			// Origin is allowed, return the full URL
+			return requestedURL
+		}
+	}
+
+	// Origin not allowed - log and return default
+	log.Printf("Blocked redirect to untrusted origin: %s (allowed: %v)", requestedOrigin, allowedOrigins)
+	return defaultURL
 }
 
 // Note: decodeJSON is defined in helpers.go
