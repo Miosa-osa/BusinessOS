@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 )
 
 // ListProjectMembers returns all members assigned to a project
@@ -94,6 +95,12 @@ func (h *Handlers) AddProjectMember(c *gin.Context) {
 		role = sqlc.NullProjectrole{Projectrole: stringToProjectRole(req.Role), Valid: true}
 	}
 
+	// Get project name for notification
+	project, _ := queries.GetProject(c.Request.Context(), sqlc.GetProjectParams{
+		ID:     pgtype.UUID{Bytes: projectID, Valid: true},
+		UserID: user.ID,
+	})
+
 	member, err := queries.AddProjectMember(c.Request.Context(), sqlc.AddProjectMemberParams{
 		ProjectID:    pgtype.UUID{Bytes: projectID, Valid: true},
 		UserID:       user.ID,
@@ -105,6 +112,22 @@ func (h *Handlers) AddProjectMember(c *gin.Context) {
 		log.Printf("AddProjectMember error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add project member"})
 		return
+	}
+
+	// Trigger notification for added member
+	if h.notificationTriggers != nil {
+		roleStr := "member"
+		if role.Valid {
+			roleStr = string(role.Projectrole)
+		}
+		go h.notificationTriggers.OnProjectMemberAdded(c.Request.Context(), services.ProjectMemberAddedInput{
+			ProjectID:   projectID,
+			ProjectName: project.Name,
+			AddedUserID: teamMemberID.String(),
+			AddedByID:   user.ID,
+			AddedByName: user.Name,
+			Role:        roleStr,
+		})
 	}
 
 	c.JSON(http.StatusCreated, member)

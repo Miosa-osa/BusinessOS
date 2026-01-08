@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 )
 
 // ListProjects returns all projects for the current user
@@ -345,6 +346,31 @@ func (h *Handlers) UpdateProject(c *gin.Context) {
 		log.Printf("UpdateProject error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update project"})
 		return
+	}
+
+	// Trigger notification if status changed
+	if h.notificationTriggers != nil && req.Status != nil && existing.Status.Valid {
+		oldStatus := string(existing.Status.Projectstatus)
+		newStatus := *req.Status
+		if oldStatus != newStatus {
+			// Get project members to notify
+			members, _ := queries.ListProjectMembers(c.Request.Context(), pgtype.UUID{Bytes: id, Valid: true})
+			var memberIDs []string
+			for _, m := range members {
+				if m.TeamMemberID.Valid {
+					memberIDs = append(memberIDs, uuid.UUID(m.TeamMemberID.Bytes).String())
+				}
+			}
+			go h.notificationTriggers.OnProjectStatusChanged(c.Request.Context(), services.ProjectStatusChangedInput{
+				ProjectID:   id,
+				ProjectName: name,
+				OldStatus:   oldStatus,
+				NewStatus:   newStatus,
+				ChangedByID: user.ID,
+				ChangedBy:   user.Name,
+				MemberIDs:   memberIDs,
+			})
+		}
 	}
 
 	c.JSON(http.StatusOK, project)

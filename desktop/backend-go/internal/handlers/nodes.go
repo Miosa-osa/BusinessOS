@@ -1064,7 +1064,7 @@ func (h *Handlers) UnlinkNodeConversation(c *gin.Context) {
 }
 
 // Transform functions for linked items
-func transformNodeLinkedProjects(projects []sqlc.NodeLinkedProject) []gin.H {
+func transformNodeLinkedProjects(projects []sqlc.GetNodeLinkedProjectsRow) []gin.H {
 	result := make([]gin.H, 0, len(projects))
 	for _, p := range projects {
 		item := gin.H{
@@ -1086,7 +1086,7 @@ func transformNodeLinkedProjects(projects []sqlc.NodeLinkedProject) []gin.H {
 	return result
 }
 
-func transformNodeLinkedContexts(contexts []sqlc.NodeLinkedContext) []gin.H {
+func transformNodeLinkedContexts(contexts []sqlc.GetNodeLinkedContextsRow) []gin.H {
 	result := make([]gin.H, 0, len(contexts))
 	for _, ctx := range contexts {
 		item := gin.H{
@@ -1108,7 +1108,7 @@ func transformNodeLinkedContexts(contexts []sqlc.NodeLinkedContext) []gin.H {
 	return result
 }
 
-func transformNodeLinkedConversations(conversations []sqlc.NodeLinkedConversation) []gin.H {
+func transformNodeLinkedConversations(conversations []sqlc.GetNodeLinkedConversationsRow) []gin.H {
 	result := make([]gin.H, 0, len(conversations))
 	for _, conv := range conversations {
 		item := gin.H{

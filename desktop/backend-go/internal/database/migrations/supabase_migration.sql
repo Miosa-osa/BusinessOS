@@ -213,14 +213,20 @@ CREATE TABLE tasks (
     status taskstatus DEFAULT 'todo',
     priority taskpriority DEFAULT 'medium',
     due_date TIMESTAMP,
+    start_date TIMESTAMP,
     completed_at TIMESTAMP,
     project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
     assignee_id UUID REFERENCES team_members(id) ON DELETE SET NULL,
+    parent_task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+    custom_status_id UUID,
+    position INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_tasks_user_id ON tasks(user_id);
+CREATE INDEX idx_tasks_parent ON tasks(parent_task_id);
+CREATE INDEX idx_tasks_position ON tasks(user_id, position);
 
 -- Artifacts table
 CREATE TABLE artifacts (

@@ -183,7 +183,7 @@ func (q *Queries) CreateSystemEvent(ctx context.Context, arg CreateSystemEventPa
 }
 
 const getAIUsageLogs = `-- name: GetAIUsageLogs :many
-SELECT id, user_id, conversation_id, provider, model, input_tokens, output_tokens, total_tokens, agent_name, delegated_to, parent_request_id, request_type, context_ids, node_id, project_id, duration_ms, started_at, completed_at, estimated_cost, created_at FROM ai_usage_logs
+SELECT id, user_id, conversation_id, provider, model, input_tokens, output_tokens, total_tokens, thinking_tokens, agent_name, delegated_to, parent_request_id, request_type, context_ids, node_id, project_id, duration_ms, started_at, completed_at, estimated_cost, created_at FROM ai_usage_logs
 WHERE user_id = $1
 ORDER BY started_at DESC
 LIMIT $2 OFFSET $3
@@ -213,6 +213,7 @@ func (q *Queries) GetAIUsageLogs(ctx context.Context, arg GetAIUsageLogsParams) 
 			&i.InputTokens,
 			&i.OutputTokens,
 			&i.TotalTokens,
+			&i.ThinkingTokens,
 			&i.AgentName,
 			&i.DelegatedTo,
 			&i.ParentRequestID,
@@ -237,7 +238,7 @@ func (q *Queries) GetAIUsageLogs(ctx context.Context, arg GetAIUsageLogsParams) 
 }
 
 const getAIUsageLogsByDateRange = `-- name: GetAIUsageLogsByDateRange :many
-SELECT id, user_id, conversation_id, provider, model, input_tokens, output_tokens, total_tokens, agent_name, delegated_to, parent_request_id, request_type, context_ids, node_id, project_id, duration_ms, started_at, completed_at, estimated_cost, created_at FROM ai_usage_logs
+SELECT id, user_id, conversation_id, provider, model, input_tokens, output_tokens, total_tokens, thinking_tokens, agent_name, delegated_to, parent_request_id, request_type, context_ids, node_id, project_id, duration_ms, started_at, completed_at, estimated_cost, created_at FROM ai_usage_logs
 WHERE user_id = $1
   AND started_at >= $2
   AND started_at < $3
@@ -268,6 +269,7 @@ func (q *Queries) GetAIUsageLogsByDateRange(ctx context.Context, arg GetAIUsageL
 			&i.InputTokens,
 			&i.OutputTokens,
 			&i.TotalTokens,
+			&i.ThinkingTokens,
 			&i.AgentName,
 			&i.DelegatedTo,
 			&i.ParentRequestID,
@@ -467,7 +469,7 @@ func (q *Queries) GetAIUsageSummaryByProvider(ctx context.Context, arg GetAIUsag
 }
 
 const getDailySummaries = `-- name: GetDailySummaries :many
-SELECT id, user_id, date, ai_requests, ai_input_tokens, ai_output_tokens, ai_total_tokens, ai_estimated_cost, provider_breakdown, model_breakdown, agent_breakdown, mcp_requests, mcp_tool_breakdown, conversations_created, messages_sent, artifacts_created, documents_created, contexts_accessed, nodes_accessed, projects_accessed, created_at, updated_at FROM usage_daily_summary
+SELECT id, user_id, date, ai_requests, ai_input_tokens, ai_output_tokens, ai_total_tokens, ai_thinking_tokens, ai_estimated_cost, provider_breakdown, model_breakdown, agent_breakdown, mcp_requests, mcp_tool_breakdown, conversations_created, messages_sent, artifacts_created, documents_created, contexts_accessed, nodes_accessed, projects_accessed, created_at, updated_at FROM usage_daily_summary
 WHERE user_id = $1
   AND date >= $2
   AND date <= $3
@@ -497,6 +499,7 @@ func (q *Queries) GetDailySummaries(ctx context.Context, arg GetDailySummariesPa
 			&i.AiInputTokens,
 			&i.AiOutputTokens,
 			&i.AiTotalTokens,
+			&i.AiThinkingTokens,
 			&i.AiEstimatedCost,
 			&i.ProviderBreakdown,
 			&i.ModelBreakdown,
@@ -524,7 +527,7 @@ func (q *Queries) GetDailySummaries(ctx context.Context, arg GetDailySummariesPa
 }
 
 const getDailySummary = `-- name: GetDailySummary :one
-SELECT id, user_id, date, ai_requests, ai_input_tokens, ai_output_tokens, ai_total_tokens, ai_estimated_cost, provider_breakdown, model_breakdown, agent_breakdown, mcp_requests, mcp_tool_breakdown, conversations_created, messages_sent, artifacts_created, documents_created, contexts_accessed, nodes_accessed, projects_accessed, created_at, updated_at FROM usage_daily_summary
+SELECT id, user_id, date, ai_requests, ai_input_tokens, ai_output_tokens, ai_total_tokens, ai_thinking_tokens, ai_estimated_cost, provider_breakdown, model_breakdown, agent_breakdown, mcp_requests, mcp_tool_breakdown, conversations_created, messages_sent, artifacts_created, documents_created, contexts_accessed, nodes_accessed, projects_accessed, created_at, updated_at FROM usage_daily_summary
 WHERE user_id = $1 AND date = $2
 `
 
@@ -544,6 +547,7 @@ func (q *Queries) GetDailySummary(ctx context.Context, arg GetDailySummaryParams
 		&i.AiInputTokens,
 		&i.AiOutputTokens,
 		&i.AiTotalTokens,
+		&i.AiThinkingTokens,
 		&i.AiEstimatedCost,
 		&i.ProviderBreakdown,
 		&i.ModelBreakdown,
@@ -756,6 +760,7 @@ SELECT
     COALESCE(SUM(input_tokens), 0) as total_input_tokens,
     COALESCE(SUM(output_tokens), 0) as total_output_tokens,
     COALESCE(SUM(total_tokens), 0) as total_tokens,
+    COALESCE(SUM(thinking_tokens), 0) as total_thinking_tokens,
     COALESCE(SUM(estimated_cost), 0) as total_cost,
     COUNT(*) as total_requests
 FROM ai_usage_logs
@@ -771,11 +776,12 @@ type GetTotalTokensForPeriodParams struct {
 }
 
 type GetTotalTokensForPeriodRow struct {
-	TotalInputTokens  interface{} `json:"total_input_tokens"`
-	TotalOutputTokens interface{} `json:"total_output_tokens"`
-	TotalTokens       interface{} `json:"total_tokens"`
-	TotalCost         interface{} `json:"total_cost"`
-	TotalRequests     int64       `json:"total_requests"`
+	TotalInputTokens    interface{} `json:"total_input_tokens"`
+	TotalOutputTokens   interface{} `json:"total_output_tokens"`
+	TotalTokens         interface{} `json:"total_tokens"`
+	TotalThinkingTokens interface{} `json:"total_thinking_tokens"`
+	TotalCost           interface{} `json:"total_cost"`
+	TotalRequests       int64       `json:"total_requests"`
 }
 
 func (q *Queries) GetTotalTokensForPeriod(ctx context.Context, arg GetTotalTokensForPeriodParams) (GetTotalTokensForPeriodRow, error) {
@@ -785,6 +791,7 @@ func (q *Queries) GetTotalTokensForPeriod(ctx context.Context, arg GetTotalToken
 		&i.TotalInputTokens,
 		&i.TotalOutputTokens,
 		&i.TotalTokens,
+		&i.TotalThinkingTokens,
 		&i.TotalCost,
 		&i.TotalRequests,
 	)
@@ -796,6 +803,7 @@ SELECT
     date,
     ai_requests,
     ai_total_tokens,
+    ai_thinking_tokens,
     ai_estimated_cost,
     mcp_requests,
     messages_sent
@@ -813,12 +821,13 @@ type GetUsageTrendParams struct {
 }
 
 type GetUsageTrendRow struct {
-	Date            pgtype.Date    `json:"date"`
-	AiRequests      *int32         `json:"ai_requests"`
-	AiTotalTokens   *int32         `json:"ai_total_tokens"`
-	AiEstimatedCost pgtype.Numeric `json:"ai_estimated_cost"`
-	McpRequests     *int32         `json:"mcp_requests"`
-	MessagesSent    *int32         `json:"messages_sent"`
+	Date             pgtype.Date    `json:"date"`
+	AiRequests       *int32         `json:"ai_requests"`
+	AiTotalTokens    *int32         `json:"ai_total_tokens"`
+	AiThinkingTokens *int64         `json:"ai_thinking_tokens"`
+	AiEstimatedCost  pgtype.Numeric `json:"ai_estimated_cost"`
+	McpRequests      *int32         `json:"mcp_requests"`
+	MessagesSent     *int32         `json:"messages_sent"`
 }
 
 func (q *Queries) GetUsageTrend(ctx context.Context, arg GetUsageTrendParams) ([]GetUsageTrendRow, error) {
@@ -834,6 +843,7 @@ func (q *Queries) GetUsageTrend(ctx context.Context, arg GetUsageTrendParams) ([
 			&i.Date,
 			&i.AiRequests,
 			&i.AiTotalTokens,
+			&i.AiThinkingTokens,
 			&i.AiEstimatedCost,
 			&i.McpRequests,
 			&i.MessagesSent,
@@ -851,19 +861,20 @@ func (q *Queries) GetUsageTrend(ctx context.Context, arg GetUsageTrendParams) ([
 const upsertDailySummary = `-- name: UpsertDailySummary :one
 INSERT INTO usage_daily_summary (
     user_id, date,
-    ai_requests, ai_input_tokens, ai_output_tokens, ai_total_tokens, ai_estimated_cost,
+    ai_requests, ai_input_tokens, ai_output_tokens, ai_total_tokens, ai_thinking_tokens, ai_estimated_cost,
     provider_breakdown, model_breakdown, agent_breakdown,
     mcp_requests, mcp_tool_breakdown,
     conversations_created, messages_sent, artifacts_created, documents_created,
     contexts_accessed, nodes_accessed, projects_accessed
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
 )
 ON CONFLICT (user_id, date) DO UPDATE SET
     ai_requests = usage_daily_summary.ai_requests + EXCLUDED.ai_requests,
     ai_input_tokens = usage_daily_summary.ai_input_tokens + EXCLUDED.ai_input_tokens,
     ai_output_tokens = usage_daily_summary.ai_output_tokens + EXCLUDED.ai_output_tokens,
     ai_total_tokens = usage_daily_summary.ai_total_tokens + EXCLUDED.ai_total_tokens,
+    ai_thinking_tokens = usage_daily_summary.ai_thinking_tokens + EXCLUDED.ai_thinking_tokens,
     ai_estimated_cost = usage_daily_summary.ai_estimated_cost + EXCLUDED.ai_estimated_cost,
     mcp_requests = usage_daily_summary.mcp_requests + EXCLUDED.mcp_requests,
     conversations_created = usage_daily_summary.conversations_created + EXCLUDED.conversations_created,
@@ -871,7 +882,7 @@ ON CONFLICT (user_id, date) DO UPDATE SET
     artifacts_created = usage_daily_summary.artifacts_created + EXCLUDED.artifacts_created,
     documents_created = usage_daily_summary.documents_created + EXCLUDED.documents_created,
     updated_at = NOW()
-RETURNING id, user_id, date, ai_requests, ai_input_tokens, ai_output_tokens, ai_total_tokens, ai_estimated_cost, provider_breakdown, model_breakdown, agent_breakdown, mcp_requests, mcp_tool_breakdown, conversations_created, messages_sent, artifacts_created, documents_created, contexts_accessed, nodes_accessed, projects_accessed, created_at, updated_at
+RETURNING id, user_id, date, ai_requests, ai_input_tokens, ai_output_tokens, ai_total_tokens, ai_thinking_tokens, ai_estimated_cost, provider_breakdown, model_breakdown, agent_breakdown, mcp_requests, mcp_tool_breakdown, conversations_created, messages_sent, artifacts_created, documents_created, contexts_accessed, nodes_accessed, projects_accessed, created_at, updated_at
 `
 
 type UpsertDailySummaryParams struct {
@@ -881,6 +892,7 @@ type UpsertDailySummaryParams struct {
 	AiInputTokens        *int32         `json:"ai_input_tokens"`
 	AiOutputTokens       *int32         `json:"ai_output_tokens"`
 	AiTotalTokens        *int32         `json:"ai_total_tokens"`
+	AiThinkingTokens     *int64         `json:"ai_thinking_tokens"`
 	AiEstimatedCost      pgtype.Numeric `json:"ai_estimated_cost"`
 	ProviderBreakdown    []byte         `json:"provider_breakdown"`
 	ModelBreakdown       []byte         `json:"model_breakdown"`
@@ -904,6 +916,7 @@ func (q *Queries) UpsertDailySummary(ctx context.Context, arg UpsertDailySummary
 		arg.AiInputTokens,
 		arg.AiOutputTokens,
 		arg.AiTotalTokens,
+		arg.AiThinkingTokens,
 		arg.AiEstimatedCost,
 		arg.ProviderBreakdown,
 		arg.ModelBreakdown,
@@ -927,6 +940,7 @@ func (q *Queries) UpsertDailySummary(ctx context.Context, arg UpsertDailySummary
 		&i.AiInputTokens,
 		&i.AiOutputTokens,
 		&i.AiTotalTokens,
+		&i.AiThinkingTokens,
 		&i.AiEstimatedCost,
 		&i.ProviderBreakdown,
 		&i.ModelBreakdown,

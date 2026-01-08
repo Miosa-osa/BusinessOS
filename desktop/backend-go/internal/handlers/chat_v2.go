@@ -287,7 +287,7 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 		for _, mention := range mentions {
 			log.Printf("[ChatV2] Looking up custom agent: name=%q user_id=%v", mention.AgentName, user.ID)
 			agent, err := queries.GetCustomAgentByName(ctx, sqlc.GetCustomAgentByNameParams{
-				Name:   mention.AgentName,
+				Lower:  mention.AgentName,
 				UserID: user.ID,
 			})
 			if err != nil {

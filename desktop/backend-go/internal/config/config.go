@@ -86,6 +86,11 @@ type Config struct {
 
 	// Feature Flags
 	EnableLocalModels bool `mapstructure:"ENABLE_LOCAL_MODELS"`
+
+	// Web Push (VAPID)
+	VAPIDPublicKey  string `mapstructure:"VAPID_PUBLIC_KEY"`
+	VAPIDPrivateKey string `mapstructure:"VAPID_PRIVATE_KEY"`
+	VAPIDContact    string `mapstructure:"VAPID_CONTACT"` // Email: mailto:admin@example.com
 }
 
 var AppConfig *Config
@@ -149,6 +154,11 @@ func Load() (*Config, error) {
 	viper.SetDefault("SERPER_API_KEY", "")
 	viper.SetDefault("TAVILY_API_KEY", "")
 	viper.SetDefault("SEARCH_PROVIDER", "auto") // auto, brave, serper, tavily, duckduckgo
+
+	// Web Push (VAPID) - Generate keys: npx web-push generate-vapid-keys
+	viper.SetDefault("VAPID_PUBLIC_KEY", "")
+	viper.SetDefault("VAPID_PRIVATE_KEY", "")
+	viper.SetDefault("VAPID_CONTACT", "mailto:admin@businessos.app")
 
 	viper.SetDefault("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:3000,app://localhost")
 

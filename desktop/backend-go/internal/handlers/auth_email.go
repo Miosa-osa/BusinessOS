@@ -8,13 +8,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/config"
+	"github.com/rhl/businessos-backend/internal/services"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // EmailAuthHandler handles email/password authentication
 type EmailAuthHandler struct {
-	pool *pgxpool.Pool
-	cfg  *config.Config
+	pool                 *pgxpool.Pool
+	cfg                  *config.Config
+	notificationTriggers *services.NotificationTriggers
 }
 
 // SignUpRequest represents the signup request body
@@ -31,10 +33,11 @@ type SignInRequest struct {
 }
 
 // NewEmailAuthHandler creates a new Email Auth handler
-func NewEmailAuthHandler(pool *pgxpool.Pool, cfg *config.Config) *EmailAuthHandler {
+func NewEmailAuthHandler(pool *pgxpool.Pool, cfg *config.Config, notifTriggers *services.NotificationTriggers) *EmailAuthHandler {
 	return &EmailAuthHandler{
-		pool: pool,
-		cfg:  cfg,
+		pool:                 pool,
+		cfg:                  cfg,
+		notificationTriggers: notifTriggers,
 	}
 }
 
@@ -97,6 +100,11 @@ func (h *EmailAuthHandler) SignUp(c *gin.Context) {
 
 	// Set session cookie
 	c.SetCookie("better-auth.session_token", sessionToken, 60*60*24*7, "/", "", false, true)
+
+	// Send welcome notification
+	if h.notificationTriggers != nil {
+		go h.notificationTriggers.OnWelcome(context.Background(), userID, req.Name)
+	}
 
 	c.JSON(http.StatusCreated, gin.H{
 		"user": gin.H{

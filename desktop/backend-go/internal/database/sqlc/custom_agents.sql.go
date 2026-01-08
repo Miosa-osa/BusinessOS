@@ -323,12 +323,12 @@ WHERE LOWER(name) = LOWER($1) AND user_id = $2 AND is_active = TRUE
 `
 
 type GetCustomAgentByNameParams struct {
-	Name   string `json:"name"`
+	Lower  string `json:"lower"`
 	UserID string `json:"user_id"`
 }
 
 func (q *Queries) GetCustomAgentByName(ctx context.Context, arg GetCustomAgentByNameParams) (CustomAgent, error) {
-	row := q.db.QueryRow(ctx, getCustomAgentByName, arg.Name, arg.UserID)
+	row := q.db.QueryRow(ctx, getCustomAgentByName, arg.Lower, arg.UserID)
 	var i CustomAgent
 	err := row.Scan(
 		&i.ID,

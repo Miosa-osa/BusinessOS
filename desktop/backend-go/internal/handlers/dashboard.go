@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 )
 
 // GetDashboardSummary returns a summary of the user's data
@@ -330,6 +331,24 @@ func (h *Handlers) CreateTask(c *gin.Context) {
 		return
 	}
 
+	// Trigger notification if task was assigned to someone else
+	if h.notificationTriggers != nil && req.AssigneeID != nil && *req.AssigneeID != user.ID {
+		taskID := uuid.UUID(task.ID.Bytes)
+		var projID *uuid.UUID
+		if task.ProjectID.Valid {
+			id := uuid.UUID(task.ProjectID.Bytes)
+			projID = &id
+		}
+		go h.notificationTriggers.OnTaskAssigned(c.Request.Context(), services.TaskAssignedInput{
+			TaskID:       taskID,
+			TaskTitle:    task.Title,
+			AssigneeID:   *req.AssigneeID,
+			AssignerID:   user.ID,
+			AssignerName: user.Name,
+			ProjectID:    projID,
+		})
+	}
+
 	c.JSON(http.StatusCreated, TransformTask(task))
 }
 
@@ -363,8 +382,8 @@ func (h *Handlers) UpdateTask(c *gin.Context) {
 
 	queries := sqlc.New(h.pool)
 
-	// Verify ownership
-	_, err = queries.GetTask(c.Request.Context(), sqlc.GetTaskParams{
+	// Get existing task (for comparison and ownership verification)
+	existingTask, err := queries.GetTask(c.Request.Context(), sqlc.GetTaskParams{
 		ID:     pgtype.UUID{Bytes: id, Valid: true},
 		UserID: user.ID,
 	})
@@ -424,6 +443,64 @@ func (h *Handlers) UpdateTask(c *gin.Context) {
 		return
 	}
 
+	// Trigger notifications for changes
+	if h.notificationTriggers != nil {
+		taskID := uuid.UUID(task.ID.Bytes)
+		var projID *uuid.UUID
+		if task.ProjectID.Valid {
+			pid := uuid.UUID(task.ProjectID.Bytes)
+			projID = &pid
+		}
+
+		// Check if assignee changed (new assignment)
+		oldAssigneeID := ""
+		if existingTask.AssigneeID.Valid {
+			oldAssigneeID = uuid.UUID(existingTask.AssigneeID.Bytes).String()
+		}
+		newAssigneeID := ""
+		if task.AssigneeID.Valid {
+			newAssigneeID = uuid.UUID(task.AssigneeID.Bytes).String()
+		}
+
+		if newAssigneeID != "" && newAssigneeID != oldAssigneeID && newAssigneeID != user.ID {
+			go h.notificationTriggers.OnTaskAssigned(c.Request.Context(), services.TaskAssignedInput{
+				TaskID:       taskID,
+				TaskTitle:    task.Title,
+				AssigneeID:   newAssigneeID,
+				AssignerID:   user.ID,
+				AssignerName: user.Name,
+				ProjectID:    projID,
+			})
+		}
+
+		// Check if status changed to completed
+		if req.Status != nil {
+			newStatus := strings.ToLower(*req.Status)
+			oldStatus := strings.ToLower(string(existingTask.Status.Taskstatus))
+			if newStatus == "completed" && oldStatus != "completed" {
+				go h.notificationTriggers.OnTaskCompleted(c.Request.Context(), services.TaskCompletedInput{
+					TaskID:        taskID,
+					TaskTitle:     task.Title,
+					CompletedByID: user.ID,
+					CompletedBy:   user.Name,
+					OwnerID:       task.UserID,
+					ProjectID:     projID,
+				})
+			} else if newStatus != oldStatus && oldAssigneeID != "" && oldAssigneeID != user.ID {
+				// Status changed, notify assignee
+				go h.notificationTriggers.OnTaskStatusChanged(c.Request.Context(), services.TaskStatusChangedInput{
+					TaskID:      taskID,
+					TaskTitle:   task.Title,
+					OldStatus:   oldStatus,
+					NewStatus:   newStatus,
+					ChangedByID: user.ID,
+					ChangedBy:   user.Name,
+					AssigneeID:  oldAssigneeID,
+				})
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, TransformTask(task))
 }
 
@@ -443,8 +520,8 @@ func (h *Handlers) ToggleTask(c *gin.Context) {
 
 	queries := sqlc.New(h.pool)
 
-	// Verify ownership
-	_, err = queries.GetTask(c.Request.Context(), sqlc.GetTaskParams{
+	// Get existing task for ownership verification and to check old status
+	existingTask, err := queries.GetTask(c.Request.Context(), sqlc.GetTaskParams{
 		ID:     pgtype.UUID{Bytes: id, Valid: true},
 		UserID: user.ID,
 	})
@@ -457,6 +534,29 @@ func (h *Handlers) ToggleTask(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to toggle task"})
 		return
+	}
+
+	// Trigger completion notification if task was just completed
+	if h.notificationTriggers != nil {
+		oldStatus := strings.ToLower(string(existingTask.Status.Taskstatus))
+		newStatus := strings.ToLower(string(task.Status.Taskstatus))
+
+		if newStatus == "completed" && oldStatus != "completed" {
+			taskID := uuid.UUID(task.ID.Bytes)
+			var projID *uuid.UUID
+			if task.ProjectID.Valid {
+				pid := uuid.UUID(task.ProjectID.Bytes)
+				projID = &pid
+			}
+			go h.notificationTriggers.OnTaskCompleted(c.Request.Context(), services.TaskCompletedInput{
+				TaskID:        taskID,
+				TaskTitle:     task.Title,
+				CompletedByID: user.ID,
+				CompletedBy:   user.Name,
+				OwnerID:       task.UserID,
+				ProjectID:     projID,
+			})
+		}
 	}
 
 	c.JSON(http.StatusOK, TransformTask(task))

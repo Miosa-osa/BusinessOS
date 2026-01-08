@@ -3,6 +3,7 @@ module github.com/rhl/businessos-backend
 go 1.24.0
 
 require (
+	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/creack/pty v1.1.24
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0
@@ -14,6 +15,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/pgvector/pgvector-go v0.3.0
 	github.com/redis/go-redis/v9 v9.17.2
+	github.com/resend/resend-go/v2 v2.28.0
 	github.com/slack-go/slack v0.17.3
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
@@ -51,6 +53,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect

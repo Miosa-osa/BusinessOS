@@ -17,13 +17,12 @@ func Connect(cfg *config.Config) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("failed to parse database URL: %w", err)
 	}
 
-	// Configure pool settings for Supabase (cross-cloud optimized)
-	// IMPORTANT: These settings are optimized for Supabase connection pooling (Supavisor)
-	// Use the pooled connection string (port 6543), NOT direct connection (port 5432)
-	poolConfig.MaxConns = 10              // Conservative for cross-cloud latency
-	poolConfig.MinConns = 2               // Keep some connections warm
-	poolConfig.MaxConnLifetime = 15 * time.Minute  // Supabase closes stale connections
-	poolConfig.MaxConnIdleTime = 5 * time.Minute   // Release idle connections faster
+	// Configure pool settings for Supabase (direct connection)
+	// Using direct connection (port 5432) which supports prepared statements
+	poolConfig.MaxConns = 10                         // Conservative for cross-cloud latency
+	poolConfig.MinConns = 2                          // Keep some connections warm
+	poolConfig.MaxConnLifetime = 15 * time.Minute    // Supabase closes stale connections
+	poolConfig.MaxConnIdleTime = 5 * time.Minute     // Release idle connections faster
 	poolConfig.HealthCheckPeriod = 30 * time.Second  // More frequent health checks for cross-cloud
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
