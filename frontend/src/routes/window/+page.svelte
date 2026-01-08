@@ -898,10 +898,18 @@
 								<iframe src="/settings?embed=true" title="Settings" class="module-iframe"></iframe>
 							{:else if win.module === 'clients'}
 								<iframe src="/clients?embed=true" title="Clients" class="module-iframe"></iframe>
+							{:else if win.module === 'tables'}
+								<iframe src="/tables?embed=true" title="Tables" class="module-iframe"></iframe>
+							{:else if win.module === 'communication'}
+								<iframe src="/communication/calendar?embed=true" title="Communication" class="module-iframe"></iframe>
 							{:else if win.module === 'calendar'}
 								<iframe src="/communication/calendar?embed=true" title="Calendar" class="module-iframe"></iframe>
+							{:else if win.module === 'pages'}
+								<iframe src="/pages?embed=true" title="Pages" class="module-iframe"></iframe>
+							{:else if win.module === 'contexts'}
+								<iframe src="/pages?embed=true" title="Pages" class="module-iframe"></iframe>
 							{:else if win.module === 'knowledge'}
-								<iframe src="/knowledge-v2?embed=true" title="Pages" class="module-iframe"></iframe>
+								<iframe src="/pages?embed=true" title="Pages" class="module-iframe"></iframe>
 							{:else if win.module === 'ai-settings'}
 								<iframe src="/settings/ai?embed=true" title="AI Settings" class="module-iframe"></iframe>
 							{:else if win.module === 'integrations'}

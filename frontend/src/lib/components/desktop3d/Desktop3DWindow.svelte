@@ -207,6 +207,20 @@
 
 	// HUGE scale for visible windows - BIGGER for better visibility
 	const htmlScale = 2.0;
+
+	// Route mapping for modules where route differs from module name
+	function getModuleRoute(module: string): string {
+		switch (module) {
+			case 'pages':
+				return '/pages';
+			case 'contexts':
+				return '/pages';
+			case 'communication':
+				return '/communication/calendar';
+			default:
+				return `/${module}`;
+		}
+	}
 </script>
 
 <!-- Window using HTML component for DOM content in 3D space -->
@@ -314,7 +328,7 @@
 				<!-- LIVE Content - Always show iframe -->
 				<div class="window-content">
 					<iframe
-						src="/{window.module}?embed=true"
+						src="{getModuleRoute(window.module)}?embed=true"
 						title={window.title}
 						class="window-iframe"
 					></iframe>
