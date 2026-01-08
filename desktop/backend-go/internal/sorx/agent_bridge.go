@@ -27,7 +27,7 @@ func NewAgentBridge(pool *pgxpool.Pool, cfg *config.Config, embeddingService *se
 	return &AgentBridge{
 		pool:     pool,
 		config:   cfg,
-		registry: agents.NewAgentRegistryV2(pool, cfg, embeddingService, promptPersonalizer),
+		registry: agents.NewAgentRegistryV2(pool, cfg, embeddingService, nil),
 	}
 }
 

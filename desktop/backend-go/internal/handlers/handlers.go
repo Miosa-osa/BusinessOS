@@ -674,6 +674,36 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		mcp.GET("/health", h.MCPHealth)
 	}
 
+	// Tables routes - /api/tables (NocoDB-inspired flexible tables)
+	tables := api.Group("/tables")
+	tables.Use(auth)
+	{
+		// Tables CRUD
+		tables.GET("", h.ListTables)
+		tables.POST("", h.CreateTable)
+		tables.GET("/:id", h.GetTable)
+		tables.PUT("/:id", h.UpdateTable)
+		tables.DELETE("/:id", h.DeleteTable)
+		// Columns (Fields) CRUD - matches frontend API naming
+		tables.GET("/:id/columns", h.ListFields)
+		tables.POST("/:id/columns", h.CreateField)
+		tables.PUT("/:id/columns/:columnId", h.UpdateField)
+		tables.DELETE("/:id/columns/:columnId", h.DeleteField)
+		tables.POST("/:id/columns/reorder", h.ReorderFields)
+		// Rows (Records) CRUD - matches frontend API naming
+		tables.GET("/:id/rows", h.ListRecords)
+		tables.POST("/:id/rows", h.CreateRecord)
+		tables.GET("/:id/rows/:rowId", h.GetRecord)
+		tables.PUT("/:id/rows/:rowId", h.UpdateRecord)
+		tables.DELETE("/:id/rows/:rowId", h.DeleteRecord)
+		tables.POST("/:id/rows/bulk-delete", h.BulkDeleteRecords)
+		// Views CRUD
+		tables.GET("/:id/views", h.ListViews)
+		tables.POST("/:id/views", h.CreateView)
+		tables.PUT("/:id/views/:viewId", h.UpdateView)
+		tables.DELETE("/:id/views/:viewId", h.DeleteView)
+	}
+
 	// ============================================================================
 	// NEW Integration Architecture - Provider-based handlers
 	// ============================================================================

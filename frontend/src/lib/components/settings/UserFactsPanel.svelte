@@ -44,7 +44,8 @@
 
 	async function confirmFact(fact: UserFact) {
 		try {
-			await api.confirmUserFact(fact.key);
+			const key = fact.key ?? fact.fact_key;
+			await api.confirmUserFact(key);
 			await loadFacts();
 		} catch (err) {
 			console.error('Failed to confirm fact:', err);
@@ -54,7 +55,8 @@
 
 	async function rejectFact(fact: UserFact) {
 		try {
-			await api.rejectUserFact(fact.key);
+			const key = fact.key ?? fact.fact_key;
+			await api.rejectUserFact(key);
 			await loadFacts();
 		} catch (err) {
 			console.error('Failed to reject fact:', err);
@@ -63,10 +65,11 @@
 	}
 
 	async function deleteFact(fact: UserFact) {
-		if (!confirm(`Delete fact "${fact.key}"?`)) return;
+		const key = fact.key ?? fact.fact_key;
+		if (!confirm(`Delete fact "${key}"?`)) return;
 
 		try {
-			await api.deleteUserFact(fact.key);
+			await api.deleteUserFact(key);
 			await loadFacts();
 		} catch (err) {
 			console.error('Failed to delete fact:', err);
@@ -76,7 +79,7 @@
 
 	function startEdit(fact: UserFact) {
 		editingFact = fact;
-		editValue = fact.value;
+		editValue = fact.value ?? fact.fact_value;
 	}
 
 	function cancelEdit() {
@@ -88,7 +91,8 @@
 		if (!editingFact) return;
 
 		try {
-			await api.updateUserFact(editingFact.key, { value: editValue });
+			const key = editingFact.key ?? editingFact.fact_key;
+			await api.updateUserFact(key, { fact_value: editValue });
 			await loadFacts();
 			cancelEdit();
 		} catch (err) {
@@ -191,19 +195,19 @@
 				<p class="empty-hint">Facts will be learned from your conversations</p>
 			</div>
 		{:else}
-			{#each filteredFacts as fact (fact.key)}
+			{#each filteredFacts as fact (fact.key ?? fact.fact_key ?? fact.id)}
 				<div class="fact-card">
 					<div class="fact-header">
-						<div class="fact-key">{fact.key}</div>
+						<div class="fact-key">{fact.key ?? fact.fact_key}</div>
 						<div class="badges">
-							<span class="badge {getTypeBadgeClass(fact.type)}">{fact.type}</span>
+							<span class="badge {getTypeBadgeClass(fact.type ?? fact.fact_type)}">{fact.type ?? fact.fact_type}</span>
 							<span class="badge {getStatusBadgeClass(fact.is_confirmed ? 'confirmed' : fact.is_rejected ? 'rejected' : 'pending')}">
 								{fact.is_confirmed ? 'Confirmed' : fact.is_rejected ? 'Rejected' : 'Pending'}
 							</span>
 						</div>
 					</div>
 
-					{#if editingFact?.key === fact.key}
+					{#if (editingFact?.key ?? editingFact?.fact_key) === (fact.key ?? fact.fact_key)}
 						<div class="fact-edit">
 							<input
 								type="text"

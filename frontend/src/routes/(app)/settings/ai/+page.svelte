@@ -215,6 +215,7 @@
 	// Custom Agents (user-created, can be mentioned with @name)
 	interface CustomAgent {
 		id: string;
+		user_id: string;
 		name: string;
 		display_name: string;
 		description: string;
@@ -231,6 +232,7 @@
 		category?: string;
 		is_active: boolean;
 		times_used: number;
+		usage_count?: number;
 		last_used_at?: string;
 		created_at: string;
 		updated_at: string;
@@ -1357,7 +1359,7 @@
 	}
 
 	function getLocalModels(): LLMModel[] {
-		return models.filter(m => {
+		return (models || []).filter(m => {
 			const isLocalProvider = m.provider === 'ollama' || m.provider === 'ollama_local';
 			// Filter out cloud reference models (they have "cloud" in the name and are tiny stubs)
 			const nameOrId = (m.id || '') + (m.name || '');

@@ -57,6 +57,7 @@ export interface GmailAccessStatus {
   has_access: boolean;
   requires_upgrade: boolean;
   message?: string;
+  email?: string;
 }
 
 export interface GmailStats {
@@ -64,6 +65,7 @@ export interface GmailStats {
   requires_upgrade?: boolean;
   total_emails?: number;
   unread_count?: number;
+  last_sync?: string | null;
 }
 
 export interface SyncResult {

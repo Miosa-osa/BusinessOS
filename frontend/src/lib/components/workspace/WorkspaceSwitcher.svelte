@@ -14,9 +14,9 @@
   let isOpen = false;
   let dropdownRef: HTMLDivElement;
 
-  onMount(async () => {
+  onMount(() => {
     // Load workspaces on mount
-    await loadSavedWorkspace();
+    loadSavedWorkspace();
 
     // Close dropdown when clicking outside
     const handleClickOutside = (event: MouseEvent) => {

@@ -28,7 +28,7 @@
 
   let { workspaceId, invites, roles, canManage, canInvite }: Props = $props();
 
-  const dispatch = createEventDispatcher();
+  const dispatch = createEventDispatcher<{ updated: void }>();
 
   // UI state
   let showInviteModal = $state(false);

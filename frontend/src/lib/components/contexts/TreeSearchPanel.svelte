@@ -120,8 +120,8 @@
 	});
 
 	// Handle image search results
-	function handleImageSearchResults(event: CustomEvent<{ results: MultimodalSearchResult[]; query?: string }>) {
-		imageResults = event.detail.results;
+	function handleImageSearchResults(results: MultimodalSearchResult[], query?: string) {
+		imageResults = results;
 		showImageResults = true;
 		showImageSearch = false;
 	}
@@ -245,16 +245,16 @@
 						class="result-item"
 						onclick={() => onItemSelect?.(result)}
 					>
-						<div class="result-icon" style="color: {getEntityColor(result.entity_type)}">
+						<div class="result-icon" style="color: {getEntityColor(result.entity_type ?? result.type ?? 'all')}">
 							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="20" height="20">
-								{@html getEntityIcon(result.entity_type)}
+								{@html getEntityIcon(result.entity_type ?? result.type ?? 'all')}
 							</svg>
 						</div>
 						<div class="result-content">
 							<div class="result-header-row">
 								<span class="result-title">{result.title}</span>
-								<span class="result-type-badge" style="background: {getEntityColor(result.entity_type)}15; color: {getEntityColor(result.entity_type)}">
-									{result.entity_type}
+								<span class="result-type-badge" style="background: {getEntityColor(result.entity_type ?? result.type ?? 'all')}15; color: {getEntityColor(result.entity_type ?? result.type ?? 'all')}">
+									{result.entity_type ?? result.type ?? 'unknown'}
 								</span>
 							</div>
 							{#if result.snippet}

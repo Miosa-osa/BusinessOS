@@ -1,12 +1,12 @@
-<script lang="ts">
+<script lang="ts" generics="T extends MemoryListItem">
 	import type { MemoryListItem, MemoryType } from '$lib/api/memory';
 	import { api } from '$lib/api';
 
 	interface Props {
-		memory: MemoryListItem;
-		onPin?: (memory: MemoryListItem) => void;
-		onClick?: (memory: MemoryListItem) => void;
-		onDelete?: (memory: MemoryListItem) => void;
+		memory: T;
+		onPin?: (memory: T) => void | Promise<void>;
+		onClick?: (memory: T) => void;
+		onDelete?: (memory: T) => void | Promise<void>;
 	}
 
 	let { memory, onPin, onClick, onDelete }: Props = $props();

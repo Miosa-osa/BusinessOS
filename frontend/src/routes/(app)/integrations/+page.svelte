@@ -522,7 +522,7 @@
 											src={provider.icon_url}
 											alt={provider.name}
 											class="w-5 h-5 object-contain"
-											onerror={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+											onerror={(e) => { const target = e.currentTarget as HTMLImageElement; target.style.display = 'none'; target.nextElementSibling?.classList.remove('hidden'); }}
 										/>
 										<span class="hidden text-sm font-semibold text-gray-600 dark:text-gray-300">
 											{provider.name.charAt(0)}
@@ -975,10 +975,10 @@
 					</button>
 				{:else}
 					<button
-						onclick={() => { closeDetailModal(); handleConnect(selectedProvider); }}
+						onclick={() => { if (selectedProvider) { closeDetailModal(); handleConnect(selectedProvider); } }}
 						class="w-full px-4 py-2.5 text-sm font-medium text-white bg-gray-900 dark:bg-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
 					>
-						{fileImportProviders.includes(selectedProvider.id) ? 'Import Data' : 'Connect'}
+						{selectedProvider && fileImportProviders.includes(selectedProvider.id) ? 'Import Data' : 'Connect'}
 					</button>
 				{/if}
 			</div>

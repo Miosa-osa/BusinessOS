@@ -1,6 +1,6 @@
 // Context Tree API Types
 
-export type EntityType = 'project' | 'node' | 'conversation' | 'user';
+export type EntityType = 'project' | 'node' | 'conversation' | 'user' | 'memories' | 'contexts' | 'artifacts' | 'documents' | 'voice_notes';
 export type ContextItemType = 'project' | 'context' | 'memory' | 'document' | 'conversation' | 'task' | 'note';
 
 export interface ContextTreeNode {
@@ -23,11 +23,15 @@ export interface ContextTree {
 
 export interface TreeSearchParams {
   query: string;
-  search_type?: 'semantic' | 'keyword' | 'hybrid';
+  search_type?: 'semantic' | 'keyword' | 'hybrid' | 'title' | 'content' | 'browse';
   entity_types?: ContextItemType[];
+  entity_type?: EntityType;  // Alternative singular form
   max_results?: number;
+  limit?: number;  // Alternative for max_results
   project_scope?: string;
+  project_id?: string;  // Alternative for project_scope
   node_scope?: string;
+  node_id?: string;  // Alternative for node_scope
 }
 
 export interface TreeSearchResult {
@@ -38,6 +42,10 @@ export interface TreeSearchResult {
   relevance_score: number;
   tree_path: string[];
   token_estimate: number;
+  entity_type?: EntityType | 'all';
+  snippet?: string;
+  token_count?: number;
+  created_at?: string;
 }
 
 export interface LoadContextItemParams {

@@ -448,7 +448,7 @@
 				<!-- Email Actions -->
 				<div class="px-6 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2">
 					<button
-						onclick={() => openReply(selectedEmail)}
+						onclick={() => selectedEmail && openReply(selectedEmail)}
 						class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -457,7 +457,7 @@
 						Reply
 					</button>
 					<button
-						onclick={() => openForward(selectedEmail)}
+						onclick={() => selectedEmail && openForward(selectedEmail)}
 						class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

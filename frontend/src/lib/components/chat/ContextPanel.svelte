@@ -1,9 +1,12 @@
 <script lang="ts">
 	export interface ActiveResource {
 		id: string;
-		type: 'document' | 'artifact' | 'project' | 'context';
-		name: string;
-		source: string;
+		type: 'document' | 'artifact' | 'project' | 'context' | 'search_result';
+		name?: string;
+		source?: string;
+		title?: string;  // Alternative to name
+		contextId?: string;
+		tokenCount?: number;
 	}
 
 	export interface AvailableContext {

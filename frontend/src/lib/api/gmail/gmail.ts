@@ -141,6 +141,7 @@ export async function syncEmails(maxResults?: number): Promise<{ message: string
 export async function getGmailStats(): Promise<GmailStats> {
   // Stats can be computed from emails or added to new infrastructure later
   return {
+    has_access: false,
     total_emails: 0,
     unread_count: 0,
     last_sync: null

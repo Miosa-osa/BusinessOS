@@ -1,44 +1,54 @@
 # BusinessOS Documentation
 
-## Structure
+## Background Jobs System (NEW)
 
-```
-docs/
-├── status/          # Status reports and completion summaries
-├── guides/          # How-to guides and tutorials  
-├── architecture/    # Architecture decisions and design docs
-├── features/        # Feature-specific documentation
-└── README.md        # This file
-```
+The Background Jobs System enables asynchronous task processing with PostgreSQL-backed queues, retry logic, and scheduling.
 
-## Quick Links
-
-### Background Jobs System (NEW)
+**Quick Links:**
 - [MASTER DOCUMENTATION](BACKGROUND_JOBS_COMPLETE_DOCUMENTATION.md) - Complete guide (58KB, 15,000 words)
 - [Quick Start](BACKGROUND_JOBS_QUICKSTART.md) - Get started in 5 minutes
 - [Final Summary](FINAL_SUMMARY.md) - Portuguese executive summary
 - [Delivery Checklist](DELIVERY_CHECKLIST.md) - Complete verification
 
-### Implementation Status
-- [Linear Issues Implementation](LINEAR_ISSUES_IMPLEMENTATION.md) - Complete Q1 implementation
-- [Latest Status](status/) - Recent completion reports
+## Folder Structure
 
-### API Reference
-- [API Endpoints](API_ENDPOINTS_REFERENCE.md)
-- [Testing Guide](TESTING_GUIDE.md)
+| Folder | Description |
+|--------|-------------|
+| `adrs/` | Architecture Decision Records |
+| `api/` | API documentation and endpoint references |
+| `architecture/` | System architecture, diagrams, and design docs |
+| `archive/` | Historical docs, status updates, and completed tasks |
+| `context/` | Context templates and examples |
+| `database/` | Database setup, schema, and troubleshooting |
+| `decisions/` | Technical decision logs |
+| `deployment/` | Deployment guides and infrastructure docs |
+| `development/` | Developer guides, setup, and contribution docs |
+| `features/` | Feature specs, roadmaps, and module documentation |
+| `integrations/` | Third-party integration docs (Google, Slack, etc.) |
+| `patterns/` | Code patterns and templates |
+| `planning/` | Project planning, taxonomy, and Linear issues |
+| `reports/` | Generated reports |
+| `research/` | Research documents and analysis |
+| `security/` | Security documentation and audits |
+| `sorxdocs/` | SORX engine documentation |
 
-### Architecture
-- [Database Schema](database_troubleshooting.md)
-- [Workspace Implementation](WORKSPACE_IMPLEMENTATION_TECHNICAL_SUMMARY.md)
-- [Memory Hierarchy](workspace_memory_ui_guide.md)
+## Quick Links
+
+- **Getting Started**: `development/DEVELOPER_QUICKSTART.md`
+- **Architecture Overview**: `architecture/ARCHITECTURE.md`
+- **API Reference**: `api/API_REFERENCE.md`
+- **Database Setup**: `database/DATABASE_SETUP.md`
+- **Deployment Guide**: `deployment/DEPLOYMENT_GUIDE.md`
 
 ## For Developers
 
 ### Claude Code Workflow
-- [**CLAUDE.md (root)**](../CLAUDE.md) - Guia completo do workflow com subagents
-- [**ADVANCED_TASKMANAGER.md**](ADVANCED_TASKMANAGER.md) - Sistema completo: Microtasks, Milestones, Feedback Loop
-- [**TASKMANAGER_EXAMPLES.md**](TASKMANAGER_EXAMPLES.md) - TaskManager automático em ação
-- [**WORKFLOW_EXAMPLE.md**](WORKFLOW_EXAMPLE.md) - Exemplo prático de decomposição em subtasks
+- [**CLAUDE.md (root)**](../CLAUDE.md) - Complete workflow guide with subagents
+- [**ADVANCED_TASKMANAGER.md**](ADVANCED_TASKMANAGER.md) - Complete system: Microtasks, Milestones, Feedback Loop
+- [**TASKMANAGER_EXAMPLES.md**](TASKMANAGER_EXAMPLES.md) - TaskManager in action
+- [**WORKFLOW_EXAMPLE.md**](WORKFLOW_EXAMPLE.md) - Practical decomposition example
+
+### Development Commands
 
 **Starting development:**
 ```bash
@@ -54,7 +64,7 @@ cd desktop/backend-go
 
 **Database migrations:**
 ```bash
-go run scripts/migrations/run_q1_migrations.go
+go run scripts/debug/run_q1_migrations.go
 ```
 
 ## Documentation Standards
@@ -69,4 +79,4 @@ go run scripts/migrations/run_q1_migrations.go
 
 3. **Keep updated:**
    - Update docs when features change
-   - Archive old status reports in status/
+   - Archive old status reports in archive/

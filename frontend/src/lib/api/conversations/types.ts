@@ -12,10 +12,12 @@ export interface Message {
 export interface Block {
   id: string;
   type: string;
-  content: string;
+  content: string | null;
   language?: string;
   level?: number;
   metadata?: Record<string, unknown>;
+  children?: Block[];
+  properties?: Record<string, unknown>;
 }
 
 export interface MessageUsage {

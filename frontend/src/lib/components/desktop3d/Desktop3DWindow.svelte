@@ -207,6 +207,20 @@
 
 	// HUGE scale for visible windows - BIGGER for better visibility
 	const htmlScale = 2.0;
+
+	// Route mapping for modules where route differs from module name
+	function getModuleRoute(module: string): string {
+		switch (module) {
+			case 'pages':
+				return '/pages';
+			case 'contexts':
+				return '/pages';
+			case 'communication':
+				return '/communication/calendar';
+			default:
+				return `/${module}`;
+		}
+	}
 </script>
 
 <!-- Window using HTML component for DOM content in 3D space -->
@@ -217,11 +231,11 @@
 		<!-- Click mesh - positioned at window center, faces camera (no rotation) -->
 		<T.Mesh
 			position={$animatedPosition}
-			onpointerdown={(e) => { e.stopPropagation(); handlePointerDown(e); }}
-			onpointermove={(e) => { handlePointerMove(e); }}
-			onclick={(e) => { e.stopPropagation(); handleClick(e); }}
-			onpointerenter={(e) => { e.stopPropagation(); onHover?.(true); }}
-			onpointerleave={(e) => { e.stopPropagation(); onHover?.(false); }}
+			onpointerdown={(e: { stopPropagation: () => void }) => { e.stopPropagation(); handlePointerDown(e); }}
+			onpointermove={(e: unknown) => { handlePointerMove(e); }}
+			onclick={(e: { stopPropagation: () => void }) => { e.stopPropagation(); handleClick(e); }}
+			onpointerenter={(e: { stopPropagation: () => void }) => { e.stopPropagation(); onHover?.(true); }}
+			onpointerleave={(e: { stopPropagation: () => void }) => { e.stopPropagation(); onHover?.(false); }}
 		>
 			<T.SphereGeometry args={[50, 12, 12]} />
 			<T.MeshBasicMaterial visible={false} transparent opacity={0} />
@@ -230,7 +244,7 @@
 		<!-- Blocker mesh when focused - prevents background clicks -->
 		<T.Mesh
 			position={$animatedPosition}
-			onclick={(e) => e.stopPropagation()}
+			onclick={(e: { stopPropagation: () => void }) => e.stopPropagation()}
 		>
 			<T.PlaneGeometry args={[window.width * 0.6, window.height * 0.6]} />
 			<T.MeshBasicMaterial visible={false} transparent opacity={0} />
@@ -314,7 +328,7 @@
 				<!-- LIVE Content - Always show iframe -->
 				<div class="window-content">
 					<iframe
-						src="/{window.module}?embed=true"
+						src="{getModuleRoute(window.module)}?embed=true"
 						title={window.title}
 						class="window-iframe"
 					></iframe>

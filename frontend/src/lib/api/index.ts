@@ -5,6 +5,8 @@ export * from './conversations';
 // Note: contexts module also exports a Block type, which conflicts with conversations' Block
 // We skip the wildcard export to avoid ambiguity. Import from './contexts' directly if needed.
 // export * from './contexts';
+// Export specific types from contexts that don't conflict
+export type { Context, ContextListItem, PropertySchema, Block as ContextBlock } from './contexts/types';
 export * from './clients';
 export * from './calendar';
 export * from './team';

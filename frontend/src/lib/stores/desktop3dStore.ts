@@ -13,8 +13,9 @@ export const CORE_MODULES = [
 	'projects',
 	'team',
 	'clients',
-	'calendar',
-	'knowledge',
+	'tables',
+	'communication',
+	'pages',
 	'nodes',
 	'daily',
 	'terminal',
@@ -30,9 +31,9 @@ export const ALL_MODULES = [
 	'projects',
 	'team',
 	'clients',
-	'calendar',
-	'contexts',
-	'knowledge',
+	'tables',
+	'communication',
+	'pages',
 	'daily',
 	'settings',
 	'terminal',
@@ -87,12 +88,12 @@ export const MODULE_INFO: Record<
 	projects: { title: 'Projects', color: '#8E24AA', icon: 'folder' },
 	team: { title: 'Team', color: '#00ACC1', icon: 'users' },
 	clients: { title: 'Clients', color: '#5C6BC0', icon: 'briefcase' },
-	calendar: { title: 'Calendar', color: '#E53935', icon: 'calendar' },
-	contexts: { title: 'Contexts', color: '#7CB342', icon: 'book' },
+	tables: { title: 'Tables', color: '#6366F1', icon: 'table' },
+	communication: { title: 'Communication', color: '#E53935', icon: 'mail' },
+	pages: { title: 'Pages', color: '#7CB342', icon: 'book' },
 	nodes: { title: 'Nodes', color: '#FF7043', icon: 'share-2' },
 	daily: { title: 'Daily Log', color: '#26A69A', icon: 'edit' },
 	settings: { title: 'Settings', color: '#78909C', icon: 'settings' },
-	knowledge: { title: 'Knowledge', color: '#AB47BC', icon: 'brain' },
 	terminal: { title: 'Terminal', color: '#37474F', icon: 'terminal' },
 	files: { title: 'Files', color: '#5D4037', icon: 'folder-open' },
 	help: { title: 'Help', color: '#607D8B', icon: 'help-circle' }
@@ -428,7 +429,9 @@ function createDesktop3DStore() {
 					isOpen: true,
 					isFocused: false,
 					lastFocused: Date.now(),
-					color: info.color
+					color: info.color,
+					width: 800,  // Default window width
+					height: 600  // Default window height
 				};
 
 				return { ...state, windows: [...state.windows, newWindow] };

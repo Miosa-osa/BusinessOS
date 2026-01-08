@@ -11,7 +11,7 @@
 
   let { workspaceId, roles, canManage }: Props = $props();
 
-  const dispatch = createEventDispatcher();
+  const dispatch = createEventDispatcher<{ updated: void }>();
 
   function getRoleColor(role: WorkspaceRole): string {
     if (role.color) return role.color;

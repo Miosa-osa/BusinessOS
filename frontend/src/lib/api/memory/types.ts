@@ -35,6 +35,7 @@ export interface MemoryListItem {
   id: string;
   title: string;
   summary: string;
+  content?: string;
   memory_type: MemoryType;
   importance_score: number;
   is_pinned: boolean;
@@ -46,6 +47,7 @@ export interface MemoryListItem {
   last_accessed_at: string | null;
   created_at: string;
   updated_at: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreateMemoryData {
@@ -127,7 +129,6 @@ export interface MemoryStats {
 }
 
 export interface UserFact {
-
   id: string;
   user_id: string;
   fact_key: string;
@@ -139,6 +140,14 @@ export interface UserFact {
   last_confirmed_at: string | null;
   created_at: string;
   updated_at: string;
+  // Additional properties used in UI
+  key?: string;
+  value?: string;
+  type?: string;
+  source?: string;
+  description?: string;
+  is_confirmed?: boolean;
+  is_rejected?: boolean;
 }
 
 export interface UpdateUserFactData {

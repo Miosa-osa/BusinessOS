@@ -2670,3 +2670,1034 @@ COMMENT ON TABLE slack_messages IS 'Synced Slack messages from channels';
 COMMENT ON TABLE linear_issues IS 'Synced Linear issues';
 COMMENT ON TABLE linear_projects IS 'Synced Linear projects';
 COMMENT ON TABLE linear_teams IS 'Synced Linear teams';
+
+-- ============================================================================
+-- FLEXIBLE TABLES SYSTEM (036)
+-- ============================================================================
+
+-- Field types enum
+DO $$ BEGIN
+    CREATE TYPE custom_field_type AS ENUM (
+        'text', 'long_text', 'number', 'currency', 'percent',
+        'date', 'datetime', 'checkbox', 'select', 'multi_select',
+        'user', 'email', 'phone', 'url', 'attachment',
+        'relation', 'lookup', 'formula', 'rollup', 'count',
+        'created_time', 'modified_time', 'created_by', 'modified_by',
+        'autonumber', 'rating', 'duration', 'json'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+-- View types
+DO $$ BEGIN
+    CREATE TYPE custom_view_type AS ENUM (
+        'grid', 'kanban', 'calendar', 'gallery', 'timeline', 'list', 'form'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS custom_workspaces (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    icon VARCHAR(50),
+    color VARCHAR(50),
+    visibility VARCHAR(20) DEFAULT 'private',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS custom_tables (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    icon VARCHAR(50),
+    color VARCHAR(50),
+    workspace_id UUID REFERENCES custom_workspaces(id) ON DELETE SET NULL,
+    folder_id UUID,
+    settings JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS custom_fields (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    table_id UUID NOT NULL REFERENCES custom_tables(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    field_type custom_field_type NOT NULL DEFAULT 'text',
+    description TEXT,
+    position INT NOT NULL DEFAULT 0,
+    config JSONB DEFAULT '{}',
+    required BOOLEAN DEFAULT FALSE,
+    unique_values BOOLEAN DEFAULT FALSE,
+    hidden BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(table_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS custom_field_options (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    field_id UUID NOT NULL REFERENCES custom_fields(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    color VARCHAR(50),
+    position INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(field_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS custom_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    table_id UUID NOT NULL REFERENCES custom_tables(id) ON DELETE CASCADE,
+    data JSONB DEFAULT '{}',
+    position INT,
+    created_by VARCHAR(255),
+    modified_by VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS custom_views (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    table_id UUID NOT NULL REFERENCES custom_tables(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    view_type custom_view_type NOT NULL DEFAULT 'grid',
+    description TEXT,
+    is_default BOOLEAN DEFAULT FALSE,
+    config JSONB DEFAULT '{}',
+    filters JSONB DEFAULT '[]',
+    sorts JSONB DEFAULT '[]',
+    group_by UUID,
+    view_settings JSONB DEFAULT '{}',
+    position INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS custom_record_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    record_id UUID NOT NULL REFERENCES custom_records(id) ON DELETE CASCADE,
+    field_id UUID,
+    action VARCHAR(50) NOT NULL,
+    old_value JSONB,
+    new_value JSONB,
+    changed_by VARCHAR(255),
+    changed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_custom_workspaces_user ON custom_workspaces(user_id);
+CREATE INDEX IF NOT EXISTS idx_custom_tables_user ON custom_tables(user_id);
+CREATE INDEX IF NOT EXISTS idx_custom_tables_workspace ON custom_tables(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_custom_fields_table ON custom_fields(table_id);
+CREATE INDEX IF NOT EXISTS idx_custom_field_options_field ON custom_field_options(field_id);
+CREATE INDEX IF NOT EXISTS idx_custom_records_table ON custom_records(table_id);
+CREATE INDEX IF NOT EXISTS idx_custom_records_data ON custom_records USING GIN (data);
+CREATE INDEX IF NOT EXISTS idx_custom_views_table ON custom_views(table_id);
+CREATE INDEX IF NOT EXISTS idx_custom_record_history_record ON custom_record_history(record_id);
+
+-- ============================================================================
+-- ACTIVITY LOG SYSTEM (037)
+-- ============================================================================
+
+DO $$ BEGIN
+    CREATE TYPE activity_action AS ENUM (
+        'created', 'updated', 'deleted', 'restored', 'archived',
+        'status_changed', 'priority_changed', 'assigned', 'unassigned',
+        'linked', 'unlinked', 'moved',
+        'commented', 'mentioned', 'attached', 'detached',
+        'shared', 'unshared',
+        'synced', 'imported', 'exported',
+        'custom'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS activity_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id UUID NOT NULL,
+    entity_name VARCHAR(500),
+    action activity_action NOT NULL,
+    action_detail VARCHAR(255),
+    actor_id VARCHAR(255),
+    actor_name VARCHAR(255),
+    changes JSONB,
+    related_entity_type VARCHAR(100),
+    related_entity_id UUID,
+    related_entity_name VARCHAR(500),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_user ON activity_log(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_log_actor ON activity_log(actor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_log_recent ON activity_log(created_at DESC);
+
+-- ============================================================================
+-- ATTACHMENTS SYSTEM (038)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS attachment_folders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    parent_id UUID REFERENCES attachment_folders(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    color VARCHAR(50),
+    entity_type VARCHAR(100),
+    entity_id UUID,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id UUID NOT NULL,
+    file_name VARCHAR(500) NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type VARCHAR(255),
+    file_extension VARCHAR(50),
+    storage_provider VARCHAR(50) NOT NULL DEFAULT 'local',
+    storage_path TEXT NOT NULL,
+    storage_bucket VARCHAR(255),
+    thumbnail_url TEXT,
+    preview_url TEXT,
+    width INT,
+    height INT,
+    page_count INT,
+    duration_seconds INT,
+    processing_status VARCHAR(50) DEFAULT 'ready',
+    processing_error TEXT,
+    metadata JSONB DEFAULT '{}',
+    uploaded_by VARCHAR(255),
+    folder_id UUID REFERENCES attachment_folders(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS attachment_versions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    attachment_id UUID NOT NULL REFERENCES attachments(id) ON DELETE CASCADE,
+    version_number INT NOT NULL,
+    version_label VARCHAR(100),
+    file_size BIGINT NOT NULL,
+    storage_path TEXT NOT NULL,
+    storage_bucket VARCHAR(255),
+    created_by VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(attachment_id, version_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_attachment_folders_user ON attachment_folders(user_id);
+CREATE INDEX IF NOT EXISTS idx_attachments_entity ON attachments(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_attachments_user ON attachments(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_attachments_folder ON attachments(folder_id);
+CREATE INDEX IF NOT EXISTS idx_attachment_versions_attachment ON attachment_versions(attachment_id);
+
+-- ============================================================================
+-- TAGS SYSTEM (039)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS tags (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    slug VARCHAR(100) NOT NULL,
+    description TEXT,
+    color VARCHAR(50),
+    icon VARCHAR(50),
+    parent_id UUID REFERENCES tags(id) ON DELETE SET NULL,
+    group_name VARCHAR(100),
+    allowed_entity_types TEXT[] DEFAULT '{}',
+    usage_count INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, slug)
+);
+
+CREATE TABLE IF NOT EXISTS tag_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id UUID NOT NULL,
+    assigned_by VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(tag_id, entity_type, entity_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tags_user ON tags(user_id);
+CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(user_id, name);
+CREATE INDEX IF NOT EXISTS idx_tags_group ON tags(user_id, group_name);
+CREATE INDEX IF NOT EXISTS idx_tag_assignments_entity ON tag_assignments(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_tag_assignments_tag ON tag_assignments(tag_id);
+
+-- ============================================================================
+-- ENTITY LINKS SYSTEM (040)
+-- ============================================================================
+
+DO $$ BEGIN
+    CREATE TYPE entity_link_type AS ENUM (
+        'related', 'mentions',
+        'parent_of', 'child_of',
+        'blocks', 'blocked_by', 'depends_on',
+        'duplicate_of', 'original_of',
+        'derived_from', 'spawned',
+        'task_for', 'project_for', 'note_about', 'meeting_about',
+        'custom'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS entity_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    source_type VARCHAR(100) NOT NULL,
+    source_id UUID NOT NULL,
+    source_name VARCHAR(500),
+    target_type VARCHAR(100) NOT NULL,
+    target_id UUID NOT NULL,
+    target_name VARCHAR(500),
+    link_type entity_link_type NOT NULL DEFAULT 'related',
+    custom_link_type VARCHAR(100),
+    is_bidirectional BOOLEAN DEFAULT FALSE,
+    description TEXT,
+    metadata JSONB DEFAULT '{}',
+    created_by VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(source_type, source_id, target_type, target_id, link_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_entity_links_source ON entity_links(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_entity_links_target ON entity_links(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_entity_links_user ON entity_links(user_id);
+CREATE INDEX IF NOT EXISTS idx_entity_links_type ON entity_links(link_type);
+
+-- ============================================================================
+-- CRM SYSTEM (041)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS companies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    legal_name VARCHAR(255),
+    industry VARCHAR(100),
+    company_size VARCHAR(50),
+    website VARCHAR(500),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    address_line1 VARCHAR(255),
+    address_line2 VARCHAR(255),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    postal_code VARCHAR(20),
+    country VARCHAR(100),
+    annual_revenue DECIMAL(15,2),
+    currency VARCHAR(10) DEFAULT 'USD',
+    fiscal_year_end VARCHAR(20),
+    tax_id VARCHAR(100),
+    linkedin_url VARCHAR(500),
+    twitter_handle VARCHAR(100),
+    owner_id VARCHAR(255),
+    lifecycle_stage VARCHAR(50),
+    lead_source VARCHAR(100),
+    health_score INT,
+    engagement_score INT,
+    logo_url TEXT,
+    custom_fields JSONB DEFAULT '{}',
+    metadata JSONB DEFAULT '{}',
+    external_id VARCHAR(255),
+    external_source VARCHAR(50),
+    last_synced_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS contact_company_relations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    contact_id UUID NOT NULL,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    job_title VARCHAR(255),
+    department VARCHAR(100),
+    role_type VARCHAR(50),
+    is_primary BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    started_at DATE,
+    ended_at DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(contact_id, company_id)
+);
+
+CREATE TABLE IF NOT EXISTS pipelines (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    pipeline_type VARCHAR(50) DEFAULT 'sales',
+    currency VARCHAR(10) DEFAULT 'USD',
+    is_default BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    color VARCHAR(50),
+    icon VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS pipeline_stages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pipeline_id UUID NOT NULL REFERENCES pipelines(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    position INT NOT NULL DEFAULT 0,
+    probability INT DEFAULT 0,
+    stage_type VARCHAR(50) DEFAULT 'open',
+    rotting_days INT,
+    color VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(pipeline_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS deals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    pipeline_id UUID NOT NULL REFERENCES pipelines(id),
+    stage_id UUID NOT NULL REFERENCES pipeline_stages(id),
+    name VARCHAR(500) NOT NULL,
+    description TEXT,
+    amount DECIMAL(15,2),
+    currency VARCHAR(10) DEFAULT 'USD',
+    probability INT,
+    expected_close_date DATE,
+    actual_close_date DATE,
+    owner_id VARCHAR(255),
+    company_id UUID REFERENCES companies(id),
+    primary_contact_id UUID,
+    status VARCHAR(50) DEFAULT 'open',
+    lost_reason VARCHAR(255),
+    priority VARCHAR(20) DEFAULT 'medium',
+    lead_source VARCHAR(100),
+    deal_score INT,
+    custom_fields JSONB DEFAULT '{}',
+    stage_entered_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+DO $$ BEGIN
+    CREATE TYPE crm_activity_type AS ENUM (
+        'call', 'email', 'meeting', 'note', 'task', 'demo',
+        'proposal_sent', 'contract_sent', 'follow_up', 'linkedin_message', 'other'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS crm_activities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    activity_type crm_activity_type NOT NULL,
+    subject VARCHAR(500) NOT NULL,
+    description TEXT,
+    outcome TEXT,
+    deal_id UUID REFERENCES deals(id) ON DELETE SET NULL,
+    company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+    contact_id UUID,
+    participants JSONB DEFAULT '[]',
+    activity_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    duration_minutes INT,
+    call_direction VARCHAR(20),
+    call_disposition VARCHAR(50),
+    call_recording_url TEXT,
+    email_direction VARCHAR(20),
+    email_message_id VARCHAR(255),
+    meeting_location VARCHAR(255),
+    meeting_url TEXT,
+    owner_id VARCHAR(255),
+    completed_by VARCHAR(255),
+    is_completed BOOLEAN DEFAULT FALSE,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS deal_stage_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    deal_id UUID NOT NULL REFERENCES deals(id) ON DELETE CASCADE,
+    from_stage_id UUID REFERENCES pipeline_stages(id),
+    to_stage_id UUID NOT NULL REFERENCES pipeline_stages(id),
+    changed_by VARCHAR(255),
+    changed_at TIMESTAMPTZ DEFAULT NOW(),
+    duration_seconds INT,
+    deal_amount DECIMAL(15,2)
+);
+
+CREATE INDEX IF NOT EXISTS idx_companies_user ON companies(user_id);
+CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(user_id, name);
+CREATE INDEX IF NOT EXISTS idx_companies_industry ON companies(user_id, industry);
+CREATE INDEX IF NOT EXISTS idx_contact_company_contact ON contact_company_relations(contact_id);
+CREATE INDEX IF NOT EXISTS idx_contact_company_company ON contact_company_relations(company_id);
+CREATE INDEX IF NOT EXISTS idx_pipelines_user ON pipelines(user_id);
+CREATE INDEX IF NOT EXISTS idx_pipeline_stages_pipeline ON pipeline_stages(pipeline_id);
+CREATE INDEX IF NOT EXISTS idx_deals_user ON deals(user_id);
+CREATE INDEX IF NOT EXISTS idx_deals_pipeline ON deals(pipeline_id);
+CREATE INDEX IF NOT EXISTS idx_deals_stage ON deals(stage_id);
+CREATE INDEX IF NOT EXISTS idx_deals_company ON deals(company_id);
+CREATE INDEX IF NOT EXISTS idx_deals_status ON deals(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_crm_activities_user ON crm_activities(user_id);
+CREATE INDEX IF NOT EXISTS idx_crm_activities_deal ON crm_activities(deal_id);
+CREATE INDEX IF NOT EXISTS idx_crm_activities_company ON crm_activities(company_id);
+CREATE INDEX IF NOT EXISTS idx_crm_activities_date ON crm_activities(activity_date DESC);
+CREATE INDEX IF NOT EXISTS idx_deal_stage_history_deal ON deal_stage_history(deal_id);
+
+-- ============================================================================
+-- UPDATE TRIGGERS FOR NEW TABLES
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION update_custom_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- MEMORIES SYSTEM (Migration 016)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS memories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    summary TEXT NOT NULL,
+    content TEXT NOT NULL,
+    memory_type VARCHAR(50) NOT NULL,
+    category VARCHAR(100),
+    source_type VARCHAR(50) NOT NULL,
+    source_id UUID,
+    source_context TEXT,
+    project_id UUID,
+    node_id UUID,
+    importance_score DECIMAL(3,2) DEFAULT 0.5,
+    access_count INTEGER DEFAULT 0,
+    last_accessed_at TIMESTAMPTZ,
+    embedding_model VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE,
+    is_pinned BOOLEAN DEFAULT FALSE,
+    expires_at TIMESTAMPTZ,
+    tags TEXT[] DEFAULT '{}',
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_id);
+CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(memory_type);
+CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project_id);
+CREATE INDEX IF NOT EXISTS idx_memories_node ON memories(node_id);
+CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance_score DESC);
+CREATE INDEX IF NOT EXISTS idx_memories_active ON memories(user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_memories_created ON memories(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS memory_associations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    memory_id UUID NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id UUID NOT NULL,
+    relevance_score DECIMAL(3,2) DEFAULT 0.5,
+    association_type VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_assoc_memory ON memory_associations(memory_id);
+CREATE INDEX IF NOT EXISTS idx_memory_assoc_entity ON memory_associations(entity_type, entity_id);
+
+CREATE TABLE IF NOT EXISTS memory_access_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    memory_id UUID NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL,
+    access_type VARCHAR(50) NOT NULL,
+    accessing_agent VARCHAR(100),
+    conversation_id UUID,
+    trigger_query TEXT,
+    relevance_score DECIMAL(3,2),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_access_memory ON memory_access_log(memory_id);
+CREATE INDEX IF NOT EXISTS idx_memory_access_time ON memory_access_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_memory_access_user ON memory_access_log(user_id);
+
+CREATE TABLE IF NOT EXISTS user_facts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    fact_key VARCHAR(255) NOT NULL,
+    fact_value TEXT NOT NULL,
+    fact_type VARCHAR(50) NOT NULL,
+    source_memory_id UUID REFERENCES memories(id) ON DELETE SET NULL,
+    confidence_score DECIMAL(3,2) DEFAULT 1.0,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_confirmed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, fact_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_facts_user ON user_facts(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_facts_type ON user_facts(fact_type);
+CREATE INDEX IF NOT EXISTS idx_user_facts_active ON user_facts(user_id, is_active);
+
+-- ============================================================================
+-- LEARNING SYSTEM (Migration 021)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS learning_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    learning_type VARCHAR(50) NOT NULL,
+    learning_content TEXT NOT NULL,
+    learning_summary VARCHAR(500),
+    source_type VARCHAR(50) NOT NULL,
+    source_id UUID,
+    source_context TEXT,
+    confidence_score DECIMAL(3,2) DEFAULT 0.5,
+    times_applied INTEGER DEFAULT 0,
+    last_applied_at TIMESTAMPTZ,
+    successful_applications INTEGER DEFAULT 0,
+    created_memory_id UUID,
+    created_fact_key VARCHAR(255),
+    category VARCHAR(100),
+    tags TEXT[] DEFAULT '{}',
+    was_validated BOOLEAN DEFAULT FALSE,
+    validated_at TIMESTAMPTZ,
+    validation_result VARCHAR(50),
+    validation_notes TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    superseded_by UUID,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_learning_events_user ON learning_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_learning_events_type ON learning_events(learning_type);
+CREATE INDEX IF NOT EXISTS idx_learning_events_source ON learning_events(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_learning_events_active ON learning_events(user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_learning_events_confidence ON learning_events(user_id, confidence_score DESC);
+CREATE INDEX IF NOT EXISTS idx_learning_events_created ON learning_events(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS user_behavior_patterns (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    pattern_type VARCHAR(100) NOT NULL,
+    pattern_key VARCHAR(255) NOT NULL,
+    pattern_value TEXT NOT NULL,
+    pattern_description TEXT,
+    observation_count INTEGER DEFAULT 1,
+    first_observed_at TIMESTAMPTZ DEFAULT NOW(),
+    last_observed_at TIMESTAMPTZ DEFAULT NOW(),
+    evidence_ids UUID[] DEFAULT '{}',
+    confidence_score DECIMAL(3,2) DEFAULT 0.5,
+    min_observations_for_confidence INTEGER DEFAULT 3,
+    is_applied BOOLEAN DEFAULT FALSE,
+    applied_in_prompt BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    deactivated_at TIMESTAMPTZ,
+    deactivation_reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, pattern_type, pattern_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_behavior_patterns_user ON user_behavior_patterns(user_id);
+CREATE INDEX IF NOT EXISTS idx_behavior_patterns_type ON user_behavior_patterns(pattern_type);
+CREATE INDEX IF NOT EXISTS idx_behavior_patterns_active ON user_behavior_patterns(user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_behavior_patterns_confidence ON user_behavior_patterns(user_id, confidence_score DESC);
+
+CREATE TABLE IF NOT EXISTS feedback_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    target_type VARCHAR(50) NOT NULL,
+    target_id UUID NOT NULL,
+    feedback_type VARCHAR(50) NOT NULL,
+    feedback_value TEXT,
+    rating INTEGER,
+    conversation_id UUID,
+    agent_type VARCHAR(100),
+    focus_mode VARCHAR(50),
+    original_content TEXT,
+    expected_content TEXT,
+    was_processed BOOLEAN DEFAULT FALSE,
+    processed_at TIMESTAMPTZ,
+    resulting_learning_id UUID,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_log_user ON feedback_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_log_target ON feedback_log(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_log_type ON feedback_log(feedback_type);
+CREATE INDEX IF NOT EXISTS idx_feedback_log_unprocessed ON feedback_log(was_processed) WHERE was_processed = FALSE;
+CREATE INDEX IF NOT EXISTS idx_feedback_log_created ON feedback_log(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS personalization_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL UNIQUE,
+    preferred_tone VARCHAR(50) DEFAULT 'professional',
+    preferred_verbosity VARCHAR(50) DEFAULT 'balanced',
+    preferred_format VARCHAR(50) DEFAULT 'structured',
+    prefers_examples BOOLEAN DEFAULT TRUE,
+    prefers_analogies BOOLEAN DEFAULT FALSE,
+    prefers_code_samples BOOLEAN DEFAULT FALSE,
+    prefers_visual_aids BOOLEAN DEFAULT FALSE,
+    expertise_areas TEXT[] DEFAULT '{}',
+    learning_areas TEXT[] DEFAULT '{}',
+    common_topics TEXT[] DEFAULT '{}',
+    timezone VARCHAR(100),
+    preferred_working_hours JSONB DEFAULT '{}',
+    most_active_hours INTEGER[] DEFAULT '{}',
+    total_conversations INTEGER DEFAULT 0,
+    total_feedback_given INTEGER DEFAULT 0,
+    positive_feedback_ratio DECIMAL(3,2) DEFAULT 0.5,
+    profile_completeness DECIMAL(3,2) DEFAULT 0.0,
+    last_profile_update TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_personalization_user ON personalization_profiles(user_id);
+
+-- ============================================================================
+-- CONTEXT SYSTEM (Migration 017)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS context_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    context_tree JSONB NOT NULL DEFAULT '{}',
+    summary TEXT,
+    key_facts TEXT[] DEFAULT '{}',
+    document_types TEXT[] DEFAULT '{}',
+    total_documents INTEGER DEFAULT 0,
+    total_file_size_bytes BIGINT DEFAULT 0,
+    total_contexts INTEGER DEFAULT 0,
+    total_memories INTEGER DEFAULT 0,
+    total_artifacts INTEGER DEFAULT 0,
+    total_tasks INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, entity_type, entity_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_context_profiles_user ON context_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_context_profiles_entity ON context_profiles(entity_type, entity_id);
+
+CREATE TABLE IF NOT EXISTS context_loading_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    trigger_type VARCHAR(50) NOT NULL,
+    trigger_value VARCHAR(255),
+    load_memories BOOLEAN DEFAULT TRUE,
+    memory_types TEXT[] DEFAULT '{}',
+    memory_limit INTEGER DEFAULT 10,
+    load_contexts BOOLEAN DEFAULT TRUE,
+    context_categories TEXT[] DEFAULT '{}',
+    context_limit INTEGER DEFAULT 5,
+    load_artifacts BOOLEAN DEFAULT FALSE,
+    artifact_types TEXT[] DEFAULT '{}',
+    artifact_limit INTEGER DEFAULT 3,
+    load_recent_conversations BOOLEAN DEFAULT TRUE,
+    conversation_limit INTEGER DEFAULT 3,
+    priority INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_context_rules_user ON context_loading_rules(user_id);
+CREATE INDEX IF NOT EXISTS idx_context_rules_trigger ON context_loading_rules(trigger_type, trigger_value);
+CREATE INDEX IF NOT EXISTS idx_context_rules_active ON context_loading_rules(user_id, is_active);
+
+CREATE TABLE IF NOT EXISTS context_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    conversation_id UUID NOT NULL,
+    agent_type VARCHAR(100) NOT NULL,
+    agent_id UUID,
+    max_context_tokens INTEGER NOT NULL,
+    used_context_tokens INTEGER DEFAULT 0,
+    available_tokens INTEGER,
+    loaded_memories UUID[] DEFAULT '{}',
+    loaded_contexts UUID[] DEFAULT '{}',
+    loaded_artifacts UUID[] DEFAULT '{}',
+    loaded_documents UUID[] DEFAULT '{}',
+    base_system_prompt TEXT,
+    injected_context TEXT,
+    total_system_prompt_tokens INTEGER,
+    project_id UUID,
+    node_id UUID,
+    focus_mode VARCHAR(50),
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    last_activity_at TIMESTAMPTZ DEFAULT NOW(),
+    ended_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_context_sessions_user ON context_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_context_sessions_conversation ON context_sessions(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_context_sessions_active ON context_sessions(user_id, ended_at) WHERE ended_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS context_retrieval_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID REFERENCES context_sessions(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL,
+    retrieval_type VARCHAR(50) NOT NULL,
+    item_id UUID NOT NULL,
+    item_title VARCHAR(255),
+    retrieval_method VARCHAR(50) NOT NULL,
+    query_used TEXT,
+    relevance_score DECIMAL(3,2),
+    token_count INTEGER,
+    was_truncated BOOLEAN DEFAULT FALSE,
+    was_used_in_response BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_context_retrieval_session ON context_retrieval_log(session_id);
+CREATE INDEX IF NOT EXISTS idx_context_retrieval_item ON context_retrieval_log(item_id);
+CREATE INDEX IF NOT EXISTS idx_context_retrieval_user ON context_retrieval_log(user_id);
+
+-- ============================================================================
+-- DOCUMENT PROCESSING (Migration 019)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS uploaded_documents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    filename VARCHAR(500) NOT NULL,
+    original_filename VARCHAR(500) NOT NULL,
+    display_name VARCHAR(255),
+    description TEXT,
+    file_type VARCHAR(50) NOT NULL,
+    mime_type VARCHAR(255) NOT NULL,
+    file_size_bytes BIGINT NOT NULL,
+    storage_path VARCHAR(1000) NOT NULL,
+    storage_provider VARCHAR(50) DEFAULT 'local',
+    extracted_text TEXT,
+    page_count INTEGER,
+    word_count INTEGER,
+    context_profile_id UUID,
+    project_id UUID,
+    node_id UUID,
+    document_type VARCHAR(100),
+    category VARCHAR(100),
+    tags TEXT[] DEFAULT '{}',
+    processing_status VARCHAR(50) DEFAULT 'pending',
+    processing_error TEXT,
+    processed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_uploaded_docs_user ON uploaded_documents(user_id);
+CREATE INDEX IF NOT EXISTS idx_uploaded_docs_profile ON uploaded_documents(context_profile_id) WHERE context_profile_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_uploaded_docs_project ON uploaded_documents(project_id) WHERE project_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_uploaded_docs_node ON uploaded_documents(node_id) WHERE node_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_uploaded_docs_type ON uploaded_documents(document_type);
+CREATE INDEX IF NOT EXISTS idx_uploaded_docs_status ON uploaded_documents(processing_status);
+
+CREATE TABLE IF NOT EXISTS document_chunks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID NOT NULL REFERENCES uploaded_documents(id) ON DELETE CASCADE,
+    chunk_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    token_count INTEGER,
+    page_number INTEGER,
+    start_char INTEGER,
+    end_char INTEGER,
+    section_title VARCHAR(255),
+    chunk_type VARCHAR(50) DEFAULT 'text',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_doc_chunks_document ON document_chunks(document_id);
+CREATE INDEX IF NOT EXISTS idx_doc_chunks_index ON document_chunks(document_id, chunk_index);
+
+CREATE TABLE IF NOT EXISTS document_references (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID NOT NULL REFERENCES uploaded_documents(id) ON DELETE CASCADE,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id UUID NOT NULL,
+    reference_type VARCHAR(50) DEFAULT 'related',
+    context TEXT,
+    relevance_score DECIMAL(3,2) DEFAULT 0.5,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_doc_refs_document ON document_references(document_id);
+CREATE INDEX IF NOT EXISTS idx_doc_refs_entity ON document_references(entity_type, entity_id);
+
+-- ============================================================================
+-- CONVERSATION SUMMARIES (Migration 020)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS conversation_summaries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    summary TEXT NOT NULL,
+    key_points TEXT[] DEFAULT '{}',
+    decisions_made TEXT[] DEFAULT '{}',
+    action_items TEXT[] DEFAULT '{}',
+    topics TEXT[] DEFAULT '{}',
+    mentioned_entities JSONB DEFAULT '{}',
+    message_count INTEGER,
+    time_range_start TIMESTAMPTZ,
+    time_range_end TIMESTAMPTZ,
+    summarized_at TIMESTAMPTZ DEFAULT NOW(),
+    summary_version INTEGER DEFAULT 1,
+    is_complete BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_conv_summaries_conv ON conversation_summaries(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_conv_summaries_user ON conversation_summaries(user_id);
+CREATE INDEX IF NOT EXISTS idx_conv_summaries_time ON conversation_summaries(summarized_at DESC);
+
+CREATE TABLE IF NOT EXISTS context_profile_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    context_profile_id UUID NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    item_type VARCHAR(50) NOT NULL,
+    item_id UUID NOT NULL,
+    display_name VARCHAR(255),
+    description TEXT,
+    token_estimate INTEGER,
+    last_accessed_at TIMESTAMPTZ,
+    access_count INTEGER DEFAULT 0,
+    sort_order INTEGER DEFAULT 0,
+    is_pinned BOOLEAN DEFAULT FALSE,
+    is_auto_added BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(context_profile_id, item_type, item_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_profile_items_profile ON context_profile_items(context_profile_id);
+CREATE INDEX IF NOT EXISTS idx_profile_items_type ON context_profile_items(item_type, item_id);
+CREATE INDEX IF NOT EXISTS idx_profile_items_user ON context_profile_items(user_id);
+
+-- ============================================================================
+-- APPLICATION PROFILES (Migration 022)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS application_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    app_type VARCHAR(100),
+    version VARCHAR(50),
+    tech_stack JSONB DEFAULT '{}',
+    languages TEXT[] DEFAULT '{}',
+    frameworks TEXT[] DEFAULT '{}',
+    structure_tree JSONB NOT NULL DEFAULT '{}',
+    root_path VARCHAR(1000),
+    components JSONB DEFAULT '[]',
+    total_components INTEGER DEFAULT 0,
+    modules JSONB DEFAULT '[]',
+    total_modules INTEGER DEFAULT 0,
+    icons JSONB DEFAULT '[]',
+    assets JSONB DEFAULT '[]',
+    api_endpoints JSONB DEFAULT '[]',
+    total_endpoints INTEGER DEFAULT 0,
+    database_schema JSONB DEFAULT '{}',
+    total_tables INTEGER DEFAULT 0,
+    conventions JSONB DEFAULT '{}',
+    coding_standards TEXT,
+    integration_points JSONB DEFAULT '[]',
+    readme_summary TEXT,
+    documentation_urls TEXT[] DEFAULT '{}',
+    last_synced_at TIMESTAMPTZ,
+    sync_source VARCHAR(255),
+    sync_branch VARCHAR(100),
+    sync_commit VARCHAR(100),
+    auto_sync_enabled BOOLEAN DEFAULT FALSE,
+    last_analyzed_at TIMESTAMPTZ,
+    analysis_version INTEGER DEFAULT 1,
+    lines_of_code INTEGER,
+    file_count INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_profiles_user ON application_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_app_profiles_type ON application_profiles(app_type);
+CREATE INDEX IF NOT EXISTS idx_app_profiles_name ON application_profiles(user_id, name);
+
+CREATE TABLE IF NOT EXISTS application_components (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    app_profile_id UUID NOT NULL REFERENCES application_profiles(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(1000) NOT NULL,
+    component_type VARCHAR(100),
+    description TEXT,
+    props JSONB DEFAULT '[]',
+    events JSONB DEFAULT '[]',
+    slots JSONB DEFAULT '[]',
+    imports TEXT[] DEFAULT '{}',
+    exported_as VARCHAR(255),
+    usage_examples JSONB DEFAULT '[]',
+    used_in TEXT[] DEFAULT '{}',
+    lines_of_code INTEGER,
+    last_modified_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(app_profile_id, file_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_components_profile ON application_components(app_profile_id);
+CREATE INDEX IF NOT EXISTS idx_app_components_type ON application_components(component_type);
+CREATE INDEX IF NOT EXISTS idx_app_components_name ON application_components(app_profile_id, name);
+
+CREATE TABLE IF NOT EXISTS application_api_endpoints (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    app_profile_id UUID NOT NULL REFERENCES application_profiles(id) ON DELETE CASCADE,
+    method VARCHAR(10) NOT NULL,
+    path VARCHAR(500) NOT NULL,
+    handler_path VARCHAR(1000),
+    description TEXT,
+    summary VARCHAR(255),
+    path_params JSONB DEFAULT '[]',
+    query_params JSONB DEFAULT '[]',
+    body_schema JSONB DEFAULT '{}',
+    response_schema JSONB DEFAULT '{}',
+    auth_required BOOLEAN DEFAULT FALSE,
+    required_permissions TEXT[] DEFAULT '{}',
+    tags TEXT[] DEFAULT '{}',
+    deprecated BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(app_profile_id, method, path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_endpoints_profile ON application_api_endpoints(app_profile_id);
+CREATE INDEX IF NOT EXISTS idx_app_endpoints_method ON application_api_endpoints(method);
+CREATE INDEX IF NOT EXISTS idx_app_endpoints_path ON application_api_endpoints(app_profile_id, path);

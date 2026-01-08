@@ -29,7 +29,11 @@
 			const userId = 'current-user-id'; // TODO: Get from auth store
 			currentUserId = userId;
 
-			// Check access
+			// Check access - ensure projectId is defined
+			if (!projectId) {
+				error = 'Project ID is missing';
+				return;
+			}
 			accessInfo = await checkProjectAccess(projectId, userId);
 
 			if (!accessInfo.has_access) {
@@ -120,8 +124,8 @@
 			<!-- Members Panel -->
 			<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
 				<ProjectMembersPanel
-					{projectId}
-					workspaceId={$currentWorkspace?.id || ''}
+					projectId={projectId ?? ''}
+					workspaceId={$currentWorkspace?.id ?? ''}
 					{currentUserId}
 					userRole={accessInfo.role || 'viewer'}
 					canInvite={accessInfo.can_invite}

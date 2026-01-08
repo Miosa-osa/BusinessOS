@@ -175,7 +175,7 @@
 
 	function openFullPage() {
 		if (contextDoc) {
-			goto(`/knowledge/${contextDoc.id}${embedSuffix}`);
+			goto(`/knowledge-v2/${contextDoc.id}${embedSuffix}`);
 		}
 	}
 

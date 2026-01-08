@@ -19,7 +19,7 @@ import type {
  */
 export async function getWorkspaces(): Promise<Workspace[]> {
   const response = await request<{ workspaces: Workspace[] }>('/workspaces');
-  return response.workspaces;
+  return response?.workspaces ?? [];
 }
 
 /**

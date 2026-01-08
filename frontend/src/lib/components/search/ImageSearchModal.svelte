@@ -13,9 +13,11 @@
 	interface Props {
 		show: boolean;
 		mode?: 'multimodal' | 'image_similarity' | 'text_to_image';
+		onresults?: (results: MultimodalSearchResult[], query?: string) => void;
+		onclose?: () => void;
 	}
 
-	let { show = $bindable(false), mode = $bindable('multimodal') }: Props = $props();
+	let { show = $bindable(false), mode = $bindable('multimodal'), onresults, onclose }: Props = $props();
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -165,6 +167,7 @@
 			}
 
 			dispatch('results', { results, query: searchQuery });
+			onresults?.(results, searchQuery);
 			show = false;
 		} catch (err: any) {
 			error = err.message || 'Search failed';
@@ -177,6 +180,7 @@
 	function closeModal() {
 		show = false;
 		dispatch('close');
+		onclose?.();
 	}
 
 	// Keyboard shortcuts

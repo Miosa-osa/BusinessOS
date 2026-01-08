@@ -120,7 +120,7 @@ export async function initializeWorkspaces(): Promise<void> {
   workspaceError.set(null);
 
   try {
-    const allWorkspaces = await getWorkspaces();
+    const allWorkspaces = await getWorkspaces() ?? [];
     console.log(`[Workspaces] Loaded ${allWorkspaces.length} workspaces:`, allWorkspaces);
     workspaces.set(allWorkspaces);
 
@@ -131,8 +131,9 @@ export async function initializeWorkspaces(): Promise<void> {
       await switchWorkspace(allWorkspaces[0].id);
     } else if (current) {
       console.log(`[Workspaces] Current workspace already set: ${current.name} (${current.id})`);
-    } else {
-      console.warn('[Workspaces] No workspaces found to auto-select');
+    } else if (allWorkspaces.length === 0) {
+      // Only log once, not a warning since empty workspaces is valid state
+      console.debug('[Workspaces] No workspaces available');
     }
   } catch (error) {
     console.error('[Workspaces] Failed to load workspaces:', error);

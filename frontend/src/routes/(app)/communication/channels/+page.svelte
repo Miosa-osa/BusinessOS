@@ -25,7 +25,8 @@
 
 	async function loadChannels() {
 		try {
-			slackChannels = await api.getSlackChannels();
+			const response = await api.getSlackChannels();
+			slackChannels = response.channels ?? [];
 		} catch (e) {
 			console.error('Failed to load Slack channels:', e);
 		}

@@ -23,8 +23,17 @@ export async function getNodeTree(includeArchived = false) {
   return request<NodeTree[]>(`/nodes/tree${params}`);
 }
 
-export async function getActiveNode() {
-  return request<Node | null>('/nodes/active');
+export async function getActiveNode(): Promise<Node | null> {
+  // Use raw.get to avoid console.error spam for expected 404s
+  const response = await raw.get('/nodes/active');
+  if (response.status === 404) {
+    // 404 is expected when no node is active
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to get active node (HTTP ${response.status})`);
+  }
+  return response.json();
 }
 
 export async function getNode(id: string) {

@@ -1060,7 +1060,7 @@
 										<div class="space-y-2">
 											{#each linkedContexts as context}
 												<a
-													href="/knowledge/{context.id}"
+													href="/knowledge-v2/{context.id}"
 													class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors group"
 												>
 													<div class="w-6 h-6 rounded bg-purple-100 text-purple-600 flex items-center justify-center flex-shrink-0">

@@ -1029,9 +1029,12 @@ export interface Task {
 	status: TaskStatus;
 	priority: TaskPriority;
 	due_date: string | null;
+	start_date?: string | null;
 	completed_at: string | null;
 	project_id: string | null;
 	assignee_id: string | null;
+	parent_task_id?: string | null;
+	estimated_hours?: number | null;
 	created_at: string;
 	updated_at: string;
 }

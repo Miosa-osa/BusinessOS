@@ -438,7 +438,7 @@
 		if (onPageClick) {
 			onPageClick(pageId);
 		} else {
-			goto(`/knowledge/${pageId}`);
+			goto(`/knowledge-v2/${pageId}`);
 		}
 	}
 

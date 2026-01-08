@@ -71,6 +71,11 @@ export interface DocumentSearchResult {
 export interface DocumentUploadResponse {
   document: ProcessedDocument;
   message: string;
+  // Convenience properties - flattened from document
+  id?: string;
+  display_name?: string;
+  original_filename?: string;
+  word_count?: number;
 }
 
 export interface DocumentSearchParams {

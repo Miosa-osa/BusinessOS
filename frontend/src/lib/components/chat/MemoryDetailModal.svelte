@@ -1,12 +1,12 @@
-<script lang="ts">
+<script lang="ts" generics="T extends MemoryListItem">
 	import type { MemoryListItem } from '$lib/api/memory';
 	import { fade, fly } from 'svelte/transition';
 
 	interface Props {
-		memory: MemoryListItem | null;
+		memory: T | null;
 		onClose: () => void;
-		onPin?: (memory: MemoryListItem) => void;
-		onDelete?: (memory: MemoryListItem) => void;
+		onPin?: (memory: T) => void | Promise<void>;
+		onDelete?: (memory: T) => void | Promise<void>;
 	}
 
 	let { memory, onClose, onPin, onDelete }: Props = $props();
