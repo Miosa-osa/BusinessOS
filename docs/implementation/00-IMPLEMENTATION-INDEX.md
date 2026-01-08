@@ -36,12 +36,11 @@ Recent commits:
 Recent commits:
 - feat: Complete Q1 implementation - All Linear issues (CUS-25,26,27,28,41)
 - feat: Add workspace memory chat injection with COT orchestrator fix
-- feat: Add Sorx 2.0 integration engine with security hardening
 - feat: Multi-tool integration architecture + Knowledge module
-- feat: Add Human-in-the-Loop architecture and skill examples
 - fix: Critical security vulnerabilities in integration handlers
+- fix: Calendar API routes, OAuth state utilities
 ```
-**Current Focus:** Sorx 2.0, OSA Integration, COT, Q1 deliverables
+**Current Focus:** OSA Integration with Nick, COT, Q1 deliverables
 
 ### Javaris (javaris-dev) - Last active: Jan 8
 ```
@@ -99,10 +98,15 @@ Recent commits:
 | Feature | Owner | Status | Notes |
 |---------|-------|--------|-------|
 | **OSA Integration / App Generation** | Nick + Pedro | **IN PROGRESS** | High priority - generate apps within BusinessOS |
-| **Sorx 2.0 Integration Engine** | Pedro | **IN PROGRESS** | Security hardened, Human-in-the-loop |
 | **Multi-channel Notifications** | Javaris | **IN PROGRESS** | Mobile API ready |
 | **2D/3D Building Visualization** | Javaris | **IN PROGRESS** | Animated agents |
 | **Desktop Customization** | Javaris | **IN PROGRESS** | Animations & effects |
+
+### Future Roadmap (Lower Priority)
+
+| Feature | Owner | Status | Notes |
+|---------|-------|--------|-------|
+| **Sorx 2.0 / Workflows** | Roberto | Future | Agent automation engine - ties into Workflows (07-WORKFLOWS.md) |
 
 ---
 
@@ -156,19 +160,20 @@ TOTAL                            286+       130+        156+ (54%)
 
 | Team Member | Primary Features | Current Work | Last Active |
 |-------------|------------------|--------------|-------------|
-| **Roberto** | Integrations (Slack, Notion, Drive) | Workspaces support, heavy frontend | Jan 8 |
+| **Roberto** | Integrations, Sorx/Workflows (future) | Workspaces support, heavy frontend | Jan 8 |
 | **Javaris** | Workspaces, Desktop UI | Notifications, 3D viz, customization | Jan 8 |
-| **Nick** | OSA Integration, Terminal | PTY, OAuth, security hardening | Jan 8 |
-| **Pedro** | OSA Integration, Sorx 2.0, Learning | Q1 complete, COT, integrations | Jan 8 |
+| **Nick** | OSA Integration, Terminal | PTY, OAuth, OSA with Pedro | Jan 8 |
+| **Pedro** | OSA Integration, Learning, Backend | Q1 complete, COT, OSA with Nick | Jan 8 |
 | Nejd | TBD | TBD | - |
 | Abdul | TBD | TBD | - |
 
 ### Ownership Summary
 
 ```
-ROBERTO (Frontend Heavy)
+ROBERTO (Frontend Heavy + Sorx)
 ├── P1: Integrations (Slack, Notion, Drive) - LEAD
-└── P0: Workspaces - SUPPORT (heavy components)
+├── P0: Workspaces - SUPPORT (heavy components)
+└── FUTURE: Sorx 2.0 / Workflows (agent automation engine)
 
 JAVARIS (Frontend + Desktop)
 ├── P0: Workspaces - LEAD
@@ -180,8 +185,7 @@ NICK + PEDRO (OSA & AI Features) - HIGH PRIORITY
 ├── P0: OSA Integration / App Generation - JOINT (IN PROGRESS)
 ├── P0: Custom Agents - JOINT
 ├── P1: Thinking/COT - JOINT (IN PROGRESS - Pedro)
-├── P1: Slash Commands & Delegation - JOINT
-└── IN PROGRESS: Sorx 2.0 Integration Engine (Pedro)
+└── P1: Slash Commands & Delegation - JOINT
 
 NICK (Infrastructure)
 ├── P2: Terminal/Filesystem - LEAD (IN PROGRESS - Phase 2 done)
