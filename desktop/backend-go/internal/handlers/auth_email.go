@@ -95,8 +95,17 @@ func (h *EmailAuthHandler) SignUp(c *gin.Context) {
 		return
 	}
 
-	// Set session cookie
-	c.SetCookie("better-auth.session_token", sessionToken, 60*60*24*7, "/", "", false, true)
+	// Set session cookie with SameSite=None for cross-origin requests (development)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "better-auth.session_token",
+		Value:    sessionToken,
+		Path:     "/",
+		Domain:   "", // Current domain
+		MaxAge:   60 * 60 * 24 * 7, // 7 days
+		HttpOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: http.SameSiteNoneMode, // Allow cross-site requests (localhost:5173 → localhost:8001)
+	})
 
 	c.JSON(http.StatusCreated, gin.H{
 		"user": gin.H{
@@ -146,8 +155,17 @@ func (h *EmailAuthHandler) SignIn(c *gin.Context) {
 		return
 	}
 
-	// Set session cookie
-	c.SetCookie("better-auth.session_token", sessionToken, 60*60*24*7, "/", "", false, true)
+	// Set session cookie with SameSite=None for cross-origin requests (development)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "better-auth.session_token",
+		Value:    sessionToken,
+		Path:     "/",
+		Domain:   "", // Current domain
+		MaxAge:   60 * 60 * 24 * 7, // 7 days
+		HttpOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: http.SameSiteNoneMode, // Allow cross-site requests (localhost:5173 → localhost:8001)
+	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"user": gin.H{

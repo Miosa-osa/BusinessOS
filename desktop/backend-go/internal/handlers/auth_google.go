@@ -136,8 +136,17 @@ func (h *GoogleAuthHandler) HandleGoogleLoginCallback(c *gin.Context) {
 	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
 	c.SetCookie("oauth_redirect", "", -1, "/", "", false, true)
 
-	// Set session cookie (compatible with Better Auth format)
-	c.SetCookie("better-auth.session_token", sessionToken, 60*60*24*7, "/", "", false, true)
+	// Set session cookie (compatible with Better Auth format) with SameSite=None
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "better-auth.session_token",
+		Value:    sessionToken,
+		Path:     "/",
+		Domain:   "", // Current domain
+		MaxAge:   60 * 60 * 24 * 7, // 7 days
+		HttpOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: http.SameSiteNoneMode, // Allow cross-site requests (localhost:5173 → localhost:8001)
+	})
 
 	// Redirect to app
 	c.Redirect(http.StatusTemporaryRedirect, redirectAfter)
@@ -318,8 +327,17 @@ func (h *GoogleAuthHandler) Logout(c *gin.Context) {
 		h.pool.Exec(ctx, `DELETE FROM session WHERE token = $1`, sessionToken)
 	}
 
-	// Clear cookie
-	c.SetCookie("better-auth.session_token", "", -1, "/", "", false, true)
+	// Clear cookie with SameSite=None (must match how it was set)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "better-auth.session_token",
+		Value:    "",
+		Path:     "/",
+		Domain:   "",
+		MaxAge:   -1, // Delete cookie
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteNoneMode,
+	})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out"})
 }
@@ -365,8 +383,17 @@ func (h *GoogleAuthHandler) LogoutAllSessions(c *gin.Context) {
 	rowsAffected := result.RowsAffected()
 	log.Printf("LogoutAllSessions: deleted %d database sessions for user %s", rowsAffected, user.ID)
 
-	// Clear current session cookie
-	c.SetCookie("better-auth.session_token", "", -1, "/", "", false, true)
+	// Clear current session cookie with SameSite=None (must match how it was set)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "better-auth.session_token",
+		Value:    "",
+		Path:     "/",
+		Domain:   "",
+		MaxAge:   -1, // Delete cookie
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteNoneMode,
+	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":          "All sessions invalidated",
