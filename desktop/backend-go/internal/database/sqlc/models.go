@@ -1856,6 +1856,8 @@ type DashboardTemplate struct {
 	ID              pgtype.UUID        `json:"id"`
 	Name            string             `json:"name"`
 	Description     *string            `json:"description"`
+	Category        *string            `json:"category"`
+	ThumbnailUrl    *string            `json:"thumbnail_url"`
 	PreviewImageUrl *string            `json:"preview_image_url"`
 	Layout          []byte             `json:"layout"`
 	IsDefault       *bool              `json:"is_default"`
@@ -1885,6 +1887,10 @@ type DashboardWidget struct {
 	Category            *string            `json:"category"`
 	Icon                *string            `json:"icon"`
 	DefaultConfig       []byte             `json:"default_config"`
+	ConfigSchema        []byte             `json:"config_schema"`
+	DefaultSize         []byte             `json:"default_size"`
+	MinSize             []byte             `json:"min_size"`
+	SseEvents           []string           `json:"sse_events"`
 	SupportedSizes      []string           `json:"supported_sizes"`
 	MinWidth            *int32             `json:"min_width"`
 	MinHeight           *int32             `json:"min_height"`

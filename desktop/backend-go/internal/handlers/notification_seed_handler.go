@@ -121,7 +121,8 @@ func generateSeedNotifications(userID string) []services.CreateInput {
 		{"sender-005", "System"},
 	}
 
-	getSender := func(idx int) (string, string) {
+	// getSender available for future use
+	_ = func(idx int) (string, string) {
 		s := senders[idx%len(senders)]
 		return s.ID, s.Name
 	}
