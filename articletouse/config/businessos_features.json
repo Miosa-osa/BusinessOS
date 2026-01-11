@@ -1,0 +1,206 @@
+{
+  "version": "1.0",
+  "description": "BusinessOS features and technologies for paper relevance matching",
+  "features": {
+    "memory_hierarchy": {
+      "name": "Memory Hierarchy System",
+      "linear_issue": "CUS-25",
+      "description": "Tiered memory system with workspace vs private memories",
+      "keywords": [
+        "hierarchical memory",
+        "memory management",
+        "workspace memory",
+        "context window",
+        "memory isolation",
+        "tiered context"
+      ],
+      "technologies": ["PostgreSQL", "pgvector", "memory partitioning"],
+      "files": [
+        "desktop/backend-go/internal/services/memory_hierarchy_service.go",
+        "desktop/backend-go/internal/database/migrations/030_memory_hierarchy_v2.sql"
+      ]
+    },
+    "rag_embeddings": {
+      "name": "RAG and Embeddings Enhancement",
+      "linear_issue": "CUS-41",
+      "description": "Agentic RAG with self-adaptive retrieval, hybrid search, re-ranking",
+      "keywords": [
+        "retrieval-augmented generation",
+        "rag",
+        "semantic search",
+        "vector search",
+        "embedding",
+        "hybrid search",
+        "re-ranking",
+        "query expansion",
+        "chunking strategy",
+        "agentic rag",
+        "self-adaptive retrieval"
+      ],
+      "technologies": [
+        "pgvector",
+        "nomic-embed-text",
+        "cosine similarity",
+        "BM25",
+        "RRF (Reciprocal Rank Fusion)",
+        "Redis caching"
+      ],
+      "files": [
+        "desktop/backend-go/internal/services/agentic_rag.go",
+        "desktop/backend-go/internal/services/embedding.go",
+        "desktop/backend-go/internal/services/hybrid_search.go",
+        "desktop/backend-go/internal/services/reranker.go",
+        "desktop/backend-go/internal/services/query_expansion.go",
+        "desktop/backend-go/internal/services/rag_cache.go"
+      ]
+    },
+    "agent_orchestration": {
+      "name": "Multi-Agent Orchestration",
+      "linear_issue": "Various",
+      "description": "COT reasoning, multi-agent coordination, tool calling",
+      "keywords": [
+        "agent orchestration",
+        "multi-agent",
+        "chain of thought",
+        "cot",
+        "reasoning",
+        "tool calling",
+        "function calling",
+        "agent planning",
+        "delegation",
+        "intent classification"
+      ],
+      "technologies": [
+        "Claude API",
+        "Ollama",
+        "SSE streaming",
+        "WebSocket"
+      ],
+      "files": [
+        "desktop/backend-go/internal/services/orchestrator.go",
+        "desktop/backend-go/internal/handlers/orchestrator.go",
+        "desktop/backend-go/internal/services/router.go"
+      ]
+    },
+    "role_based_context": {
+      "name": "Role-Based Agent Context",
+      "linear_issue": "CUS-26, CUS-28",
+      "description": "Personalization profiles, learning service, context-aware responses",
+      "keywords": [
+        "personalization",
+        "user profile",
+        "learning system",
+        "preference learning",
+        "adaptive behavior",
+        "context-aware",
+        "role-based access"
+      ],
+      "technologies": ["PostgreSQL", "Redis", "profile management"],
+      "files": [
+        "desktop/backend-go/internal/services/role_context.go",
+        "desktop/backend-go/internal/services/learning.go",
+        "desktop/backend-go/internal/middleware/role_context.go"
+      ]
+    },
+    "frontend_ux": {
+      "name": "Frontend User Experience",
+      "linear_issue": "Various",
+      "description": "SvelteKit frontend with real-time features",
+      "keywords": [
+        "svelte",
+        "sveltekit",
+        "typescript",
+        "real-time updates",
+        "sse",
+        "reactive ui",
+        "state management"
+      ],
+      "technologies": [
+        "SvelteKit 2.0",
+        "Svelte 5 Runes",
+        "TypeScript",
+        "TailwindCSS",
+        "SSE"
+      ],
+      "files": [
+        "frontend/src/routes/",
+        "frontend/src/lib/stores/"
+      ]
+    },
+    "database_optimization": {
+      "name": "Database and Performance",
+      "description": "PostgreSQL optimization, indexing, caching strategies",
+      "keywords": [
+        "postgresql optimization",
+        "database indexing",
+        "query performance",
+        "pgvector optimization",
+        "ivfflat",
+        "redis caching",
+        "connection pooling"
+      ],
+      "technologies": [
+        "PostgreSQL 16",
+        "pgvector",
+        "pgx/v5",
+        "Redis",
+        "IVFFLAT indexing"
+      ],
+      "files": [
+        "desktop/backend-go/internal/database/",
+        "desktop/backend-go/internal/services/rag_cache.go"
+      ]
+    }
+  },
+  "technologies": {
+    "tier1": {
+      "description": "Core technologies - highest relevance",
+      "keywords": [
+        "vector database",
+        "pgvector",
+        "retrieval-augmented generation",
+        "rag",
+        "semantic search",
+        "embedding",
+        "agent orchestration",
+        "multi-agent",
+        "llm",
+        "large language model"
+      ],
+      "points": 5
+    },
+    "tier2": {
+      "description": "Important technologies - medium relevance",
+      "keywords": [
+        "hybrid search",
+        "query expansion",
+        "re-ranking",
+        "caching strategy",
+        "redis",
+        "postgresql",
+        "svelte",
+        "go concurrency",
+        "sse streaming"
+      ],
+      "points": 3
+    },
+    "tier3": {
+      "description": "Supporting technologies - basic relevance",
+      "keywords": [
+        "api design",
+        "database indexing",
+        "websocket",
+        "authentication",
+        "typescript",
+        "tailwindcss"
+      ],
+      "points": 1
+    }
+  },
+  "thresholds": {
+    "high_relevance": 70,
+    "medium_relevance": 50,
+    "low_relevance": 30,
+    "minimum_score": 40
+  }
+}
