@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countUserAgents = `-- name: CountUserAgents :one
+SELECT COUNT(*) FROM custom_agents WHERE user_id = $1
+`
+
+func (q *Queries) CountUserAgents(ctx context.Context, userID string) (int64, error) {
+	row := q.db.QueryRow(ctx, countUserAgents, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAgentFromPreset = `-- name: CreateAgentFromPreset :one
 INSERT INTO custom_agents (
     user_id, name, display_name, description, avatar,

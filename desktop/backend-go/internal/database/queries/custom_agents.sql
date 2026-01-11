@@ -122,3 +122,6 @@ SELECT
 FROM agent_presets ap
 WHERE ap.id = $3
 RETURNING *;
+
+-- name: CountUserAgents :one
+SELECT COUNT(*) FROM custom_agents WHERE user_id = $1;

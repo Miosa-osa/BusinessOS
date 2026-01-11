@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -95,16 +96,27 @@ func (h *EmailAuthHandler) SignUp(c *gin.Context) {
 		return
 	}
 
-	// Set session cookie with SameSite=None for cross-origin requests (development)
+	// Set session cookie with environment-dependent configuration
+	isProduction := os.Getenv("ENVIRONMENT") == "production"
+	domain := os.Getenv("COOKIE_DOMAIN")
+	if domain == "" {
+		domain = "" // Current domain
+	}
+
+	sameSite := http.SameSiteLaxMode // Secure default for production
+	if os.Getenv("ALLOW_CROSS_ORIGIN") == "true" {
+		sameSite = http.SameSiteNoneMode
+	}
+
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "better-auth.session_token",
 		Value:    sessionToken,
 		Path:     "/",
-		Domain:   "", // Current domain
+		Domain:   domain,
 		MaxAge:   60 * 60 * 24 * 7, // 7 days
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
-		SameSite: http.SameSiteNoneMode, // Allow cross-site requests (localhost:5173 → localhost:8001)
+		Secure:   isProduction,
+		SameSite: sameSite,
 	})
 
 	c.JSON(http.StatusCreated, gin.H{
@@ -155,16 +167,27 @@ func (h *EmailAuthHandler) SignIn(c *gin.Context) {
 		return
 	}
 
-	// Set session cookie with SameSite=None for cross-origin requests (development)
+	// Set session cookie with environment-dependent configuration
+	isProduction := os.Getenv("ENVIRONMENT") == "production"
+	domain := os.Getenv("COOKIE_DOMAIN")
+	if domain == "" {
+		domain = "" // Current domain
+	}
+
+	sameSite := http.SameSiteLaxMode // Secure default for production
+	if os.Getenv("ALLOW_CROSS_ORIGIN") == "true" {
+		sameSite = http.SameSiteNoneMode
+	}
+
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "better-auth.session_token",
 		Value:    sessionToken,
 		Path:     "/",
-		Domain:   "", // Current domain
+		Domain:   domain,
 		MaxAge:   60 * 60 * 24 * 7, // 7 days
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
-		SameSite: http.SameSiteNoneMode, // Allow cross-site requests (localhost:5173 → localhost:8001)
+		Secure:   isProduction,
+		SameSite: sameSite,
 	})
 
 	c.JSON(http.StatusOK, gin.H{

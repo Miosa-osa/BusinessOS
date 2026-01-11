@@ -127,6 +127,67 @@ func (h *Handlers) CreateCustomAgent(c *gin.Context) {
 	ctx := context.Background()
 	queries := sqlc.New(h.pool)
 
+	// Check user's agent count (rate limiting)
+	count, err := queries.CountUserAgents(ctx, user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check agent count"})
+		return
+	}
+	if count >= 100 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Maximum 100 custom agents allowed per user. Please delete unused agents.",
+		})
+		return
+	}
+
+	// Validate suggested_prompts
+	if len(req.SuggestedPrompts) > 10 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Maximum 10 suggested prompts allowed",
+		})
+		return
+	}
+	for i, prompt := range req.SuggestedPrompts {
+		if len(strings.TrimSpace(prompt)) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("Suggested prompt %d cannot be empty", i+1),
+			})
+			return
+		}
+		if len(prompt) > 500 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("Suggested prompt %d exceeds 500 characters (has %d)", i+1, len(prompt)),
+			})
+			return
+		}
+	}
+
+	// Validate welcome_message
+	if len(req.WelcomeMessage) > 2000 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Welcome message exceeds 2000 characters (has %d)", len(req.WelcomeMessage)),
+		})
+		return
+	}
+
+	// Validate category
+	allowedCategories := map[string]bool{
+		"general":   true,
+		"coding":    true,
+		"writing":   true,
+		"analysis":  true,
+		"research":  true,
+		"support":   true,
+		"sales":     true,
+		"marketing": true,
+	}
+	if req.Category != "" && !allowedCategories[req.Category] {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid category. Allowed: general, coding, writing, analysis, research, support, sales, marketing",
+		})
+		return
+	}
+
 	// Prepare optional fields
 	var desc *string
 	if req.Description != "" {
@@ -155,8 +216,13 @@ func (h *Handlers) CreateCustomAgent(c *gin.Context) {
 
 	// Convert temperature to pgtype.Numeric
 	tempNumeric := pgtype.Numeric{}
-	if req.Temperature > 0 {
+	if req.Temperature >= 0 && req.Temperature <= 2.0 {
 		tempNumeric.Scan(req.Temperature)
+	} else if req.Temperature > 2.0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Temperature must be between 0.0 and 2.0",
+		})
+		return
 	}
 
 	thinkingEnabled := &req.ThinkingEnabled
@@ -257,9 +323,67 @@ func (h *Handlers) UpdateCustomAgent(c *gin.Context) {
 		req.Name = &name
 	}
 
+	// Validate suggested_prompts if provided
+	if req.SuggestedPrompts != nil {
+		if len(req.SuggestedPrompts) > 10 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Maximum 10 suggested prompts allowed",
+			})
+			return
+		}
+		for i, prompt := range req.SuggestedPrompts {
+			if len(strings.TrimSpace(prompt)) == 0 {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": fmt.Sprintf("Suggested prompt %d cannot be empty", i+1),
+				})
+				return
+			}
+			if len(prompt) > 500 {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": fmt.Sprintf("Suggested prompt %d exceeds 500 characters (has %d)", i+1, len(prompt)),
+				})
+				return
+			}
+		}
+	}
+
+	// Validate welcome_message if provided
+	if req.WelcomeMessage != nil && len(*req.WelcomeMessage) > 2000 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Welcome message exceeds 2000 characters (has %d)", len(*req.WelcomeMessage)),
+		})
+		return
+	}
+
+	// Validate category if provided
+	if req.Category != nil && *req.Category != "" {
+		allowedCategories := map[string]bool{
+			"general":   true,
+			"coding":    true,
+			"writing":   true,
+			"analysis":  true,
+			"research":  true,
+			"support":   true,
+			"sales":     true,
+			"marketing": true,
+		}
+		if !allowedCategories[*req.Category] {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid category. Allowed: general, coding, writing, analysis, research, support, sales, marketing",
+			})
+			return
+		}
+	}
+
 	// Convert temperature to pgtype.Numeric
 	tempNumeric := pgtype.Numeric{}
-	if req.Temperature != nil && *req.Temperature > 0 {
+	if req.Temperature != nil {
+		if *req.Temperature < 0 || *req.Temperature > 2.0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Temperature must be between 0.0 and 2.0",
+			})
+			return
+		}
 		tempNumeric.Scan(*req.Temperature)
 	}
 
