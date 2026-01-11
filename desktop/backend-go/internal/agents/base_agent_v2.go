@@ -62,7 +62,7 @@ type BaseAgentV2Config struct {
 func NewBaseAgentV2(cfg BaseAgentV2Config) *BaseAgentV2 {
 	model := cfg.Model
 	if model == "" && cfg.Config != nil {
-		model = cfg.Config.GetActiveModel()
+		model = cfg.Config.DefaultModel
 	}
 
 	// Create tool registry if pool is available

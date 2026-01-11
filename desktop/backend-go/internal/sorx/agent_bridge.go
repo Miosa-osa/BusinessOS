@@ -23,7 +23,7 @@ type AgentBridge struct {
 }
 
 // NewAgentBridge creates a new agent bridge.
-func NewAgentBridge(pool *pgxpool.Pool, cfg *config.Config, embeddingService *services.EmbeddingService, promptPersonalizer *services.PromptPersonalizer) *AgentBridge {
+func NewAgentBridge(pool *pgxpool.Pool, cfg *config.Config, embeddingService *services.EmbeddingService) *AgentBridge {
 	return &AgentBridge{
 		pool:     pool,
 		config:   cfg,

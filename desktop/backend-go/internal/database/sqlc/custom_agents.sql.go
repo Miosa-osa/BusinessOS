@@ -11,25 +11,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const countUserAgents = `-- name: CountUserAgents :one
-SELECT COUNT(*) FROM custom_agents WHERE user_id = $1
-`
-
-func (q *Queries) CountUserAgents(ctx context.Context, userID string) (int64, error) {
-	row := q.db.QueryRow(ctx, countUserAgents, userID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const createAgentFromPreset = `-- name: CreateAgentFromPreset :one
 INSERT INTO custom_agents (
     user_id, name, display_name, description, avatar,
     system_prompt, model_preference, temperature, max_tokens,
     capabilities, tools_enabled, context_sources,
-    thinking_enabled, streaming_enabled, apply_personalization,
-    welcome_message, suggested_prompts,
-    category, is_active, is_public, is_featured
+    thinking_enabled, streaming_enabled, category, is_active
 )
 SELECT
     $1, -- user_id
@@ -46,16 +33,11 @@ SELECT
     context_sources,
     thinking_enabled,
     TRUE, -- streaming_enabled
-    FALSE, -- apply_personalization (default off)
-    welcome_message,
-    suggested_prompts,
     category,
-    TRUE, -- is_active
-    FALSE, -- is_public (default private)
-    is_featured -- inherit from preset
+    TRUE  -- is_active
 FROM agent_presets ap
 WHERE ap.id = $3
-RETURNING id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, apply_personalization, welcome_message, suggested_prompts, category, is_public, is_featured, is_active, times_used, last_used_at, created_at, updated_at
+RETURNING id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at
 `
 
 type CreateAgentFromPresetParams struct {
@@ -83,12 +65,8 @@ func (q *Queries) CreateAgentFromPreset(ctx context.Context, arg CreateAgentFrom
 		&i.ContextSources,
 		&i.ThinkingEnabled,
 		&i.StreamingEnabled,
-		&i.ApplyPersonalization,
-		&i.WelcomeMessage,
-		&i.SuggestedPrompts,
 		&i.Category,
 		&i.IsPublic,
-		&i.IsFeatured,
 		&i.IsActive,
 		&i.TimesUsed,
 		&i.LastUsedAt,
@@ -103,36 +81,29 @@ INSERT INTO custom_agents (
     user_id, name, display_name, description, avatar,
     system_prompt, model_preference, temperature, max_tokens,
     capabilities, tools_enabled, context_sources,
-    thinking_enabled, streaming_enabled, apply_personalization,
-    welcome_message, suggested_prompts,
-    category, is_active, is_public, is_featured
+    thinking_enabled, streaming_enabled, category, is_active
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
-) RETURNING id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, apply_personalization, welcome_message, suggested_prompts, category, is_public, is_featured, is_active, times_used, last_used_at, created_at, updated_at
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+) RETURNING id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at
 `
 
 type CreateCustomAgentParams struct {
-	UserID               string         `json:"user_id"`
-	Name                 string         `json:"name"`
-	DisplayName          string         `json:"display_name"`
-	Description          *string        `json:"description"`
-	Avatar               *string        `json:"avatar"`
-	SystemPrompt         string         `json:"system_prompt"`
-	ModelPreference      *string        `json:"model_preference"`
-	Temperature          pgtype.Numeric `json:"temperature"`
-	MaxTokens            *int32         `json:"max_tokens"`
-	Capabilities         []string       `json:"capabilities"`
-	ToolsEnabled         []string       `json:"tools_enabled"`
-	ContextSources       []string       `json:"context_sources"`
-	ThinkingEnabled      *bool          `json:"thinking_enabled"`
-	StreamingEnabled     *bool          `json:"streaming_enabled"`
-	ApplyPersonalization *bool          `json:"apply_personalization"`
-	WelcomeMessage       *string        `json:"welcome_message"`
-	SuggestedPrompts     []string       `json:"suggested_prompts"`
-	Category             *string        `json:"category"`
-	IsActive             *bool          `json:"is_active"`
-	IsPublic             *bool          `json:"is_public"`
-	IsFeatured           *bool          `json:"is_featured"`
+	UserID           string         `json:"user_id"`
+	Name             string         `json:"name"`
+	DisplayName      string         `json:"display_name"`
+	Description      *string        `json:"description"`
+	Avatar           *string        `json:"avatar"`
+	SystemPrompt     string         `json:"system_prompt"`
+	ModelPreference  *string        `json:"model_preference"`
+	Temperature      pgtype.Numeric `json:"temperature"`
+	MaxTokens        *int32         `json:"max_tokens"`
+	Capabilities     []string       `json:"capabilities"`
+	ToolsEnabled     []string       `json:"tools_enabled"`
+	ContextSources   []string       `json:"context_sources"`
+	ThinkingEnabled  *bool          `json:"thinking_enabled"`
+	StreamingEnabled *bool          `json:"streaming_enabled"`
+	Category         *string        `json:"category"`
+	IsActive         *bool          `json:"is_active"`
 }
 
 func (q *Queries) CreateCustomAgent(ctx context.Context, arg CreateCustomAgentParams) (CustomAgent, error) {
@@ -151,13 +122,8 @@ func (q *Queries) CreateCustomAgent(ctx context.Context, arg CreateCustomAgentPa
 		arg.ContextSources,
 		arg.ThinkingEnabled,
 		arg.StreamingEnabled,
-		arg.ApplyPersonalization,
-		arg.WelcomeMessage,
-		arg.SuggestedPrompts,
 		arg.Category,
 		arg.IsActive,
-		arg.IsPublic,
-		arg.IsFeatured,
 	)
 	var i CustomAgent
 	err := row.Scan(
@@ -176,12 +142,8 @@ func (q *Queries) CreateCustomAgent(ctx context.Context, arg CreateCustomAgentPa
 		&i.ContextSources,
 		&i.ThinkingEnabled,
 		&i.StreamingEnabled,
-		&i.ApplyPersonalization,
-		&i.WelcomeMessage,
-		&i.SuggestedPrompts,
 		&i.Category,
 		&i.IsPublic,
-		&i.IsFeatured,
 		&i.IsActive,
 		&i.TimesUsed,
 		&i.LastUsedAt,
@@ -267,7 +229,7 @@ func (q *Queries) GetAgentPresetByName(ctx context.Context, name string) (AgentP
 }
 
 const getAllCustomAgents = `-- name: GetAllCustomAgents :many
-SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, apply_personalization, welcome_message, suggested_prompts, category, is_public, is_featured, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
+SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -297,12 +259,8 @@ func (q *Queries) GetAllCustomAgents(ctx context.Context, userID string) ([]Cust
 			&i.ContextSources,
 			&i.ThinkingEnabled,
 			&i.StreamingEnabled,
-			&i.ApplyPersonalization,
-			&i.WelcomeMessage,
-			&i.SuggestedPrompts,
 			&i.Category,
 			&i.IsPublic,
-			&i.IsFeatured,
 			&i.IsActive,
 			&i.TimesUsed,
 			&i.LastUsedAt,
@@ -320,7 +278,7 @@ func (q *Queries) GetAllCustomAgents(ctx context.Context, userID string) ([]Cust
 }
 
 const getCustomAgent = `-- name: GetCustomAgent :one
-SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, apply_personalization, welcome_message, suggested_prompts, category, is_public, is_featured, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
+SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
 WHERE id = $1 AND user_id = $2
 `
 
@@ -348,12 +306,8 @@ func (q *Queries) GetCustomAgent(ctx context.Context, arg GetCustomAgentParams) 
 		&i.ContextSources,
 		&i.ThinkingEnabled,
 		&i.StreamingEnabled,
-		&i.ApplyPersonalization,
-		&i.WelcomeMessage,
-		&i.SuggestedPrompts,
 		&i.Category,
 		&i.IsPublic,
-		&i.IsFeatured,
 		&i.IsActive,
 		&i.TimesUsed,
 		&i.LastUsedAt,
@@ -364,7 +318,7 @@ func (q *Queries) GetCustomAgent(ctx context.Context, arg GetCustomAgentParams) 
 }
 
 const getCustomAgentByName = `-- name: GetCustomAgentByName :one
-SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, apply_personalization, welcome_message, suggested_prompts, category, is_public, is_featured, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
+SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
 WHERE LOWER(name) = LOWER($1) AND user_id = $2 AND is_active = TRUE
 `
 
@@ -392,12 +346,8 @@ func (q *Queries) GetCustomAgentByName(ctx context.Context, arg GetCustomAgentBy
 		&i.ContextSources,
 		&i.ThinkingEnabled,
 		&i.StreamingEnabled,
-		&i.ApplyPersonalization,
-		&i.WelcomeMessage,
-		&i.SuggestedPrompts,
 		&i.Category,
 		&i.IsPublic,
-		&i.IsFeatured,
 		&i.IsActive,
 		&i.TimesUsed,
 		&i.LastUsedAt,
@@ -475,7 +425,7 @@ func (q *Queries) ListAgentPresets(ctx context.Context) ([]AgentPreset, error) {
 }
 
 const listCustomAgents = `-- name: ListCustomAgents :many
-SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, apply_personalization, welcome_message, suggested_prompts, category, is_public, is_featured, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
+SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
 WHERE user_id = $1 AND is_active = TRUE
 ORDER BY times_used DESC, display_name ASC
 `
@@ -505,12 +455,8 @@ func (q *Queries) ListCustomAgents(ctx context.Context, userID string) ([]Custom
 			&i.ContextSources,
 			&i.ThinkingEnabled,
 			&i.StreamingEnabled,
-			&i.ApplyPersonalization,
-			&i.WelcomeMessage,
-			&i.SuggestedPrompts,
 			&i.Category,
 			&i.IsPublic,
-			&i.IsFeatured,
 			&i.IsActive,
 			&i.TimesUsed,
 			&i.LastUsedAt,
@@ -528,7 +474,7 @@ func (q *Queries) ListCustomAgents(ctx context.Context, userID string) ([]Custom
 }
 
 const listCustomAgentsByCategory = `-- name: ListCustomAgentsByCategory :many
-SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, apply_personalization, welcome_message, suggested_prompts, category, is_public, is_featured, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
+SELECT id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at FROM custom_agents
 WHERE user_id = $1 AND category = $2 AND is_active = TRUE
 ORDER BY times_used DESC, display_name ASC
 `
@@ -563,12 +509,8 @@ func (q *Queries) ListCustomAgentsByCategory(ctx context.Context, arg ListCustom
 			&i.ContextSources,
 			&i.ThinkingEnabled,
 			&i.StreamingEnabled,
-			&i.ApplyPersonalization,
-			&i.WelcomeMessage,
-			&i.SuggestedPrompts,
 			&i.Category,
 			&i.IsPublic,
-			&i.IsFeatured,
 			&i.IsActive,
 			&i.TimesUsed,
 			&i.LastUsedAt,
@@ -601,41 +543,31 @@ SET
     context_sources = COALESCE($12, context_sources),
     thinking_enabled = COALESCE($13, thinking_enabled),
     streaming_enabled = COALESCE($14, streaming_enabled),
-    apply_personalization = COALESCE($15, apply_personalization),
-    welcome_message = COALESCE($16, welcome_message),
-    suggested_prompts = COALESCE($17, suggested_prompts),
-    category = COALESCE($18, category),
-    is_active = COALESCE($19, is_active),
-    is_public = COALESCE($20, is_public),
-    is_featured = COALESCE($21, is_featured),
+    category = COALESCE($15, category),
+    is_active = COALESCE($16, is_active),
     updated_at = NOW()
-WHERE id = $1 AND user_id = $22
-RETURNING id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, apply_personalization, welcome_message, suggested_prompts, category, is_public, is_featured, is_active, times_used, last_used_at, created_at, updated_at
+WHERE id = $1 AND user_id = $17
+RETURNING id, user_id, name, display_name, description, avatar, system_prompt, model_preference, temperature, max_tokens, capabilities, tools_enabled, context_sources, thinking_enabled, streaming_enabled, category, is_public, is_active, times_used, last_used_at, created_at, updated_at
 `
 
 type UpdateCustomAgentParams struct {
-	ID                   pgtype.UUID    `json:"id"`
-	Name                 *string        `json:"name"`
-	DisplayName          *string        `json:"display_name"`
-	Description          *string        `json:"description"`
-	Avatar               *string        `json:"avatar"`
-	SystemPrompt         *string        `json:"system_prompt"`
-	ModelPreference      *string        `json:"model_preference"`
-	Temperature          pgtype.Numeric `json:"temperature"`
-	MaxTokens            *int32         `json:"max_tokens"`
-	Capabilities         []string       `json:"capabilities"`
-	ToolsEnabled         []string       `json:"tools_enabled"`
-	ContextSources       []string       `json:"context_sources"`
-	ThinkingEnabled      *bool          `json:"thinking_enabled"`
-	StreamingEnabled     *bool          `json:"streaming_enabled"`
-	ApplyPersonalization *bool          `json:"apply_personalization"`
-	WelcomeMessage       *string        `json:"welcome_message"`
-	SuggestedPrompts     []string       `json:"suggested_prompts"`
-	Category             *string        `json:"category"`
-	IsActive             *bool          `json:"is_active"`
-	IsPublic             *bool          `json:"is_public"`
-	IsFeatured           *bool          `json:"is_featured"`
-	UserID               string         `json:"user_id"`
+	ID               pgtype.UUID    `json:"id"`
+	Name             *string        `json:"name"`
+	DisplayName      *string        `json:"display_name"`
+	Description      *string        `json:"description"`
+	Avatar           *string        `json:"avatar"`
+	SystemPrompt     *string        `json:"system_prompt"`
+	ModelPreference  *string        `json:"model_preference"`
+	Temperature      pgtype.Numeric `json:"temperature"`
+	MaxTokens        *int32         `json:"max_tokens"`
+	Capabilities     []string       `json:"capabilities"`
+	ToolsEnabled     []string       `json:"tools_enabled"`
+	ContextSources   []string       `json:"context_sources"`
+	ThinkingEnabled  *bool          `json:"thinking_enabled"`
+	StreamingEnabled *bool          `json:"streaming_enabled"`
+	Category         *string        `json:"category"`
+	IsActive         *bool          `json:"is_active"`
+	UserID           string         `json:"user_id"`
 }
 
 func (q *Queries) UpdateCustomAgent(ctx context.Context, arg UpdateCustomAgentParams) (CustomAgent, error) {
@@ -654,13 +586,8 @@ func (q *Queries) UpdateCustomAgent(ctx context.Context, arg UpdateCustomAgentPa
 		arg.ContextSources,
 		arg.ThinkingEnabled,
 		arg.StreamingEnabled,
-		arg.ApplyPersonalization,
-		arg.WelcomeMessage,
-		arg.SuggestedPrompts,
 		arg.Category,
 		arg.IsActive,
-		arg.IsPublic,
-		arg.IsFeatured,
 		arg.UserID,
 	)
 	var i CustomAgent
@@ -680,12 +607,8 @@ func (q *Queries) UpdateCustomAgent(ctx context.Context, arg UpdateCustomAgentPa
 		&i.ContextSources,
 		&i.ThinkingEnabled,
 		&i.StreamingEnabled,
-		&i.ApplyPersonalization,
-		&i.WelcomeMessage,
-		&i.SuggestedPrompts,
 		&i.Category,
 		&i.IsPublic,
-		&i.IsFeatured,
 		&i.IsActive,
 		&i.TimesUsed,
 		&i.LastUsedAt,

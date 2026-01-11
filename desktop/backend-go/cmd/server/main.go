@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -726,66 +725,8 @@ func main() {
 		}()
 	}
 
-	// Initialize Background Jobs System
-	var jobsHandler *handlers.BackgroundJobsHandler
-	var jobWorkers []*services.JobWorker
-	var jobScheduler *services.JobScheduler
-
-	if dbConnected && pool != nil {
-		slog.Info("Initializing background jobs system...")
-
-		// Create handler (includes service and scheduler)
-		jobsHandler = handlers.NewBackgroundJobsHandler(pool)
-
-		// Get service and scheduler instances
-		jobsService := jobsHandler.GetService()
-		jobScheduler = jobsHandler.GetScheduler()
-
-		// Create and configure workers (3 workers)
-		for i := 1; i <= 3; i++ {
-			workerID := fmt.Sprintf("worker-%d", i)
-			worker := services.NewJobWorker(jobsService, workerID, 5*time.Second)
-
-			// Register example job handlers
-			worker.RegisterHandler("email_send", services.ExampleEmailSendHandler)
-			worker.RegisterHandler("report_generate", services.ExampleReportGenerateHandler)
-			worker.RegisterHandler("sync_calendar", services.ExampleSyncCalendarHandler)
-
-			// Register all custom production handlers
-			worker.RegisterHandler("user_onboarding", handlers.UserOnboardingHandler)
-			worker.RegisterHandler("workspace_export", handlers.WorkspaceExportHandler)
-			worker.RegisterHandler("analytics_aggregation", handlers.AnalyticsAggregationHandler)
-			worker.RegisterHandler("notification_batch", handlers.NotificationBatchHandler)
-			worker.RegisterHandler("data_cleanup", handlers.DataCleanupHandler)
-			worker.RegisterHandler("integration_sync", handlers.IntegrationSyncHandler)
-			worker.RegisterHandler("backup", handlers.BackupHandler)
-
-			jobWorkers = append(jobWorkers, worker)
-
-			// Start worker
-			if err := worker.Start(ctx); err != nil {
-				slog.Error("Failed to start worker", "worker_id", workerID, "error", err)
-			} else {
-				slog.Info("Worker started", "worker_id", workerID)
-			}
-		}
-
-		// Start scheduler
-		if err := jobScheduler.Start(ctx); err != nil {
-			slog.Error("Failed to start scheduler", "error", err)
-		} else {
-			slog.Info("Job scheduler started")
-		}
-	}
-
 	// Register routes
 	h.RegisterRoutes(api)
-
-	// Register background jobs routes (if handler available)
-	if jobsHandler != nil {
-		jobsHandler.RegisterRoutes(api)
-		slog.Info("Background jobs routes registered")
-	}
 
 	// Start server
 	go func() {
@@ -818,32 +759,6 @@ func main() {
 	if containerMgr != nil {
 		log.Println("Shutting down container manager...")
 		containerMgr.Shutdown()
-	}
-
-	// Stop background jobs system
-	if jobScheduler != nil {
-		log.Println("Stopping job scheduler...")
-		if err := jobScheduler.Stop(); err != nil {
-			log.Printf("Warning: Error stopping scheduler: %v", err)
-		}
-	}
-
-	for i, worker := range jobWorkers {
-		if worker != nil && worker.IsRunning() {
-			log.Printf("Stopping worker %d...", i+1)
-			if err := worker.Stop(); err != nil {
-				log.Printf("Warning: Error stopping worker %d: %v", i+1, err)
-			}
-		}
-	}
-
-	// Release stuck jobs (cleanup)
-	if jobsHandler != nil {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if count, err := jobsHandler.GetService().ReleaseStuckJobs(cleanupCtx); err == nil && count > 0 {
-			log.Printf("Released %d stuck jobs", count)
-		}
 	}
 
 	// Close database connection

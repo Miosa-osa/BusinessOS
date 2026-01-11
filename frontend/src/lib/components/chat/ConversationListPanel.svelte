@@ -249,9 +249,6 @@
 			</svg>
 			<input
 				type="text"
-				id="conversation-search"
-				name="conversationSearch"
-				autocomplete="off"
 				placeholder={showArchived ? "Search archived..." : "Search conversations..."}
 				value={searchQuery}
 				oninput={handleSearchInput}

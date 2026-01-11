@@ -1003,51 +1003,5 @@ Focus on actionable, realistic plans. Consider constraints and dependencies.',
 		fmt.Println("✓ agent_presets.is_active column OK")
 	}
 
-	// ===== Migration 043: Custom Agents Behavior Fields =====
-	// Add welcome_message column
-	_, err = conn.Exec(ctx, `
-		ALTER TABLE custom_agents
-		ADD COLUMN IF NOT EXISTS welcome_message TEXT;
-	`)
-	if err != nil {
-		log.Printf("Warning adding welcome_message: %v", err)
-	} else {
-		fmt.Println("✓ custom_agents.welcome_message column OK")
-	}
-
-	// Add suggested_prompts column
-	_, err = conn.Exec(ctx, `
-		ALTER TABLE custom_agents
-		ADD COLUMN IF NOT EXISTS suggested_prompts TEXT[] DEFAULT '{}';
-	`)
-	if err != nil {
-		log.Printf("Warning adding suggested_prompts: %v", err)
-	} else {
-		fmt.Println("✓ custom_agents.suggested_prompts column OK")
-	}
-
-	// Add is_featured column
-	_, err = conn.Exec(ctx, `
-		ALTER TABLE custom_agents
-		ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE;
-	`)
-	if err != nil {
-		log.Printf("Warning adding is_featured: %v", err)
-	} else {
-		fmt.Println("✓ custom_agents.is_featured column OK")
-	}
-
-	// Create index for featured agents lookup
-	_, err = conn.Exec(ctx, `
-		CREATE INDEX IF NOT EXISTS idx_custom_agents_featured
-		ON custom_agents(user_id, is_featured, is_public)
-		WHERE is_featured = TRUE AND is_public = TRUE;
-	`)
-	if err != nil {
-		log.Printf("Warning creating idx_custom_agents_featured: %v", err)
-	} else {
-		fmt.Println("✓ idx_custom_agents_featured index OK")
-	}
-
 	fmt.Println("Migration complete!")
 }

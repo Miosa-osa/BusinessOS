@@ -14,7 +14,3 @@ export { default as PermissionGate } from './PermissionGate.svelte';
 export { default as HybridSearchPanel } from './HybridSearchPanel.svelte';
 export { default as SearchResultCard } from './SearchResultCard.svelte';
 export { default as DocumentPreview } from './DocumentPreview.svelte';
-export { default as ThinkingPanel } from './ThinkingPanel.svelte';
-
-// Re-export types
-export type { ThinkingTrace, ThinkingStep } from './ThinkingPanel.svelte';

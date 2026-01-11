@@ -795,14 +795,10 @@ CREATE TABLE custom_agents (
     -- Behavior Settings
     thinking_enabled BOOLEAN DEFAULT FALSE,  -- Enable COT for this agent
     streaming_enabled BOOLEAN DEFAULT TRUE,  -- Enable streaming responses
-    apply_personalization BOOLEAN DEFAULT FALSE,  -- Use prompt personalizations from learning system
-    welcome_message TEXT,                   -- Welcome message shown when starting conversation
-    suggested_prompts TEXT[] DEFAULT '{}',  -- Array of suggested prompts for users
 
     -- Agent Type/Category
     category VARCHAR(50) DEFAULT 'general', -- general, coding, writing, analysis, business, custom
     is_public BOOLEAN DEFAULT FALSE,        -- Whether to share with team (future)
-    is_featured BOOLEAN DEFAULT FALSE,      -- Show prominently in featured list
 
     -- Usage & Status
     is_active BOOLEAN DEFAULT TRUE,

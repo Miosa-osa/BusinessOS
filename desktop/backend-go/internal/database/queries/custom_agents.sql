@@ -21,11 +21,9 @@ INSERT INTO custom_agents (
     user_id, name, display_name, description, avatar,
     system_prompt, model_preference, temperature, max_tokens,
     capabilities, tools_enabled, context_sources,
-    thinking_enabled, streaming_enabled, apply_personalization,
-    welcome_message, suggested_prompts,
-    category, is_active, is_public, is_featured
+    thinking_enabled, streaming_enabled, category, is_active
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 ) RETURNING *;
 
 -- name: UpdateCustomAgent :one
@@ -44,13 +42,8 @@ SET
     context_sources = COALESCE(sqlc.narg('context_sources'), context_sources),
     thinking_enabled = COALESCE(sqlc.narg('thinking_enabled'), thinking_enabled),
     streaming_enabled = COALESCE(sqlc.narg('streaming_enabled'), streaming_enabled),
-    apply_personalization = COALESCE(sqlc.narg('apply_personalization'), apply_personalization),
-    welcome_message = COALESCE(sqlc.narg('welcome_message'), welcome_message),
-    suggested_prompts = COALESCE(sqlc.narg('suggested_prompts'), suggested_prompts),
     category = COALESCE(sqlc.narg('category'), category),
     is_active = COALESCE(sqlc.narg('is_active'), is_active),
-    is_public = COALESCE(sqlc.narg('is_public'), is_public),
-    is_featured = COALESCE(sqlc.narg('is_featured'), is_featured),
     updated_at = NOW()
 WHERE id = $1 AND user_id = sqlc.arg('user_id')
 RETURNING *;
@@ -93,9 +86,7 @@ INSERT INTO custom_agents (
     user_id, name, display_name, description, avatar,
     system_prompt, model_preference, temperature, max_tokens,
     capabilities, tools_enabled, context_sources,
-    thinking_enabled, streaming_enabled, apply_personalization,
-    welcome_message, suggested_prompts,
-    category, is_active, is_public, is_featured
+    thinking_enabled, streaming_enabled, category, is_active
 )
 SELECT
     $1, -- user_id
@@ -112,16 +103,8 @@ SELECT
     context_sources,
     thinking_enabled,
     TRUE, -- streaming_enabled
-    FALSE, -- apply_personalization (default off)
-    welcome_message,
-    suggested_prompts,
     category,
-    TRUE, -- is_active
-    FALSE, -- is_public (default private)
-    is_featured -- inherit from preset
+    TRUE  -- is_active
 FROM agent_presets ap
 WHERE ap.id = $3
 RETURNING *;
-
--- name: CountUserAgents :one
-SELECT COUNT(*) FROM custom_agents WHERE user_id = $1;

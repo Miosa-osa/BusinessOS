@@ -431,34 +431,6 @@ func (c *Config) LocalModelsAllowed() bool {
 	return true
 }
 
-// GetActiveModel returns the appropriate model name based on the active AI provider
-func (c *Config) GetActiveModel() string {
-	switch c.GetActiveProvider() {
-	case "ollama_cloud":
-		if c.OllamaCloudModel != "" {
-			return c.OllamaCloudModel
-		}
-		return "llama3.2"
-	case "groq":
-		if c.GroqModel != "" {
-			return c.GroqModel
-		}
-		return "llama-3.3-70b-versatile"
-	case "anthropic":
-		if c.AnthropicModel != "" {
-			return c.AnthropicModel
-		}
-		return "claude-sonnet-4-20250514"
-	case "ollama_local":
-		fallthrough
-	default:
-		if c.DefaultModel != "" {
-			return c.DefaultModel
-		}
-		return "llama3.2:latest"
-	}
-}
-
 // GetSearchProvider returns the active search provider
 // Priority when "auto": Brave > Serper > Tavily > DuckDuckGo
 func (c *Config) GetSearchProvider() string {

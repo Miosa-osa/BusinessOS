@@ -1714,32 +1714,28 @@ type CrmActivity struct {
 }
 
 type CustomAgent struct {
-	ID                   pgtype.UUID        `json:"id"`
-	UserID               string             `json:"user_id"`
-	Name                 string             `json:"name"`
-	DisplayName          string             `json:"display_name"`
-	Description          *string            `json:"description"`
-	Avatar               *string            `json:"avatar"`
-	SystemPrompt         string             `json:"system_prompt"`
-	ModelPreference      *string            `json:"model_preference"`
-	Temperature          pgtype.Numeric     `json:"temperature"`
-	MaxTokens            *int32             `json:"max_tokens"`
-	Capabilities         []string           `json:"capabilities"`
-	ToolsEnabled         []string           `json:"tools_enabled"`
-	ContextSources       []string           `json:"context_sources"`
-	ThinkingEnabled      *bool              `json:"thinking_enabled"`
-	StreamingEnabled     *bool              `json:"streaming_enabled"`
-	ApplyPersonalization *bool              `json:"apply_personalization"`
-	WelcomeMessage       *string            `json:"welcome_message"`
-	SuggestedPrompts     []string           `json:"suggested_prompts"`
-	Category             *string            `json:"category"`
-	IsPublic             *bool              `json:"is_public"`
-	IsFeatured           *bool              `json:"is_featured"`
-	IsActive             *bool              `json:"is_active"`
-	TimesUsed            *int32             `json:"times_used"`
-	LastUsedAt           pgtype.Timestamptz `json:"last_used_at"`
-	CreatedAt            pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	ID               pgtype.UUID        `json:"id"`
+	UserID           string             `json:"user_id"`
+	Name             string             `json:"name"`
+	DisplayName      string             `json:"display_name"`
+	Description      *string            `json:"description"`
+	Avatar           *string            `json:"avatar"`
+	SystemPrompt     string             `json:"system_prompt"`
+	ModelPreference  *string            `json:"model_preference"`
+	Temperature      pgtype.Numeric     `json:"temperature"`
+	MaxTokens        *int32             `json:"max_tokens"`
+	Capabilities     []string           `json:"capabilities"`
+	ToolsEnabled     []string           `json:"tools_enabled"`
+	ContextSources   []string           `json:"context_sources"`
+	ThinkingEnabled  *bool              `json:"thinking_enabled"`
+	StreamingEnabled *bool              `json:"streaming_enabled"`
+	Category         *string            `json:"category"`
+	IsPublic         *bool              `json:"is_public"`
+	IsActive         *bool              `json:"is_active"`
+	TimesUsed        *int32             `json:"times_used"`
+	LastUsedAt       pgtype.Timestamptz `json:"last_used_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
 type CustomField struct {

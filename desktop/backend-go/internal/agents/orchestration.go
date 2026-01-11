@@ -215,8 +215,6 @@ func (o *OrchestratorCOT) ProcessWithCOT(
 		}
 	}
 
-	fmt.Printf("[COT] ProcessWithCOT called: user=%s, message=%q, messages=%d\n", userID, userMessage, len(input.Messages))
-
 	// Create chain of thought
 	cot := NewChainOfThought(userMessage)
 	o.chainsMu.Lock()
@@ -266,15 +264,14 @@ func (o *OrchestratorCOT) ProcessWithCOT(
 		planStep.Confidence = plan.Confidence
 		cot.UpdateStep(planStep.ID, planStep.Output, "completed")
 
-		// REMOVED: Routing box confuses users - they think it's the final response
-		// routingBox := o.formatRoutingBox(intent, plan)
-		// events <- streaming.StreamEvent{
-		// 	Type: streaming.EventTypeToken,
-		// 	Data: routingBox,
-		// }
+		// Send routing box to frontend
+		routingBox := o.formatRoutingBox(intent, plan)
+		events <- streaming.StreamEvent{
+			Type: streaming.EventTypeToken,
+			Data: routingBox,
+		}
 
 		cot.Status = "executing"
-		fmt.Printf("[COT] Starting execution with strategy: %s\n", plan.Strategy)
 
 		// Step 3: Execute based on strategy
 		switch plan.Strategy {
@@ -557,39 +554,6 @@ func (o *OrchestratorCOT) executeDirectly(
 	agent := o.registry.GetAgent(AgentTypeV2Orchestrator, input.UserID, input.UserName, &input.ConversationID, input.Context)
 	agent.SetOptions(llmOptions)
 
-	// Add COT-specific system prompt to force extended thinking
-	cotPrompt := `
-CRITICAL: You MUST use Chain of Thought (COT) reasoning for this request.
-
-## COT PROCESS (MANDATORY - MINIMUM 3 STEPS):
-
-1. **Understanding** (Step 1/3+):
-   - What is being asked?
-   - What context is relevant?
-   - What are the key constraints?
-
-2. **Analysis** (Step 2/3+):
-   - What are the possible approaches?
-   - What are the trade-offs?
-   - What additional information might be needed?
-
-3. **Planning** (Step 3/3+):
-   - What is the best approach given the analysis?
-   - How should the response be structured?
-   - What specific details need to be included?
-
-4. **Additional Steps** (if needed):
-   - Add more reasoning steps as complexity requires
-   - Each step should build on previous insights
-
-## OUTPUT FORMAT:
-After your thinking process, provide your final response clearly and comprehensively.
-
-IMPORTANT: Show your thinking process naturally in your response, then provide the final answer.
-`
-	agent.SetFocusModePrompt(cotPrompt)
-	fmt.Printf("[COT] Injected COT prompt (forces minimum 3 thinking steps)\n")
-
 	// Inject role and memory contexts if available (Feature: Memory Hierarchy + Role-based permissions)
 	if input.RoleContext != "" {
 		agent.SetRoleContextPrompt(input.RoleContext)
@@ -600,44 +564,33 @@ IMPORTANT: Show your thinking process naturally in your response, then provide t
 		fmt.Printf("[COT] Injected memory context into orchestrator (%d chars)\n", len(input.MemoryContext))
 	}
 
-	fmt.Printf("[COT] executeDirectly: Starting agent.Run() for orchestrator\n")
 	agentEvents, agentErrs := agent.Run(ctx, input)
-	fmt.Printf("[COT] executeDirectly: agent.Run() returned, starting event loop\n")
 
 	var output strings.Builder
-	eventCount := 0
 	for {
 		select {
 		case event, ok := <-agentEvents:
 			if !ok {
-				fmt.Printf("[COT] executeDirectly: agentEvents channel closed, total events: %d, output length: %d\n", eventCount, output.Len())
 				step.Output = output.String()
 				cot.UpdateStep(step.ID, step.Output, "completed")
 				cot.FinalOutput = output.String()
 				events <- streaming.StreamEvent{Type: streaming.EventTypeDone}
 				return
 			}
-			eventCount++
-			fmt.Printf("[COT] executeDirectly: Received event #%d, type: %s\n", eventCount, event.Type)
 			events <- event
 			if event.Type == streaming.EventTypeToken {
 				if content, ok := event.Data.(string); ok {
 					output.WriteString(content)
-					fmt.Printf("[COT] executeDirectly: Token content length: %d, total output: %d\n", len(content), output.Len())
 				}
 			}
 		case err := <-agentErrs:
 			if err != nil {
-				fmt.Printf("[COT] executeDirectly: ERROR received: %v\n", err)
 				step.Error = err.Error()
 				cot.UpdateStep(step.ID, "", "failed")
 				errs <- err
-			} else {
-				fmt.Printf("[COT] executeDirectly: agentErrs channel closed with nil error\n")
 			}
 			return
 		case <-ctx.Done():
-			fmt.Printf("[COT] executeDirectly: Context cancelled: %v\n", ctx.Err())
 			return
 		}
 	}
@@ -695,39 +648,6 @@ func (o *OrchestratorCOT) executeDelegation(
 	// Get and run the agent with LLM options
 	agent := o.registry.GetAgent(targetAgent, userID, userName, conversationID, input.Context)
 	agent.SetOptions(llmOptions)
-
-	// Add COT-specific system prompt to force extended thinking
-	cotPrompt := `
-CRITICAL: You MUST use Chain of Thought (COT) reasoning for this request.
-
-## COT PROCESS (MANDATORY - MINIMUM 3 STEPS):
-
-1. **Understanding** (Step 1/3+):
-   - What is being asked?
-   - What context is relevant?
-   - What are the key constraints?
-
-2. **Analysis** (Step 2/3+):
-   - What are the possible approaches?
-   - What are the trade-offs?
-   - What additional information might be needed?
-
-3. **Planning** (Step 3/3+):
-   - What is the best approach given the analysis?
-   - How should the response be structured?
-   - What specific details need to be included?
-
-4. **Additional Steps** (if needed):
-   - Add more reasoning steps as complexity requires
-   - Each step should build on previous insights
-
-## OUTPUT FORMAT:
-After your thinking process, provide your final response clearly and comprehensively.
-
-IMPORTANT: Show your thinking process naturally in your response, then provide the final answer.
-`
-	agent.SetFocusModePrompt(cotPrompt)
-	fmt.Printf("[COT] Injected COT prompt into %s agent (forces minimum 3 thinking steps)\n", targetAgent)
 
 	// Inject role and memory contexts if available (Feature: Memory Hierarchy + Role-based permissions)
 	if input.RoleContext != "" {

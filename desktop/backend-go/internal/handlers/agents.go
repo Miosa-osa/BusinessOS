@@ -2,11 +2,10 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -40,8 +39,7 @@ func (h *Handlers) ListCustomAgents(c *gin.Context) {
 	}
 
 	if err != nil {
-		log.Printf("[ListCustomAgents] ERROR: Failed to list agents (include_inactive=%v): %v", includeInactive, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list agents: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list agents"})
 		return
 	}
 
@@ -80,25 +78,20 @@ func (h *Handlers) GetCustomAgent(c *gin.Context) {
 
 // CreateCustomAgentRequest represents request to create custom agent
 type CreateCustomAgentRequest struct {
-	Name                 string   `json:"name" binding:"required"`
-	DisplayName          string   `json:"display_name" binding:"required"`
-	Description          string   `json:"description"`
-	Avatar               string   `json:"avatar"`
-	SystemPrompt         string   `json:"system_prompt" binding:"required"`
-	ModelPreference      string   `json:"model_preference"`
-	Temperature          float64  `json:"temperature"`
-	MaxTokens            int32    `json:"max_tokens"`
-	Capabilities         []string `json:"capabilities"`
-	ToolsEnabled         []string `json:"tools_enabled"`
-	ContextSources       []string `json:"context_sources"`
-	ThinkingEnabled      bool     `json:"thinking_enabled"`
-	StreamingEnabled     bool     `json:"streaming_enabled"`
-	ApplyPersonalization bool     `json:"apply_personalization"`
-	WelcomeMessage       string   `json:"welcome_message"`
-	SuggestedPrompts     []string `json:"suggested_prompts"`
-	Category             string   `json:"category"`
-	IsPublic             bool     `json:"is_public"`
-	IsFeatured           bool     `json:"is_featured"`
+	Name             string   `json:"name" binding:"required"`
+	DisplayName      string   `json:"display_name" binding:"required"`
+	Description      string   `json:"description"`
+	Avatar           string   `json:"avatar"`
+	SystemPrompt     string   `json:"system_prompt" binding:"required"`
+	ModelPreference  string   `json:"model_preference"`
+	Temperature      float64  `json:"temperature"`
+	MaxTokens        int32    `json:"max_tokens"`
+	Capabilities     []string `json:"capabilities"`
+	ToolsEnabled     []string `json:"tools_enabled"`
+	ContextSources   []string `json:"context_sources"`
+	ThinkingEnabled  bool     `json:"thinking_enabled"`
+	StreamingEnabled bool     `json:"streaming_enabled"`
+	Category         string   `json:"category"`
 }
 
 // CreateCustomAgent creates a new custom agent
@@ -127,67 +120,6 @@ func (h *Handlers) CreateCustomAgent(c *gin.Context) {
 	ctx := context.Background()
 	queries := sqlc.New(h.pool)
 
-	// Check user's agent count (rate limiting)
-	count, err := queries.CountUserAgents(ctx, user.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check agent count"})
-		return
-	}
-	if count >= 100 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Maximum 100 custom agents allowed per user. Please delete unused agents.",
-		})
-		return
-	}
-
-	// Validate suggested_prompts
-	if len(req.SuggestedPrompts) > 10 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Maximum 10 suggested prompts allowed",
-		})
-		return
-	}
-	for i, prompt := range req.SuggestedPrompts {
-		if len(strings.TrimSpace(prompt)) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("Suggested prompt %d cannot be empty", i+1),
-			})
-			return
-		}
-		if len(prompt) > 500 {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("Suggested prompt %d exceeds 500 characters (has %d)", i+1, len(prompt)),
-			})
-			return
-		}
-	}
-
-	// Validate welcome_message
-	if len(req.WelcomeMessage) > 2000 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Welcome message exceeds 2000 characters (has %d)", len(req.WelcomeMessage)),
-		})
-		return
-	}
-
-	// Validate category
-	allowedCategories := map[string]bool{
-		"general":   true,
-		"coding":    true,
-		"writing":   true,
-		"analysis":  true,
-		"research":  true,
-		"support":   true,
-		"sales":     true,
-		"marketing": true,
-	}
-	if req.Category != "" && !allowedCategories[req.Category] {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid category. Allowed: general, coding, writing, analysis, research, support, sales, marketing",
-		})
-		return
-	}
-
 	// Prepare optional fields
 	var desc *string
 	if req.Description != "" {
@@ -209,51 +141,34 @@ func (h *Handlers) CreateCustomAgent(c *gin.Context) {
 	if req.Category != "" {
 		category = &req.Category
 	}
-	var welcomeMsg *string
-	if req.WelcomeMessage != "" {
-		welcomeMsg = &req.WelcomeMessage
-	}
 
 	// Convert temperature to pgtype.Numeric
 	tempNumeric := pgtype.Numeric{}
-	if req.Temperature >= 0 && req.Temperature <= 2.0 {
+	if req.Temperature > 0 {
 		tempNumeric.Scan(req.Temperature)
-	} else if req.Temperature > 2.0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Temperature must be between 0.0 and 2.0",
-		})
-		return
 	}
 
 	thinkingEnabled := &req.ThinkingEnabled
 	streamingEnabled := &req.StreamingEnabled
-	applyPersonalization := &req.ApplyPersonalization
 	isActive := boolPtr(true)
-	isPublic := &req.IsPublic
-	isFeatured := &req.IsFeatured
 
 	agent, err := queries.CreateCustomAgent(ctx, sqlc.CreateCustomAgentParams{
-		UserID:               user.ID,
-		Name:                 name,
-		DisplayName:          req.DisplayName,
-		Description:          desc,
-		Avatar:               avatar,
-		SystemPrompt:         req.SystemPrompt,
-		ModelPreference:      modelPref,
-		Temperature:          tempNumeric,
-		MaxTokens:            maxTokens,
-		Capabilities:         req.Capabilities,
-		ToolsEnabled:         req.ToolsEnabled,
-		ContextSources:       req.ContextSources,
-		ThinkingEnabled:      thinkingEnabled,
-		StreamingEnabled:     streamingEnabled,
-		ApplyPersonalization: applyPersonalization,
-		WelcomeMessage:       welcomeMsg,
-		SuggestedPrompts:     req.SuggestedPrompts,
-		Category:             category,
-		IsActive:             isActive,
-		IsPublic:             isPublic,
-		IsFeatured:           isFeatured,
+		UserID:           user.ID,
+		Name:             name,
+		DisplayName:      req.DisplayName,
+		Description:      desc,
+		Avatar:           avatar,
+		SystemPrompt:     req.SystemPrompt,
+		ModelPreference:  modelPref,
+		Temperature:      tempNumeric,
+		MaxTokens:        maxTokens,
+		Capabilities:     req.Capabilities,
+		ToolsEnabled:     req.ToolsEnabled,
+		ContextSources:   req.ContextSources,
+		ThinkingEnabled:  thinkingEnabled,
+		StreamingEnabled: streamingEnabled,
+		Category:         category,
+		IsActive:         isActive,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create agent: " + err.Error()})
@@ -265,26 +180,21 @@ func (h *Handlers) CreateCustomAgent(c *gin.Context) {
 
 // UpdateCustomAgentRequest represents request to update custom agent
 type UpdateCustomAgentRequest struct {
-	Name                 *string  `json:"name"`
-	DisplayName          *string  `json:"display_name"`
-	Description          *string  `json:"description"`
-	Avatar               *string  `json:"avatar"`
-	SystemPrompt         *string  `json:"system_prompt"`
-	ModelPreference      *string  `json:"model_preference"`
-	Temperature          *float64 `json:"temperature"`
-	MaxTokens            *int32   `json:"max_tokens"`
-	Capabilities         []string `json:"capabilities"`
-	ToolsEnabled         []string `json:"tools_enabled"`
-	ContextSources       []string `json:"context_sources"`
-	ThinkingEnabled      *bool    `json:"thinking_enabled"`
-	StreamingEnabled     *bool    `json:"streaming_enabled"`
-	ApplyPersonalization *bool    `json:"apply_personalization"`
-	WelcomeMessage       *string  `json:"welcome_message"`
-	SuggestedPrompts     []string `json:"suggested_prompts"`
-	Category             *string  `json:"category"`
-	IsActive             *bool    `json:"is_active"`
-	IsPublic             *bool    `json:"is_public"`
-	IsFeatured           *bool    `json:"is_featured"`
+	Name             *string  `json:"name"`
+	DisplayName      *string  `json:"display_name"`
+	Description      *string  `json:"description"`
+	Avatar           *string  `json:"avatar"`
+	SystemPrompt     *string  `json:"system_prompt"`
+	ModelPreference  *string  `json:"model_preference"`
+	Temperature      *float64 `json:"temperature"`
+	MaxTokens        *int32   `json:"max_tokens"`
+	Capabilities     []string `json:"capabilities"`
+	ToolsEnabled     []string `json:"tools_enabled"`
+	ContextSources   []string `json:"context_sources"`
+	ThinkingEnabled  *bool    `json:"thinking_enabled"`
+	StreamingEnabled *bool    `json:"streaming_enabled"`
+	Category         *string  `json:"category"`
+	IsActive         *bool    `json:"is_active"`
 }
 
 // UpdateCustomAgent updates an existing custom agent
@@ -323,93 +233,30 @@ func (h *Handlers) UpdateCustomAgent(c *gin.Context) {
 		req.Name = &name
 	}
 
-	// Validate suggested_prompts if provided
-	if req.SuggestedPrompts != nil {
-		if len(req.SuggestedPrompts) > 10 {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Maximum 10 suggested prompts allowed",
-			})
-			return
-		}
-		for i, prompt := range req.SuggestedPrompts {
-			if len(strings.TrimSpace(prompt)) == 0 {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error": fmt.Sprintf("Suggested prompt %d cannot be empty", i+1),
-				})
-				return
-			}
-			if len(prompt) > 500 {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error": fmt.Sprintf("Suggested prompt %d exceeds 500 characters (has %d)", i+1, len(prompt)),
-				})
-				return
-			}
-		}
-	}
-
-	// Validate welcome_message if provided
-	if req.WelcomeMessage != nil && len(*req.WelcomeMessage) > 2000 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Welcome message exceeds 2000 characters (has %d)", len(*req.WelcomeMessage)),
-		})
-		return
-	}
-
-	// Validate category if provided
-	if req.Category != nil && *req.Category != "" {
-		allowedCategories := map[string]bool{
-			"general":   true,
-			"coding":    true,
-			"writing":   true,
-			"analysis":  true,
-			"research":  true,
-			"support":   true,
-			"sales":     true,
-			"marketing": true,
-		}
-		if !allowedCategories[*req.Category] {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Invalid category. Allowed: general, coding, writing, analysis, research, support, sales, marketing",
-			})
-			return
-		}
-	}
-
 	// Convert temperature to pgtype.Numeric
 	tempNumeric := pgtype.Numeric{}
-	if req.Temperature != nil {
-		if *req.Temperature < 0 || *req.Temperature > 2.0 {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Temperature must be between 0.0 and 2.0",
-			})
-			return
-		}
+	if req.Temperature != nil && *req.Temperature > 0 {
 		tempNumeric.Scan(*req.Temperature)
 	}
 
 	agent, err := queries.UpdateCustomAgent(ctx, sqlc.UpdateCustomAgentParams{
-		ID:                   pgtype.UUID{Bytes: id, Valid: true},
-		UserID:               user.ID,
-		Name:                 req.Name,
-		DisplayName:          req.DisplayName,
-		Description:          req.Description,
-		Avatar:               req.Avatar,
-		SystemPrompt:         req.SystemPrompt,
-		ModelPreference:      req.ModelPreference,
-		Temperature:          tempNumeric,
-		MaxTokens:            req.MaxTokens,
-		Capabilities:         req.Capabilities,
-		ToolsEnabled:         req.ToolsEnabled,
-		ContextSources:       req.ContextSources,
-		ThinkingEnabled:      req.ThinkingEnabled,
-		StreamingEnabled:     req.StreamingEnabled,
-		ApplyPersonalization: req.ApplyPersonalization,
-		WelcomeMessage:       req.WelcomeMessage,
-		SuggestedPrompts:     req.SuggestedPrompts,
-		Category:             req.Category,
-		IsActive:             req.IsActive,
-		IsPublic:             req.IsPublic,
-		IsFeatured:           req.IsFeatured,
+		ID:               pgtype.UUID{Bytes: id, Valid: true},
+		UserID:           user.ID,
+		Name:             req.Name,
+		DisplayName:      req.DisplayName,
+		Description:      req.Description,
+		Avatar:           req.Avatar,
+		SystemPrompt:     req.SystemPrompt,
+		ModelPreference:  req.ModelPreference,
+		Temperature:      tempNumeric,
+		MaxTokens:        req.MaxTokens,
+		Capabilities:     req.Capabilities,
+		ToolsEnabled:     req.ToolsEnabled,
+		ContextSources:   req.ContextSources,
+		ThinkingEnabled:  req.ThinkingEnabled,
+		StreamingEnabled: req.StreamingEnabled,
+		Category:         req.Category,
+		IsActive:         req.IsActive,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update agent: " + err.Error()})
@@ -680,6 +527,9 @@ func (h *Handlers) TestCustomAgent(c *gin.Context) {
 		temperature = *req.Temperature
 	}
 
+	// Track timing
+	startTime := time.Now()
+
 	// Create LLM service
 	llmService := services.NewLLMService(h.cfg, model)
 
@@ -698,15 +548,6 @@ func (h *Handlers) TestCustomAgent(c *gin.Context) {
 		{Role: "user", Content: req.TestMessage},
 	}
 
-	// Set SSE headers
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("X-Accel-Buffering", "no")
-
-	// Flush headers
-	c.Writer.Flush()
-
 	// Stream response and collect
 	var fullResponse strings.Builder
 	chunks, errs := llmService.StreamChat(ctx, chatMessages, systemPrompt)
@@ -718,38 +559,14 @@ func (h *Handlers) TestCustomAgent(c *gin.Context) {
 				goto done
 			}
 			fullResponse.WriteString(chunk)
-
-			// Send SSE content event
-			event := map[string]interface{}{
-				"type": "content",
-				"data": chunk,
-			}
-			jsonData, _ := json.Marshal(event)
-			fmt.Fprintf(c.Writer, "data: %s\n\n", jsonData)
-			c.Writer.Flush()
-
 		case err := <-errs:
 			if err != nil {
-				// Send SSE error event
-				event := map[string]interface{}{
-					"type":    "error",
-					"message": "LLM error: " + err.Error(),
-				}
-				jsonData, _ := json.Marshal(event)
-				fmt.Fprintf(c.Writer, "data: %s\n\n", jsonData)
-				c.Writer.Flush()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "LLM error: " + err.Error()})
 				return
 			}
 			goto done
 		case <-ctx.Done():
-			// Send SSE error event
-			event := map[string]interface{}{
-				"type":    "error",
-				"message": "Request timeout",
-			}
-			jsonData, _ := json.Marshal(event)
-			fmt.Fprintf(c.Writer, "data: %s\n\n", jsonData)
-			c.Writer.Flush()
+			c.JSON(http.StatusRequestTimeout, gin.H{"error": "Request timeout"})
 			return
 		}
 	}
@@ -757,14 +574,12 @@ func (h *Handlers) TestCustomAgent(c *gin.Context) {
 done:
 	response := fullResponse.String()
 	tokensUsed := len(response) / 4 // Rough estimate
+	durationMs := time.Since(startTime).Milliseconds()
 
-	// Send final SSE done event
-	event := map[string]interface{}{
-		"type":   "done",
-		"tokens": tokensUsed,
-		"model":  model,
-	}
-	jsonData, _ := json.Marshal(event)
-	fmt.Fprintf(c.Writer, "data: %s\n\n", jsonData)
-	c.Writer.Flush()
+	c.JSON(http.StatusOK, TestAgentResponse{
+		Response:   response,
+		TokensUsed: tokensUsed,
+		DurationMs: durationMs,
+		Model:      model,
+	})
 }

@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -137,28 +136,8 @@ func (h *GoogleAuthHandler) HandleGoogleLoginCallback(c *gin.Context) {
 	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
 	c.SetCookie("oauth_redirect", "", -1, "/", "", false, true)
 
-	// Set session cookie with environment-dependent configuration
-	isProduction := os.Getenv("ENVIRONMENT") == "production"
-	domain := os.Getenv("COOKIE_DOMAIN")
-	if domain == "" {
-		domain = "" // Current domain
-	}
-
-	sameSite := http.SameSiteLaxMode // Secure default for production
-	if os.Getenv("ALLOW_CROSS_ORIGIN") == "true" {
-		sameSite = http.SameSiteNoneMode
-	}
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "better-auth.session_token",
-		Value:    sessionToken,
-		Path:     "/",
-		Domain:   domain,
-		MaxAge:   60 * 60 * 24 * 7, // 7 days
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
+	// Set session cookie (compatible with Better Auth format)
+	c.SetCookie("better-auth.session_token", sessionToken, 60*60*24*7, "/", "", false, true)
 
 	// Redirect to app
 	c.Redirect(http.StatusTemporaryRedirect, redirectAfter)
@@ -339,28 +318,8 @@ func (h *GoogleAuthHandler) Logout(c *gin.Context) {
 		h.pool.Exec(ctx, `DELETE FROM session WHERE token = $1`, sessionToken)
 	}
 
-	// Clear cookie with environment-dependent configuration (must match how it was set)
-	isProduction := os.Getenv("ENVIRONMENT") == "production"
-	domain := os.Getenv("COOKIE_DOMAIN")
-	if domain == "" {
-		domain = "" // Current domain
-	}
-
-	sameSite := http.SameSiteLaxMode // Secure default for production
-	if os.Getenv("ALLOW_CROSS_ORIGIN") == "true" {
-		sameSite = http.SameSiteNoneMode
-	}
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "better-auth.session_token",
-		Value:    "",
-		Path:     "/",
-		Domain:   domain,
-		MaxAge:   -1, // Delete cookie
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
+	// Clear cookie
+	c.SetCookie("better-auth.session_token", "", -1, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out"})
 }
@@ -406,28 +365,8 @@ func (h *GoogleAuthHandler) LogoutAllSessions(c *gin.Context) {
 	rowsAffected := result.RowsAffected()
 	log.Printf("LogoutAllSessions: deleted %d database sessions for user %s", rowsAffected, user.ID)
 
-	// Clear current session cookie with environment-dependent configuration (must match how it was set)
-	isProduction := os.Getenv("ENVIRONMENT") == "production"
-	domain := os.Getenv("COOKIE_DOMAIN")
-	if domain == "" {
-		domain = "" // Current domain
-	}
-
-	sameSite := http.SameSiteLaxMode // Secure default for production
-	if os.Getenv("ALLOW_CROSS_ORIGIN") == "true" {
-		sameSite = http.SameSiteNoneMode
-	}
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "better-auth.session_token",
-		Value:    "",
-		Path:     "/",
-		Domain:   domain,
-		MaxAge:   -1, // Delete cookie
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
+	// Clear current session cookie
+	c.SetCookie("better-auth.session_token", "", -1, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":          "All sessions invalidated",
