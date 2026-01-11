@@ -1,7 +1,7 @@
 ﻿<script lang="ts">
 	import { tick, onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
-	import { api, apiClient, type ArtifactListItem, type Artifact, type Node, type ContextListItem } from '$lib/api';
+	import { api, apiClient, type ArtifactListItem, type Artifact, type Node, type ContextListItem, type CustomAgent, getCustomAgents } from '$lib/api';
 	import FocusModeSelector from '$lib/components/chat/FocusModeSelector.svelte';
 	import ProgressPanel, { type DelegatedTask } from '$lib/components/chat/ProgressPanel.svelte';
 	import ContextPanel, { type ActiveResource } from '$lib/components/chat/ContextPanel.svelte';
@@ -14,6 +14,8 @@
 	import { ConversationListPanel } from '$lib/components/chat';
 	import RoleContextBadge from '$lib/components/chat/RoleContextBadge.svelte';
 	import { currentWorkspaceId } from '$lib/stores/workspaces';
+	import { thinking, thinkingEnabled } from '$lib/stores/thinking';
+	import AgentSelector from '$lib/components/agents/AgentSelector.svelte';
 
 	// Extract thinking content from message
 	// Uses flexible regex to match variations like <thinking>, <thinkingng>, <thinkingg>, etc.
@@ -137,7 +139,7 @@
 	let aiTemperature = $state(0.7);
 	let aiMaxTokens = $state(8192);
 	let aiTopP = $state(0.9);
-	let useCOT = $state(true); // Chain of Thought mode - always enabled
+	let useCOT = $state(false); // Chain of Thought mode - synced with thinking store
 
 	// Focus Mode state
 	let focusModeEnabled = $state(true); // Focus vs Classic mode
@@ -231,6 +233,11 @@
 	let showAgentSuggestions = $state(false);
 	let filteredAgents = $state<AgentPreset[]>([]);
 	let agentDropdownIndex = $state(0);
+
+	// Custom Agents state
+	let customAgents: CustomAgent[] = $state([]);
+	let selectedAgent: CustomAgent | null = $state(null);
+	let loadingAgents = $state(false);
 
 	// Chat state
 	let messages: ChatMessage[] = $state([]);
@@ -821,6 +828,27 @@
 		}
 	}
 
+	// Load custom agents for agent selector
+	async function loadCustomAgents() {
+		loadingAgents = true;
+		try {
+			const response = await getCustomAgents(false); // Only active agents
+			customAgents = response.agents || [];
+			console.log('[Chat] Loaded', customAgents.length, 'custom agents');
+		} catch (e) {
+			console.error('Failed to load custom agents:', e);
+			customAgents = [];
+		} finally {
+			loadingAgents = false;
+		}
+	}
+
+	// Handle agent selection
+	function handleAgentSelect(agent: CustomAgent | null) {
+		selectedAgent = agent;
+		console.log('[Chat] Selected agent:', agent?.display_name || 'Default');
+	}
+
 	// Detect @agent mentions in input and set detectedAgent
 	function detectAgentMention(text: string) {
 		// Match @agent-name at the start of the message
@@ -1060,7 +1088,11 @@ Use this context to inform your responses.`;
 		loadTeamMembers();
 		loadCommands(); // Load slash commands for autocomplete
 		loadAgentPresets(); // Load agent presets for @mention
+		loadCustomAgents(); // Load custom agents for agent selector
 		checkWhisperStatus(); // Check if voice transcription is available
+
+		// Load thinking settings to sync COT mode
+		await thinking.loadSettings();
 
 		// Set artifact panel width to ~50% of available space (window width minus sidebars)
 		// Left sidebar is ~256px, chat sidebar is ~256px when open
@@ -1089,6 +1121,11 @@ Use this context to inform your responses.`;
 		if (typeof window !== 'undefined') {
 			localStorage.setItem('chat_panel_state', JSON.stringify(state));
 		}
+	});
+
+	// Sync useCOT with thinking settings
+	$effect(() => {
+		useCOT = $thinkingEnabled;
 	});
 
 	// Handle chat transfer from Spotlight popup
@@ -2503,6 +2540,8 @@ Use this context to inform your responses.`;
 				focus_mode: selectedFocusId,
 				focus_options: Object.keys(focusOptions).length > 0 ? focusOptions : undefined,
 				structured_output: true, // Enable V2 structured output
+				// Custom Agent
+				agent_id: selectedAgent?.id || undefined,
 			};
 
 			// Include attached document IDs for context injection
@@ -3062,6 +3101,27 @@ Use this context to inform your responses.`;
 			const item = document.querySelector(`[data-command-index="${index}"]`);
 			item?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 		}, 0);
+	}
+
+	// Toggle COT mode and persist to thinking settings
+	async function toggleCOT() {
+		const newValue = !useCOT;
+		useCOT = newValue;
+
+		// Persist to backend
+		try {
+			await thinking.updateSettings({
+				enabled: newValue,
+				show_in_ui: $thinking.settings?.show_in_ui ?? false,
+				save_traces: $thinking.settings?.save_traces ?? true,
+				max_tokens: $thinking.settings?.max_tokens ?? 4096,
+				default_template_id: $thinking.settings?.default_template_id ?? null
+			});
+		} catch (error) {
+			console.error('[Chat] Failed to update thinking settings:', error);
+			// Revert on error
+			useCOT = !newValue;
+		}
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -3633,8 +3693,20 @@ Use this context to inform your responses.`;
 				<RoleContextBadge size="sm" showLabel={true} showTooltip={true} />
 			</div>
 
-			<!-- Right group: Project, Node, Panel -->
+			<!-- Right group: Agent, Project, Node, Panel -->
 			<div class="flex items-center gap-2 min-w-0">
+				<!-- Agent Selector -->
+				<div class="relative flex-shrink-0" style="width: 220px;">
+					<AgentSelector
+						agents={customAgents}
+						selectedId={selectedAgent?.id || null}
+						onSelect={handleAgentSelect}
+						placeholder="Default Agent"
+						includeDefault={true}
+						onManage={() => window.location.href = '/agents'}
+					/>
+				</div>
+
 				<!-- Project Selector (required for chat) -->
 				<div class="relative flex-shrink-0">
 					<button
@@ -4727,7 +4799,7 @@ Use this context to inform your responses.`;
 								<!-- Chain of Thought (COT) Toggle -->
 								<button
 									type="button"
-									onclick={() => useCOT = !useCOT}
+									onclick={toggleCOT}
 									class="flex-shrink-0 group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 {useCOT ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'}"
 									aria-label="Toggle Chain of Thought reasoning"
 									title="{useCOT ? 'Thinking enabled' : 'Thinking disabled'}"
