@@ -190,3 +190,14 @@ export async function deleteWorkspaceRole(workspaceId: string, roleId: string): 
     method: 'DELETE',
   });
 }
+
+/**
+ * Accept a workspace invitation by token
+ * This is a public endpoint - user must be logged in but doesn't need workspace access
+ */
+export async function acceptWorkspaceInvite(token: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/workspaces/invites/accept', {
+    method: 'POST',
+    body: { token },
+  });
+}

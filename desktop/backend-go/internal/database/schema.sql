@@ -3701,3 +3701,80 @@ CREATE TABLE IF NOT EXISTS application_api_endpoints (
 CREATE INDEX IF NOT EXISTS idx_app_endpoints_profile ON application_api_endpoints(app_profile_id);
 CREATE INDEX IF NOT EXISTS idx_app_endpoints_method ON application_api_endpoints(method);
 CREATE INDEX IF NOT EXISTS idx_app_endpoints_path ON application_api_endpoints(app_profile_id, path);
+
+-- ============================================================================
+-- DASHBOARD & ANALYTICS ENHANCEMENTS (Migration 023)
+-- ============================================================================
+
+-- Analytics Snapshots - Historical metrics tracking for trends
+CREATE TABLE IF NOT EXISTS analytics_snapshots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    workspace_id UUID,
+    snapshot_date DATE NOT NULL,
+    metrics JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, snapshot_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_snapshots_user_date 
+    ON analytics_snapshots(user_id, snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_snapshots_workspace 
+    ON analytics_snapshots(workspace_id) WHERE workspace_id IS NOT NULL;
+
+-- Dashboard Views - Dashboard usage tracking
+CREATE TABLE IF NOT EXISTS dashboard_views (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    dashboard_id UUID NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    viewed_at TIMESTAMPTZ DEFAULT NOW(),
+    session_id VARCHAR(100),
+    duration_seconds INTEGER,
+    widget_interactions JSONB DEFAULT '[]',
+    source VARCHAR(50),
+    device_type VARCHAR(20)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dashboard_views_dashboard 
+    ON dashboard_views(dashboard_id, viewed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_dashboard_views_user 
+    ON dashboard_views(user_id, viewed_at DESC);
+
+-- Dashboard Shares - Granular sharing permissions
+CREATE TABLE IF NOT EXISTS dashboard_shares (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    dashboard_id UUID NOT NULL,
+    shared_with_user_id VARCHAR(255),
+    shared_with_role VARCHAR(100),
+    shared_with_workspace_id UUID,
+    permission VARCHAR(20) DEFAULT 'view',
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by VARCHAR(255) NOT NULL,
+    UNIQUE(dashboard_id, shared_with_user_id),
+    UNIQUE(dashboard_id, shared_with_role)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dashboard_shares_dashboard 
+    ON dashboard_shares(dashboard_id);
+CREATE INDEX IF NOT EXISTS idx_dashboard_shares_user 
+    ON dashboard_shares(shared_with_user_id) WHERE shared_with_user_id IS NOT NULL;
+
+-- Widget Data Cache - Performance optimization for expensive queries
+CREATE TABLE IF NOT EXISTS widget_data_cache (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL,
+    widget_type VARCHAR(100) NOT NULL,
+    cache_key VARCHAR(255) NOT NULL,
+    data JSONB NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    hit_count INTEGER DEFAULT 0,
+    last_hit_at TIMESTAMPTZ,
+    UNIQUE(user_id, widget_type, cache_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_widget_cache_lookup 
+    ON widget_data_cache(user_id, widget_type, cache_key);
+CREATE INDEX IF NOT EXISTS idx_widget_cache_expiry 
+    ON widget_data_cache(expires_at);

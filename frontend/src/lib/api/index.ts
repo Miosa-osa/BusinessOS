@@ -21,7 +21,6 @@ export * from './voice-notes';
 export * from './usage';
 export * from './ai';
 export * from './profile';
-export * from './onboarding';
 export * from './memory';
 export * from './context-tree';
 export * from './gmail';
@@ -49,7 +48,6 @@ import * as voiceNotesApi from './voice-notes';
 import * as usageApi from './usage';
 import * as aiApi from './ai';
 import * as profileApi from './profile';
-import * as onboardingApi from './onboarding';
 import * as memoryApi from './memory';
 import * as contextTreeApi from './context-tree';
 import * as base from './base';
@@ -228,10 +226,6 @@ export const api = {
   updateProfile: profileApi.updateProfile,
   uploadProfilePhoto: profileApi.uploadProfilePhoto,
   deleteProfilePhoto: profileApi.deleteProfilePhoto,
-
-  // Onboarding (simplified: just profile + chat)
-  getOnboardingProfile: onboardingApi.getOnboardingProfile,
-  startOnboardingChat: onboardingApi.startOnboardingChat,
 
   // Memory (Episodic Memory System)
   getMemories: memoryApi.getMemories,

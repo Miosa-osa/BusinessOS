@@ -132,12 +132,24 @@ export async function initializeWorkspaces(): Promise<void> {
     } else if (current) {
       console.log(`[Workspaces] Current workspace already set: ${current.name} (${current.id})`);
     } else if (allWorkspaces.length === 0) {
-      // Only log once, not a warning since empty workspaces is valid state
-      console.debug('[Workspaces] No workspaces available');
+      // No workspaces - in dev mode, load mock data
+      if (import.meta.env.DEV) {
+        console.log('[Workspaces] No workspaces found in dev mode, loading mock data');
+        loadMockWorkspaceData();
+      } else {
+        console.debug('[Workspaces] No workspaces available');
+      }
     }
   } catch (error) {
     console.error('[Workspaces] Failed to load workspaces:', error);
     workspaceError.set(error instanceof Error ? error.message : 'Failed to load workspaces');
+    
+    // In dev mode, fall back to mock data on API failure
+    if (import.meta.env.DEV) {
+      console.log('[Workspaces] API failed in dev mode, loading mock data');
+      loadMockWorkspaceData();
+      workspaceError.set(null);
+    }
   } finally {
     workspaceLoading.update((s) => ({ ...s, workspaces: false }));
   }
@@ -222,3 +234,60 @@ export function clearWorkspaceState(): void {
   workspaceError.set(null);
   localStorage.removeItem('businessos_current_workspace_id');
 }
+
+/**
+ * Load mock workspace data for development/testing
+ */
+export function loadMockWorkspaceData(): void {
+  console.log('[Workspaces] Loading mock data for development');
+  
+  const mockWorkspace: Workspace = {
+    id: 'mock-workspace-001',
+    name: 'Test Workspace',
+    slug: 'test-workspace',
+    description: 'A mock workspace for UI development',
+    logo_url: null,
+    plan_type: 'professional',
+    max_members: 50,
+    max_projects: 100,
+    max_storage_gb: 50,
+    owner_id: 'mock-user-001',
+    settings: {},
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  
+  const mockRoles: WorkspaceRole[] = [
+    { id: 'role-1', workspace_id: mockWorkspace.id, name: 'owner', display_name: 'Owner', description: 'Full access', hierarchy_level: 0, permissions: {}, is_system: true, is_default: false, color: '#10b981', icon: 'crown', created_at: '', updated_at: '' },
+    { id: 'role-2', workspace_id: mockWorkspace.id, name: 'admin', display_name: 'Admin', description: 'Administrative access', hierarchy_level: 10, permissions: {}, is_system: true, is_default: false, color: '#6366f1', icon: 'shield', created_at: '', updated_at: '' },
+    { id: 'role-3', workspace_id: mockWorkspace.id, name: 'manager', display_name: 'Manager', description: 'Team management', hierarchy_level: 20, permissions: {}, is_system: true, is_default: false, color: '#f59e0b', icon: 'users', created_at: '', updated_at: '' },
+    { id: 'role-4', workspace_id: mockWorkspace.id, name: 'member', display_name: 'Member', description: 'Standard access', hierarchy_level: 30, permissions: {}, is_system: true, is_default: true, color: '#64748b', icon: 'user', created_at: '', updated_at: '' },
+    { id: 'role-5', workspace_id: mockWorkspace.id, name: 'guest', display_name: 'Guest', description: 'Limited access', hierarchy_level: 40, permissions: {}, is_system: true, is_default: false, color: '#94a3b8', icon: 'eye', created_at: '', updated_at: '' },
+  ];
+  
+  const mockRoleContext: UserRoleContext = {
+    user_id: 'mock-user-001',
+    workspace_id: mockWorkspace.id,
+    role_name: 'owner',
+    role_display_name: 'Owner',
+    hierarchy_level: 0,
+    permissions: {
+      workspace: { manage: true, delete: true },
+      members: { view: true, invite: true, manage: true, remove: true },
+      roles: { view: true, manage: true },
+      projects: { create: true, manage: true, delete: true },
+    },
+    title: 'Admin',
+    department: 'Engineering',
+    expertise_areas: [],
+  };
+  
+  workspaces.set([mockWorkspace]);
+  currentWorkspace.set(mockWorkspace);
+  currentWorkspaceRoles.set(mockRoles);
+  currentWorkspaceMembers.set([]);
+  currentUserRoleContext.set(mockRoleContext);
+  
+  console.log('[Workspaces] Mock data loaded - workspace:', mockWorkspace.name);
+}
+

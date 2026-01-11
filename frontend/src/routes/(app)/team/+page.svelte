@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { team } from '$lib/stores/team';
+	import { currentWorkspace, currentWorkspaceRoles } from '$lib/stores/workspaces';
 	import type {
 		TeamMemberListResponse,
 		TeamMemberDetailResponse,
@@ -14,6 +15,8 @@
 		MemberProfileSlideOver,
 		AddMemberModal
 	} from '$lib/components/team';
+	import InviteMemberModal from '$lib/components/workspace/InviteMemberModal.svelte';
+	import PendingInvitations from '$lib/components/team/PendingInvitations.svelte';
 
 	type ViewMode = 'directory' | 'orgchart' | 'capacity';
 
@@ -21,6 +24,7 @@
 	let viewMode = $state<ViewMode>('directory');
 	let searchQuery = $state('');
 	let showAddModal = $state(false);
+	let showInviteModal = $state(false);
 	let showProfileSlideOver = $state(false);
 	let selectedMember = $state<TeamMemberDetailResponse | null>(null);
 	let loadingMember = $state(false);
@@ -43,6 +47,15 @@
 	onMount(() => {
 		team.loadMembers();
 	});
+
+	// Open invite modal
+	function openInviteModal() {
+		if (!$currentWorkspace?.id) {
+			alert('Please select a workspace first');
+			return;
+		}
+		showInviteModal = true;
+	}
 
 	// Filtered members based on search
 	const filteredMembers = $derived(() => {
@@ -173,15 +186,26 @@
 			<h1 class="text-2xl font-semibold text-gray-900">Team</h1>
 			<p class="text-sm text-gray-500 mt-0.5">Manage your team and see who's working on what</p>
 		</div>
-		<button
-			onclick={() => (showAddModal = true)}
-			class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
-		>
-			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-			</svg>
-			Add Member
-		</button>
+		<div class="flex items-center gap-2">
+			<button
+				onclick={openInviteModal}
+				class="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+			>
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+				</svg>
+				Invite
+			</button>
+			<button
+				onclick={() => (showAddModal = true)}
+				class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+			>
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+				</svg>
+				Add Member
+			</button>
+		</div>
 	</div>
 
 	<!-- View Switcher -->
@@ -191,6 +215,9 @@
 		onViewChange={(v) => (viewMode = v)}
 		onSearchChange={(q) => (searchQuery = q)}
 	/>
+
+	<!-- Pending Invitations -->
+	<PendingInvitations />
 
 	<!-- Error State -->
 	{#if error}
@@ -261,6 +288,20 @@
 
 <!-- Add Member Modal -->
 <AddMemberModal bind:open={showAddModal} managers={managerOptions()} onCreate={handleAddMember} />
+
+<!-- Invite Member Modal -->
+{#if showInviteModal && $currentWorkspace?.id}
+	<InviteMemberModal
+		workspaceId={$currentWorkspace.id}
+		roles={$currentWorkspaceRoles}
+		on:success={() => {
+			showInviteModal = false;
+		}}
+		on:cancel={() => {
+			showInviteModal = false;
+		}}
+	/>
+{/if}
 
 <!-- Member Profile Slide-over -->
 <MemberProfileSlideOver

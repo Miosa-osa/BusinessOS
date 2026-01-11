@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fly, fade } from 'svelte/transition';
+	import { NotificationDropdown } from '$lib/components/notifications';
 
 	interface Props {
 		userName: string;
@@ -68,14 +69,17 @@
 	<div class="flex items-start justify-between">
 		<div>
 			<h1
-				class="text-2xl font-semibold text-gray-900"
+				class="text-2xl font-semibold text-gray-900 dark:text-white"
 				in:fly={{ y: -10, duration: 400, delay: 100 }}
 			>
 				{getGreeting()}, {userName}
 			</h1>
-			<p class="text-sm text-gray-500 mt-1" in:fly={{ y: -10, duration: 400, delay: 200 }}>
+			<p class="text-sm text-gray-500 dark:text-gray-400 mt-1" in:fly={{ y: -10, duration: 400, delay: 200 }}>
 				{formatDate()}
 			</p>
+		</div>
+		<div in:fly={{ x: 10, duration: 400, delay: 150 }}>
+			<NotificationDropdown />
 		</div>
 	</div>
 

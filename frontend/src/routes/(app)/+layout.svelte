@@ -10,6 +10,8 @@
 	import { api } from '$lib/api';
 	import { WorkspaceSwitcher } from '$lib/components/workspace';
 	import { loadSavedWorkspace } from '$lib/stores/workspaces';
+	import { notificationStore } from '$lib/stores/notifications';
+	import { initializePush } from '$lib/services/pushService';
 
 	// Projects state for dropdown
 	let projects = $state<Array<{id: string, name: string, status: string}>>([]);
@@ -30,6 +32,10 @@
 		loadSavedWorkspace();
 		// Load projects for sidebar
 		loadProjects();
+		
+		// Initialize notifications (SSE + Push)
+		notificationStore.initialize();
+		initializePush();
 	});
 
 	const APP_VERSION = '0.0.1';

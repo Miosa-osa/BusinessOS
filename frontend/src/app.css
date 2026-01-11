@@ -50,7 +50,27 @@
 	--sidebar-accent-foreground: oklch(0.205 0 0);
 	--sidebar-border: oklch(0.922 0 0);
 	--sidebar-ring: oklch(0.708 0 0);
+
+	/* Purple Orb Colors - Onboarding */
+	--orb-gradient-1: #e0e7ff;
+	--orb-gradient-2: #a5b4fc;
+	--orb-gradient-3: #818cf8;
+	--orb-gradient-4: #6366f1;
+	--orb-gradient-5: #4f46e5;
+	--orb-glow: rgba(99, 102, 241, 0.4);
+	--orb-inner-glow: rgba(255, 255, 255, 0.3);
 }
+
+/* Dark Mode Overrides */
+.dark {
+	--orb-gradient-1: #312e81;
+	--orb-gradient-2: #3730a3;
+	--orb-gradient-3: #4338ca;
+	--orb-gradient-4: #4f46e5;
+	--orb-gradient-5: #6366f1;
+	--orb-glow: rgba(99, 102, 241, 0.6);
+}
+
 
 * {
 	box-sizing: border-box;

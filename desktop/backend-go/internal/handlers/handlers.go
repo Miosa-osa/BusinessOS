@@ -587,6 +587,18 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 				notifications.POST("/push/test", pushHandler.TestPush)
 			}
 		}
+
+		// DEV ONLY: Notification seeding routes - /api/dev/notifications
+		if IsDevMode() {
+			seedHandler := NewNotificationSeedHandler(h.pool, h.notificationService)
+			devNotifications := api.Group("/dev/notifications")
+			devNotifications.Use(auth)
+			{
+				devNotifications.POST("/seed", seedHandler.SeedNotifications)
+				devNotifications.POST("/seed-full", seedHandler.SeedNotificationsWithTimestamps)
+				devNotifications.DELETE("/seed", seedHandler.ClearSeedNotifications)
+			}
+		}
 	}
 
 	// Custom Dashboards routes - /api/user-dashboards

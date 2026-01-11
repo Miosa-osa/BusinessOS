@@ -2,7 +2,6 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 export * from './platform';
-export * from './onboarding-stream';
 
 /**
  * Merge class names with Tailwind CSS classes

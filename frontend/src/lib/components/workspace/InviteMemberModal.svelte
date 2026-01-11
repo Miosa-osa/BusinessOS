@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { createWorkspaceInvite, type WorkspaceRole } from '$lib/api/workspaces';
-  import { X, Mail, Send, Loader2, AlertCircle } from 'lucide-svelte';
+  import { X, Mail, Send, Loader2, AlertCircle, CheckCircle } from 'lucide-svelte';
 
   interface Props {
     workspaceId: string;
@@ -16,9 +16,10 @@
   let selectedRole = $state('member');
   let isSending = $state(false);
   let error = $state<string | null>(null);
+  let success = $state(false);
 
   // Filter out system roles that shouldn't be assigned via invite
-  const assignableRoles = roles.filter((r) => r.name !== 'owner');
+  const assignableRoles = $derived(roles.filter((r) => r.name !== 'owner'));
 
   async function handleSend() {
     if (!email.trim() || !selectedRole) return;
@@ -26,6 +27,15 @@
     try {
       isSending = true;
       error = null;
+
+      // In dev mode with mock workspace, simulate success
+      if (import.meta.env.DEV && workspaceId.startsWith('mock-')) {
+        console.log('[InviteMemberModal] Mock mode - simulating invite to:', email.trim());
+        await new Promise(resolve => setTimeout(resolve, 800)); // Fake delay
+        success = true;
+        setTimeout(() => dispatch('success'), 1500);
+        return;
+      }
 
       await createWorkspaceInvite(workspaceId, {
         email: email.trim(),
@@ -68,56 +78,62 @@
       </button>
     </div>
 
-    {#if error}
-      <div class="error-message">
-        <AlertCircle class="w-4 h-4" />
-        <span>{error}</span>
+    {#if success}
+      <div class="success-message">
+        <CheckCircle class="w-5 h-5" />
+        <span>Invitation sent to <strong>{email}</strong>!</span>
       </div>
-    {/if}
+    {:else}
+      {#if error}
+        <div class="error-message">
+          <AlertCircle class="w-4 h-4" />
+          <span>{error}</span>
+        </div>
+      {/if}
 
-    <div class="modal-body">
-      <div class="form-group">
-        <label for="email">
-          <Mail class="w-4 h-4" />
-          Email Address
-        </label>
-        <input
-          id="email"
-          type="email"
-          bind:value={email}
-          placeholder="member@example.com"
-          disabled={isSending}
-          autofocus
-        />
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="email">
+            <Mail class="w-4 h-4" />
+            Email Address
+          </label>
+          <input
+            id="email"
+            type="email"
+            bind:value={email}
+            placeholder="member@example.com"
+            disabled={isSending}
+            autofocus
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="role">Role</label>
+          <select id="role" bind:value={selectedRole} disabled={isSending}>
+            {#each assignableRoles as role (role.id)}
+              <option value={role.name}>
+                {role.display_name}
+                {#if role.description}
+                  - {role.description}
+                {/if}
+              </option>
+            {/each}
+          </select>
+          <p class="field-hint">The role determines what permissions the member will have</p>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="role">Role</label>
-        <select id="role" bind:value={selectedRole} disabled={isSending}>
-          {#each assignableRoles as role (role.id)}
-            <option value={role.name}>
-              {role.display_name}
-              {#if role.description}
-                - {role.description}
-              {/if}
-            </option>
-          {/each}
-        </select>
-        <p class="field-hint">The role determines what permissions the member will have</p>
-      </div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="cancel-button" onclick={handleCancel} type="button" disabled={isSending}>
-        Cancel
-      </button>
-      <button
-        class="send-button"
-        onclick={handleSend}
-        disabled={!email.trim() || !selectedRole || isSending}
-        type="button"
-      >
-        {#if isSending}
+      <div class="modal-footer">
+        <button class="cancel-button" onclick={handleCancel} type="button" disabled={isSending}>
+          Cancel
+        </button>
+        <button
+          class="send-button"
+          onclick={handleSend}
+          disabled={!email.trim() || !selectedRole || isSending}
+          type="button"
+        >
+          {#if isSending}
           <Loader2 class="w-4 h-4 animate-spin" />
         {:else}
           <Send class="w-4 h-4" />
@@ -125,6 +141,7 @@
         Send Invitation
       </button>
     </div>
+    {/if}
   </div>
 </div>
 
@@ -196,6 +213,22 @@
     color: #dc2626;
     font-size: 0.875rem;
     border-bottom: 1px solid #fee2e2;
+  }
+
+  .success-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 3rem 1.5rem;
+    background: #f0fdf4;
+    color: #16a34a;
+    font-size: 1rem;
+    text-align: center;
+  }
+
+  .success-message strong {
+    color: #15803d;
   }
 
   .modal-body {

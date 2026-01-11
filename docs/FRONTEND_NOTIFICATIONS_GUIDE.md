@@ -1,9 +1,8 @@
-# Javaris: Frontend Notifications Guide
+# Frontend Notifications Guide
 
-> **Status:** Ready for Implementation (Backend Done)
-> **Owner:** Javaris
-> **Linear Issues:** CUS-38 (Done), CUS-39 (Done)
-> **Last Updated:** January 8, 2026
+**For:** UI Team  
+**Last Updated:** January 8, 2026  
+**Status:** Ready for Implementation
 
 ---
 
@@ -29,7 +28,7 @@ import { onMount } from 'svelte';
 onMount(() => {
   // Connect to SSE stream for real-time notifications
   notificationStore.initialize();
-
+  
   // Initialize Web Push (optional)
   initializePush();
 });
@@ -119,8 +118,8 @@ await notificationStore.updatePreferences({
 });
 
 // Connection management
-notificationStore.connect();
-notificationStore.disconnect();
+notificationStore.connect();    // Start SSE connection
+notificationStore.disconnect(); // Stop SSE connection
 ```
 
 ---
@@ -192,7 +191,7 @@ The notification store automatically handles SSE events:
 if (browser) {
   window.addEventListener('businessos:notification', (event) => {
     const notification = event.detail;
-
+    
     // Show toast notification
     toast.info(notification.title, {
       description: notification.body
@@ -224,11 +223,11 @@ if (browser) {
 
 ```svelte
 <script>
-  import {
-    pushSupported,
-    pushPermission,
+  import { 
+    pushSupported, 
+    pushPermission, 
     pushSubscribed,
-    pushLoading
+    pushLoading 
   } from '$lib/services/pushService';
 </script>
 
@@ -244,15 +243,15 @@ if (browser) {
 
 ```svelte
 <script>
-  import {
-    subscribeToPush,
+  import { 
+    subscribeToPush, 
     unsubscribeFromPush,
     pushSubscribed,
     pushLoading
   } from '$lib/services/pushService';
 </script>
 
-<button
+<button 
   on:click={() => $pushSubscribed ? unsubscribeFromPush() : subscribeToPush()}
   disabled={$pushLoading}
 >
@@ -277,7 +276,7 @@ await sendTestPush();
 <script>
   import { notificationStore } from '$lib/stores/notifications';
   import { onMount } from 'svelte';
-
+  
   let preferences = {
     email_enabled: true,
     push_enabled: true,
@@ -286,12 +285,12 @@ await sendTestPush();
     quiet_hours_start: '22:00',
     quiet_hours_end: '08:00'
   };
-
+  
   onMount(async () => {
     const prefs = await notificationStore.getPreferences();
     if (prefs) preferences = prefs;
   });
-
+  
   async function savePreferences() {
     await notificationStore.updatePreferences(preferences);
   }
@@ -302,17 +301,17 @@ await sendTestPush();
     <input type="checkbox" bind:checked={preferences.email_enabled} />
     Email notifications
   </label>
-
+  
   <label>
     <input type="checkbox" bind:checked={preferences.push_enabled} />
     Push notifications
   </label>
-
+  
   <label>
     <input type="checkbox" bind:checked={preferences.quiet_hours_enabled} />
     Quiet hours
   </label>
-
+  
   {#if preferences.quiet_hours_enabled}
     <div class="quiet-hours">
       <input type="time" bind:value={preferences.quiet_hours_start} />
@@ -320,7 +319,7 @@ await sendTestPush();
       <input type="time" bind:value={preferences.quiet_hours_end} />
     </div>
   {/if}
-
+  
   <button type="submit">Save Preferences</button>
 </form>
 ```
@@ -335,34 +334,34 @@ await sendTestPush();
   import { notificationStore } from '$lib/stores/notifications';
   import { goto } from '$app/navigation';
   import type { Notification } from '$lib/stores/notifications';
-
+  
   export let notification: Notification;
-
+  
   function getIcon(type: string) {
-    if (type.startsWith('task.')) return 'TaskIcon';
-    if (type.startsWith('project.')) return 'FolderIcon';
-    if (type.startsWith('comment.')) return 'MessageIcon';
-    if (type.startsWith('workspace.')) return 'BuildingIcon';
-    return 'BellIcon';
+    if (type.startsWith('task.')) return '📋';
+    if (type.startsWith('project.')) return '📁';
+    if (type.startsWith('comment.')) return '💬';
+    if (type.startsWith('workspace.')) return '🏢';
+    return '🔔';
   }
-
+  
   async function handleClick() {
     // Mark as read
     if (!notification.is_read) {
       await notificationStore.markAsRead(notification.id);
     }
-
+    
     // Navigate to entity
     if (notification.entity_type && notification.entity_id) {
       goto(`/${notification.entity_type}s/${notification.entity_id}`);
     }
   }
-
+  
   function formatTime(dateString: string) {
     const date = new Date(dateString);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-
+    
     if (diff < 60000) return 'Just now';
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
@@ -370,13 +369,13 @@ await sendTestPush();
   }
 </script>
 
-<button
+<button 
   class="notification-item"
   class:unread={!notification.is_read}
   on:click={handleClick}
 >
   <span class="icon">{getIcon(notification.type)}</span>
-
+  
   <div class="content">
     <p class="title">{notification.title}</p>
     {#if notification.body}
@@ -384,7 +383,7 @@ await sendTestPush();
     {/if}
     <span class="time">{formatTime(notification.created_at)}</span>
   </div>
-
+  
   {#if notification.sender_avatar_url}
     <img src={notification.sender_avatar_url} alt="" class="avatar" />
   {/if}
@@ -402,31 +401,31 @@ await sendTestPush();
     width: 100%;
     cursor: pointer;
   }
-
+  
   .notification-item:hover {
     background: var(--hover-bg);
   }
-
+  
   .notification-item.unread {
     background: var(--unread-bg);
   }
-
+  
   .title {
     font-weight: 500;
     margin: 0;
   }
-
+  
   .body {
     color: var(--text-muted);
     font-size: 0.875rem;
     margin: 4px 0 0;
   }
-
+  
   .time {
     color: var(--text-muted);
     font-size: 0.75rem;
   }
-
+  
   .avatar {
     width: 32px;
     height: 32px;
@@ -484,3 +483,7 @@ await sendTestPush();
 1. Verify SSE connection is active (`isConnected`)
 2. Try `notificationStore.fetchNotifications()` manually
 3. Check network tab for SSE stream
+
+---
+
+*Questions? Contact the backend team.*

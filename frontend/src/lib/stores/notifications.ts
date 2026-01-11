@@ -10,7 +10,7 @@
 
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
-import { playSound } from './soundStore';
+import { soundStore } from './soundStore';
 
 // Types
 export interface Notification {
@@ -180,7 +180,7 @@ function handleNewNotification(notification: Notification) {
 	}
 
 	// Play sound for new notifications
-	playSound('notification');
+	soundStore.playSound('notification');
 
 	// Dispatch custom event for toast/UI
 	if (browser) {
@@ -224,6 +224,10 @@ async function fetchNotifications(limit = 20, offset = 0): Promise<void> {
 		if (response.ok) {
 			const data = await response.json();
 			notifications.set(data.notifications || []);
+			// Also update unread count from response if available
+			if (typeof data.unread_count === 'number') {
+				unreadCount.set(data.unread_count);
+			}
 		}
 	} catch (err) {
 		console.error('[Notifications] Failed to fetch:', err);
