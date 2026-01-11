@@ -109,11 +109,12 @@ func (s *CommentService) CreateComment(ctx context.Context, input CreateCommentI
 	mentions := s.ParseMentions(input.Content)
 	for _, mention := range mentions {
 		position := int32(mention.Position)
+		matchText := mention.MatchText
 		_, err := s.queries.CreateEntityMention(ctx, sqlc.CreateEntityMentionParams{
 			SourceType:      "comment",
 			SourceID:        comment.ID,
 			MentionedUserID: mention.UserID,
-			MentionText:     mention.MatchText,
+			MentionText:     &matchText,
 			PositionInText:  &position,
 			EntityType:      &input.EntityType,
 			EntityID:        entityID,
@@ -170,11 +171,16 @@ func (s *CommentService) GetCommentByID(ctx context.Context, id uuid.UUID) (*Com
 		authorName = *row.AuthorName
 	}
 
+	authorEmail := ""
+	if row.AuthorEmail != nil {
+		authorEmail = *row.AuthorEmail
+	}
+
 	return &CommentWithAuthor{
 		ID:          uuid.UUID(row.ID.Bytes),
 		UserID:      row.UserID,
 		AuthorName:  authorName,
-		AuthorEmail: row.AuthorEmail,
+		AuthorEmail: authorEmail,
 		AvatarURL:   avatarURL,
 		EntityType:  row.EntityType,
 		EntityID:    entityID,
@@ -247,11 +253,16 @@ func (s *CommentService) rowToCommentWithAuthor(row sqlc.ListCommentsWithAuthorR
 		authorName = *row.AuthorName
 	}
 
+	authorEmail := ""
+	if row.AuthorEmail != nil {
+		authorEmail = *row.AuthorEmail
+	}
+
 	return CommentWithAuthor{
 		ID:          uuid.UUID(row.ID.Bytes),
 		UserID:      row.UserID,
 		AuthorName:  authorName,
-		AuthorEmail: row.AuthorEmail,
+		AuthorEmail: authorEmail,
 		AvatarURL:   avatarURL,
 		EntityType:  row.EntityType,
 		EntityID:    uuid.UUID(row.EntityID.Bytes),
@@ -303,11 +314,16 @@ func (s *CommentService) getRepliesWithAuthor(ctx context.Context, parentID uuid
 			authorName = *row.AuthorName
 		}
 
+		authorEmail := ""
+		if row.AuthorEmail != nil {
+			authorEmail = *row.AuthorEmail
+		}
+
 		replies = append(replies, CommentWithAuthor{
 			ID:          uuid.UUID(row.ID.Bytes),
 			UserID:      row.UserID,
 			AuthorName:  authorName,
-			AuthorEmail: row.AuthorEmail,
+			AuthorEmail: authorEmail,
 			AvatarURL:   avatarURL,
 			EntityType:  row.EntityType,
 			EntityID:    uuid.UUID(row.EntityID.Bytes),
