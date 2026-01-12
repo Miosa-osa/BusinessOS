@@ -1,35 +1,19 @@
 <script lang="ts">
 	import { api, apiClient, type CalendarEvent, type GoogleConnectionStatus, type MeetingType, type ActionItem } from '$lib/api';
-	import { getCalendarConnectionStatus, getCalendarAuthUrl } from '$lib/api/calendar';
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import CalendarEventCard from '$lib/components/calendar/CalendarEventCard.svelte';
 
-	type ViewMode = 'day' | 'week' | 'month' | 'agenda';
+	type ViewMode = 'week' | 'month';
 
 	let viewMode = $state<ViewMode>('week');
 	let currentDate = $state(new Date());
-	let selectedDay = $state(new Date()); // For daily agenda sidebar
-	let showSidebar = $state(true); // Toggle sidebar visibility
 	let events = $state<CalendarEvent[]>([]);
 	let isLoading = $state(true);
 	let isSyncing = $state(false);
 	let connectionStatus = $state<GoogleConnectionStatus | null>(null);
 	let selectedEvent = $state<CalendarEvent | null>(null);
 	let showEventModal = $state(false);
-
-	// Sync stats
-	interface SyncStats {
-		totalEvents: number;
-		googleEvents: number;
-		localEvents: number;
-		dateRange: { from: string | null; to: string | null } | null;
-		lastSync: string | null;
-	}
-	let syncStats = $state<SyncStats | null>(null);
-
-	// Upcoming events (next 7 days from today)
-	let upcomingEvents = $state<CalendarEvent[]>([]);
 
 	// Create/Edit event modal
 	let showCreateModal = $state(false);
@@ -65,150 +49,24 @@
 	const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 	const hours = Array.from({ length: 24 }, (_, i) => i);
 
-	// Sanitize HTML for safe rendering (allows basic formatting tags)
-	function sanitizeHtml(html: string): string {
-		if (!html) return '';
-		// Allow only safe tags for formatting
-		const allowedTags = ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'a'];
-		// Create a temporary div to parse HTML
-		const temp = document.createElement('div');
-		temp.innerHTML = html;
-		// Remove script tags and event handlers
-		temp.querySelectorAll('script, style, iframe, object, embed').forEach(el => el.remove());
-		// Remove event handlers from all elements
-		temp.querySelectorAll('*').forEach(el => {
-			Array.from(el.attributes).forEach(attr => {
-				if (attr.name.startsWith('on') || attr.name === 'href' && attr.value.startsWith('javascript:')) {
-					el.removeAttribute(attr.name);
-				}
-			});
-		});
-		return temp.innerHTML;
-	}
-
-	// Meeting type color mapping
-	const meetingTypeColors: Record<string, { bg: string; border: string; text: string }> = {
-		team: { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-800' },
-		sales: { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-800' },
-		client: { bg: 'bg-purple-100', border: 'border-purple-300', text: 'text-purple-800' },
-		onboarding: { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800' },
-		kickoff: { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-800' },
-		implementation: { bg: 'bg-cyan-100', border: 'border-cyan-300', text: 'text-cyan-800' },
-		standup: { bg: 'bg-indigo-100', border: 'border-indigo-300', text: 'text-indigo-800' },
-		planning: { bg: 'bg-pink-100', border: 'border-pink-300', text: 'text-pink-800' },
-		review: { bg: 'bg-teal-100', border: 'border-teal-300', text: 'text-teal-800' },
-		one_on_one: { bg: 'bg-rose-100', border: 'border-rose-300', text: 'text-rose-800' },
-		retrospective: { bg: 'bg-amber-100', border: 'border-amber-300', text: 'text-amber-800' },
-		internal: { bg: 'bg-slate-100', border: 'border-slate-300', text: 'text-slate-800' },
-		external: { bg: 'bg-emerald-100', border: 'border-emerald-300', text: 'text-emerald-800' },
-		other: { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-800' },
-		default: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' }
-	};
-
-	function getEventColors(event: CalendarEvent) {
-		const type = event.meeting_type || 'default';
-		return meetingTypeColors[type] || meetingTypeColors.default;
-	}
-
-	// Get events for selected day (for agenda sidebar)
-	const selectedDayEvents = $derived(() => {
-		return events.filter((event) => {
-			const eventDate = new Date(event.start_time);
-			return (
-				eventDate.getFullYear() === selectedDay.getFullYear() &&
-				eventDate.getMonth() === selectedDay.getMonth() &&
-				eventDate.getDate() === selectedDay.getDate()
-			);
-		}).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-	});
-
-	// Check if selected day is today
-	const isSelectedDayToday = $derived(() => isToday(selectedDay));
-
-	// Select a day (for sidebar agenda)
-	function selectDay(date: Date) {
-		selectedDay = new Date(date);
-	}
-
-	// Navigate to day view for a specific date
-	async function goToDayView(date: Date) {
-		currentDate = new Date(date);
-		selectedDay = new Date(date);
-		viewMode = 'day';
-		await tick();
-		await loadEvents();
-	}
-
-	// Current time indicator
-	let currentTime = $state(new Date());
-	let timeGridRef: HTMLDivElement | null = $state(null);
-
-	// Update current time every minute
-	$effect(() => {
-		const interval = setInterval(() => {
-			currentTime = new Date();
-		}, 60000);
-		return () => clearInterval(interval);
-	});
-
-	// Scroll to current time on mount
-	$effect(() => {
-		if (timeGridRef && (viewMode === 'week' || viewMode === 'day') && !isLoading) {
-			const currentHour = new Date().getHours();
-			const scrollTop = Math.max(0, (currentHour - 2) * 60); // 60px per hour, scroll to 2 hours before now
-			setTimeout(() => {
-				timeGridRef?.scrollTo({ top: scrollTop, behavior: 'smooth' });
-			}, 100);
-		}
-	});
-
-	// Get current time position for indicator
-	const currentTimePosition = $derived(() => {
-		const now = currentTime;
-		const hours = now.getHours();
-		const minutes = now.getMinutes();
-		return hours * 60 + minutes; // position in pixels (60px per hour)
-	});
-
-	// Check if current week includes today
-	const isCurrentWeek = $derived(() => {
-		const range = dateRange();
-		const today = new Date();
-		return today >= range.start && today <= range.end;
-	});
-
-	// Get today's column index (0-6 for Sun-Sat)
-	const todayColumnIndex = $derived(() => {
-		return new Date().getDay();
-	});
-
 	// Compute date range based on view mode
 	const dateRange = $derived(() => {
 		const start = new Date(currentDate);
 		const end = new Date(currentDate);
 
-		if (viewMode === 'day') {
-			// Single day
-			start.setHours(0, 0, 0, 0);
-			end.setHours(23, 59, 59, 999);
-		} else if (viewMode === 'week') {
+		if (viewMode === 'week') {
 			// Start of week (Sunday)
 			start.setDate(start.getDate() - start.getDay());
 			start.setHours(0, 0, 0, 0);
 			// End of week (Saturday)
 			end.setDate(start.getDate() + 6);
 			end.setHours(23, 59, 59, 999);
-		} else if (viewMode === 'month') {
+		} else {
 			// Start of month
 			start.setDate(1);
 			start.setHours(0, 0, 0, 0);
 			// End of month
 			end.setMonth(end.getMonth() + 1, 0);
-			end.setHours(23, 59, 59, 999);
-		} else {
-			// Agenda view - show 30 days from today
-			start.setHours(0, 0, 0, 0);
-			end.setDate(end.getDate() + 30);
 			end.setHours(23, 59, 59, 999);
 		}
 
@@ -276,9 +134,7 @@
 
 	// Format header based on view mode
 	const headerText = $derived(() => {
-		if (viewMode === 'day') {
-			return currentDate.toLocaleString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-		} else if (viewMode === 'week') {
+		if (viewMode === 'week') {
 			const range = dateRange();
 			const startMonth = range.start.toLocaleString('default', { month: 'short' });
 			const endMonth = range.end.toLocaleString('default', { month: 'short' });
@@ -288,107 +144,34 @@
 				return `${startMonth} ${range.start.getDate()} - ${range.end.getDate()}, ${year}`;
 			}
 			return `${startMonth} ${range.start.getDate()} - ${endMonth} ${range.end.getDate()}, ${year}`;
-		} else if (viewMode === 'agenda') {
-			return 'Upcoming Events';
 		}
 
 		return currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 	});
 
 	onMount(async () => {
-		// Always start at TODAY
-		currentDate = new Date();
-
 		await loadConnectionStatus();
-		await loadEvents();
-		await loadSyncStats();
-		await loadUpcomingEvents();
-
+		await loadEvents(); // Always load events, regardless of Google connection
 		isLoading = false;
 	});
 
-	async function loadUpcomingEvents() {
-		try {
-			const res = await apiClient.get('/calendar/upcoming');
-			if (res.ok) {
-				const data = await res.json();
-				// Ensure result is an array
-				upcomingEvents = Array.isArray(data) ? data : [];
-			} else {
-				upcomingEvents = [];
-			}
-		} catch (error) {
-			console.error('Error loading upcoming events:', error);
-			upcomingEvents = [];
-		}
-	}
-
-	async function loadSyncStats() {
-		try {
-			const res = await apiClient.get('/calendar/stats');
-			if (res.ok) {
-				const data = await res.json();
-				syncStats = {
-					totalEvents: data.total_events || 0,
-					googleEvents: data.google_events || 0,
-					localEvents: data.local_events || 0,
-					dateRange: data.date_range || null,
-					lastSync: data.last_sync || null
-				};
-			}
-		} catch (error) {
-			console.error('Error loading sync stats:', error);
-		}
-	}
-
-	async function jumpToFirstEvent() {
-		if (syncStats?.dateRange?.from) {
-			currentDate = new Date(syncStats.dateRange.from);
-			await tick(); // Wait for $derived dateRange to update
-			await loadEvents();
-		}
-	}
-
-	async function jumpToLatestEvent() {
-		if (syncStats?.dateRange?.to) {
-			currentDate = new Date(syncStats.dateRange.to);
-			await tick(); // Wait for $derived dateRange to update
-			await loadEvents();
-		}
-	}
-
 	async function loadConnectionStatus() {
 		try {
-			// Use calendar-specific OAuth (only calendar scopes)
-			const status = await getCalendarConnectionStatus();
-			connectionStatus = { connected: status.connected, email: status.email };
+			connectionStatus = await api.getGoogleConnectionStatus();
 		} catch (error) {
 			console.error('Error loading connection status:', error);
 			connectionStatus = { connected: false };
 		}
 	}
 
-	async function connectCalendar() {
-		try {
-			const result = await getCalendarAuthUrl();
-			if (result.auth_url) {
-				window.location.href = result.auth_url;
-			}
-		} catch (error) {
-			console.error('Error initiating calendar auth:', error);
-		}
-	}
-
 	async function loadEvents() {
 		const range = dateRange();
 		try {
-			const result = await api.getCalendarEvents({
+			events = await api.getCalendarEvents({
 				start: range.start.toISOString(),
 				end: range.end.toISOString(),
 				meetingType: selectedMeetingType || undefined
 			});
-			// Ensure result is an array (API might return error object)
-			events = Array.isArray(result) ? result : [];
 		} catch (error) {
 			console.error('Error loading events:', error);
 			events = [];
@@ -630,25 +413,8 @@
 	async function syncCalendar() {
 		isSyncing = true;
 		try {
-			const result = await api.syncCalendar() as { message: string; synced_count: number; details?: { total_events?: number; date_range?: string } };
+			await api.syncCalendar();
 			await loadEvents();
-			await loadSyncStats();
-			// If we got sync details, update stats
-			if (result?.details) {
-				// Parse date_range string if provided (format: "YYYY-MM-DD - YYYY-MM-DD")
-				let dateRange: { from: string | null; to: string | null } | null = null;
-				if (result.details.date_range) {
-					const parts = result.details.date_range.split(' - ');
-					dateRange = { from: parts[0] || null, to: parts[1] || null };
-				}
-				syncStats = {
-					totalEvents: result.details.total_events || result.synced_count || 0,
-					dateRange,
-					lastSync: new Date().toISOString(),
-					googleEvents: 0,
-					localEvents: 0
-				};
-			}
 		} catch (error) {
 			console.error('Error syncing calendar:', error);
 		} finally {
@@ -656,41 +422,31 @@
 		}
 	}
 
-	async function navigatePrev() {
+	function navigatePrev() {
 		const newDate = new Date(currentDate);
-		if (viewMode === 'day') {
-			newDate.setDate(newDate.getDate() - 1);
-		} else if (viewMode === 'week') {
+		if (viewMode === 'week') {
 			newDate.setDate(newDate.getDate() - 7);
 		} else {
 			newDate.setMonth(newDate.getMonth() - 1);
 		}
 		currentDate = newDate;
-		selectedDay = new Date(newDate);
-		await tick();
-		await loadEvents();
+		loadEvents();
 	}
 
-	async function navigateNext() {
+	function navigateNext() {
 		const newDate = new Date(currentDate);
-		if (viewMode === 'day') {
-			newDate.setDate(newDate.getDate() + 1);
-		} else if (viewMode === 'week') {
+		if (viewMode === 'week') {
 			newDate.setDate(newDate.getDate() + 7);
 		} else {
 			newDate.setMonth(newDate.getMonth() + 1);
 		}
 		currentDate = newDate;
-		selectedDay = new Date(newDate);
-		await tick();
-		await loadEvents();
+		loadEvents();
 	}
 
-	async function navigateToday() {
+	function navigateToday() {
 		currentDate = new Date();
-		selectedDay = new Date();
-		await tick();
-		await loadEvents();
+		loadEvents();
 	}
 
 	function getEventsForDate(date: Date): CalendarEvent[] {
@@ -820,107 +576,6 @@
 			<div class="animate-spin h-8 w-8 border-2 border-gray-900 border-t-transparent rounded-full"></div>
 		</div>
 	{:else}
-		<!-- Upcoming Events Quick View - Always show if there are upcoming events -->
-		{#if upcomingEvents.length > 0}
-			<div class="mx-6 mt-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
-				<div class="flex items-center justify-between mb-3">
-					<div class="flex items-center gap-2">
-						<div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-							<svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-							</svg>
-						</div>
-						<span class="text-sm font-semibold text-green-900">Upcoming Events</span>
-						<span class="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">{upcomingEvents.length} next</span>
-					</div>
-				</div>
-				<div class="flex gap-3 overflow-x-auto pb-1">
-					{#each upcomingEvents.slice(0, 5) as event (event.id)}
-						<button
-							onclick={() => openEventModal(event)}
-							class="flex-shrink-0 w-48 p-3 bg-white border border-green-100 rounded-lg hover:shadow-md transition-shadow text-left"
-						>
-							<p class="text-xs text-green-600 font-medium mb-1">
-								{new Date(event.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-								{#if !event.all_day}
-									&bull; {new Date(event.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-								{/if}
-							</p>
-							<p class="text-sm font-medium text-gray-900 truncate">{event.title || 'Untitled'}</p>
-							{#if event.location}
-								<p class="text-xs text-gray-500 truncate mt-0.5">{event.location}</p>
-							{/if}
-						</button>
-					{/each}
-				</div>
-			</div>
-		{/if}
-
-		<!-- Sync Stats Banner - Show when no events in current view but events exist elsewhere -->
-		{#if syncStats && syncStats.totalEvents > 0 && events.length === 0 && upcomingEvents.length === 0}
-			<div class="mx-6 mt-3 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
-				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-						<svg class="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-						</svg>
-					</div>
-					<div>
-						<p class="text-sm font-semibold text-blue-900">
-							{syncStats.totalEvents} events synced
-						</p>
-						<p class="text-xs text-blue-700">
-							{#if syncStats.dateRange?.from && syncStats.dateRange?.to}
-								Range: {new Date(syncStats.dateRange.from).toLocaleDateString()} - {new Date(syncStats.dateRange.to).toLocaleDateString()}
-							{/if}
-						</p>
-					</div>
-				</div>
-				<div class="flex items-center gap-2">
-					<button
-						onclick={jumpToFirstEvent}
-						class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
-					>
-						View Past Events
-					</button>
-					<button
-						onclick={jumpToLatestEvent}
-						class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
-					>
-						View Recent Events
-					</button>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Sync Stats Summary Bar -->
-		{#if syncStats && syncStats.totalEvents > 0}
-			<div class="mx-6 mt-3 flex items-center justify-between text-xs text-gray-500">
-				<div class="flex items-center gap-3">
-					<div class="flex items-center gap-1.5">
-						<svg class="w-4 h-4" viewBox="0 0 24 24">
-							<path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-							<path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-							<path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-							<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-						</svg>
-						<span class="font-medium">{syncStats.googleEvents} Google</span>
-					</div>
-					{#if syncStats.localEvents > 0}
-						<span>&bull;</span>
-						<span>{syncStats.localEvents} local</span>
-					{/if}
-					{#if events.length > 0}
-						<span>&bull;</span>
-						<span class="text-gray-700 font-medium">{events.length} in view</span>
-					{/if}
-				</div>
-				{#if syncStats.lastSync}
-					<span>Last sync: {new Date(syncStats.lastSync).toLocaleString()}</span>
-				{/if}
-			</div>
-		{/if}
-
 		<!-- Calendar Controls -->
 		<div class="px-6 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
 			<div class="flex items-center gap-4">
@@ -976,12 +631,6 @@
 				<!-- View Mode Toggle -->
 				<div class="flex items-center bg-gray-100 rounded-lg p-0.5">
 					<button
-						onclick={() => { viewMode = 'day'; loadEvents(); }}
-						class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'day' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}"
-					>
-						Day
-					</button>
-					<button
 						onclick={() => { viewMode = 'week'; loadEvents(); }}
 						class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'week' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}"
 					>
@@ -993,141 +642,12 @@
 					>
 						Month
 					</button>
-					<button
-						onclick={() => { viewMode = 'agenda'; loadEvents(); }}
-						class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'agenda' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}"
-					>
-						Agenda
-					</button>
 				</div>
-
-				<!-- Sidebar Toggle -->
-				<button
-					onclick={() => showSidebar = !showSidebar}
-					class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-					title={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
-				>
-					<svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
-					</svg>
-				</button>
 			</div>
 		</div>
 
-		<!-- Main Content Area with Sidebar -->
-		<div class="flex-1 flex overflow-hidden">
-			<!-- Left Sidebar: Mini Calendar + Daily Agenda -->
-			{#if showSidebar}
-				<div class="w-72 border-r border-gray-200 flex flex-col bg-gray-50 flex-shrink-0">
-					<!-- Mini Calendar Navigator -->
-					<div class="p-4 border-b border-gray-200">
-						<div class="flex items-center justify-between mb-3">
-							<h3 class="text-sm font-semibold text-gray-900">
-								{selectedDay.toLocaleString('default', { month: 'long', year: 'numeric' })}
-							</h3>
-							<div class="flex items-center gap-1">
-								<button
-									onclick={() => { const d = new Date(selectedDay); d.setMonth(d.getMonth() - 1); selectedDay = d; }}
-									class="p-1 hover:bg-gray-200 rounded"
-								>
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-									</svg>
-								</button>
-								<button
-									onclick={() => { const d = new Date(selectedDay); d.setMonth(d.getMonth() + 1); selectedDay = d; }}
-									class="p-1 hover:bg-gray-200 rounded"
-								>
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-									</svg>
-								</button>
-							</div>
-						</div>
-						<!-- Mini Month Grid -->
-						<div class="grid grid-cols-7 gap-1 text-center">
-							{#each ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as day}
-								<div class="text-xs font-medium text-gray-500 py-1">{day}</div>
-							{/each}
-							{#each Array(new Date(selectedDay.getFullYear(), selectedDay.getMonth(), 1).getDay()) as _, i}
-								<div class="w-7 h-7"></div>
-							{/each}
-							{#each Array(new Date(selectedDay.getFullYear(), selectedDay.getMonth() + 1, 0).getDate()) as _, i}
-								{@const day = i + 1}
-								{@const date = new Date(selectedDay.getFullYear(), selectedDay.getMonth(), day)}
-								{@const hasEvents = events.some(e => {
-									const ed = new Date(e.start_time);
-									return ed.getFullYear() === date.getFullYear() && ed.getMonth() === date.getMonth() && ed.getDate() === date.getDate();
-								})}
-								<button
-									onclick={() => { selectDay(date); goToDayView(date); }}
-									class="w-7 h-7 text-xs rounded-full flex items-center justify-center transition-colors relative
-										{isToday(date) ? 'bg-gray-900 text-white font-bold' : ''}
-										{selectedDay.getDate() === day && selectedDay.getMonth() === date.getMonth() && !isToday(date) ? 'bg-blue-100 text-blue-700 font-medium' : ''}
-										{!isToday(date) && !(selectedDay.getDate() === day && selectedDay.getMonth() === date.getMonth()) ? 'hover:bg-gray-200 text-gray-700' : ''}"
-								>
-									{day}
-									{#if hasEvents && !isToday(date)}
-										<span class="absolute bottom-0.5 w-1 h-1 bg-blue-500 rounded-full"></span>
-									{/if}
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<!-- Daily Agenda -->
-					<div class="flex-1 overflow-auto p-4">
-						<div class="flex items-center justify-between mb-3">
-							<h3 class="text-sm font-semibold text-gray-900">
-								{isSelectedDayToday() ? "Today's Agenda" : selectedDay.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-							</h3>
-							<span class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
-								{selectedDayEvents().length} events
-							</span>
-						</div>
-
-						{#if selectedDayEvents().length === 0}
-							<div class="text-center py-8">
-								<svg class="mx-auto w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-								</svg>
-								<p class="text-sm text-gray-500 mt-2">No events</p>
-								<button
-									onclick={() => openCreateModal(selectedDay)}
-									class="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
-								>
-									+ Add event
-								</button>
-							</div>
-						{:else}
-							<div class="space-y-2">
-								{#each selectedDayEvents() as event (event.id)}
-									{@const colors = getEventColors(event)}
-									<button
-										onclick={() => openEventModal(event)}
-										class="w-full text-left p-2.5 rounded-lg border transition-all hover:shadow-sm {colors.bg} {colors.border}"
-									>
-										<p class="text-xs font-medium {colors.text}">
-											{#if event.all_day}
-												All day
-											{:else}
-												{new Date(event.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-											{/if}
-										</p>
-										<p class="text-sm font-medium text-gray-900 mt-0.5 line-clamp-2">{event.title || 'Untitled'}</p>
-										{#if event.location}
-											<p class="text-xs text-gray-500 mt-1 truncate">{event.location}</p>
-										{/if}
-									</button>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				</div>
-			{/if}
-
-			<!-- Calendar Grid -->
-			<div class="flex-1 overflow-auto" bind:this={timeGridRef}>
+		<!-- Calendar Grid -->
+		<div class="flex-1 overflow-auto">
 			{#if viewMode === 'week'}
 				<!-- Week View -->
 				<div class="min-w-[800px]">
@@ -1146,32 +666,6 @@
 
 					<!-- Time Grid -->
 					<div class="relative">
-						<!-- Current Time Indicator -->
-						{#if isCurrentWeek()}
-							<div
-								class="absolute left-0 right-0 z-20 pointer-events-none"
-								style="top: {currentTimePosition()}px;"
-							>
-								<div class="flex items-center">
-									<!-- Time label column offset -->
-									<div class="w-[calc(12.5%)]"></div>
-									<!-- Line across today's column and rest -->
-									<div class="flex-1 relative">
-										<!-- Red dot at start -->
-										<div
-											class="absolute w-3 h-3 bg-red-500 rounded-full -translate-y-1/2"
-											style="left: calc({todayColumnIndex()} * 14.285%);"
-										></div>
-										<!-- Red line -->
-										<div
-											class="absolute h-0.5 bg-red-500"
-											style="left: calc({todayColumnIndex()} * 14.285% + 6px); right: calc((6 - {todayColumnIndex()}) * 14.285%);"
-										></div>
-									</div>
-								</div>
-							</div>
-						{/if}
-
 						{#each hours as hour}
 							<div class="grid grid-cols-8 border-b border-gray-100" style="height: 60px;">
 								<div class="p-2 text-xs text-gray-400 text-right pr-3">
@@ -1198,93 +692,7 @@
 						{/each}
 					</div>
 				</div>
-			{:else if viewMode === 'day'}
-				<!-- Day View -->
-				<div class="min-w-[400px] h-full">
-					<!-- Day Header -->
-					<div class="border-b border-gray-200 sticky top-0 bg-white z-10 p-4">
-						<div class="flex items-center justify-center">
-							<p class="text-lg font-semibold {isToday(currentDate) ? 'text-gray-900' : 'text-gray-700'}">
-								{currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
-							</p>
-							<div class="ml-3 {isToday(currentDate) ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'} w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold">
-								{currentDate.getDate()}
-							</div>
-						</div>
-					</div>
-
-					<!-- All Day Events Section -->
-					{#if events.filter(e => e.all_day).length > 0}
-						<div class="border-b border-gray-200 p-3 bg-gray-50">
-							<p class="text-xs text-gray-500 font-medium mb-2">All Day</p>
-							<div class="space-y-1">
-								{#each events.filter(e => e.all_day) as event (event.id)}
-									{@const colors = getEventColors(event)}
-									<button
-										onclick={() => openEventModal(event)}
-										class="w-full text-left px-2 py-1.5 text-sm rounded {colors.bg} {colors.border} {colors.text} border hover:shadow-sm transition-shadow"
-									>
-										{event.title || 'Untitled'}
-									</button>
-								{/each}
-							</div>
-						</div>
-					{/if}
-
-					<!-- Time Grid -->
-					<div class="relative">
-						<!-- Current Time Indicator -->
-						{#if isToday(currentDate)}
-							<div
-								class="absolute left-0 right-0 z-20 pointer-events-none"
-								style="top: {currentTimePosition()}px;"
-							>
-								<div class="flex items-center">
-									<div class="w-16"></div>
-									<div class="flex-1 relative">
-										<div class="absolute -left-1.5 w-3 h-3 bg-red-500 rounded-full -translate-y-1/2"></div>
-										<div class="h-0.5 bg-red-500"></div>
-									</div>
-								</div>
-							</div>
-						{/if}
-
-						{#each hours as hour}
-							{@const hourEvents = getEventsForHour(currentDate, hour).filter(e => !e.all_day)}
-							<div class="flex border-b border-gray-100" style="height: 60px;">
-								<div class="w-16 flex-shrink-0 p-2 text-xs text-gray-400 text-right pr-3">
-									{formatHour(hour)}
-								</div>
-								<button
-									type="button"
-									onclick={() => openCreateModalAtHour(currentDate, hour)}
-									class="flex-1 relative border-l border-gray-100 p-0.5 text-left hover:bg-gray-50 transition-colors cursor-pointer"
-								>
-									{#each hourEvents as event (event.id)}
-										{@const colors = getEventColors(event)}
-										{@const startTime = new Date(event.start_time)}
-										{@const endTime = new Date(event.end_time)}
-										{@const durationMinutes = Math.min(180, (endTime.getTime() - startTime.getTime()) / 60000)}
-										{@const topOffset = startTime.getMinutes()}
-										<button
-											onclick={(e) => { e.stopPropagation(); openEventModal(event); }}
-											class="absolute left-1 right-1 rounded px-2 py-1 text-xs overflow-hidden border {colors.bg} {colors.border} {colors.text} hover:shadow-md transition-shadow"
-											style="top: {topOffset}px; height: {Math.max(20, durationMinutes)}px;"
-										>
-											<p class="font-medium truncate">{event.title || 'Untitled'}</p>
-											{#if durationMinutes >= 40}
-												<p class="text-xs opacity-75">
-													{startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - {endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-												</p>
-											{/if}
-										</button>
-									{/each}
-								</button>
-							</div>
-						{/each}
-					</div>
-				</div>
-			{:else if viewMode === 'month'}
+			{:else}
 				<!-- Month View -->
 				<div class="p-4">
 					<!-- Day Headers -->
@@ -1299,153 +707,35 @@
 					<!-- Month Grid -->
 					<div class="grid grid-cols-7 gap-1">
 						{#each monthData().flat() as date}
-							{@const isSelected = selectedDay.getDate() === date.getDate() && selectedDay.getMonth() === date.getMonth() && selectedDay.getFullYear() === date.getFullYear()}
-							<div
-								role="button"
-								tabindex="0"
-								onclick={() => selectDay(date)}
-								ondblclick={() => goToDayView(date)}
-								onkeydown={(e) => { if (e.key === 'Enter') selectDay(date); }}
-								class="group min-h-[100px] p-2 border rounded-lg text-left hover:border-gray-400 transition-colors cursor-pointer {isCurrentMonth(date) ? 'bg-white' : 'bg-gray-50'} {isToday(date) ? 'ring-2 ring-gray-900' : 'border-gray-200'} {isSelected ? 'ring-2 ring-blue-400 bg-blue-50/50' : ''}"
+							<button
+								type="button"
+								onclick={() => openCreateModal(date)}
+								class="min-h-[100px] p-2 border rounded-lg text-left hover:border-gray-400 transition-colors {isCurrentMonth(date) ? 'bg-white' : 'bg-gray-50'} {isToday(date) ? 'ring-2 ring-gray-900' : 'border-gray-200'}"
 							>
-								<div class="flex items-center justify-between">
-									<p class="text-sm font-medium {isCurrentMonth(date) ? 'text-gray-900' : 'text-gray-400'}">
-										{date.getDate()}
-									</p>
-									<button
-										onclick={(e) => { e.stopPropagation(); openCreateModal(date); }}
-										class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-										title="Add event"
-									>
-										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-										</svg>
-									</button>
-								</div>
+								<p class="text-sm font-medium {isCurrentMonth(date) ? 'text-gray-900' : 'text-gray-400'}">
+									{date.getDate()}
+								</p>
 								<div class="mt-1 space-y-1">
 									{#each getEventsForDate(date).slice(0, 3) as event (event.id)}
-										<button
-											onclick={(e) => { e.stopPropagation(); openEventModal(event); }}
-											class="w-full"
-										>
+										<div onclick={(e) => { e.stopPropagation(); openEventModal(event); }}>
 											<CalendarEventCard
 												{event}
 												compact
 												onClick={() => openEventModal(event)}
 											/>
-										</button>
+										</div>
 									{/each}
 									{#if getEventsForDate(date).length > 3}
-										<button
-											onclick={(e) => { e.stopPropagation(); goToDayView(date); }}
-											class="text-xs text-blue-600 hover:text-blue-800 pl-2"
-										>
+										<p class="text-xs text-gray-500 pl-2">
 											+{getEventsForDate(date).length - 3} more
-										</button>
+										</p>
 									{/if}
 								</div>
-							</div>
+							</button>
 						{/each}
 					</div>
 				</div>
-			{:else}
-				<!-- Agenda View -->
-				<div class="p-6">
-					{#if events.length === 0}
-						<div class="text-center py-12">
-							<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-							</svg>
-							<h3 class="mt-2 text-sm font-semibold text-gray-900">No events in this period</h3>
-							<p class="mt-1 text-sm text-gray-500">
-								{#if syncStats && syncStats.totalEvents > 0}
-									You have {syncStats.totalEvents} events synced from {syncStats.dateRange?.from ? new Date(syncStats.dateRange.from).toLocaleDateString() : 'N/A'} to {syncStats.dateRange?.to ? new Date(syncStats.dateRange.to).toLocaleDateString() : 'N/A'}.
-									<button onclick={jumpToFirstEvent} class="text-blue-600 hover:underline ml-1">Jump to events</button>
-								{:else}
-									No events found. Create one or sync from Google Calendar.
-								{/if}
-							</p>
-						</div>
-					{:else}
-						<div class="space-y-4">
-							{#each events.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()) as event (event.id)}
-								<button
-									type="button"
-									onclick={() => openEventModal(event)}
-									class="w-full text-left bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
-								>
-									<div class="flex items-start gap-4">
-										<!-- Date/Time -->
-										<div class="flex-shrink-0 text-center w-16">
-											<p class="text-xs text-gray-500 uppercase">{new Date(event.start_time).toLocaleDateString('en-US', { weekday: 'short' })}</p>
-											<p class="text-2xl font-bold text-gray-900">{new Date(event.start_time).getDate()}</p>
-											<p class="text-xs text-gray-500">{new Date(event.start_time).toLocaleDateString('en-US', { month: 'short' })}</p>
-										</div>
-
-										<!-- Event Details -->
-										<div class="flex-1 min-w-0">
-											<div class="flex items-center gap-2">
-												<h3 class="text-base font-semibold text-gray-900 truncate">{event.title || 'Untitled Event'}</h3>
-												{#if event.source === 'google'}
-													<svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" aria-label="Synced from Google Calendar">
-														<title>Synced from Google Calendar</title>
-														<path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-														<path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-														<path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-														<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-													</svg>
-												{/if}
-												{#if event.meeting_type && event.meeting_type !== 'other'}
-													<span class="inline-block px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-full">
-														{event.meeting_type.replace('_', ' ')}
-													</span>
-												{/if}
-											</div>
-											<p class="text-sm text-gray-500 mt-1">
-												{#if event.all_day}
-													All day
-												{:else}
-													{new Date(event.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-													-
-													{new Date(event.end_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-												{/if}
-											</p>
-											{#if event.location}
-												<p class="text-sm text-gray-500 mt-1 flex items-center gap-1">
-													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-													</svg>
-													{event.location}
-												</p>
-											{/if}
-											{#if event.description}
-												<p class="text-sm text-gray-400 mt-1 line-clamp-2">{event.description}</p>
-											{/if}
-										</div>
-
-										<!-- Attendees -->
-										{#if event.attendees && event.attendees.length > 0}
-											<div class="flex-shrink-0 flex -space-x-2">
-												{#each event.attendees.slice(0, 3) as attendee}
-													<div class="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600" title={attendee.email}>
-														{(attendee.name || attendee.email || '?').charAt(0).toUpperCase()}
-													</div>
-												{/each}
-												{#if event.attendees.length > 3}
-													<div class="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-500">
-														+{event.attendees.length - 3}
-													</div>
-												{/if}
-											</div>
-										{/if}
-									</div>
-								</button>
-							{/each}
-						</div>
-					{/if}
-				</div>
 			{/if}
-			</div>
 		</div>
 	{/if}
 </div>
@@ -1529,12 +819,10 @@
 					<!-- Description -->
 					{#if selectedEvent.description}
 						<div class="flex items-start gap-3">
-							<svg class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg class="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
 							</svg>
-							<div class="text-gray-700 text-sm prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5">
-								{@html sanitizeHtml(selectedEvent.description)}
-							</div>
+							<p class="text-gray-700 whitespace-pre-wrap">{selectedEvent.description}</p>
 						</div>
 					{/if}
 

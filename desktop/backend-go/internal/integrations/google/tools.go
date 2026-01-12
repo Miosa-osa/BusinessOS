@@ -32,59 +32,86 @@ type ToolDefinition struct {
 }
 
 // All available Google tools
+// Each tool requests ALL useful scopes for that specific service
 var GoogleTools = map[string]*ToolDefinition{
 	"google_calendar": {
 		ID:          "google_calendar",
 		Name:        "Google Calendar",
-		Description: "Sync calendar events and manage schedules",
+		Description: "Full calendar access - view, create, edit, delete events and manage calendars",
 		Category:    "calendar",
 		Scopes: []string{
-			"https://www.googleapis.com/auth/calendar.readonly",
+			// Full calendar access (includes all calendar permissions)
+			"https://www.googleapis.com/auth/calendar",
+			// Granular scopes for specific operations
 			"https://www.googleapis.com/auth/calendar.events",
+			"https://www.googleapis.com/auth/calendar.events.readonly",
+			"https://www.googleapis.com/auth/calendar.readonly",
+			"https://www.googleapis.com/auth/calendar.settings.readonly",
+			"https://www.googleapis.com/auth/calendar.freebusy",
+			"https://www.googleapis.com/auth/calendar.calendarlist",
+			"https://www.googleapis.com/auth/calendar.calendarlist.readonly",
 		},
 		Modules: []string{"calendar", "daily_log", "projects"},
 	},
 	"google_gmail": {
 		ID:          "google_gmail",
 		Name:        "Gmail",
-		Description: "Read and send emails, manage inbox",
+		Description: "Full Gmail access - read, send, compose, organize emails and manage settings",
 		Category:    "email",
 		Scopes: []string{
+			// Full Gmail access (read, compose, send, delete)
+			"https://mail.google.com/",
+			// Granular scopes for specific operations
 			"https://www.googleapis.com/auth/gmail.readonly",
 			"https://www.googleapis.com/auth/gmail.send",
+			"https://www.googleapis.com/auth/gmail.compose",
 			"https://www.googleapis.com/auth/gmail.modify",
+			"https://www.googleapis.com/auth/gmail.labels",
+			"https://www.googleapis.com/auth/gmail.settings.basic",
+			"https://www.googleapis.com/auth/gmail.insert",
 		},
 		Modules: []string{"chat", "daily_log", "clients"},
 	},
 	"google_drive": {
 		ID:          "google_drive",
 		Name:        "Google Drive",
-		Description: "Access and manage files in Google Drive",
+		Description: "Full Drive access - view, create, edit, organize files and folders",
 		Category:    "storage",
 		Scopes: []string{
+			// Full Drive access
+			"https://www.googleapis.com/auth/drive",
+			// Granular scopes
 			"https://www.googleapis.com/auth/drive.readonly",
 			"https://www.googleapis.com/auth/drive.file",
+			"https://www.googleapis.com/auth/drive.metadata",
+			"https://www.googleapis.com/auth/drive.metadata.readonly",
+			"https://www.googleapis.com/auth/drive.appdata",
 		},
 		Modules: []string{"contexts", "projects"},
 	},
 	"google_contacts": {
 		ID:          "google_contacts",
 		Name:        "Google Contacts",
-		Description: "Sync contacts and manage address book",
+		Description: "Full contacts access - view, create, edit, delete contacts",
 		Category:    "contacts",
 		Scopes: []string{
+			// Full contacts access
+			"https://www.googleapis.com/auth/contacts",
 			"https://www.googleapis.com/auth/contacts.readonly",
+			"https://www.googleapis.com/auth/contacts.other.readonly",
+			"https://www.googleapis.com/auth/directory.readonly",
 		},
 		Modules: []string{"clients", "team"},
 	},
 	"google_tasks": {
 		ID:          "google_tasks",
 		Name:        "Google Tasks",
-		Description: "Sync tasks and to-do lists",
+		Description: "Full tasks access - view, create, edit, delete tasks and task lists",
 		Category:    "tasks",
 		Scopes: []string{
-			"https://www.googleapis.com/auth/tasks.readonly",
+			// Full tasks access
 			"https://www.googleapis.com/auth/tasks",
+			"https://www.googleapis.com/auth/tasks.readonly",
 		},
 		Modules: []string{"tasks", "projects"},
 	},

@@ -1,39 +1,38 @@
 // Gmail API functions
-// Uses new integration infrastructure: /integrations/google/gmail/*
+// Uses tool-specific OAuth: /integrations/google_gmail/* (gmail scopes only)
 import { apiClient } from '../client';
 import type { Email, ComposeEmail, GmailAccessStatus, GmailStats, SyncResult, GetEmailsParams } from './types';
 
 // ============================================
-// Gmail API - Uses new integration infrastructure
-// All routes now under /integrations/google/gmail/*
+// Gmail API - Uses tool-specific OAuth (gmail scopes only)
+// Routes under /integrations/google_gmail/* for isolated OAuth
 // ============================================
 
-const GMAIL_BASE = '/integrations/google/gmail';
+const GMAIL_BASE = '/integrations/google_gmail';
 
 /**
  * Check if the user has Gmail access
- * Uses the Google integration status endpoint
+ * Uses the tool-specific Gmail status endpoint
  */
 export async function checkGmailAccess(): Promise<GmailAccessStatus> {
-  const res = await apiClient.get('/integrations/google/status');
+  const res = await apiClient.get(`${GMAIL_BASE}/status`);
   if (!res.ok) {
-    throw new Error('Failed to check Gmail access');
+    // Not connected yet
+    return { has_access: false, requires_upgrade: false };
   }
   const data = await res.json();
-  // Map the integration status to Gmail access status format
   return {
-    has_access: data.connected && data.scopes?.includes('gmail'),
-    requires_upgrade: data.connected && !data.scopes?.includes('gmail'),
-    email: data.email
+    has_access: data.connected,
+    requires_upgrade: false, // Tool-specific OAuth always has correct scopes
+    email: data.email || data.account_id
   };
 }
 
 /**
- * Request Gmail access (initiates OAuth flow with Gmail scopes)
- * Uses the Google auth endpoint which includes Gmail scopes
+ * Request Gmail access (initiates OAuth flow with Gmail scopes only)
  */
 export async function requestGmailAccess(): Promise<{ auth_url: string }> {
-  const res = await apiClient.get('/integrations/google/auth');
+  const res = await apiClient.get(`${GMAIL_BASE}/auth`);
   if (!res.ok) {
     throw new Error('Failed to request Gmail access');
   }
@@ -75,7 +74,7 @@ export async function getEmail(id: string): Promise<Email> {
  * Send an email
  */
 export async function sendEmail(email: ComposeEmail): Promise<{ message: string }> {
-  const res = await apiClient.post(`${GMAIL_BASE}/emails/send`, email);
+  const res = await apiClient.post(`${GMAIL_BASE}/send`, email);
   if (!res.ok) {
     const data = await res.json();
     throw new Error(data.error || 'Failed to send email');

@@ -2,11 +2,11 @@ import { request } from '../base';
 import type { CalendarEvent, CreateCalendarEventData, UpdateCalendarEventData } from './types';
 
 // ============================================
-// Calendar API - Uses new integration infrastructure
-// All routes now under /integrations/google/calendar/*
+// Calendar API - Uses tool-specific OAuth (calendar scopes only)
+// Routes under /integrations/google_calendar/* for isolated OAuth
 // ============================================
 
-const CALENDAR_BASE = '/integrations/google/calendar';
+const CALENDAR_BASE = '/integrations/google_calendar';
 
 export async function getCalendarEvents(filters?: { start?: string; end?: string; meetingType?: string; contextId?: string; projectId?: string; clientId?: string }) {
   const params = new URLSearchParams();
@@ -54,5 +54,15 @@ export async function getUpcomingEvents(limit?: number) {
   return request<CalendarEvent[]>(`${CALENDAR_BASE}/events${query ? `?${query}` : ''}`);
 }
 
-// NOTE: getGoogleConnectionStatus is in integrations module
-// Use: import { getGoogleConnectionStatus } from '$lib/api/integrations'
+// Calendar-specific OAuth functions (isolated scopes)
+export async function getCalendarConnectionStatus() {
+  return request<{ connected: boolean; email?: string }>(`${CALENDAR_BASE}/status`);
+}
+
+export async function getCalendarAuthUrl() {
+  return request<{ auth_url: string }>(`${CALENDAR_BASE}/auth`);
+}
+
+export async function disconnectCalendar() {
+  return request(`${CALENDAR_BASE}/disconnect`, { method: 'POST' });
+}

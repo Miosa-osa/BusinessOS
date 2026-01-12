@@ -116,11 +116,9 @@ func (h *Handler) HandleCallback(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success":       true,
-		"account_email": token.AccountEmail,
-		"scopes":        token.Scopes,
-	})
+	// Redirect to frontend success page
+	frontendURL := getSafeRedirectURL(c.Query("redirect_uri"), "google")
+	c.Redirect(http.StatusTemporaryRedirect, frontendURL)
 }
 
 // Disconnect disconnects the Google integration.

@@ -12,7 +12,10 @@ export const api = {
   syncCalendar: calendarApi.syncCalendar,
   getTodayEvents: calendarApi.getTodayEvents,
   getUpcomingEvents: calendarApi.getUpcomingEvents,
-  // getGoogleConnectionStatus moved to integrations module
+  // Calendar-specific OAuth (isolated scopes - calendar only)
+  getCalendarConnectionStatus: calendarApi.getCalendarConnectionStatus,
+  getCalendarAuthUrl: calendarApi.getCalendarAuthUrl,
+  disconnectCalendar: calendarApi.disconnectCalendar,
 };
 
 export default api;
