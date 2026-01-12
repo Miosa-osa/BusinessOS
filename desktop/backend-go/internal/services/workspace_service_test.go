@@ -72,7 +72,7 @@ func TestWorkspaceCreation(t *testing.T) {
 		req := CreateWorkspaceRequest{
 			Name:        "Acme Corporation",
 			Slug:        "acme-corp",
-			Description: stringPtr("A test workspace"),
+			Description: stringPtrTest("A test workspace"),
 			PlanType:    "professional",
 		}
 
@@ -594,6 +594,6 @@ func TestPermissionEnforcement(t *testing.T) {
 // HELPER FUNCTIONS
 // =============================================================================
 
-func stringPtr(s string) *string {
+func stringPtrTest(s string) *string {
 	return &s
 }

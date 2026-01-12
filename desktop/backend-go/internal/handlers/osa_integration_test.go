@@ -97,9 +97,14 @@ func TestOSAIntegration_EventBusToSSE(t *testing.T) {
 				for _, line := range lines {
 					if strings.HasPrefix(line, "data: ") {
 						jsonData := strings.TrimPrefix(line, "data: ")
+						// Skip connected messages (they have "type" not "event_type")
+						if strings.Contains(jsonData, `"type":"connected"`) {
+							continue
+						}
 						var event services.BuildEvent
 						if err := json.Unmarshal([]byte(jsonData), &event); err == nil {
-							if event.AppID != uuid.Nil {
+							// Only add build events with non-nil AppID and actual EventType
+							if event.AppID != uuid.Nil && event.EventType != "" {
 								mu.Lock()
 								receivedEvents = append(receivedEvents, event)
 								mu.Unlock()
@@ -118,6 +123,9 @@ func TestOSAIntegration_EventBusToSSE(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for SSE connection")
 	}
+
+	// Small delay to ensure subscription is fully registered in event bus
+	time.Sleep(100 * time.Millisecond)
 
 	// Step 2: Publish event directly to event bus (simulating webhook behavior)
 	testEvent := services.BuildEvent{
@@ -224,9 +232,14 @@ func TestOSAIntegration_MultipleClients(t *testing.T) {
 					for _, line := range lines {
 						if strings.HasPrefix(line, "data: ") {
 							jsonData := strings.TrimPrefix(line, "data: ")
+							// Skip connected messages
+							if strings.Contains(jsonData, `"type":"connected"`) {
+								continue
+							}
 							var event services.BuildEvent
 							if err := json.Unmarshal([]byte(jsonData), &event); err == nil {
-								if event.AppID != uuid.Nil {
+								// Only add build events with non-nil AppID and actual EventType
+								if event.AppID != uuid.Nil && event.EventType != "" {
 									clientMutexes[idx].Lock()
 									clientEvents[idx] = append(clientEvents[idx], event)
 									clientMutexes[idx].Unlock()
