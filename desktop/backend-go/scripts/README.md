@@ -1,95 +1,81 @@
-# Backend Scripts
+# Development Scripts
 
-PowerShell scripts for database setup and maintenance.
+This directory contains organized development and debugging scripts.
 
-## Scripts
+## Structure
 
-### apply-migrations.ps1
-
-Applies all database migrations to local PostgreSQL.
-
-**Usage:**
-```powershell
-.\apply-migrations.ps1
+```
+scripts/
+├── tests/          # Test scripts and verification tools
+├── debug/          # Debug and inspection utilities
+├── migrations/     # Migration runners and database tools
+└── utils/          # General utilities
 ```
 
-**What it does:**
-1. Sets PGPASSWORD environment variable
-2. Runs `supabase-migrations-combined.sql`
-3. Creates 26 database tables
-4. Lists all created tables
-5. Cleans up environment variables
+## Usage Guidelines
 
-**Output:**
-- Migration SQL statements (CREATE TABLE, CREATE INDEX, etc.)
-- List of 26 tables created
-- Success confirmation
+### Tests (`scripts/tests/`)
+Scripts for testing functionality:
+- `test_*.go` - Integration tests
+- `verify_*.go` - Verification scripts
+- `*.sh` - Shell-based test runners
 
-**Prerequisites:**
-- PostgreSQL 17 or 18 installed
-- Password: `yasdas230321*` (configured in script)
-- Combined migration file at root: `../../supabase-migrations-combined.sql`
-
-**Tables Created:**
-- memories, user_facts, memory_associations
-- uploaded_documents, document_chunks
-- conversation_summaries, learning_events
-- application_profiles, context_profiles
-- And 17 more tables
-
-**Created:** January 2, 2026
-**Last Updated:** January 2, 2026
-
-## Environment
-
-All scripts expect:
-- PostgreSQL installed at: `C:\Program Files\PostgreSQL\18\bin\psql.exe`
-- Database: `postgres`
-- User: `postgres`
-- Password: Configured in each script
-
-## Troubleshooting
-
-### Script Not Found
-```powershell
-# Run from correct directory
-cd C:\Users\Pichau\Desktop\BusinessOS-main-dev\desktop\backend-go\scripts
-```
-
-### Permission Denied
-```powershell
-# Set execution policy
-Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
-.\apply-migrations.ps1
-```
-
-### Migration File Not Found
+**Example:**
 ```bash
-# Verify file exists
-Test-Path "..\..\supabase-migrations-combined.sql"
-# Should return: True
+go run scripts/tests/test_workspace_api.go
+./scripts/tests/test_all_endpoints.sh
 ```
 
-### Password Authentication Failed
-```powershell
-# Update password in script
-# Edit apply-migrations.ps1, line 5:
-$env:PGPASSWORD = "your_actual_password"
+### Debug (`scripts/debug/`)
+Scripts for debugging and inspection:
+- `check_*.go` - Database inspection
+- `debug_*.go` - Debug utilities
+- `create_*.go` - Test data creation
+
+**Example:**
+```bash
+go run scripts/debug/check_workspace_memories.go
+go run scripts/debug/create_test_workspace.go
 ```
 
-## Related Files
+### Migrations (`scripts/migrations/`)
+Database migration tools:
+- `run_*.go` - Migration runners
+- `run_*.sh` - Migration shell scripts
 
-**Root Directory:**
-- `supabase-migrations-combined.sql` - Combined migration file (65 KB)
-- `test-user-setup.sql` - Test user creation SQL
-- `setup-test-user.ps1` - Test user setup script (deprecated)
-- `run-test-setup.ps1` - Test user runner
+**Example:**
+```bash
+go run scripts/migrations/run_q1_migrations.go
+./scripts/migrations/run_workspace_tests.sh
+```
 
-**Documentation:**
-- `docs/DATABASE_SETUP.md` - Complete database setup guide
-- `docs/DEVELOPER_QUICKSTART.md` - Quick start guide
+## Best Practices
 
-## See Also
+1. **Never commit one-off scripts to root**
+   - Keep root clean
+   - Organize here or in `/tmp`
 
-- [DATABASE_SETUP.md](../../../docs/DATABASE_SETUP.md) - Full database documentation
-- [DEVELOPER_QUICKSTART.md](../../../docs/DEVELOPER_QUICKSTART.md) - Development guide
+2. **Name consistently**
+   - Tests: `test_<feature>.go`
+   - Debug: `check_<what>.go` or `debug_<what>.go`
+   - Migrations: `run_<migration_name>.go`
+
+3. **Document complex scripts**
+   - Add comments explaining what it does
+   - Include usage examples
+
+4. **Clean up when done**
+   - Move reusable scripts here
+   - Delete one-off debug scripts
+   - Keep only what's valuable
+
+## Temporary Scripts
+
+For quick one-off scripts, use:
+```bash
+# Create in tmp/ (gitignored)
+mkdir -p tmp
+echo "package main ..." > tmp/quick_test.go
+go run tmp/quick_test.go
+# Delete when done
+```
