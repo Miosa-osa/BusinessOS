@@ -12,22 +12,26 @@
 		businessType?: string;
 		teamSize?: string;
 		role?: string;
-		goals?: string[];
-		challenges?: string[];
+		challenge?: string;
 		integrations?: string[];
 	}
 
+	/**
+	 * Handle onboarding completion (fallback for local mode)
+	 * In API mode, the component handles redirect itself
+	 */
 	function handleComplete(data: ExtractedData) {
 		// Store onboarding data
 		localStorage.setItem('onboarding_data', JSON.stringify(data));
 		localStorage.setItem('onboarding_completed', 'true');
 
-		// TODO: Save to backend when API is ready
-		// await fetch('/api/onboarding/complete', { ... });
-
-		// Redirect to windows
-		goto('/windows');
+		// Redirect to main app
+		goto('/window');
 	}
 </script>
 
-<ConversationalOnboarding onComplete={handleComplete} />
+<!-- 
+	useApi=true (default): Uses backend API for session management
+	useApi=false: Uses local mock mode for testing without backend
+-->
+<ConversationalOnboarding onComplete={handleComplete} useApi={true} />

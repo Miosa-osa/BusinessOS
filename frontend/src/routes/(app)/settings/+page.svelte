@@ -16,7 +16,7 @@
 	let isLoading = $state(true);
 	let isSaving = $state(false);
 	let saveMessage = $state('');
-	let activeTab = $state<'general' | 'ai' | 'notifications' | 'integrations' | 'account' | 'desktop' | 'usage' | 'voice' | 'personalization'>('general');
+	let activeTab = $state<'general' | 'ai' | 'notifications' | 'integrations' | 'account' | 'desktop' | 'usage' | 'voice' | 'personalization' | 'workspace'>('general');
 
 	// Personalization state
 	let personalizationProfile = $state<PersonalizationProfile | null>(null);
@@ -429,6 +429,20 @@
 							<circle cx="12" cy="7" r="4"/>
 						</svg>
 						Personalization
+					</button>
+					<button
+						onclick={() => (activeTab = 'workspace')}
+						class="px-4 py-2 text-sm font-medium transition-colors flex items-center gap-1.5 {activeTab === 'workspace'
+							? 'text-gray-900 dark:text-white border-b-2 border-gray-900 dark:border-white'
+							: 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}"
+					>
+						<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+							<circle cx="9" cy="7" r="4"/>
+							<path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+							<path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+						</svg>
+						Workspace
 					</button>
 					{#if isDesktop}
 						<button

@@ -1146,4 +1146,12 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	{
 		modules.GET("/:module/integrations", integrationsHandler.GetModuleIntegrations)
 	}
+
+	// Onboarding routes - /api/onboarding
+	// Conversational AI onboarding with workspace setup
+	onboardingAIService := services.NewOnboardingAIService()
+	onboardingService := services.NewOnboardingService(h.pool, onboardingAIService)
+	onboardingHandler := NewOnboardingHandler(onboardingService)
+	onboardingHandler.RegisterOnboardingRoutes(api, auth)
+	slog.Info("Onboarding routes registered", "ai_provider", onboardingAIService.GetProvider())
 }

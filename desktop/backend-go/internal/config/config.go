@@ -29,7 +29,7 @@ type Config struct {
 	AccessTokenExpireMinutes int    `mapstructure:"ACCESS_TOKEN_EXPIRE_MINUTES"`
 
 	// AI Provider Configuration
-	// Options: "ollama_cloud", "ollama_local", "anthropic", "groq"
+	// Options: "ollama_cloud", "ollama_local", "anthropic", "groq", "xai"
 	AIProvider string `mapstructure:"AI_PROVIDER"`
 
 	// Ollama Local Configuration
@@ -46,6 +46,15 @@ type Config struct {
 	// Groq Configuration
 	GroqAPIKey string `mapstructure:"GROQ_API_KEY"`
 	GroqModel  string `mapstructure:"GROQ_MODEL"`
+
+	// OpenAI Configuration
+	OpenAIAPIKey string `mapstructure:"OPENAI_API_KEY"`
+	OpenAIModel  string `mapstructure:"OPENAI_MODEL"`
+
+	// Grok (x.ai) Configuration - Used for onboarding AI
+	XAIAPIKey  string `mapstructure:"XAI_API_KEY"`
+	XAIModel   string `mapstructure:"XAI_MODEL"`
+	XAIBaseURL string `mapstructure:"XAI_BASE_URL"`
 
 	// Default Model (for local Ollama)
 	DefaultModel string `mapstructure:"DEFAULT_MODEL"`

@@ -88,15 +88,34 @@
 		border-radius: 12px;
 		background-color: var(--background, #ffffff);
 		transition: all 0.2s ease;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 	}
 
 	.integration-card:hover {
-		border-color: var(--primary, #000000);
+		border-color: var(--primary, #6366f1);
+		box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
 	}
 
 	.integration-card.is-connected {
 		border-color: var(--success, #10b981);
 		background-color: rgba(16, 185, 129, 0.05);
+		box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);
+	}
+
+	.integration-card.is-connecting {
+		border-color: var(--primary, #6366f1);
+		animation: pulse-border 1.5s ease-in-out infinite;
+	}
+
+	@keyframes pulse-border {
+		0%, 100% { 
+			border-color: var(--primary, #6366f1);
+			box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.2);
+		}
+		50% { 
+			border-color: var(--primary, #6366f1);
+			box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+		}
 	}
 
 	.integration-card.is-error {

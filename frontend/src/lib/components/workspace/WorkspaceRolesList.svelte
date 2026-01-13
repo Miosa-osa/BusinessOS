@@ -1,7 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { type WorkspaceRole } from '$lib/api/workspaces';
-  import { Shield, Lock, Plus } from 'lucide-svelte';
+  import { Shield, Lock, Plus, Pencil, Eye } from 'lucide-svelte';
+  import CreateRoleModal from './CreateRoleModal.svelte';
+  import EditRoleModal from './EditRoleModal.svelte';
 
   interface Props {
     workspaceId: string;
@@ -12,6 +14,11 @@
   let { workspaceId, roles, canManage }: Props = $props();
 
   const dispatch = createEventDispatcher<{ updated: void }>();
+
+  // Modal state
+  let showCreateModal = $state(false);
+  let showEditModal = $state(false);
+  let selectedRole = $state<WorkspaceRole | null>(null);
 
   function getRoleColor(role: WorkspaceRole): string {
     if (role.color) return role.color;
@@ -39,6 +46,32 @@
     });
     return count;
   }
+
+  function handleCreateRole() {
+    showCreateModal = true;
+  }
+
+  function handleEditRole(role: WorkspaceRole) {
+    selectedRole = role;
+    showEditModal = true;
+  }
+
+  function handleCreateSuccess() {
+    showCreateModal = false;
+    dispatch('updated');
+  }
+
+  function handleEditSuccess() {
+    showEditModal = false;
+    selectedRole = null;
+    dispatch('updated');
+  }
+
+  function handleRoleDeleted() {
+    showEditModal = false;
+    selectedRole = null;
+    dispatch('updated');
+  }
 </script>
 
 <div class="roles-list">
@@ -48,10 +81,9 @@
       <p>Define and manage workspace roles and permissions</p>
     </div>
     {#if canManage}
-      <button class="create-button" disabled>
+      <button class="create-button" onclick={handleCreateRole}>
         <Plus class="w-4 h-4" />
         Create Role
-        <span class="coming-soon">Coming Soon</span>
       </button>
     {/if}
   </div>
@@ -100,12 +132,19 @@
           </div>
         </div>
 
-        {#if !role.is_system && canManage}
-          <div class="role-actions">
-            <button class="action-button" disabled>Edit</button>
-            <button class="action-button danger" disabled>Delete</button>
-          </div>
-        {/if}
+        <div class="role-actions">
+          {#if canManage}
+            <button class="action-button" onclick={() => handleEditRole(role)}>
+              <Pencil class="w-3.5 h-3.5" />
+              Edit
+            </button>
+          {:else}
+            <button class="action-button" onclick={() => handleEditRole(role)}>
+              <Eye class="w-3.5 h-3.5" />
+              View
+            </button>
+          {/if}
+        </div>
       </div>
     {/each}
   </div>
@@ -114,14 +153,39 @@
     <div class="empty-state">
       <Shield class="w-12 h-12" />
       <p>No roles defined</p>
+      {#if canManage}
+        <button class="empty-create-button" onclick={handleCreateRole}>
+          <Plus class="w-4 h-4" />
+          Create your first role
+        </button>
+      {/if}
     </div>
   {/if}
-
-  <div class="info-notice">
-    <Shield class="w-4 h-4" />
-    <span>Custom roles and advanced permissions management coming soon!</span>
-  </div>
 </div>
+
+<!-- Create Role Modal -->
+{#if showCreateModal}
+  <CreateRoleModal
+    {workspaceId}
+    existingRoles={roles}
+    on:success={handleCreateSuccess}
+    on:cancel={() => showCreateModal = false}
+  />
+{/if}
+
+<!-- Edit Role Modal -->
+{#if showEditModal && selectedRole}
+  <EditRoleModal
+    {workspaceId}
+    role={selectedRole}
+    on:success={handleEditSuccess}
+    on:deleted={handleRoleDeleted}
+    on:cancel={() => {
+      showEditModal = false;
+      selectedRole = null;
+    }}
+  />
+{/if}
 
 <style>
   .roles-list {
@@ -171,19 +235,6 @@
   .create-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  .coming-soon {
-    position: absolute;
-    top: -0.5rem;
-    right: -0.5rem;
-    padding: 0.125rem 0.375rem;
-    background: #f59e0b;
-    color: white;
-    font-size: 0.625rem;
-    font-weight: 600;
-    border-radius: 0.25rem;
-    text-transform: uppercase;
   }
 
   .roles-grid {
@@ -311,6 +362,10 @@
 
   .action-button {
     flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
     padding: 0.5rem;
     background: white;
     border: 1px solid #d1d5db;
@@ -324,14 +379,8 @@
 
   .action-button:hover:not(:disabled) {
     background: #f9fafb;
-  }
-
-  .action-button.danger {
-    color: #dc2626;
-  }
-
-  .action-button.danger:hover:not(:disabled) {
-    background: #fef2f2;
+    border-color: #3b82f6;
+    color: #3b82f6;
   }
 
   .action-button:disabled {
@@ -354,16 +403,24 @@
     margin: 0;
   }
 
-  .info-notice {
+  .empty-create-button {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 1rem;
-    background: #eff6ff;
-    color: #1e40af;
+    padding: 0.625rem 1.25rem;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
     font-size: 0.875rem;
-    border-radius: 0.5rem;
-    margin-top: 1.5rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 0.5rem;
+  }
+
+  .empty-create-button:hover {
+    background: #2563eb;
   }
 
   :global(.dark) .list-header h2 {
@@ -409,8 +466,11 @@
     background: #0f172a;
   }
 
-  :global(.dark) .info-notice {
-    background: #1e3a8a;
-    color: #bfdbfe;
+  :global(.dark) .empty-create-button {
+    background: #2563eb;
+  }
+
+  :global(.dark) .empty-create-button:hover {
+    background: #1d4ed8;
   }
 </style>

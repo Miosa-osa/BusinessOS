@@ -10,3 +10,6 @@ export { default as WorkspaceInvitesList } from './WorkspaceInvitesList.svelte';
 export { default as InviteMemberModal } from './InviteMemberModal.svelte';
 export { default as ChangeRoleModal } from './ChangeRoleModal.svelte';
 export { default as ConfirmDeleteModal } from './ConfirmDeleteModal.svelte';
+export { default as CreateRoleModal } from './CreateRoleModal.svelte';
+export { default as EditRoleModal } from './EditRoleModal.svelte';
+export { default as PermissionsMatrixEditor } from './PermissionsMatrixEditor.svelte';

@@ -2,24 +2,32 @@
   ConversationalOnboarding.svelte
   Main conversational onboarding flow with AI agent
   Hybrid: Chips for quick-select + Chat input for open questions
+  
+  Supports two modes:
+  1. API Mode (default): Uses backend API for session management
+  2. Local Mode: Self-contained with mock responses (for testing/fallback)
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import PurpleOrb from './PurpleOrb.svelte';
 	import SequentialTypewriter from './SequentialTypewriter.svelte';
 	import IntegrationCard from './IntegrationCard.svelte';
+	import { onboardingApi, type ExtractedOnboardingData } from '$lib/api/onboarding';
 
 	type OnboardingPhase = 
+		| 'loading'
 		| 'intro'
 		| 'conversation'
 		| 'integrations';
 
 	type QuestionType = 
-		| 'companyName'      // chat input
-		| 'businessType'     // chips
-		| 'teamSize'         // chips (skip if freelance)
-		| 'role'             // chat input
-		| 'challenge'        // chat input
+		| 'company_name'      // chat input
+		| 'business_type'     // chips
+		| 'team_size'         // chips (skip if freelance)
+		| 'role'              // chat input
+		| 'challenge'         // chat input
+		| 'integrations'
 		| 'complete';
 
 	interface Message {
@@ -47,18 +55,24 @@
 	interface Props {
 		sessionId?: string;
 		onComplete?: (data: ExtractedData) => void;
+		useApi?: boolean; // Enable API integration
 		class?: string;
 	}
 
 	let {
-		sessionId,
+		sessionId: initialSessionId,
 		onComplete,
+		useApi = true, // Default to API mode
 		class: className = ''
 	}: Props = $props();
 
+	// Session state (for API mode)
+	let sessionId = $state<string | null>(initialSessionId || null);
+	let apiError = $state<string | null>(null);
+
 	// State
-	let phase = $state<OnboardingPhase>('intro');
-	let currentQuestion = $state<QuestionType>('companyName');
+	let phase = $state<OnboardingPhase>(useApi ? 'loading' : 'intro');
+	let currentQuestion = $state<QuestionType>('company_name');
 	let messages = $state<Message[]>([]);
 	let isAgentTyping = $state(false);
 	let extractedData = $state<ExtractedData>({});
@@ -70,10 +84,20 @@
 	let integrationStatuses = $state<Record<string, 'disconnected' | 'connecting' | 'connected' | 'error'>>({});
 	let recommendedIntegrations = $state<string[]>([]);
 
+	// Derived: check if all recommended are connected
+	let allRecommendedConnected = $derived(
+		recommendedIntegrations.length > 0 &&
+		recommendedIntegrations.every(id => integrationStatuses[id] === 'connected')
+	);
+
 	// Input state
 	let inputValue = $state('');
 	let isRecording = $state(false);
 	let inputRef = $state<HTMLInputElement | null>(null);
+
+	// Resume state for welcome back flow
+	let isResuming = $state(false);
+	let resumeMessage = $state('');
 
 	// Chip options
 	const businessTypeOptions: ChipOption[] = [
@@ -93,18 +117,18 @@
 		{ id: '50+', label: '50+' }
 	];
 
-	// Questions config
+	// Questions config - maps API step names to display
 	const questions: Record<QuestionType, { message: string; inputType: 'chat' | 'chips'; chips?: ChipOption[] }> = {
-		companyName: {
+		company_name: {
 			message: "What's your company called?",
 			inputType: 'chat'
 		},
-		businessType: {
+		business_type: {
 			message: "What kind of work do you do?",
 			inputType: 'chips',
 			chips: businessTypeOptions
 		},
-		teamSize: {
+		team_size: {
 			message: "How big is your team?",
 			inputType: 'chips',
 			chips: teamSizeOptions
@@ -117,6 +141,10 @@
 			message: "What's the biggest challenge you're hoping to solve?",
 			inputType: 'chat'
 		},
+		integrations: {
+			message: "Perfect! Let's connect your favorite tools.",
+			inputType: 'chat'
+		},
 		complete: {
 			message: "Perfect! Let's connect your favorite tools.",
 			inputType: 'chat'
@@ -124,10 +152,11 @@
 	};
 
 	// Get current question config
-	let currentQuestionConfig = $derived(questions[currentQuestion]);
+	let currentQuestionConfig = $derived(questions[currentQuestion] || questions.company_name);
 
 	// Computed current step for progress indicator
 	let currentStep = $derived(
+		phase === 'loading' ? 0 :
 		phase === 'intro' ? 1 : 
 		phase === 'conversation' ? 2 : 
 		3
@@ -138,6 +167,71 @@
 		"Hi! I'm here to help set up your workspace.",
 		"What's your company called?"
 	];
+
+	// Initialize API session on mount
+	onMount(async () => {
+		if (!useApi) return;
+
+		try {
+			// Check if user needs onboarding
+			const status = await onboardingApi.checkStatus();
+			
+			if (!status.needs_onboarding) {
+				// Already has workspace, redirect
+				goto('/window');
+				return;
+			}
+
+			// Check for resumeable session
+			const resumeResult = await onboardingApi.getResumeableSession();
+			
+			if (resumeResult.has_session && resumeResult.session) {
+				// Resume existing session
+				sessionId = resumeResult.session.id;
+				currentQuestion = (resumeResult.session.current_step as QuestionType) || 'company_name';
+				
+				// Convert API extracted data to local format
+				if (resumeResult.session.extracted_data) {
+					const apiData = resumeResult.session.extracted_data;
+					extractedData = {
+						workspaceName: apiData.workspace_name,
+						businessType: apiData.business_type,
+						teamSize: apiData.team_size,
+						role: apiData.role,
+						challenge: apiData.challenge,
+						integrations: apiData.integrations
+					};
+				}
+				
+				// Build welcome back message with context
+				if (currentQuestion !== 'company_name') {
+					isResuming = true;
+					const parts = ['Welcome back!'];
+					if (extractedData.workspaceName) {
+						parts.push(`Setting up ${extractedData.workspaceName}`);
+						if (extractedData.businessType) {
+							parts[1] += ` - ${extractedData.businessType}`;
+						}
+						parts[1] += '.';
+					}
+					resumeMessage = parts.join(' ');
+				}
+				
+				currentAgentMessage = questions[currentQuestion]?.message || '';
+				phase = currentQuestion === 'integrations' || currentQuestion === 'complete' ? 'integrations' : 'conversation';
+			} else {
+				// Create new session
+				const { session, messages: apiMessages } = await onboardingApi.createSession();
+				sessionId = session.id;
+				phase = 'intro';
+			}
+		} catch (error) {
+			console.error('Failed to initialize onboarding:', error);
+			apiError = error instanceof Error ? error.message : 'Failed to start onboarding';
+			// Fall back to local mode
+			phase = 'intro';
+		}
+	});
 
 	// Available integrations
 	const integrations = [
@@ -153,8 +247,23 @@
 	];
 
 	// Skip to integrations
-	function skipToIntegrations() {
+	async function skipToIntegrations() {
 		phase = 'integrations';
+		
+		// Try to get recommendations from API if available
+		if (useApi && sessionId) {
+			try {
+				const recs = await onboardingApi.getRecommendations(sessionId);
+				if (recs?.length) {
+					recommendedIntegrations = recs;
+					return;
+				}
+			} catch (e) {
+				console.warn('Failed to get recommendations from API, using local fallback');
+			}
+		}
+		
+		// Fallback to local computation
 		computeRecommendedIntegrations();
 	}
 
@@ -184,34 +293,128 @@
 	}
 
 	// Handle chip selection
-	function handleChipSelect(chipId: string) {
-		if (currentQuestion === 'businessType') {
-			extractedData = { ...extractedData, businessType: chipId };
-			
-			// Branching: If freelance, skip team size
-			if (chipId === 'freelance') {
-				extractedData = { ...extractedData, teamSize: 'solo' };
-				advanceToQuestion('role');
-			} else {
-				advanceToQuestion('teamSize');
+	async function handleChipSelect(chipId: string) {
+		if (useApi && sessionId) {
+			// API mode: send to backend
+			isAgentTyping = true;
+			try {
+				const response = await onboardingApi.sendMessage(sessionId, chipId);
+				
+				// Update local state from API response
+				const apiData = response.extracted_data;
+				extractedData = {
+					workspaceName: apiData.workspace_name,
+					businessType: apiData.business_type,
+					teamSize: apiData.team_size,
+					role: apiData.role,
+					challenge: apiData.challenge,
+					integrations: apiData.integrations
+				};
+				
+				// Get the AI message BEFORE changing currentQuestion
+				const aiMessage = response.message?.content || '';
+				const nextStep = response.next_step as QuestionType;
+				
+				if (response.recommended_integrations?.length) {
+					recommendedIntegrations = response.recommended_integrations;
+				}
+				
+				// Move to integrations if complete - show transition message first
+				if (nextStep === 'integrations' || nextStep === 'complete') {
+					currentAgentMessage = aiMessage || "Perfect! Let me recommend some tools for you.";
+					setTimeout(() => {
+						phase = 'integrations';
+					}, 2000);
+				} else {
+					// Normal flow - advance to next question
+					currentQuestion = nextStep;
+					currentAgentMessage = aiMessage || questions[nextStep]?.message || '';
+				}
+			} catch (error) {
+				console.error('Failed to process chip selection:', error);
+				apiError = error instanceof Error ? error.message : 'Failed to process selection';
+			} finally {
+				isAgentTyping = false;
 			}
-		} else if (currentQuestion === 'teamSize') {
-			extractedData = { ...extractedData, teamSize: chipId };
-			advanceToQuestion('role');
+		} else {
+			// Local mode: use deterministic logic
+			if (currentQuestion === 'business_type') {
+				extractedData = { ...extractedData, businessType: chipId };
+				
+				// Branching: If freelance, skip team size
+				if (chipId === 'freelance') {
+					extractedData = { ...extractedData, teamSize: 'solo' };
+					advanceToQuestion('role');
+				} else {
+					advanceToQuestion('team_size');
+				}
+			} else if (currentQuestion === 'team_size') {
+				extractedData = { ...extractedData, teamSize: chipId };
+				advanceToQuestion('role');
+			}
 		}
 	}
 
 	// Handle chat answer
-	function handleChatAnswer(answer: string) {
-		if (currentQuestion === 'companyName') {
-			extractedData = { ...extractedData, workspaceName: answer };
-			advanceToQuestion('businessType');
-		} else if (currentQuestion === 'role') {
-			extractedData = { ...extractedData, role: answer };
-			advanceToQuestion('challenge');
-		} else if (currentQuestion === 'challenge') {
-			extractedData = { ...extractedData, challenge: answer };
-			advanceToQuestion('complete');
+	async function handleChatAnswer(answer: string) {
+		if (useApi && sessionId) {
+			// API mode: send to backend
+			isAgentTyping = true;
+			try {
+				const response = await onboardingApi.sendMessage(sessionId, answer);
+				
+				// Update local state from API response
+				const apiData = response.extracted_data;
+				extractedData = {
+					workspaceName: apiData.workspace_name,
+					businessType: apiData.business_type,
+					teamSize: apiData.team_size,
+					role: apiData.role,
+					challenge: apiData.challenge,
+					integrations: apiData.integrations
+				};
+				
+				// Get the AI message BEFORE changing currentQuestion
+				const aiMessage = response.message?.content || '';
+				const nextStep = response.next_step as QuestionType;
+				
+				if (response.recommended_integrations?.length) {
+					recommendedIntegrations = response.recommended_integrations;
+				}
+				
+				// Move to integrations if complete - show the transition message first!
+				if (nextStep === 'integrations' || nextStep === 'complete') {
+					// Show the AI's transition message (e.g., "I hear you! Based on what you've shared...")
+					currentAgentMessage = aiMessage || "Perfect! Based on what you've shared, let me recommend some tools.";
+					// Don't change currentQuestion yet - keep showing conversation
+					
+					// Wait for user to read, then transition
+					setTimeout(() => {
+						phase = 'integrations';
+					}, 2500);
+				} else {
+					// Normal flow - advance to next question
+					currentQuestion = nextStep;
+					currentAgentMessage = aiMessage || questions[nextStep]?.message || '';
+				}
+			} catch (error) {
+				console.error('Failed to process message:', error);
+				apiError = error instanceof Error ? error.message : 'Failed to process message';
+			} finally {
+				isAgentTyping = false;
+			}
+		} else {
+			// Local mode: use deterministic logic
+			if (currentQuestion === 'company_name') {
+				extractedData = { ...extractedData, workspaceName: answer };
+				advanceToQuestion('business_type');
+			} else if (currentQuestion === 'role') {
+				extractedData = { ...extractedData, role: answer };
+				advanceToQuestion('challenge');
+			} else if (currentQuestion === 'challenge') {
+				extractedData = { ...extractedData, challenge: answer };
+				advanceToQuestion('complete');
+			}
 		}
 	}
 
@@ -221,11 +424,11 @@
 		
 		setTimeout(() => {
 			currentQuestion = nextQuestion;
-			currentAgentMessage = questions[nextQuestion].message;
+			currentAgentMessage = questions[nextQuestion]?.message || '';
 			isAgentTyping = false;
 			
 			// If complete, go to integrations
-			if (nextQuestion === 'complete') {
+			if (nextQuestion === 'complete' || nextQuestion === 'integrations') {
 				computeRecommendedIntegrations();
 				setTimeout(() => {
 					phase = 'integrations';
@@ -267,7 +470,7 @@
 	// Handle intro completion
 	function handleIntroComplete() {
 		introComplete = true;
-		currentAgentMessage = questions.companyName.message;
+		currentAgentMessage = questions.company_name.message;
 		setTimeout(() => {
 			phase = 'conversation';
 		}, 300);
@@ -288,18 +491,133 @@
 		}];
 	}
 
-	// Handle integration connect
-	function handleIntegrationConnect(integrationId: string) {
+	// Handle integration connect via OAuth popup
+	async function handleIntegrationConnect(integrationId: string) {
 		integrationStatuses[integrationId] = 'connecting';
 		
-		// Simulate OAuth flow
-		setTimeout(() => {
-			// In real implementation, this would open OAuth popup
-			integrationStatuses[integrationId] = 'connected';
-			if (!selectedIntegrations.includes(integrationId)) {
-				selectedIntegrations = [...selectedIntegrations, integrationId];
+		try {
+			// Get the API base URL
+			const apiBase = getApiBase();
+			
+			// Map integration ID to provider path
+			const providerMap: Record<string, string> = {
+				'google': 'google',
+				'microsoft': 'microsoft',
+				'slack': 'slack',
+				'notion': 'notion',
+				'linear': 'linear',
+				'hubspot': 'hubspot',
+				'airtable': 'airtable',
+				'clickup': 'clickup',
+				'fathom': 'fathom'
+			};
+			
+			const provider = providerMap[integrationId];
+			if (!provider) {
+				throw new Error(`Unknown integration: ${integrationId}`);
 			}
-		}, 2000);
+			
+			// Store onboarding context in localStorage for callback
+			localStorage.setItem('onboarding_oauth_provider', integrationId);
+			localStorage.setItem('onboarding_session_id', sessionId || '');
+			
+			// Open OAuth flow in popup window
+			const width = 600;
+			const height = 700;
+			const left = window.screenX + (window.outerWidth - width) / 2;
+			const top = window.screenY + (window.outerHeight - height) / 2;
+			
+			const authUrl = `${apiBase}/integrations/${provider}/auth`;
+			const popup = window.open(
+				authUrl,
+				'oauth_popup',
+				`width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+			);
+			
+			// Poll for popup close or success
+			const pollInterval = setInterval(() => {
+				if (!popup || popup.closed) {
+					clearInterval(pollInterval);
+					// Check if connection succeeded
+					checkIntegrationStatus(integrationId);
+				}
+			}, 500);
+			
+			// Also listen for postMessage from callback page
+			const handleMessage = (event: MessageEvent) => {
+				if (event.data?.type === 'oauth_callback' && event.data?.provider === integrationId) {
+					clearInterval(pollInterval);
+					window.removeEventListener('message', handleMessage);
+					
+					if (event.data.success) {
+						integrationStatuses[integrationId] = 'connected';
+						if (!selectedIntegrations.includes(integrationId)) {
+							selectedIntegrations = [...selectedIntegrations, integrationId];
+						}
+					} else {
+						integrationStatuses[integrationId] = 'error';
+						console.error('OAuth failed:', event.data.error);
+					}
+				}
+			};
+			window.addEventListener('message', handleMessage);
+			
+			// Cleanup after 5 minutes max
+			setTimeout(() => {
+				clearInterval(pollInterval);
+				window.removeEventListener('message', handleMessage);
+				if (integrationStatuses[integrationId] === 'connecting') {
+					integrationStatuses[integrationId] = 'disconnected';
+				}
+			}, 5 * 60 * 1000);
+			
+		} catch (error) {
+			console.error('Failed to connect integration:', error);
+			integrationStatuses[integrationId] = 'error';
+		}
+	}
+	
+	// Check integration status via API
+	async function checkIntegrationStatus(integrationId: string) {
+		try {
+			const apiBase = getApiBase();
+			const response = await fetch(`${apiBase}/integrations/${integrationId}/status`, {
+				credentials: 'include'
+			});
+			
+			if (response.ok) {
+				const data = await response.json();
+				if (data.connected) {
+					integrationStatuses[integrationId] = 'connected';
+					if (!selectedIntegrations.includes(integrationId)) {
+						selectedIntegrations = [...selectedIntegrations, integrationId];
+					}
+				} else {
+					integrationStatuses[integrationId] = 'disconnected';
+				}
+			}
+		} catch (error) {
+			console.error('Failed to check integration status:', error);
+			if (integrationStatuses[integrationId] === 'connecting') {
+				integrationStatuses[integrationId] = 'disconnected';
+			}
+		}
+	}
+	
+	// Helper to get API base URL
+	function getApiBase(): string {
+		if (typeof window === 'undefined') {
+			return import.meta.env.VITE_API_URL || '/api';
+		}
+		const isElectron = 'electron' in window;
+		if (isElectron) {
+			const mode = localStorage.getItem('businessos_mode');
+			const cloudUrl = localStorage.getItem('businessos_cloud_url');
+			if (mode === 'cloud' && cloudUrl) return `${cloudUrl}/api`;
+			if (mode === 'local') return 'http://localhost:18080/api';
+			return 'http://localhost:8001/api';
+		}
+		return import.meta.env.VITE_API_URL || '/api';
 	}
 
 	// Handle integration disconnect
@@ -308,16 +626,44 @@
 		selectedIntegrations = selectedIntegrations.filter(id => id !== integrationId);
 	}
 
+	// Connect all recommended integrations
+	function connectAllRecommended() {
+		for (const id of recommendedIntegrations) {
+			if (integrationStatuses[id] !== 'connected' && integrationStatuses[id] !== 'connecting') {
+				handleIntegrationConnect(id);
+			}
+		}
+	}
+
 	// Complete integrations and finish onboarding
-	function completeIntegrations() {
+	async function completeIntegrations() {
 		// Add integrations to extracted data
 		extractedData = {
 			...extractedData,
 			integrations: selectedIntegrations
 		};
 		
-		// Call onComplete to redirect to /windows
-		onComplete?.(extractedData);
+		if (useApi && sessionId) {
+			// API mode: complete via backend
+			try {
+				const result = await onboardingApi.completeOnboarding(sessionId, selectedIntegrations);
+				
+				// Store completion data
+				localStorage.setItem('onboarding_completed', 'true');
+				localStorage.setItem('workspace_id', result.workspace_id);
+				
+				// Redirect to dashboard
+				goto(result.redirect_url || '/window');
+			} catch (error) {
+				console.error('Failed to complete onboarding:', error);
+				apiError = error instanceof Error ? error.message : 'Failed to complete';
+				// Fall back to client-side completion
+				onComplete?.(extractedData);
+			}
+		} else {
+			// Local mode: call callback
+			onComplete?.(extractedData);
+		}
 	}
 </script>
 
@@ -329,11 +675,23 @@
 		<span class="dot" class:active={currentStep >= 3} class:current={currentStep === 3}></span>
 	</div>
 
-	{#if phase === 'intro' || phase === 'conversation'}
-		<!-- Skip button -->
-		<button class="skip-btn" onclick={skipToIntegrations}>
-			Skip
-		</button>
+	{#if phase === 'loading'}
+		<!-- Loading state -->
+		<div class="centered-layout">
+			<div class="orb-section">
+				<PurpleOrb size="lg" isThinking={true} />
+			</div>
+			<div class="text-section">
+				<p class="agent-text">Setting things up...</p>
+			</div>
+		</div>
+	{:else if phase === 'intro' || phase === 'conversation'}
+		<!-- Skip button - only show during conversation, not intro -->
+		{#if phase === 'conversation' && !isResuming}
+			<button class="skip-btn" onclick={skipToIntegrations} title="Skip questions and go to integrations">
+				Skip for now
+			</button>
+		{/if}
 
 		<!-- Centered layout for intro and conversation -->
 		<div class="centered-layout">
@@ -350,8 +708,14 @@
 						onComplete={handleIntroComplete}
 					/>
 				{:else}
-					<!-- Current question text -->
-					{#if isAgentTyping}
+					<!-- Show welcome back message if resuming -->
+					{#if isResuming}
+						<p class="agent-text resume-message">{resumeMessage}</p>
+						<button class="continue-resume-btn" onclick={() => { isResuming = false; }}>
+							Continue
+						</button>
+					{:else if isAgentTyping}
+						<!-- Current question text -->
 						<div class="agent-text typing">
 							<span class="dot"></span>
 							<span class="dot"></span>
@@ -365,7 +729,7 @@
 				{/if}
 			</div>
 
-			{#if phase === 'conversation' && !isAgentTyping}
+			{#if phase === 'conversation' && !isAgentTyping && !isResuming}
 				<div class="input-section">
 					<!-- Chips for businessType and teamSize -->
 					{#if currentQuestionConfig.inputType === 'chips' && currentQuestionConfig.chips}
@@ -421,32 +785,54 @@
 			<div class="integrations-container">
 				<h2 class="section-title">Connect your tools</h2>
 				<p class="section-subtitle">
-					{#if recommendedIntegrations.length > 0}
-						Based on your answers, we recommend starting with these.
-					{:else}
-						Select the tools you use and we'll sync your data automatically.
-					{/if}
+					Connect your favorite tools and we'll sync your data automatically.
 				</p>
-				<div class="integrations-grid">
-					<!-- Show recommended first with badge -->
-					{#each integrations.sort((a, b) => {
-						const aRec = recommendedIntegrations.includes(a.id) ? 0 : 1;
-						const bRec = recommendedIntegrations.includes(b.id) ? 0 : 1;
-						return aRec - bRec;
-					}) as integration (integration.id)}
-						<div class="integration-wrapper" class:recommended={recommendedIntegrations.includes(integration.id)}>
-							{#if recommendedIntegrations.includes(integration.id)}
-								<span class="recommended-badge">Recommended</span>
-							{/if}
-							<IntegrationCard
-								name={integration.name}
-								icon={integration.icon}
-								status={integrationStatuses[integration.id] || 'disconnected'}
-								onConnect={() => handleIntegrationConnect(integration.id)}
-								onDisconnect={() => handleIntegrationDisconnect(integration.id)}
-							/>
+
+				<!-- Recommended section -->
+				{#if recommendedIntegrations.length > 0}
+					<div class="integrations-section">
+						<div class="section-header">
+							<h3 class="section-label">Recommended for you</h3>
+							<button 
+								class="connect-all-btn"
+								onclick={connectAllRecommended}
+								disabled={allRecommendedConnected}
+							>
+								{allRecommendedConnected ? 'All connected' : 'Connect all'}
+							</button>
 						</div>
-					{/each}
+						<div class="integrations-grid">
+							{#each integrations.filter(i => recommendedIntegrations.includes(i.id)) as integration (integration.id)}
+								<div class="integration-wrapper recommended">
+									<IntegrationCard
+										name={integration.name}
+										icon={integration.icon}
+										status={integrationStatuses[integration.id] || 'disconnected'}
+										onConnect={() => handleIntegrationConnect(integration.id)}
+										onDisconnect={() => handleIntegrationDisconnect(integration.id)}
+									/>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Other integrations section -->
+				<div class="integrations-section">
+					<h3 class="section-label">{recommendedIntegrations.length > 0 ? 'Other integrations' : 'Available integrations'}</h3>
+					<div class="integrations-grid">
+						{#each integrations.filter(i => !recommendedIntegrations.includes(i.id)) as integration (integration.id)}
+							<div class="integration-wrapper">
+								<IntegrationCard
+									name={integration.name}
+									icon={integration.icon}
+									status={integrationStatuses[integration.id] || 'disconnected'}
+									onConnect={() => handleIntegrationConnect(integration.id)}
+									onDisconnect={() => handleIntegrationDisconnect(integration.id)}
+								/>
+							</div>
+						{/each}
+					</div>
 				</div>
 				<button class="continue-btn" onclick={completeIntegrations}>
 					{selectedIntegrations.length > 0 ? 'Continue' : "I'll do this later"}
@@ -509,6 +895,31 @@
 
 	.skip-btn:hover {
 		color: var(--foreground, #1f2937);
+	}
+
+	/* Resume/Welcome back styles */
+	.resume-message {
+		font-size: 16px;
+		color: var(--muted-foreground, #6b7280);
+		margin-bottom: 8px;
+	}
+
+	.continue-resume-btn {
+		margin-top: 16px;
+		padding: 12px 32px;
+		font-size: 15px;
+		font-weight: 500;
+		color: white;
+		background: var(--primary, #6366f1);
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: background 0.2s, transform 0.1s;
+	}
+
+	.continue-resume-btn:hover {
+		background: var(--primary-dark, #4f46e5);
+		transform: translateY(-1px);
 	}
 
 	/* Centered layout for intro/conversation */
@@ -726,6 +1137,51 @@
 		text-align: center;
 	}
 
+	.integrations-section {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.section-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.section-label {
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--muted-foreground, #6b7280);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		margin: 0;
+	}
+
+	.connect-all-btn {
+		padding: 6px 12px;
+		font-size: 12px;
+		font-weight: 500;
+		border: 1px solid var(--primary, #6366f1);
+		border-radius: 16px;
+		background: transparent;
+		color: var(--primary, #6366f1);
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.connect-all-btn:hover:not(:disabled) {
+		background: var(--primary, #6366f1);
+		color: white;
+	}
+
+	.connect-all-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
+		border-color: var(--success, #10b981);
+		color: var(--success, #10b981);
+	}
+
 	.integrations-grid {
 		display: flex;
 		flex-direction: column;
@@ -734,6 +1190,11 @@
 
 	.integration-wrapper {
 		position: relative;
+		transition: transform 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	.integration-wrapper:hover {
+		transform: translateY(-2px);
 	}
 
 	.integration-wrapper.recommended {
