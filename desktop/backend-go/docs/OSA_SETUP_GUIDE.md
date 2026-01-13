@@ -10,10 +10,11 @@ Complete guide for setting up, testing, and troubleshooting the OSA-5 integratio
 2. [Initial Setup](#initial-setup)
 3. [Configuration](#configuration)
 4. [Starting Services](#starting-services)
-5. [Testing the Integration](#testing-the-integration)
-6. [API Reference](#api-reference)
-7. [Troubleshooting](#troubleshooting)
-8. [Architecture Overview](#architecture-overview)
+5. [Terminal Commands](#terminal-commands)
+6. [Testing the Integration](#testing-the-integration)
+7. [API Reference](#api-reference)
+8. [Troubleshooting](#troubleshooting)
+9. [Architecture Overview](#architecture-overview)
 
 ---
 
@@ -81,9 +82,9 @@ cp .env.example .env
 ```bash
 # OSA-5 Integration
 OSA_ENABLED=true
-OSA_BASE_URL=http://localhost:8089
+OSA_BASE_URL=http://localhost:3003
 OSA_SHARED_SECRET=your-shared-secret-here
-OSA_WORKSPACE_PATH=/Users/ososerious/OSA-5/miosa-backend/generated
+OSA_WORKSPACE_PATH=/path/to/osa-generated
 
 # Database (Supabase or local)
 DATABASE_URL=postgres://postgres.PROJECT_ID:[PASSWORD]@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
@@ -269,17 +270,84 @@ Expected response:
 }
 ```
 
-### 3. Start OSA-5 Service
+### 3. Start OSA-5 Agent Orchestrator
 
 ```bash
-cd /Users/ososerious/OSA-5
+cd /path/to/OSA/miosa-backend
 
-# Follow OSA-5 specific instructions
-# Typically:
-npm start
-# or
-python main.py
+# Start the agent orchestrator
+go run ./cmd/agent-orchestrator
+
+# Should show:
+# Starting OSA Agent Orchestrator on :3003
 ```
+
+**Note:** The OSA orchestrator requires a valid GROQ_API_KEY in its `.env` file.
+
+---
+
+## Terminal Commands
+
+The BusinessOS terminal includes an `osa` CLI for interacting with the 21-agent orchestration system.
+
+### Interactive Chat Mode
+
+Just type `osa` to start an interactive chat session:
+
+```bash
+$ osa
+
+============================================================
+  OSA INTERACTIVE MODE
+  Type your requests, 'exit' to quit
+============================================================
+
+> build me a task management system
+Processing...
+
+------------------------------------------------------------
+  RESPONSE
+------------------------------------------------------------
+
+[AI-generated response with code and explanations]
+
+> exit
+Goodbye!
+```
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `osa` | Start interactive chat mode |
+| `osa chat` | Alias for interactive mode |
+| `osa gen <description>` | One-shot code generation |
+| `osa agents` | List available AI agents |
+| `osa health` | Check OSA orchestrator status |
+| `osa status <app-id>` | Check generation status |
+| `osa help` | Show help message |
+
+### Examples
+
+```bash
+# Start chatting with OSA
+osa
+
+# Generate a module directly
+osa gen "task management system with kanban board"
+
+# Check if OSA is running
+osa health
+
+# List available agents
+osa agents
+```
+
+### Container Support
+
+The `osa` command automatically detects if running inside a Docker container and adjusts API endpoints accordingly:
+- Host: `http://localhost:3003`
+- Container: `http://host.docker.internal:3003`
 
 ---
 
@@ -1004,6 +1072,13 @@ For issues or questions:
 ---
 
 ## Changelog
+
+**2026-01-13** - Terminal Commands Update
+- Added interactive chat mode (`osa` or `osa chat`)
+- Updated OSA port from 8089 to 3003
+- Added Docker container detection for API URLs
+- Simplified terminal output (ASCII-only characters)
+- Added GROQ_API_KEY requirement note
 
 **2026-01-09** - Initial version
 - Complete setup instructions

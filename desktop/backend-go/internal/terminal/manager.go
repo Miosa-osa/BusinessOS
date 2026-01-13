@@ -467,11 +467,14 @@ func (m *Manager) startContainer(session *Session) error {
 	}
 	log.Printf("[Terminal] Container started: %s", containerID[:12])
 
-	// Determine shell command
-	shellCmd := []string{"/bin/bash"}
-	if session.Shell != "" {
-		shellCmd = []string{session.Shell}
-	}
+	// Determine shell command - load BusinessOS init script for osa command
+	// The init script is bind-mounted at /etc/businessos/init.sh
+	initScript := "/etc/businessos/init.sh"
+
+	// Force bash in containers for reliable --rcfile support
+	// zsh in containers has complex rc loading; bash is simpler and universal
+	shell := "/bin/bash"
+	shellCmd := []string{shell, "--rcfile", initScript}
 
 	// Create and start exec session with shell and environment variables
 	execID, hijacked, err := m.containerMgr.StartExecWithEnv(containerID, shellCmd, true, session.Environment)
