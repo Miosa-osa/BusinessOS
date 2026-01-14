@@ -50,6 +50,9 @@ type Handlers struct {
 	inviteService            *services.WorkspaceInviteService  // Workspace invitation management
 	auditService             *services.WorkspaceAuditService   // Workspace audit logging
 	projectAccessService     *services.ProjectAccessService    // Project-level access control
+	// Voice services (3D Desktop)
+	whisperService           *services.WhisperService          // Local speech-to-text
+	elevenLabsService        *services.ElevenLabsService       // Text-to-speech (OSA voice)
 }
 
 // NewHandlers creates a new Handlers instance
@@ -94,6 +97,12 @@ func (h *Handlers) SetEmailService(svc *services.EmailService) {
 // SetCommentService sets the Comment service (optional)
 func (h *Handlers) SetCommentService(svc *services.CommentService) {
 	h.commentService = svc
+}
+
+// SetVoiceServices sets the voice services (3D Desktop - Whisper + ElevenLabs)
+func (h *Handlers) SetVoiceServices(whisper *services.WhisperService, elevenLabs *services.ElevenLabsService) {
+	h.whisperService = whisper
+	h.elevenLabsService = elevenLabs
 }
 
 // SetPedroServices sets the Pedro task services (optional, to avoid breaking existing code)
@@ -826,7 +835,18 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	{
 		transcribe.POST("", transcriptionHandler.TranscribeAudio)
 		transcribe.GET("/status", transcriptionHandler.GetTranscriptionStatus)
+		transcribe.POST("/realtime", h.HandleRealtimeTranscription) // Real-time voice transcription for active listening
 	}
+	slog.Info("Transcription routes registered (including real-time)")
+
+	// OSA Voice routes - /api/osa
+	osa := api.Group("/osa")
+	osa.Use(auth)
+	{
+		osa.POST("/speak", h.HandleOSASpeak)             // Convert text to speech
+		osa.POST("/speak/stream", h.HandleOSASpeakStream) // Stream TTS for long text
+	}
+	slog.Info("OSA voice routes registered")
 
 	// Voice notes routes - /api/voice-notes
 	voiceNotesHandler := NewVoiceNotesHandler(h.pool, h.embeddingService)

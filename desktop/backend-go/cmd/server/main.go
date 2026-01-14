@@ -597,6 +597,21 @@ func main() {
 		log.Printf("Multi-modal services registered (image embeddings, text+image search)")
 	}
 
+	// Initialize Voice services (3D Desktop - Whisper + ElevenLabs)
+	whisperService := services.NewWhisperService()
+	elevenLabsService := services.NewElevenLabsService()
+	h.SetVoiceServices(whisperService, elevenLabsService)
+	if whisperService.IsAvailable() {
+		log.Printf("Whisper service initialized (local speech-to-text)")
+	} else {
+		log.Printf("Whisper service not fully configured (model/binary not found)")
+	}
+	if elevenLabsService.IsConfigured() {
+		log.Printf("ElevenLabs service initialized (OSA voice enabled)")
+	} else {
+		log.Printf("ElevenLabs service not configured (API key/voice ID not set)")
+	}
+
 	// Set Workspace service (Feature 1 - Team/Collaboration)
 	workspaceService := services.NewWorkspaceService(pool)
 	h.SetWorkspaceService(workspaceService)

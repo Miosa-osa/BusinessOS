@@ -3503,7 +3503,7 @@ Use this context to inform your responses.`;
 											Selected
 										</span>
 									</div>
-									{@const caps = selectedModelObj.capabilities || getModelCapabilities(selectedModelObj.id)}
+									{@const caps = selectedModelObj.capabilities || getModelCapabilities(selectedModelObj.id) || []}
 									{@const isCloud = selectedModelObj.type === 'cloud' || selectedModelObj.id.toLowerCase().includes('-cloud')}
 									<button
 										onclick={() => { showModelDropdown = false; }}
@@ -3554,7 +3554,7 @@ Use this context to inform your responses.`;
 										</span>
 									</div>
 									{#each ollamaCloudModels.filter(m => m.id !== selectedModel) as model}
-									{@const caps = model.capabilities || getModelCapabilities(model.id)}
+									{@const caps = model.capabilities || getModelCapabilities(model.id) || []}
 										<button
 											onclick={() => { selectModel(model.id); showModelDropdown = false; }}
 											class="w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
@@ -3600,7 +3600,7 @@ Use this context to inform your responses.`;
 										</span>
 									</div>
 									{#each installedModels.filter(m => m.id !== selectedModel) as model}
-									{@const caps = model.capabilities || getModelCapabilities(model.id)}
+									{@const caps = model.capabilities || getModelCapabilities(model.id) || []}
 										<button
 											onclick={() => { selectModel(model.id); showModelDropdown = false; }}
 											class="w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"

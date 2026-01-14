@@ -59,10 +59,15 @@
 		// Open terminal in container
 		xterm.open(terminalContainer);
 
+		// Auto-focus terminal for keyboard input (CRITICAL for arrow keys, Enter, etc.)
+		setTimeout(() => {
+			xterm?.focus();
+		}, 0);
+
 		// Fit to container
 		setTimeout(() => {
 			fitAddon?.fit();
-		}, 0);
+		}, 100);
 
 		// Handle user input
 		xterm.onData((data) => {
@@ -112,6 +117,10 @@
 		}
 	}
 
+	function focusTerminal() {
+		xterm?.focus();
+	}
+
 	onMount(() => {
 		initTerminal();
 		window.addEventListener('resize', handleResize);
@@ -146,7 +155,13 @@
 			Connecting to terminal...
 		</div>
 	{/if}
-	<div class="terminal-container" bind:this={terminalContainer}></div>
+	<div
+		class="terminal-container"
+		bind:this={terminalContainer}
+		onclick={focusTerminal}
+		role="application"
+		tabindex="-1"
+	></div>
 </div>
 
 <style>
@@ -163,6 +178,13 @@
 		height: 100%;
 		padding: 8px;
 		box-sizing: border-box;
+		outline: none; /* Remove focus outline */
+		cursor: text; /* Show text cursor to indicate it's interactive */
+	}
+
+	.terminal-container:focus-within {
+		/* Optional: Add subtle focus indicator */
+		box-shadow: inset 0 0 0 1px rgba(0, 255, 0, 0.2);
 	}
 
 	.terminal-container :global(.xterm) {

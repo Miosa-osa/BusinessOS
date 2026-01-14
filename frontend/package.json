@@ -38,6 +38,10 @@
 		"vitest": "^4.0.16"
 	},
 	"dependencies": {
+		"@deepgram/sdk": "^4.11.3",
+		"@mediapipe/camera_utils": "^0.3.1675466862",
+		"@mediapipe/drawing_utils": "^0.3.1675466124",
+		"@mediapipe/hands": "^0.4.1675469240",
 		"@radix-ui/react-collapsible": "^1.1.12",
 		"@radix-ui/react-dialog": "^1.1.15",
 		"@radix-ui/react-dropdown-menu": "^2.1.16",

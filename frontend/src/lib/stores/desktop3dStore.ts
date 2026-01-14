@@ -78,10 +78,14 @@ export interface Desktop3DState {
 	windows: Window3DState[];
 	focusedWindowId: string | null;
 	sphereRadius: number;
+	cameraDistance: number; // Camera distance from scene (zoom control)
 	gridColumns: number;
 	gridSpacing: number;
 	autoRotate: boolean;
 	animating: boolean;
+	// Gesture-based camera rotation
+	cameraRotationDelta: { x: number; y: number }; // Delta for gesture-based rotation
+	gestureDragging: boolean; // True when actively dragging with gestures
 }
 
 // Module metadata
@@ -119,10 +123,13 @@ const defaultState: Desktop3DState = {
 	windows: [],
 	focusedWindowId: null,
 	sphereRadius: 120,  // Expanded radius for more spacing (was 95, now 120 for 22 modules)
+	cameraDistance: 400, // Default camera distance from scene (zoom control)
 	gridColumns: 4,
 	gridSpacing: 130,
 	autoRotate: true,
-	animating: false
+	animating: false,
+	cameraRotationDelta: { x: 0, y: 0 }, // Gesture rotation delta
+	gestureDragging: false // Gesture dragging state
 };
 
 // RING-BASED SPHERE LAYOUT - structured layers like a geodesic dome
@@ -380,7 +387,16 @@ function createDesktop3DStore() {
 
 		// Focus on a window
 		focusWindow: (windowId: string) => {
+			console.log(`[Desktop3D Store] 🎯 focusWindow() called for windowId: "${windowId}"`);
+
 			update((state) => {
+				const targetWindow = state.windows.find((w) => w.id === windowId);
+				console.log(`[Desktop3D Store] Target window:`, {
+					found: !!targetWindow,
+					module: targetWindow?.module,
+					isOpen: targetWindow?.isOpen
+				});
+
 				const windows = state.windows.map((w) => ({
 					...w,
 					isFocused: w.id === windowId,
@@ -388,6 +404,8 @@ function createDesktop3DStore() {
 					targetScale: w.id === windowId ? 1.5 : 0.8,
 					lastFocused: w.id === windowId ? Date.now() : w.lastFocused
 				}));
+
+				console.log(`[Desktop3D Store] ✅ Focused window "${windowId}", switching to 'focused' viewMode`);
 
 				return {
 					...state,
@@ -422,13 +440,37 @@ function createDesktop3DStore() {
 
 		// Open a module window
 		openWindow: (module: ModuleId) => {
+			console.log(`[Desktop3D Store] 🔵 openWindow() called for module: "${module}"`);
+
 			update((state) => {
 				// Check if already open
 				const existing = state.windows.find((w) => w.module === module);
+				console.log(`[Desktop3D Store] Existing window check:`, {
+					found: !!existing,
+					isOpen: existing?.isOpen,
+					windowId: existing?.id
+				});
+
 				if (existing?.isOpen) {
-					// Focus it instead
-					desktop3dStore.focusWindow(existing.id);
-					return state;
+					// Window already open - focus it instead
+					console.log(`[Desktop3D Store] ✅ Window "${module}" already open, focusing it (id: ${existing.id})`);
+
+					// FIXED: Don't call nested store method, manipulate state directly
+					const windows = state.windows.map((w) => ({
+						...w,
+						isFocused: w.id === existing.id,
+						targetOpacity: w.id === existing.id ? 1 : 0.3,
+						targetScale: w.id === existing.id ? 1.5 : 0.8,
+						lastFocused: w.id === existing.id ? Date.now() : w.lastFocused
+					}));
+
+					return {
+						...state,
+						windows,
+						focusedWindowId: existing.id,
+						viewMode: 'focused',
+						autoRotate: false
+					};
 				}
 
 				const info = MODULE_INFO[module];
@@ -441,7 +483,8 @@ function createDesktop3DStore() {
 				);
 
 				if (existing) {
-					// Reopen existing window
+					// Reopen existing window (was closed before)
+					console.log(`[Desktop3D Store] ♻️ Reopening existing window "${module}" at position:`, position);
 					const windows = state.windows.map((w) =>
 						w.module === module
 							? {
@@ -456,7 +499,8 @@ function createDesktop3DStore() {
 					return { ...state, windows };
 				}
 
-				// Create new window
+				// Create new window (never existed before)
+				console.log(`[Desktop3D Store] ✨ Creating NEW window for "${module}" at position:`, position);
 				const newWindow: Window3DState = {
 					id: `window-${module}-${Date.now()}`,
 					module,
@@ -477,9 +521,18 @@ function createDesktop3DStore() {
 					height: 600  // Default window height
 				};
 
+				console.log(`[Desktop3D Store] New window created:`, {
+					id: newWindow.id,
+					module: newWindow.module,
+					title: newWindow.title
+				});
+
 				return { ...state, windows: [...state.windows, newWindow] };
 			});
+
+			console.log(`[Desktop3D Store] Recalculating positions after opening "${module}"`);
 			desktop3dStore.recalculatePositions();
+			console.log(`[Desktop3D Store] ✅ openWindow() complete for "${module}"`);
 		},
 
 		// Close a window (core modules just minimize)
@@ -519,6 +572,59 @@ function createDesktop3DStore() {
 		reset: () => {
 			set(defaultState);
 			desktop3dStore.initialize();
+		},
+
+		// Adjust sphere radius (zoom in/out)
+		adjustSphereRadius: (delta: number) => {
+			update((state) => {
+				const newRadius = Math.max(80, Math.min(180, state.sphereRadius + delta * 10));
+
+				if (newRadius === state.sphereRadius) {
+					console.log('[Desktop3D Store] Sphere radius at limit:', newRadius);
+					return state;
+				}
+
+				// REMOVED: console.log(`[Desktop3D Store] Adjusting sphere radius: ${state.sphereRadius} → ${newRadius}`);
+
+				const updatedState = { ...state, sphereRadius: newRadius };
+
+				// Recalculate positions after radius change
+				setTimeout(() => {
+					desktop3dStore.recalculatePositions();
+				}, 0);
+
+				return updatedState;
+			});
+		},
+
+		// Adjust camera distance (TRUE zoom - moves camera closer/farther)
+		adjustCameraDistance: (delta: number) => {
+			update((state) => {
+				// Camera distance range: 200 (very close) to 800 (very far)
+				const newDistance = Math.max(200, Math.min(800, state.cameraDistance + delta * 20));
+
+				if (newDistance === state.cameraDistance) {
+					console.log('[Desktop3D Store] Camera distance at limit:', newDistance);
+					return state;
+				}
+
+				// Reduced logging - only log significant changes (> 5 units)
+				if (Math.abs(delta) > 5) {
+					console.log(
+						`[Desktop3D Store] 📷 Camera distance: ${state.cameraDistance.toFixed(1)} → ${newDistance.toFixed(1)}`
+					);
+				}
+
+				return { ...state, cameraDistance: newDistance };
+			});
+		},
+
+		// Reset camera distance to default
+		resetCameraDistance: () => {
+			update((state) => {
+				console.log('[Desktop3D Store] 📷 Resetting camera distance to default (400)');
+				return { ...state, cameraDistance: 400 };
+			});
 		},
 
 		// Navigate to next window (when focused)
@@ -618,6 +724,76 @@ function createDesktop3DStore() {
 				});
 
 				return { ...state, windows };
+			});
+		},
+
+		// Close all windows (except core modules)
+		closeAllWindows: () => {
+			update((state) => {
+				const windows = state.windows.map((w) => ({
+					...w,
+					isOpen: w.isCore ? w.isOpen : false
+				}));
+
+				return { ...state, windows, focusedWindowId: null };
+			});
+			desktop3dStore.recalculatePositions();
+		},
+
+		// Adjust rotation speed (NEW - actually works now!)
+		adjustRotationSpeed: (deltaX: number, deltaY: number = 0) => {
+			// Just update the delta - don't auto-clear
+			// The gesture detector will send { x: 0, y: 0 } when hand stops moving
+			update((state) => ({
+				...state,
+				cameraRotationDelta: { x: deltaX, y: deltaY },
+				gestureDragging: deltaX !== 0 || deltaY !== 0
+			}));
+		},
+
+		// Adjust grid spacing
+		adjustGridSpacing: (delta: number) => {
+			update((state) => {
+				const newSpacing = Math.max(80, Math.min(200, state.gridSpacing + delta));
+
+				if (newSpacing === state.gridSpacing) {
+					console.log('[Desktop3D Store] Grid spacing at limit:', newSpacing);
+					return state;
+				}
+
+				console.log(`[Desktop3D Store] Adjusting grid spacing: ${state.gridSpacing} → ${newSpacing}`);
+
+				const updatedState = { ...state, gridSpacing: newSpacing };
+
+				// Recalculate positions after spacing change
+				setTimeout(() => {
+					desktop3dStore.recalculatePositions();
+				}, 0);
+
+				return updatedState;
+			});
+		},
+
+		// Adjust grid columns
+		adjustGridColumns: (delta: number) => {
+			update((state) => {
+				const newColumns = Math.max(2, Math.min(8, state.gridColumns + delta));
+
+				if (newColumns === state.gridColumns) {
+					console.log('[Desktop3D Store] Grid columns at limit:', newColumns);
+					return state;
+				}
+
+				console.log(`[Desktop3D Store] Adjusting grid columns: ${state.gridColumns} → ${newColumns}`);
+
+				const updatedState = { ...state, gridColumns: newColumns };
+
+				// Recalculate positions after column change
+				setTimeout(() => {
+					desktop3dStore.recalculatePositions();
+				}, 0);
+
+				return updatedState;
 			});
 		}
 	};

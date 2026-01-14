@@ -10,9 +10,9 @@
 	import LayoutManager from './LayoutManager.svelte';
 	import LiveCaptions from './LiveCaptions.svelte';
 	import VoiceControlPanel from './VoiceControlPanel.svelte';
-	import GestureDebugView from './GestureDebugView.svelte';
 	import { desktop3dPermissions } from '$lib/services/desktop3dPermissions';
-	import type { GestureState } from '$lib/types/gestures';
+	import { SimpleGestureController } from '$lib/services/simpleGestureController';
+	import * as THREE from 'three';
 	import { desktop3dLayoutStore } from '$lib/stores/desktop3dLayoutStore';
 	import { voiceTranscription } from '$lib/services/voiceTranscriptionService';
 	import { voiceCommandParser, type VoiceCommand } from '$lib/services/voiceCommands';
@@ -43,9 +43,14 @@
 	let conversationId = $state<string | null>(null);
 	let conversationHistory: Array<{role: string, content: string}> = $state([]);
 
-	// Gesture control state (using MediaPipe)
+	// Gesture control state (SIMPLE - using SimpleGestureController)
 	let gestureControlEnabled = $state(false);
-	let showGestureDebug = $state(false);
+	let gestureControlLoading = $state(false);
+	let gestureController: SimpleGestureController | null = $state(null);
+	let gestureVideoElement: HTMLVideoElement | null = $state(null);
+
+	// OrbitControls reference (needed for direct camera manipulation)
+	let orbitControlsRef: any = $state(null);
 
 	// ===== HELPER FUNCTIONS =====
 
@@ -97,6 +102,15 @@
 		console.log('[Desktop3D] Initializing 3D Desktop mode...');
 		desktop3dStore.initialize();
 
+		// Wait for OrbitControls to be ready
+		setTimeout(() => {
+			if (orbitControlsRef) {
+				console.log('[Desktop3D] ✅ OrbitControls ready for gesture control');
+			} else {
+				console.warn('[Desktop3D] ⚠️ OrbitControls not yet available (might take a moment)');
+			}
+		}, 2000);
+
 		// Setup OSA voice speaking callback
 		osaVoiceService.onSpeakingChange((speaking) => {
 			isSpeaking = speaking;
@@ -119,6 +133,11 @@
 	// Cleanup on unmount
 	onDestroy(() => {
 		console.log('[Desktop3D] Cleaning up 3D Desktop mode...');
+
+		// Cleanup gesture controller
+		if (gestureController) {
+			gestureController.destroy();
+		}
 
 		// CRITICAL: Release camera and microphone streams
 		desktop3dPermissions.cleanup();
@@ -266,94 +285,140 @@
 		return responses[Math.floor(Math.random() * responses.length)];
 	}
 
-	// Track hand position for cursor
-	let handCursorPosition = $state<{ x: number; y: number } | null>(null);
+	// ===== SIMPLE GESTURE CONTROL =====
 
-	// Track if user is currently controlling camera
-	let userControllingCamera = $state(false);
-
-	// Handle gesture events from GestureDebugView (MediaPipe)
-	function handleGesture(gesture: GestureState) {
-		if (!gestureControlEnabled) return;
-
-		// Update hand cursor position
-		if (gesture.position) {
-			handCursorPosition = {
-				x: gesture.position.x * window.innerWidth,
-				y: gesture.position.y * window.innerHeight
-			};
-		}
-
-		// Map gesture to action
-		const action = gesture.metadata?.action;
-		if (!action || action === 'none') {
-			// No active gesture - re-enable auto-rotate if it was disabled
-			if (userControllingCamera) {
-				userControllingCamera = false;
-				desktop3dStore.setAutoRotate(true);
-			}
+	/**
+	 * Enable gesture control - initialize SimpleGestureController
+	 */
+	async function enableGestureControl() {
+		// Prevent double initialization
+		if (gestureControlLoading || gestureControlEnabled) {
+			console.log('[Desktop3D] Already initializing or enabled, skipping...');
 			return;
 		}
 
-		// Execute action based on gesture
-		switch (action) {
-			// NEW: Fist drag to rotate camera (like mouse drag)
-			case 'drag':
-				// User is controlling camera - disable auto-rotate
-				if (!userControllingCamera) {
-					userControllingCamera = true;
+		if (!gestureVideoElement) {
+			console.error('[Desktop3D] ❌ Video element not found');
+			alert('Error: Video element not initialized');
+			return;
+		}
+
+		if (!orbitControlsRef) {
+			console.error('[Desktop3D] ❌ OrbitControls not ready yet. Please wait a moment and try again.');
+			alert('3D scene is still loading. Please wait a moment and try again.');
+			return;
+		}
+
+		gestureControlLoading = true;
+
+		try {
+			// Create controller
+			gestureController = new SimpleGestureController();
+
+			// Set direct camera control callbacks
+			gestureController.setCallbacks({
+				// ROTATE: Fist drag
+				onRotate: (deltaX: number, deltaY: number) => {
+					const controls = orbitControlsRef;
+					if (!controls) return;
+
+					// Disable auto-rotate while gesturing
 					desktop3dStore.setAutoRotate(false);
+
+					// Directly manipulate OrbitControls camera position
+					const offset = new THREE.Vector3();
+					offset.copy(controls.object.position).sub(controls.target);
+
+					const spherical = new THREE.Spherical();
+					spherical.setFromVector3(offset);
+
+					// Apply rotation deltas
+					spherical.theta -= deltaX * 1.0;
+					spherical.phi -= deltaY * 1.0;
+
+					// Clamp vertical rotation
+					spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+
+					// Update camera
+					offset.setFromSpherical(spherical);
+					controls.object.position.copy(controls.target).add(offset);
+					controls.update();
+				},
+
+				// ZOOM: Pinch
+				onZoom: (deltaZ: number) => {
+					const controls = orbitControlsRef;
+					if (!controls) return;
+
+					// Adjust camera distance
+					const currentDistance = controls.object.position.length();
+					const newDistance = Math.max(200, Math.min(800, currentDistance + deltaZ));
+
+					// Scale camera position to new distance
+					controls.object.position.normalize().multiplyScalar(newDistance);
+					controls.update();
+				},
+
+				// RESET: Open palm
+				onReset: () => {
+					const controls = orbitControlsRef;
+					if (!controls) return;
+
+					// Reset camera to default
+					controls.object.position.set(0, 40, 400);
+					controls.target.set(0, 0, 0);
+					controls.update();
+
+					// Re-enable auto-rotate
+					desktop3dStore.setAutoRotate(true);
 				}
+			});
 
-				if (gesture.deltaPosition) {
-					// X delta = horizontal rotation
-					// Y delta = vertical rotation
-					// MUCH HIGHER sensitivity - should feel like mouse drag
-					const rotX = gesture.deltaPosition.x * 25.0; // 3x more sensitive
-					const rotY = gesture.deltaPosition.y * 25.0;
-					desktop3dStore.adjustRotationSpeed(rotX, rotY);
-				}
-				break;
+			// Initialize with camera permissions
+			await gestureController.init(gestureVideoElement);
 
-			// Pinch zoom
-			// CRITICAL: Move hand TOWARD camera (Z decreases) = Zoom IN (camera closer, modules bigger)
-			//           Move hand AWAY from camera (Z increases) = Zoom OUT (camera farther, modules smaller)
-			case 'zoom':
-			case 'zoom_in':
-			case 'zoom_out':
-				if (gesture.deltaPosition) {
-					// Z delta is negative when moving toward camera
-					// Negative delta → decrease camera distance → zoom IN
-					// Positive delta → increase camera distance → zoom OUT
-					const zoomSpeed = gesture.deltaPosition.z * -200; // INVERTED: negative Z = zoom IN
-					desktop3dStore.adjustCameraDistance(zoomSpeed);
-				}
-				break;
+			gestureControlEnabled = true;
+			gestureControlLoading = false;
+			console.log('[Desktop3D] ✅ Gesture control enabled');
+		} catch (error) {
+			console.error('[Desktop3D] ❌ Failed to enable gesture control:', error);
 
-			// Other actions
-			case 'reset_view':
-				desktop3dStore.resetCamera();
-				break;
+			// Show user-friendly error
+			const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+			if (errorMsg.includes('Permission denied') || errorMsg.includes('NotAllowedError')) {
+				alert('Camera permission denied. Please allow camera access and try again.');
+			} else if (errorMsg.includes('NotFoundError') || errorMsg.includes('not found')) {
+				alert('No camera found. Please connect a webcam and try again.');
+			} else {
+				alert(`Failed to enable gestures: ${error instanceof Error ? error.message : 'Unknown error'}`);
+			}
 
-			case 'unfocus':
-				desktop3dStore.unfocusWindow();
-				break;
-
-			case 'next_window':
-				desktop3dStore.focusNext();
-				break;
-
-			case 'previous_window':
-				desktop3dStore.focusPrevious();
-				break;
+			gestureControlEnabled = false;
+			gestureControlLoading = false;
 		}
 	}
 
-	// Toggle gesture control
-	function toggleGestureControl() {
-		gestureControlEnabled = !gestureControlEnabled;
-		showGestureDebug = gestureControlEnabled;
-		console.log('[Desktop3D] Gesture control:', gestureControlEnabled ? 'ENABLED' : 'DISABLED');
+	/**
+	 * Disable gesture control - cleanup
+	 */
+	function disableGestureControl() {
+		if (gestureController) {
+			gestureController.destroy();
+			gestureController = null;
+		}
+		gestureControlEnabled = false;
+		console.log('[Desktop3D] Gesture control DISABLED');
+	}
+
+	/**
+	 * Toggle gesture control on/off
+	 */
+	async function toggleGestureControl() {
+		if (gestureControlEnabled) {
+			disableGestureControl();
+		} else {
+			await enableGestureControl();
+		}
 	}
 
 	// Quick acknowledgment phrases for instant feedback
@@ -650,29 +715,112 @@
 			const viewMode = $desktop3dStore.viewMode;
 
 			// VOICE AGENT: Short, conversational, 3D-Desktop-focused
-			const systemPrompt = `You are OSA, a warm AI assistant for BusinessOS 3D Desktop. Keep responses SHORT and conversational.
+			const systemPrompt = `You are OSA - a fast, casual voice assistant for BusinessOS 3D Desktop.
 
-DESKTOP: ${viewMode} view | Open: ${openModules || 'none'} | Focus: ${currentModule || 'desktop'}
+STATE: ${viewMode} view | Open: ${openModules || 'none'} | Focus: ${currentModule || 'desktop'}
 
-RESPONSE STYLE:
-- 1-2 sentences MAX (this is voice, not text)
-- Conversational, warm, natural
-- Focus on what user is doing in 3D Desktop RIGHT NOW
-- No lists, no numbered options, no essays
-- If they want help, ask what specifically, don't list everything
+═══════════════════════════════════════════════════════════════
+YOUR STYLE (THIS IS HOW YOU TALK):
+═══════════════════════════════════════════════════════════════
 
-COMMANDS: Add [CMD:action] when user wants something done.
-Examples: "zoom in" → "Zooming in. [CMD:zoom_in]" | "open tasks" → "Opening tasks. [CMD:open_tasks]"
+▸ SHORT: 1-2 sentences max. You're being SPOKEN out loud.
+▸ CASUAL: "got it", "on it", "sure" NOT "certainly", "of course", "I shall"
+▸ NO MARKDOWN: No **, ##, lists, bullets. Just plain talk.
+▸ ACTIONS: When user wants something done → include [CMD:xxx]
 
-Available: open/close/focus modules, zoom in/out, expand/contract, rotate, switch to grid/orb
+═══════════════════════════════════════════════════════════════
+COMMANDS YOU CAN EXECUTE:
+═══════════════════════════════════════════════════════════════
 
-EXAMPLES:
-"Hey" → "Hey! What's up?"
-"What can you do?" → "I can control the view, open modules, and chat. What would help?"
-"Help me" → "Sure! What do you need help with?"
-"Open tasks" → "Opening tasks. [CMD:open_tasks]"
+MODULES: open/close {dashboard, chat, tasks, projects, team, clients, terminal, settings, help, agents, crm, tables, pages, nodes, daily, knowledge}
+WINDOWS: next window, previous window, close all windows, minimize, maximize, unfocus
+CAMERA: zoom in/out, reset zoom, rotate left/right, stop rotation, rotate faster/slower
+VIEW: switch to grid/orb, expand/contract orb, increase/decrease grid spacing
+RESIZE: make wider/narrower/taller/shorter
+LAYOUT: enter/exit edit mode, save layout [name], load layout [name]
 
-Keep it SHORT. You're a voice assistant, not writing an email.`;
+═══════════════════════════════════════════════════════════════
+PERFECT RESPONSES (COPY THIS STYLE EXACTLY):
+═══════════════════════════════════════════════════════════════
+
+"Hey OSA"
+→ "Hey! What's up?"
+
+"Open the terminal"
+→ "On it. [CMD:open terminal]"
+
+"Open chat"
+→ "Opening chat. [CMD:open chat]"
+
+"What can we do here?"
+→ "I can open modules, control the camera, switch views. What do you need?"
+
+"Go to the next page"
+→ "Next one. [CMD:next window]"
+
+"Go to the next window"
+→ "Got it. [CMD:next window]"
+
+"Switch to tasks"
+→ "Switching to tasks. [CMD:open tasks]"
+
+"Zoom in"
+→ "Zooming in. [CMD:zoom in]"
+
+"Close everything"
+→ "Closing all. [CMD:close all windows]"
+
+"Make this wider"
+→ "Making it wider. [CMD:make wider]"
+
+"Rotate left"
+→ "Rotating left. [CMD:rotate left]"
+
+"Switch to grid view"
+→ "Switching to grid. [CMD:switch to grid]"
+
+"What's your plan today?"
+→ "Whatever you need! Want to open something or change the view?"
+
+"Help"
+→ "I can open stuff, zoom around, switch views. What do you need?"
+
+═══════════════════════════════════════════════════════════════
+BAD RESPONSES (NEVER DO THIS):
+═══════════════════════════════════════════════════════════════
+
+❌ "**Terminal Opened**
+
+You are now in the terminal. What would you like to do in the terminal? Type a command, and I'll resp"
+WHY: Way too long, markdown **, no [CMD:xxx], fake simulation
+
+❌ "## Chat Mode Capabilities
+
+In this chat mode, we can:
+1. **Discuss topics**: Share thoughts, ask questions..."
+WHY: Markdown headers/lists, way too long, no [CMD:xxx]
+
+❌ "Certainly sir, let me pull that up for you right away."
+WHY: Too formal ("certainly", "sir"), no [CMD:xxx]
+
+❌ "I can simulate a terminal for you. What would you like to do?"
+WHY: Never simulate - use [CMD:xxx] to open REAL things
+
+❌ "Terminal opened! You now have access to a terminal window where you can execute commands."
+WHY: Too long, no [CMD:xxx], describing instead of doing
+
+═══════════════════════════════════════════════════════════════
+CRITICAL RULES:
+═══════════════════════════════════════════════════════════════
+
+1. MAX 1-2 sentences per response
+2. When user wants action → include [CMD:xxx]
+3. Be casual: "got it", "on it", "sure" NOT "certainly", "of course"
+4. NO markdown (**, ##, lists, bullets) EVER
+5. Don't describe/explain - just execute with [CMD:xxx]
+6. Match the PERFECT RESPONSES style EXACTLY
+
+RESPOND NOW:`;
 
 			// Add user message to history
 			conversationHistory.push({
@@ -788,9 +936,37 @@ Keep it SHORT. You're a voice assistant, not writing an email.`;
 			if (fullResponse.trim()) {
 				let response = fullResponse.trim();
 
+				// VALIDATION: Detect if user requested an action but AI didn't include command marker
+				const userText = text.toLowerCase();
+				const actionKeywords = [
+					'open', 'close', 'launch', 'start', 'stop', 'zoom', 'rotate',
+					'switch', 'change', 'move', 'reset', 'expand', 'contract',
+					'minimize', 'maximize', 'save', 'load', 'enter', 'exit'
+				];
+				const userRequestedAction = actionKeywords.some(keyword => userText.includes(keyword));
+
 				// Parse and execute any commands from the response
 				const cmdMatch = response.match(/\[CMD:([^\]]+)\]/);
-				if (cmdMatch) {
+
+				// CRITICAL FIX: If user requested action but AI didn't include command, force it
+				if (userRequestedAction && !cmdMatch) {
+					console.warn('[Voice] ⚠️ AI failed to include command marker for action request!');
+					console.warn('[Voice] User said:', text);
+					console.warn('[Voice] AI said:', response);
+
+					// Try to parse the user's command directly
+					const userCommand = voiceCommandParser.parse(text);
+					if (userCommand.type !== 'unknown') {
+						console.log('[Voice] 🔧 Auto-fixing: Executing user command directly:', userCommand.type);
+						executeCommandAction(userCommand);
+
+						// Simplify the AI's response to just acknowledgment
+						response = "On it.";
+					} else {
+						console.error('[Voice] ❌ Could not parse user command:', text);
+						response = "Sorry, I didn't catch that. Can you try again?";
+					}
+				} else if (cmdMatch) {
 					const commandStr = cmdMatch[1];
 					console.log('[Voice] 🤖 AI wants to execute command:', commandStr);
 
@@ -874,6 +1050,7 @@ Keep it SHORT. You're a voice assistant, not writing an email.`;
 				cameraDistance={$desktop3dStore.cameraDistance}
 				cameraRotationDelta={$desktop3dStore.cameraRotationDelta}
 				gestureDragging={$desktop3dStore.gestureDragging}
+				bind:orbitControlsRef={orbitControlsRef}
 				onWindowClick={(id) => {
 					// Always focus the clicked window (smooth transition via springs)
 					// If clicking the same window, nothing happens (iframe handles those clicks)
@@ -944,23 +1121,40 @@ Keep it SHORT. You're a voice assistant, not writing an email.`;
 	<!-- Voice Control Panel (enhanced UI) -->
 	<VoiceControlPanel {isListening} {isSpeaking} onToggleListening={toggleVoiceCommands} />
 
-	<!-- Gesture Debug View (MediaPipe Hand Tracking) -->
-	{#if showGestureDebug}
-		<GestureDebugView visible={showGestureDebug} onGesture={handleGesture} />
-	{/if}
+	<!-- Hidden video element for gesture camera (MediaPipe) -->
+	<!-- svelte-ignore a11y-media-has-caption -->
+	<video
+		bind:this={gestureVideoElement}
+		style="position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px;"
+		autoplay
+		playsinline
+		muted
+	></video>
 
 	<!-- Gesture Control Toggle Button -->
 	<button
 		onclick={toggleGestureControl}
 		class="gesture-toggle-btn"
 		class:active={gestureControlEnabled}
-		title={gestureControlEnabled ? 'Disable Gesture Control' : 'Enable Gesture Control'}
+		class:loading={gestureControlLoading}
+		disabled={gestureControlLoading}
+		title={gestureControlLoading ? 'Initializing...' : gestureControlEnabled ? 'Disable Gesture Control' : 'Enable Gesture Control'}
 	>
-		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
-		</svg>
-		{#if !gestureControlEnabled}
-			<span class="btn-label">Gestures</span>
+		{#if gestureControlLoading}
+			<!-- Loading spinner -->
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="spinner">
+				<circle cx="12" cy="12" r="10" stroke-width="3" stroke-dasharray="50" stroke-dashoffset="0" />
+			</svg>
+			<span class="btn-label">Loading...</span>
+		{:else}
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+			</svg>
+			{#if !gestureControlEnabled}
+				<span class="btn-label">Gestures</span>
+			{:else}
+				<span class="btn-label">ON</span>
+			{/if}
 		{/if}
 	</button>
 </div>
@@ -1102,6 +1296,25 @@ Keep it SHORT. You're a voice assistant, not writing an email.`;
 	.gesture-toggle-btn.active svg {
 		stroke: #000;
 		animation: wave 2s ease-in-out infinite;
+	}
+
+	.gesture-toggle-btn.loading {
+		background: rgba(30, 30, 35, 0.95);
+		cursor: wait;
+		opacity: 0.8;
+	}
+
+	.gesture-toggle-btn .spinner {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	@keyframes wave {

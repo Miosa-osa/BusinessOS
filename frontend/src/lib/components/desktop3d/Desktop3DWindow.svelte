@@ -221,6 +221,26 @@
 				return `/${module}`;
 		}
 	}
+
+	// Track iframe element for focus management
+	let iframeElement: HTMLIFrameElement | null = null;
+
+	// CRITICAL: Focus iframe content when window becomes focused
+	// This ensures keyboard input (arrow keys, Enter, etc.) reaches the iframe content
+	$effect(() => {
+		if (isFocused && iframeElement) {
+			// Focus the iframe element itself
+			iframeElement.focus();
+
+			// Try to focus content inside iframe (works for same-origin iframes)
+			try {
+				iframeElement.contentWindow?.focus();
+			} catch (e) {
+				// Cross-origin iframe - can't access contentWindow
+				console.log('[Window] Cannot focus cross-origin iframe content');
+			}
+		}
+	});
 </script>
 
 <!-- Window using HTML component for DOM content in 3D space -->
@@ -328,11 +348,13 @@
 				<!-- LIVE Content - Always show iframe -->
 				<div class="window-content">
 					<iframe
+						bind:this={iframeElement}
 						src="{getModuleRoute(window.module)}?embed=true"
 						title={window.title}
 						class="window-iframe"
 						sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
 						loading="eager"
+						tabindex="0"
 					></iframe>
 				</div>
 			</div>
@@ -541,9 +563,17 @@
 		height: 100%;
 		border: none;
 		pointer-events: none;
+		outline: none;
 	}
 
 	.window-wrapper.focused .window-iframe {
 		pointer-events: auto;
+		/* Ensure iframe can receive keyboard events */
+		user-select: auto;
+	}
+
+	/* Focus indicator for iframe */
+	.window-iframe:focus {
+		outline: none;
 	}
 </style>

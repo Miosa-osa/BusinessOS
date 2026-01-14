@@ -742,11 +742,98 @@ export class VoiceCommandParser {
 	 * Parse navigation commands
 	 */
 	private parseNavigationCommand(text: string): VoiceCommand | null {
-		if (this.matchesPattern(text, ['next window', 'next', 'go forward', 'right'])) {
+		// Next window - expanded with ALL natural variations
+		if (this.matchesPattern(text, [
+			// Window variations
+			'next window',
+			'next one',
+			'next page',
+			'next thing',
+			'next module',
+			'next app',
+
+			// "Go to" variations
+			'go to next',
+			'go to the next',
+			'go to next window',
+			'go to the next window',
+			'go to next page',
+			'go to the next page',
+			'go to next one',
+			'go to the next one',
+
+			// "Move to" variations
+			'move to next',
+			'move to the next',
+			'move to next window',
+			'move to next page',
+
+			// "Switch to" variations
+			'switch to next',
+			'switch to the next',
+			'switch to next window',
+			'switch to next page',
+
+			// Short forms
+			'next',
+			'forward',
+			'go forward',
+			'move forward',
+			'right'
+		])) {
 			return { type: 'next_window' };
 		}
 
-		if (this.matchesPattern(text, ['previous window', 'previous', 'back', 'go back', 'left'])) {
+		// Previous window - expanded with ALL natural variations
+		if (this.matchesPattern(text, [
+			// Window variations
+			'previous window',
+			'previous one',
+			'previous page',
+			'previous thing',
+			'previous module',
+			'previous app',
+			'last window',
+			'last one',
+			'last page',
+
+			// "Go to" variations
+			'go to previous',
+			'go to the previous',
+			'go to previous window',
+			'go to the previous window',
+			'go to previous page',
+			'go to the previous page',
+			'go to previous one',
+			'go to the previous one',
+			'go to last',
+			'go to the last',
+			'go to last window',
+			'go to last page',
+
+			// "Move to" variations
+			'move to previous',
+			'move to the previous',
+			'move to previous window',
+			'move to previous page',
+			'move to last',
+			'move to last window',
+
+			// "Switch to" variations
+			'switch to previous',
+			'switch to the previous',
+			'switch to previous window',
+			'switch to previous page',
+			'switch to last',
+
+			// "Go back" variations
+			'go back',
+			'back',
+			'previous',
+			'go backward',
+			'move back',
+			'left'
+		])) {
 			return { type: 'previous_window' };
 		}
 

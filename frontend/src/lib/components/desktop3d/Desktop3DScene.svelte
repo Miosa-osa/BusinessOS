@@ -14,6 +14,10 @@
 		focusedWindowId: string | null;
 		autoRotate: boolean;
 		sphereRadius: number;
+		cameraDistance: number; // Camera distance for zoom control
+		cameraRotationDelta?: { x: number; y: number }; // NEW: Gesture rotation delta
+		gestureDragging?: boolean; // NEW: Is gesture dragging active
+		orbitControlsRef?: any; // Bindable ref to OrbitControls for gesture control
 		onWindowClick?: (id: string) => void;
 		onBackgroundClick?: () => void;
 		onResize?: (widthDelta: number, heightDelta: number) => void;
@@ -26,14 +30,18 @@
 		focusedWindowId = null,
 		autoRotate = true,
 		sphereRadius = 60,
+		cameraDistance = 400,
+		cameraRotationDelta = { x: 0, y: 0 }, // NEW: Default rotation delta
+		gestureDragging = false, // NEW: Default not dragging
+		orbitControlsRef = $bindable(), // BINDABLE: Expose OrbitControls ref to parent
 		onWindowClick,
 		onBackgroundClick,
 		onResize,
 		onZoomOut
 	}: Props = $props();
 
-	// Track camera distance for zoom-out detection
-	let orbitControlsRef: any = $state(null);
+	// OrbitControls ref is now exposed as bindable prop (line 39)
+	// No need for local variable - use orbitControlsRef directly
 
 	// Track which window is hovered (only ONE at a time)
 	let hoveredWindowId: string | null = $state(null);
@@ -55,10 +63,9 @@
 	}
 	// NO camera reset - keep free-form rotation at all times
 
-	// Initial camera position - OrbitControls will manage from here
-	// No spring - let user freely rotate/zoom
-	// Backed up to accommodate larger sphere radius (95)
-	const initialCameraPosition: [number, number, number] = [0, 40, 300];
+	// Camera position - INITIAL ONLY (OrbitControls manages it after)
+	// Don't make this reactive or it will fight with gesture control!
+	let initialCameraPosition: [number, number, number] = [0, 40, cameraDistance];
 
 	// Effective auto-rotate (disabled when focused)
 	let effectiveAutoRotate = $derived(autoRotate && !focusedWindowId);
@@ -66,14 +73,48 @@
 	// Reset camera to front view when focusing a window
 	$effect(() => {
 		if (focusedWindowId && orbitControlsRef) {
-			// Smoothly move camera to face the focused window (which is at z=200)
+			// Smoothly move camera to face the focused window
 			const controls = orbitControlsRef;
 			if (controls?.object) {
-				// Reset camera to front position
-				controls.object.position.set(0, 40, 350);
+				// Reset camera to front position using current cameraDistance
+				controls.object.position.set(0, 40, cameraDistance);
 				controls.target.set(0, 0, 0);
 				controls.update();
 			}
+		}
+	});
+
+	// NEW: Apply gesture rotation delta to camera
+	$effect(() => {
+		if (!orbitControlsRef) return;
+
+		const controls = orbitControlsRef;
+		const hasRotation = cameraRotationDelta && (Math.abs(cameraRotationDelta.x) > 0.001 || Math.abs(cameraRotationDelta.y) > 0.001);
+
+		if (gestureDragging && hasRotation && controls) {
+			// Get current spherical coordinates
+			const offset = new THREE.Vector3();
+			offset.copy(controls.object.position).sub(controls.target);
+
+			// Convert to spherical
+			const spherical = new THREE.Spherical();
+			spherical.setFromVector3(offset);
+
+			// Apply rotation deltas with higher sensitivity
+			// X delta = azimuthal angle (horizontal rotation)
+			// Y delta = polar angle (vertical rotation)
+			spherical.theta -= cameraRotationDelta.x * 1.0; // Increased from 0.5
+			spherical.phi -= cameraRotationDelta.y * 1.0; // Increased from 0.5
+
+			// Clamp polar angle to prevent flipping
+			spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+
+			// Convert back to cartesian
+			offset.setFromSpherical(spherical);
+
+			// Update camera position
+			controls.object.position.copy(controls.target).add(offset);
+			controls.update();
 		}
 	});
 
@@ -89,7 +130,7 @@
 
 </script>
 
-<!-- Camera - OrbitControls manages position freely -->
+<!-- Camera - OrbitControls manages position (initial only, then OrbitControls takes over) -->
 <T.PerspectiveCamera
 	makeDefault
 	position={initialCameraPosition}

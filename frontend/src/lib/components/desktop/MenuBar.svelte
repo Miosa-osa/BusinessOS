@@ -1,13 +1,20 @@
 <script lang="ts">
 	import { windowStore, focusedWindow } from '$lib/stores/windowStore';
 	import { desktopSettings } from '$lib/stores/desktopStore';
+	import { desktop3dLayoutStore, isEditMode, activeLayout } from '$lib/stores/desktop3dLayoutStore';
 	import { themeStore } from '$lib/stores/themeStore';
 	import { useSession, signOut } from '$lib/auth-client';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { isElectron, isMacOS } from '$lib/utils/platform';
+	import LayoutManager from '$lib/components/desktop3d/LayoutManager.svelte';
 
 	const session = useSession();
+
+	// State for layout management (3D Desktop)
+	let showLayoutManager = $state(false);
+	let showSaveLayoutModal = $state(false);
+	let layoutNameInput = $state('');
 
 	// Theme state
 	const isDarkMode = $derived($themeStore.resolvedTheme === 'dark');
@@ -151,6 +158,24 @@
 			case 'open-docs':
 				goto('/docs');
 				break;
+			case 'edit-layout':
+				desktop3dLayoutStore.enterEditMode();
+				break;
+			case 'save-layout':
+				showSaveLayoutModal = true;
+				layoutNameInput = '';
+				break;
+			case 'cancel-edit':
+				desktop3dLayoutStore.exitEditMode();
+				break;
+			case 'manage-layouts':
+				showLayoutManager = true;
+				break;
+			case 'reset-layout':
+				if (confirm('Reset to default layout? This will discard unsaved changes.')) {
+					desktop3dLayoutStore.resetToDefault();
+				}
+				break;
 		}
 	}
 
@@ -209,14 +234,26 @@
 		{
 			id: 'view',
 			label: 'View',
-			items: [
-				{ label: 'Zoom In', shortcut: 'Cmd++', action: 'zoom-in', disabled: true },
-				{ label: 'Zoom Out', shortcut: 'Cmd+-', action: 'zoom-out', disabled: true },
-				{ label: 'Actual Size', shortcut: 'Cmd+0', action: 'zoom-reset', disabled: true },
-				{ type: 'separator' },
-				{ label: 'Arrange Windows', action: 'arrange', disabled: true },
-				{ label: 'Tile Windows', action: 'tile', disabled: true },
-			]
+			items: $desktopSettings.enable3DDesktop
+				? [
+						// 3D Desktop Layout Controls
+						{ label: `Current: ${$activeLayout?.name || 'Default'}`, action: '', disabled: true },
+						{ type: 'separator' },
+						{ label: $isEditMode ? 'Cancel Edit Mode' : 'Edit Layout', action: $isEditMode ? 'cancel-edit' : 'edit-layout' },
+						{ label: 'Save Layout As...', action: 'save-layout', disabled: !$isEditMode },
+						{ label: 'Manage Layouts', action: 'manage-layouts' },
+						{ type: 'separator' },
+						{ label: 'Reset Layout', action: 'reset-layout' },
+				  ]
+				: [
+						// Regular Desktop View Controls
+						{ label: 'Zoom In', shortcut: 'Cmd++', action: 'zoom-in', disabled: true },
+						{ label: 'Zoom Out', shortcut: 'Cmd+-', action: 'zoom-out', disabled: true },
+						{ label: 'Actual Size', shortcut: 'Cmd+0', action: 'zoom-reset', disabled: true },
+						{ type: 'separator' },
+						{ label: 'Arrange Windows', action: 'arrange', disabled: true },
+						{ label: 'Tile Windows', action: 'tile', disabled: true },
+				  ]
 		},
 		{
 			id: 'window',
@@ -486,6 +523,65 @@
 		{/if}
 	</div>
 </div>
+
+<!-- Save Layout Modal (3D Desktop) -->
+{#if showSaveLayoutModal}
+	<div class="modal-overlay" onclick={() => { showSaveLayoutModal = false; layoutNameInput = ''; }}>
+		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+			<div class="modal-header">
+				<h3>Save Layout</h3>
+				<button class="close-btn" onclick={() => { showSaveLayoutModal = false; layoutNameInput = ''; }}>
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<line x1="18" y1="6" x2="6" y2="18" />
+						<line x1="6" y1="6" x2="18" y2="18" />
+					</svg>
+				</button>
+			</div>
+			<div class="modal-body">
+				<p class="modal-description">Enter a name for your custom layout:</p>
+				<input
+					type="text"
+					class="layout-name-input"
+					placeholder="e.g., My Workspace, Development Setup"
+					bind:value={layoutNameInput}
+					maxlength="255"
+					onkeydown={(e) => {
+						if (e.key === 'Enter' && layoutNameInput.trim()) {
+							desktop3dLayoutStore.saveLayout(layoutNameInput.trim());
+							desktop3dLayoutStore.exitEditMode();
+							showSaveLayoutModal = false;
+							layoutNameInput = '';
+							closeMenus();
+						}
+					}}
+				/>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-secondary" onclick={() => { showSaveLayoutModal = false; layoutNameInput = ''; }}>
+					Cancel
+				</button>
+				<button
+					class="btn btn-primary"
+					disabled={!layoutNameInput.trim()}
+					onclick={() => {
+						if (layoutNameInput.trim()) {
+							desktop3dLayoutStore.saveLayout(layoutNameInput.trim());
+							desktop3dLayoutStore.exitEditMode();
+							showSaveLayoutModal = false;
+							layoutNameInput = '';
+							closeMenus();
+						}
+					}}
+				>
+					Save
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Layout Manager Modal (3D Desktop) -->
+<LayoutManager show={showLayoutManager} onClose={() => showLayoutManager = false} />
 
 <style>
 	.menu-bar {
@@ -1011,5 +1107,207 @@
 		background: #0A84FF;
 		border-color: #0A84FF;
 		color: white;
+	}
+
+	/* Modal Styles (for 3D Desktop Layout Save) */
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(4px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 20000;
+		animation: fadeIn 0.2s ease-out;
+	}
+
+	@keyframes fadeIn {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+
+	.modal-content {
+		background: white;
+		border-radius: 12px;
+		width: 90%;
+		max-width: 400px;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+		animation: slideUp 0.3s ease-out;
+	}
+
+	@keyframes slideUp {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.modal-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 20px;
+		border-bottom: 1px solid #e2e8f0;
+	}
+
+	.modal-header h3 {
+		margin: 0;
+		font-size: 18px;
+		font-weight: 600;
+		color: #1e293b;
+	}
+
+	.close-btn {
+		background: none;
+		border: none;
+		padding: 4px;
+		cursor: pointer;
+		color: #64748b;
+		transition: color 0.2s;
+		display: flex;
+		align-items: center;
+	}
+
+	.close-btn:hover {
+		color: #1e293b;
+	}
+
+	.modal-body {
+		padding: 20px;
+	}
+
+	.modal-description {
+		margin: 0 0 12px 0;
+		color: #64748b;
+		font-size: 14px;
+	}
+
+	.layout-name-input {
+		width: 100%;
+		padding: 10px 14px;
+		border: 2px solid #e2e8f0;
+		border-radius: 6px;
+		font-size: 14px;
+		transition: all 0.2s;
+	}
+
+	.layout-name-input:focus {
+		outline: none;
+		border-color: #0066FF;
+		box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+	}
+
+	.modal-footer {
+		display: flex;
+		justify-content: flex-end;
+		gap: 10px;
+		padding: 20px;
+		border-top: 1px solid #e2e8f0;
+	}
+
+	.btn {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 8px 16px;
+		border: none;
+		border-radius: 6px;
+		font-size: 14px;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.btn-primary {
+		background: #0066FF;
+		color: white;
+	}
+
+	.btn-primary:hover:not(:disabled) {
+		background: #0055DD;
+	}
+
+	.btn-secondary {
+		background: white;
+		color: #64748b;
+		border: 1px solid #e2e8f0;
+	}
+
+	.btn-secondary:hover:not(:disabled) {
+		background: #f8fafc;
+		border-color: #cbd5e1;
+	}
+
+	/* Dark mode for modal */
+	:global(.dark) .modal-content {
+		background: #1e293b;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	:global(.dark) .modal-header h3 {
+		color: #f5f5f7;
+	}
+
+	:global(.dark) .modal-header {
+		border-bottom-color: rgba(255, 255, 255, 0.1);
+	}
+
+	:global(.dark) .close-btn {
+		color: #a1a1a6;
+	}
+
+	:global(.dark) .close-btn:hover {
+		color: #f5f5f7;
+	}
+
+	:global(.dark) .modal-description {
+		color: #a1a1a6;
+	}
+
+	:global(.dark) .layout-name-input {
+		background: #0f172a;
+		border-color: rgba(255, 255, 255, 0.1);
+		color: #f5f5f7;
+	}
+
+	:global(.dark) .layout-name-input:focus {
+		border-color: #0A84FF;
+		box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+	}
+
+	:global(.dark) .modal-footer {
+		border-top-color: rgba(255, 255, 255, 0.1);
+	}
+
+	:global(.dark) .btn-primary {
+		background: #0A84FF;
+	}
+
+	:global(.dark) .btn-primary:hover:not(:disabled) {
+		background: #0077FF;
+	}
+
+	:global(.dark) .btn-secondary {
+		background: #334155;
+		border-color: rgba(255, 255, 255, 0.1);
+		color: #f5f5f7;
+	}
+
+	:global(.dark) .btn-secondary:hover:not(:disabled) {
+		background: #475569;
+		border-color: rgba(255, 255, 255, 0.15);
 	}
 </style>

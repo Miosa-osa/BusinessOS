@@ -142,6 +142,10 @@ export default defineConfig({
 				target: 'http://localhost:8001',
 				changeOrigin: true,
 			},
+			'/api/osa': {
+				target: 'http://localhost:8001',
+				changeOrigin: true,
+			},
 			'/health': {
 				target: 'http://localhost:8001',
 				changeOrigin: true,

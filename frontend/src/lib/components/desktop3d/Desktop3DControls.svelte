@@ -18,6 +18,8 @@
 		onToggleAutoRotate,
 		onExit
 	}: Props = $props();
+
+	let showHelp = $state(false);
 </script>
 
 <div class="controls-overlay">
@@ -67,24 +69,28 @@
 		</button>
 	</div>
 
-	<!-- Bottom Center: Instructions -->
-	{#if !hasFocusedWindow}
-		<div class="controls-bottom">
-			<div class="instructions">
-				<span class="instruction"><kbd>Drag</kbd> Rotate view</span>
-				<span class="instruction"><kbd>Scroll</kbd> Zoom</span>
-				<span class="instruction"><kbd>Click</kbd> Focus window</span>
-				<span class="instruction"><kbd>Space</kbd> Toggle view</span>
-				<span class="instruction"><kbd>Esc</kbd> Exit</span>
+	<!-- Help Button (replaced bottom instructions) -->
+	<div class="help-button-container">
+		<button class="help-btn" title="Keyboard Shortcuts" onclick={() => showHelp = !showHelp}>
+			<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+			</svg>
+		</button>
+
+		{#if showHelp}
+			<div class="help-tooltip">
+				<div class="help-header">Keyboard Shortcuts</div>
+				<div class="help-content">
+					<div class="help-item"><kbd>Drag</kbd> Rotate view</div>
+					<div class="help-item"><kbd>Scroll</kbd> Zoom</div>
+					<div class="help-item"><kbd>Click</kbd> Focus window</div>
+					<div class="help-item"><kbd>Space</kbd> Toggle view</div>
+					<div class="help-item"><kbd>←/→</kbd> Navigate windows</div>
+					<div class="help-item"><kbd>Esc</kbd> Exit / Unfocus</div>
+				</div>
 			</div>
-		</div>
-	{:else}
-		<div class="controls-bottom">
-			<div class="instructions focused-instructions">
-				<span class="instruction"><kbd>Click outside</kbd> or <kbd>Esc</kbd> to unfocus</span>
-			</div>
-		</div>
-	{/if}
+		{/if}
+	</div>
 </div>
 
 <style>
@@ -113,12 +119,88 @@
 		pointer-events: auto;
 	}
 
-	.controls-bottom {
+	.help-button-container {
 		position: absolute;
-		bottom: 100px;
-		left: 50%;
-		transform: translateX(-50%);
-		pointer-events: none;
+		top: 60px;
+		left: 140px; /* Next to exit button */
+		pointer-events: auto;
+	}
+
+	.help-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 10px;
+		background: rgba(255, 255, 255, 0.85);
+		backdrop-filter: blur(12px);
+		border: 1px solid rgba(0, 0, 0, 0.08);
+		border-radius: 10px;
+		color: #666666;
+		cursor: pointer;
+		transition: all 0.2s;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+	}
+
+	.help-btn:hover {
+		background: rgba(255, 255, 255, 0.95);
+		border-color: rgba(0, 0, 0, 0.12);
+		color: #333333;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	}
+
+	.help-tooltip {
+		position: absolute;
+		top: 55px;
+		right: 0;
+		min-width: 250px;
+		background: rgba(255, 255, 255, 0.95);
+		backdrop-filter: blur(16px);
+		border: 1px solid rgba(0, 0, 0, 0.08);
+		border-radius: 12px;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+		overflow: hidden;
+		z-index: 100;
+	}
+
+	.help-header {
+		padding: 12px 16px;
+		background: rgba(0, 0, 0, 0.03);
+		border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+		font-weight: 600;
+		font-size: 13px;
+		color: #333333;
+	}
+
+	.help-content {
+		padding: 8px;
+	}
+
+	.help-item {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 8px 10px;
+		font-size: 13px;
+		color: #666666;
+		border-radius: 6px;
+		transition: background 0.15s;
+	}
+
+	.help-item:hover {
+		background: rgba(0, 0, 0, 0.03);
+	}
+
+	.help-item kbd {
+		min-width: 60px;
+		padding: 4px 8px;
+		background: rgba(0, 0, 0, 0.05);
+		border: 1px solid rgba(0, 0, 0, 0.1);
+		border-radius: 4px;
+		font-family: inherit;
+		font-size: 11px;
+		font-weight: 500;
+		color: #333333;
+		text-align: center;
 	}
 
 	.control-btn {
@@ -166,38 +248,20 @@
 		border-color: rgba(200, 100, 100, 0.3);
 	}
 
-	.instructions {
-		display: flex;
-		gap: 20px;
-		padding: 12px 20px;
-		background: rgba(255, 255, 255, 0.85);
-		backdrop-filter: blur(12px);
-		border-radius: 12px;
-		border: 1px solid rgba(0, 0, 0, 0.08);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+	.voice-btn.active {
+		background: rgba(59, 130, 246, 0.15);
+		border-color: rgba(59, 130, 246, 0.3);
+		color: #3b82f6;
+		animation: voicePulse 1.5s ease-in-out infinite;
 	}
 
-	.focused-instructions {
-		background: rgba(74, 158, 255, 0.1);
-		border-color: rgba(74, 158, 255, 0.2);
-	}
-
-	.instruction {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		font-size: 12px;
-		color: #666666;
-	}
-
-	.instruction kbd {
-		padding: 3px 8px;
-		background: rgba(0, 0, 0, 0.05);
-		border: 1px solid rgba(0, 0, 0, 0.1);
-		border-radius: 4px;
-		font-family: inherit;
-		font-size: 11px;
-		color: #333333;
+	@keyframes voicePulse {
+		0%, 100% {
+			box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+		}
+		50% {
+			box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+		}
 	}
 
 	/* ===== DARK MODE STYLES ===== */
@@ -243,22 +307,49 @@
 		stroke: #ff8888;
 	}
 
-	:global(.dark) .instructions {
+	:global(.dark) .voice-btn.active {
+		background: rgba(59, 130, 246, 0.25);
+		border-color: rgba(59, 130, 246, 0.5);
+		color: #6eb5ff;
+	}
+
+	:global(.dark) .voice-btn.active svg {
+		stroke: #6eb5ff;
+	}
+
+	:global(.dark) .help-btn {
 		background: rgba(44, 44, 46, 0.85);
 		border-color: rgba(255, 255, 255, 0.12);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-	}
-
-	:global(.dark) .focused-instructions {
-		background: rgba(74, 158, 255, 0.15);
-		border-color: rgba(74, 158, 255, 0.3);
-	}
-
-	:global(.dark) .instruction {
 		color: #aaaaaa;
 	}
 
-	:global(.dark) .instruction kbd {
+	:global(.dark) .help-btn:hover {
+		background: rgba(58, 58, 60, 0.95);
+		border-color: rgba(255, 255, 255, 0.18);
+		color: #ffffff;
+	}
+
+	:global(.dark) .help-tooltip {
+		background: rgba(30, 30, 30, 0.95);
+		border-color: rgba(255, 255, 255, 0.12);
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+	}
+
+	:global(.dark) .help-header {
+		background: rgba(255, 255, 255, 0.05);
+		border-color: rgba(255, 255, 255, 0.08);
+		color: #ffffff;
+	}
+
+	:global(.dark) .help-item {
+		color: #aaaaaa;
+	}
+
+	:global(.dark) .help-item:hover {
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	:global(.dark) .help-item kbd {
 		background: rgba(255, 255, 255, 0.1);
 		border-color: rgba(255, 255, 255, 0.15);
 		color: #ffffff;
