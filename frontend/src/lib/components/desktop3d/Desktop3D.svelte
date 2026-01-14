@@ -18,16 +18,21 @@
 	let { onExit }: Props = $props();
 
 	// Initialize store and permissions on mount
-	onMount(() => {
+	onMount(async () => {
 		console.log('[Desktop3D] Initializing 3D Desktop mode...');
 		desktop3dStore.initialize();
 
-		// Initialize permission service
-		desktop3dPermissions.initialize();
-		console.log('[Desktop3D] Permission service initialized');
+		// Check if media permissions are supported
+		if (!desktop3dPermissions.isSupported()) {
+			console.warn('[Desktop3D] Media permissions not supported in this environment');
+		} else {
+			// Initialize permission service
+			desktop3dPermissions.initialize();
+			console.log('[Desktop3D] Permission service initialized');
+		}
 
-		// Initialize layout system
-		desktop3dLayoutStore.initialize();
+		// Initialize layout system (async - wait for it)
+		await desktop3dLayoutStore.initialize();
 		console.log('[Desktop3D] Layout system initialized');
 	});
 

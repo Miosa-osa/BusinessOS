@@ -1,36 +1,19 @@
 <script lang="ts">
 	import { desktop3dLayoutStore, type Layout } from '$lib/stores/desktop3dLayoutStore';
-	import { onMount } from 'svelte';
 
 	interface Props {
 		show: boolean;
 		onClose: () => void;
 	}
 
-	let { show = $bindable(), onClose }: Props = $props();
+	let { show, onClose }: Props = $props();
 
-	// State
-	let layouts = $state<Layout[]>([]);
-	let activeLayoutId = $state<string>('default');
-	let loading = $state(false);
-	let error = $state<string | null>(null);
+	// Local state for UI interactions only
 	let deleteConfirmId = $state<string | null>(null);
 	let deleting = $state(false);
 
-	// Subscribe to store
-	onMount(() => {
-		const unsubscribe = desktop3dLayoutStore.subscribe((state) => {
-			layouts = state.layouts;
-			activeLayoutId = state.activeLayoutId;
-			loading = state.loading;
-			error = state.error;
-		});
-
-		return unsubscribe;
-	});
-
 	async function handleLoadLayout(layoutId: string) {
-		if (layoutId === activeLayoutId) return;
+		if (layoutId === $desktop3dLayoutStore.activeLayoutId) return;
 
 		console.log('[LayoutManager] Loading layout:', layoutId);
 		await desktop3dLayoutStore.loadLayout(layoutId);
@@ -114,13 +97,13 @@
 
 			<!-- Body -->
 			<div class="modal-body">
-				{#if loading}
-					<div class="loading-state">
+				{#if $desktop3dLayoutStore.loading}
+					<div class="$desktop3dLayoutStore.loading-state">
 						<div class="spinner large"></div>
-						<p>Loading layouts...</p>
+						<p>Loading $desktop3dLayoutStore.layouts...</p>
 					</div>
-				{:else if error}
-					<div class="error-state">
+				{:else if $desktop3dLayoutStore.error}
+					<div class="$desktop3dLayoutStore.error-state">
 						<svg
 							width="48"
 							height="48"
@@ -133,12 +116,12 @@
 							<line x1="12" y1="8" x2="12" y2="12" />
 							<line x1="12" y1="16" x2="12.01" y2="16" />
 						</svg>
-						<p>{error}</p>
+						<p>{$desktop3dLayoutStore.error}</p>
 						<button class="btn btn-primary" onclick={() => desktop3dLayoutStore.loadLayouts()}>
 							Retry
 						</button>
 					</div>
-				{:else if layouts.length === 0}
+				{:else if $desktop3dLayoutStore.layouts.length === 0}
 					<div class="empty-state">
 						<svg
 							width="64"
@@ -153,15 +136,15 @@
 							<rect x="14" y="14" width="7" height="7" />
 							<rect x="3" y="14" width="7" height="7" />
 						</svg>
-						<p>No layouts found</p>
+						<p>No $desktop3dLayoutStore.layouts found</p>
 						<p class="empty-hint">Create a custom layout by entering edit mode and saving your setup</p>
 					</div>
 				{:else}
-					<div class="layouts-grid">
-						{#each layouts as layout (layout.id)}
+					<div class="$desktop3dLayoutStore.layouts-grid">
+						{#each $desktop3dLayoutStore.layouts as layout (layout.id)}
 							<div
 								class="layout-card"
-								class:active={layout.id === activeLayoutId}
+								class:active={layout.id === $desktop3dLayoutStore.activeLayoutId}
 								class:default={layout.type === 'default'}
 							>
 								<!-- Card Header -->
@@ -172,7 +155,7 @@
 											{#if layout.type === 'default'}
 												<span class="badge badge-default">Default</span>
 											{/if}
-											{#if layout.id === activeLayoutId}
+											{#if layout.id === $desktop3dLayoutStore.activeLayoutId}
 												<span class="badge badge-active">Active</span>
 											{/if}
 										</div>
@@ -224,7 +207,7 @@
 
 								<!-- Card Actions -->
 								<div class="card-actions">
-									{#if layout.id === activeLayoutId}
+									{#if layout.id === $desktop3dLayoutStore.activeLayoutId}
 										<button class="btn btn-secondary" disabled>
 											<svg
 												width="16"
@@ -254,7 +237,7 @@
 
 	<!-- Delete Confirmation Modal -->
 	{#if deleteConfirmId}
-		{@const layoutToDelete = layouts.find((l) => l.id === deleteConfirmId)}
+		{@const layoutToDelete = $desktop3dLayoutStore.layouts.find((l) => l.id === deleteConfirmId)}
 		<div class="confirm-overlay" onclick={handleCloseDeleteConfirm}>
 			<div class="confirm-content" onclick={(e) => e.stopPropagation()}>
 				<div class="confirm-icon">

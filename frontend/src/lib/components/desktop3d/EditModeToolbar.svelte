@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { desktop3dLayoutStore, isEditMode, activeLayout } from '$lib/stores/desktop3dLayoutStore';
-	import { onMount } from 'svelte';
 	import LayoutManager from './LayoutManager.svelte';
 
 	// State for save layout modal
@@ -11,26 +10,6 @@
 
 	// State for layout manager
 	let showLayoutManager = $state(false);
-
-	// Reactive state
-	let editMode = $state(false);
-	let currentLayout = $state<any>(null);
-
-	onMount(() => {
-		// Subscribe to stores
-		const unsubEdit = isEditMode.subscribe((value) => {
-			editMode = value;
-		});
-
-		const unsubLayout = activeLayout.subscribe((value) => {
-			currentLayout = value;
-		});
-
-		return () => {
-			unsubEdit();
-			unsubLayout();
-		};
-	});
 
 	function handleEnterEditMode() {
 		desktop3dLayoutStore.enterEditMode();
@@ -89,12 +68,12 @@
 
 <!-- Toolbar container -->
 <div class="edit-mode-toolbar">
-	{#if !editMode}
+	{#if !$isEditMode}
 		<!-- View Mode: Show Enter Edit Mode button -->
 		<div class="toolbar-content">
 			<div class="layout-info">
 				<span class="layout-label">Current Layout:</span>
-				<span class="layout-name">{currentLayout?.name || 'Default'}</span>
+				<span class="layout-name">{$activeLayout?.name || 'Default'}</span>
 			</div>
 
 			<button class="btn btn-secondary" onclick={() => (showLayoutManager = true)}>

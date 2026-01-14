@@ -179,7 +179,7 @@ function createLayoutStore() {
 		/**
 		 * Save current positions as new custom layout
 		 */
-		saveLayout: async (name: string): Promise<boolean> => {
+		saveLayout: async (name: string) => {
 			if (!name || name.trim().length === 0) {
 				console.error('[Layout Store] Cannot save layout with empty name');
 				return false;
@@ -276,7 +276,7 @@ function createLayoutStore() {
 		/**
 		 * Delete a custom layout
 		 */
-		deleteLayout: async (layoutId: string): Promise<boolean> {
+		deleteLayout: async (layoutId: string) => {
 			if (layoutId === 'default') {
 				console.warn('[Layout Store] Cannot delete default layout');
 				return false;
