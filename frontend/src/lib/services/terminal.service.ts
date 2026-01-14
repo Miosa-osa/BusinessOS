@@ -84,13 +84,11 @@ export class TerminalService {
 		};
 
 		this.ws.onmessage = (event) => {
-			console.log('[Terminal] Raw message received:', event.data);
+			// REDUCED LOGGING: Only log errors, not every message
 			try {
 				const message: TerminalMessage = JSON.parse(event.data);
-				console.log('[Terminal] Parsed message:', message);
 				this.handleMessage(message);
 			} catch (error) {
-				console.log('[Terminal] Non-JSON data, treating as raw output');
 				// If not JSON, treat as raw output
 				this.handlers.onData(event.data);
 			}
@@ -113,7 +111,7 @@ export class TerminalService {
 	}
 
 	private handleMessage(message: TerminalMessage): void {
-		console.log('[Terminal] Received message:', message.type, message);
+		// REDUCED LOGGING: Only log errors, not every message
 
 		switch (message.type) {
 			case 'output':

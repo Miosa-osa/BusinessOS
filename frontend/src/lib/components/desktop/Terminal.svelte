@@ -77,9 +77,11 @@
 
 		// Handle user input
 		xterm.onData((data) => {
-			// DEBUG: Log what keys are being sent
-			const bytes = Array.from(data).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
-			console.log(`[Terminal] Sending key: "${data}" (hex: ${bytes})`);
+			// DEBUG: Only log arrow keys and special keys to reduce clutter
+			if (data.includes('\x1b[') || data.startsWith('\x1b')) {
+				const bytes = Array.from(data).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
+				console.log(`[Terminal] 🔑 SPECIAL KEY: hex=${bytes}`);
+			}
 
 			if (service?.isConnected()) {
 				service.sendInput(data);
