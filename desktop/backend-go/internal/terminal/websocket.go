@@ -242,19 +242,31 @@ func (h *WebSocketHandler) handleInput(conn *websocket.Conn, session *Session, e
 
 		switch msg.Type {
 		case MsgTypeInput:
+			// DEBUG: Log IMMEDIATELY when input arrives, before any processing
+			hexBytes := make([]string, len(msg.Data))
+			for i, b := range []byte(msg.Data) {
+				hexBytes[i] = fmt.Sprintf("%02x", b)
+			}
+			logging.Info("[Terminal] 🔵 INPUT RECEIVED: %q (hex: %s)", msg.Data, strings.Join(hexBytes, " "))
+
 			// Validate and sanitize user input before execution
 			inputData := msg.Data
 
 			// Fast-path check first, then full validation if needed
 			if !QuickValidate(inputData) {
+				logging.Info("[Terminal] ⚠️  QuickValidate FAILED, running full sanitizer...")
 				result := sanitizer.ValidateInput(inputData, session.UserID)
 				if result.Blocked {
+					logging.Info("[Terminal] ❌ Input BLOCKED: %s", result.Reason)
 					// Send error to client but don't terminate session
 					h.sendError(conn, "Input blocked: "+result.Reason)
 					continue
 				}
+				logging.Info("[Terminal] ✅ Sanitizer PASSED")
 				// Use sanitized input
 				inputData = result.Sanitized
+			} else {
+				logging.Info("[Terminal] ✅ QuickValidate PASSED (no sanitizer needed)")
 			}
 
 			// DEBUG: Log what we're sending to PTY (use Info so it always shows)
