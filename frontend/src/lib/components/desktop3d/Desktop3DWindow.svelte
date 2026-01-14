@@ -225,10 +225,16 @@
 	// Track iframe element for focus management
 	let iframeElement: HTMLIFrameElement | null = null;
 
-	// CRITICAL: Focus iframe content when window becomes focused
+	// Track previous focus state to only focus on transition
+	let wasFocused = $state(false);
+
+	// CRITICAL: Focus iframe content when window BECOMES focused (transition from unfocused to focused)
 	// This ensures keyboard input (arrow keys, Enter, etc.) reaches the iframe content
+	// BUT only runs ONCE when focus changes, not continuously
 	$effect(() => {
-		if (isFocused && iframeElement) {
+		// Only focus when transitioning from unfocused to focused
+		if (isFocused && !wasFocused && iframeElement) {
+			console.log('[Window] Focusing iframe for window:', window.title);
 			// Focus the iframe element itself
 			iframeElement.focus();
 
@@ -240,6 +246,8 @@
 				console.log('[Window] Cannot focus cross-origin iframe content');
 			}
 		}
+		// Update previous state
+		wasFocused = isFocused;
 	});
 </script>
 
