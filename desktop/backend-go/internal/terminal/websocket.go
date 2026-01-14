@@ -256,6 +256,9 @@ func (h *WebSocketHandler) handleInput(conn *websocket.Conn, session *Session, e
 				inputData = result.Sanitized
 			}
 
+			// DEBUG: Log what we're sending to PTY
+			logging.Debug("[Terminal] DEBUG: Sending to PTY: %q (len=%d)", inputData, len(inputData))
+
 			// Write validated input to PTY or Docker container
 			if session.IsContainerized() {
 				// Write to Docker container exec connection

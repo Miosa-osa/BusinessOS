@@ -24,6 +24,7 @@
 			lineHeight: 1.2,
 			cursorBlink: true,
 			cursorStyle: 'block',
+			convertEol: false, // CRITICAL: Don't convert \n to \r\n - PTY already sends correct sequences
 			theme: {
 				background: '#1a1a1a',
 				foreground: '#00ff00',
