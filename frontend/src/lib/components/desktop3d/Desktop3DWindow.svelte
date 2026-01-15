@@ -389,7 +389,7 @@
 
 	// Handle iframe load error
 	function handleIframeError() {
-		console.log('[Desktop3DWindow] Proxy failed for:', window.userAppUrl);
+		// Proxy failed - will show error state
 		proxyLoadFailed = true;
 	}
 
@@ -402,7 +402,7 @@
 	$effect(() => {
 		// Only focus when transitioning from unfocused to focused
 		if (isFocused && !wasFocused && iframeElement) {
-			console.log('[Window] Focusing iframe for window:', window.title);
+			// Focus iframe when window becomes focused
 			// Focus the iframe element itself
 			iframeElement.focus();
 
@@ -411,7 +411,7 @@
 				iframeElement.contentWindow?.focus();
 			} catch (e) {
 				// Cross-origin iframe - can't access contentWindow
-				console.log('[Window] Cannot focus cross-origin iframe content');
+				// Expected for cross-origin iframes - focus on iframe element is sufficient
 			}
 		}
 		// Update previous state
@@ -555,9 +555,7 @@
 									class="launch-button"
 									onclick={() => {
 										fetch(`/api/system/launch-app?bundle_id=${encodeURIComponent(window.userAppUrl || '')}`, { method: 'POST' })
-											.then(res => res.json())
-											.then(data => console.log('App launched:', data))
-											.catch(err => console.error('Failed to launch app:', err));
+											.catch(() => { /* App launch failed silently */ });
 									}}
 								>
 									Launch {window.title}

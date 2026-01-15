@@ -366,7 +366,7 @@ export const signUp = {
 
 export const signOut = async () => {
 	const mode = typeof window !== 'undefined' ? get(appMode) : null;
-	console.log('[Auth] signOut called, mode:', mode, 'isElectron:', isElectron);
+	// Sign out - mode determines local vs cloud behavior
 	if (isElectron && mode === 'local') {
 		return localSignOut();
 	}

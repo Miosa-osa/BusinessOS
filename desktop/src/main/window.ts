@@ -71,7 +71,7 @@ export async function createMainWindow(): Promise<BrowserWindow> {
     webPreferences.webSecurity = false;
     webPreferences.allowRunningInsecureContent = true;
 
-    console.log('Webview attaching:', params.src);
+    // Webview attaching - security relaxed for external app embedding
   });
 
   // Handle external links
