@@ -16,7 +16,7 @@ export interface FocusMode {
 	id: string;
 	name: string;
 	icon: string;
-	agent: 'analysis' | 'document' | 'planning' | 'orchestrator';
+	agent: 'analysis' | 'document' | 'planning' | 'orchestrator' | 'osa';
 	options: FocusModeOption[];
 }
 
@@ -219,6 +219,43 @@ export const FOCUS_MODES: FocusMode[] = [
 					{ value: 'brainstorm', label: 'Brainstorm', tooltip: 'Creative ideation' }
 				],
 				default: 'chat'
+			}
+		]
+	},
+	{
+		id: 'generate',
+		name: 'Generate App',
+		icon: 'code-bracket',
+		agent: 'osa',
+		options: [
+			{
+				id: 'appType',
+				label: 'App type',
+				type: 'segment',
+				choices: [
+					{ value: 'web', label: 'Web', tooltip: 'Web application' },
+					{ value: 'api', label: 'API', tooltip: 'REST/GraphQL API' },
+					{ value: 'fullstack', label: 'Full-stack', tooltip: 'Complete application' },
+					{ value: 'mobile', label: 'Mobile', tooltip: 'Mobile app' }
+				],
+				default: 'web'
+			},
+			{
+				id: 'complexity',
+				label: 'Complexity',
+				type: 'segment',
+				choices: [
+					{ value: 'simple', label: 'Simple', tooltip: 'Basic CRUD app' },
+					{ value: 'standard', label: 'Standard', tooltip: 'Multi-feature app' },
+					{ value: 'advanced', label: 'Advanced', tooltip: 'Complex system' }
+				],
+				default: 'standard'
+			},
+			{
+				id: 'deployment',
+				label: 'Auto-deploy',
+				type: 'toggle',
+				default: 'off'
 			}
 		]
 	}

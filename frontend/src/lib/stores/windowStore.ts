@@ -1009,6 +1009,128 @@ function createWindowStore() {
 				};
 			});
 		},
+
+		// Register a deployed OSA app dynamically
+		registerDeployedApp: (app: {
+			id: string;
+			name: string;
+			url: string;
+			port: number;
+			metadata?: {
+				name: string;
+				description: string;
+				category: string;
+				icon: string;
+				keywords: string[];
+			}
+		}) => {
+			update(state => {
+				const moduleId = `osa-app-${app.id}`;
+
+				// Check if already registered
+				if (moduleDefaults[moduleId]) {
+					return state;
+				}
+
+				// Use metadata name or fallback to app name
+				const displayName = app.metadata?.name || app.name;
+
+				// Add to moduleDefaults
+				moduleDefaults[moduleId] = {
+					title: displayName,
+					width: 1000,
+					height: 700,
+					minWidth: 600,
+					minHeight: 400,
+				};
+
+				// Check if desktop icon already exists
+				const iconExists = state.desktopIcons.some(icon => icon.module === moduleId);
+				if (iconExists) {
+					return state;
+				}
+
+				// Find next available position on the right side
+				const rightSideIcons = state.desktopIcons.filter(icon => icon.x === -1);
+				const nextY = rightSideIcons.length > 0
+					? Math.max(...rightSideIcons.map(icon => icon.y)) + 1
+					: 0;
+
+				// Category-specific colors
+				const categoryColors: Record<string, { fg: string; bg: string }> = {
+					finance: { fg: '#10b981', bg: '#d1fae5' },
+					communication: { fg: '#3b82f6', bg: '#dbeafe' },
+					productivity: { fg: '#a855f7', bg: '#f3e8ff' },
+					analytics: { fg: '#f97316', bg: '#fed7aa' },
+					ecommerce: { fg: '#ec4899', bg: '#fce7f3' },
+					crm: { fg: '#06b6d4', bg: '#cffafe' },
+					hr: { fg: '#6366f1', bg: '#e0e7ff' },
+					inventory: { fg: '#f59e0b', bg: '#fef3c7' },
+					marketing: { fg: '#f43f5e', bg: '#ffe4e6' },
+					project: { fg: '#14b8a6', bg: '#ccfbf1' },
+					general: { fg: '#8B5CF6', bg: '#F3E8FF' }
+				};
+
+				const category = app.metadata?.category || 'general';
+				const colors = categoryColors[category] || categoryColors.general;
+
+				// Create desktop icon with metadata
+				const newIcon: DesktopIcon = {
+					id: `icon-${moduleId}`,
+					module: moduleId,
+					label: displayName,
+					x: -1, // Right side
+					y: nextY,
+					type: 'app',
+					customIcon: {
+						type: 'lucide',
+						lucideName: app.metadata?.icon || 'AppWindow',
+						foregroundColor: colors.fg,
+						backgroundColor: colors.bg,
+					}
+				};
+
+				const newState = {
+					...state,
+					desktopIcons: [...state.desktopIcons, newIcon],
+				};
+
+				// Save to localStorage
+				saveSettings(newState);
+
+				console.log(`[windowStore] Registered OSA app: ${displayName} (${moduleId})`);
+
+				return newState;
+			});
+		},
+
+		// Unregister a deployed app when it stops
+		unregisterDeployedApp: (appId: string) => {
+			const moduleId = `osa-app-${appId}`;
+
+			update(state => {
+				// Remove from moduleDefaults
+				delete moduleDefaults[moduleId];
+
+				// Remove desktop icon
+				const newState = {
+					...state,
+					desktopIcons: state.desktopIcons.filter(icon => icon.module !== moduleId),
+					// Close any open windows for this app
+					windows: state.windows.filter(w => w.module !== moduleId),
+					windowOrder: state.windowOrder.filter(id => {
+						const window = state.windows.find(w => w.id === id);
+						return window?.module !== moduleId;
+					}),
+				};
+
+				saveSettings(newState);
+
+				console.log(`[windowStore] Unregistered OSA app: ${moduleId}`);
+
+				return newState;
+			});
+		},
 	};
 }
 

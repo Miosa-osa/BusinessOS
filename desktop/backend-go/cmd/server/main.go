@@ -21,6 +21,7 @@ import (
 	"github.com/rhl/businessos-backend/internal/database"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/handlers"
+	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	redisClient "github.com/rhl/businessos-backend/internal/redis"
 	"github.com/rhl/businessos-backend/internal/security"
@@ -167,6 +168,8 @@ func main() {
 				container.DefaultMonitorConfig().IdleTimeout)
 		}
 	}
+
+	// OSA client initialization moved to line ~550 (uses ResilientClient)
 
 	// Create gin router
 	router := gin.Default()
@@ -560,8 +563,91 @@ func main() {
 		log.Printf("Block mapper initialized (markdown to structured blocks)")
 	}
 
-	// Initialize handlers with container manager, session cache, terminal pub/sub, and embedding services
-	h := handlers.NewHandlers(pool, cfg, containerMgr, sessionCache, terminalPubSub, embeddingService, contextBuilder, tieredContextService, notificationService)
+	// ============================================================
+	// OSA Integration - AI Agent Orchestration System
+	// ============================================================
+	var osaClient *osa.ResilientClient
+	var osaSyncService *services.OSASyncService
+	var osaFileSyncService *services.OSAFileSyncService
+	var osaWorkspaceInitService *services.OSAWorkspaceInitService
+	var osaWorkflowsHandler *handlers.OSAWorkflowsHandler
+	var osaWebhooksHandler *handlers.OSAWebhooksHandler
+	var osaBuildEventBus *services.BuildEventBus
+	var osaStreamingHandler *handlers.OSAStreamingHandler
+	var osaDeploymentService *services.AppDeploymentService
+	var osaDeploymentHandler *handlers.OSADeploymentHandler
+
+	if cfg.OSAEnabled {
+		// Create resilient OSA client with circuit breaker and fallback
+		osaConfig := &osa.ResilientClientConfig{
+			OSAConfig:            cfg.OSA, // cfg.OSA is already properly configured in config.Load()
+			CircuitBreakerConfig: osa.DefaultCircuitBreakerConfig(),
+			FallbackStrategy:     osa.FallbackStale,
+			CacheTTL:             5 * time.Minute,
+			HealthCheckCacheTTL:  30 * time.Second,
+			QueueSize:            1000,
+			EnableAutoRecovery:   true,
+		}
+
+		client, err := osa.NewResilientClient(osaConfig)
+		if err != nil {
+			log.Printf("Failed to create OSA client: %v", err)
+		} else {
+			osaClient = client
+			log.Printf("✅ OSA client initialized (base_url=%s)", cfg.OSA.BaseURL)
+
+			// Initialize OSA sync service for bidirectional sync
+			syncService, err := services.NewOSASyncService(pool, cfg)
+			if err != nil {
+				log.Printf("Failed to create OSA sync service: %v", err)
+			} else {
+				osaSyncService = syncService
+				log.Printf("✅ OSA sync service initialized (transactional outbox pattern)")
+			}
+
+			// Initialize OSA file sync service for polling generated files
+			osaWorkspacePath := os.Getenv("OSA_WORKSPACE_PATH")
+			if osaWorkspacePath == "" {
+				osaWorkspacePath = "/Users/ososerious/OSA-5/miosa-backend/generated"
+			}
+			osaFileSyncService = services.NewOSAFileSyncService(pool, slog.Default(), osaWorkspacePath)
+
+			// Initialize OSA workspace initialization service for auto-creating user workspaces
+			osaWorkspaceInitService = services.NewOSAWorkspaceInitService(pool, slog.Default())
+
+			// Initialize OSA build event bus for real-time SSE streaming
+			osaBuildEventBus = services.NewBuildEventBus(slog.Default())
+			log.Printf("✅ OSA build event bus initialized")
+
+			// Initialize OSA workflow and webhook handlers
+			osaWorkflowsHandler = handlers.NewOSAWorkflowsHandler(pool, osaFileSyncService)
+			osaWebhooksHandler = handlers.NewOSAWebhooksHandler(pool, cfg.OSA.SharedSecret, osaBuildEventBus)
+			osaStreamingHandler = handlers.NewOSAStreamingHandler(osaBuildEventBus, slog.Default())
+
+			// Note: handlers are set via h.SetOSAFileServices() after h is created
+			log.Printf("✅ OSA file sync service initialized (workspace=%s)", osaWorkspacePath)
+
+			// Start file sync service in background
+			go osaFileSyncService.Start(ctx)
+			log.Printf("✅ OSA file sync service started (polling every 30s)")
+
+			// Initialize OSA deployment service for running apps locally
+			osaWorkspaceRoot := os.Getenv("OSA_DEPLOYMENT_ROOT")
+			if osaWorkspaceRoot == "" {
+				osaWorkspaceRoot = "/tmp/businessos-apps"
+			}
+			osaDeploymentService = services.NewAppDeploymentService(pool, slog.Default(), osaWorkspaceRoot)
+			osaDeploymentHandler = handlers.NewOSADeploymentHandler(osaDeploymentService)
+			log.Printf("✅ OSA deployment service initialized (workspace=%s)", osaWorkspaceRoot)
+
+			// Wire deployment service to file sync for auto-deployment
+			osaFileSyncService.SetDeploymentService(osaDeploymentService)
+			log.Printf("✅ Auto-deployment enabled - new workflows will deploy automatically")
+		}
+	}
+
+	// Initialize handlers with container manager, session cache, terminal pub/sub, embedding services, OSA, and notification service
+	h := handlers.NewHandlers(pool, cfg, containerMgr, sessionCache, terminalPubSub, embeddingService, contextBuilder, tieredContextService, notificationService, osaClient, osaSyncService)
 
 	// Set optional services
 	if webPushService != nil {
@@ -616,6 +702,18 @@ func main() {
 	workspaceService := services.NewWorkspaceService(pool)
 	h.SetWorkspaceService(workspaceService)
 	log.Printf("Workspace service registered (workspaces, members, roles)")
+
+	// OSA services already set via NewHandlers above
+	if osaClient != nil {
+		log.Printf("✅ OSA integration enabled (API endpoints at /api/osa/*)")
+
+		// Set OSA file sync and workflow services
+		if osaFileSyncService != nil && osaWorkflowsHandler != nil && osaWebhooksHandler != nil {
+			// Note: osaWorkspaceInitService is created earlier in the OSA initialization block
+			h.SetOSAFileServices(osaFileSyncService, osaWorkspaceInitService, osaWorkflowsHandler, osaWebhooksHandler, osaBuildEventBus, osaStreamingHandler)
+			log.Printf("✅ OSA file sync, workflow, and streaming services registered")
+		}
+	}
 
 	// Set Role Context service (Feature 1 - Permission system)
 	roleContextService := services.NewRoleContextService(pool)
@@ -819,6 +917,18 @@ func main() {
 	if jobsHandler != nil {
 		jobsHandler.RegisterRoutes(api)
 		slog.Info("Background jobs routes registered")
+	}
+
+	// Register OSA deployment routes
+	if osaDeploymentHandler != nil {
+		osaDeploymentHandler.RegisterRoutes(api)
+		log.Printf("✅ OSA deployment routes registered (/api/osa/apps/:id/deploy, /stop, /status)")
+	}
+
+	// Public OSA health endpoint (no auth required)
+	if osaClient != nil {
+		router.GET("/api/osa/health", h.HandleOSAHealth)
+		log.Printf("✅ Public OSA health endpoint registered at GET /api/osa/health")
 	}
 
 	// Start server

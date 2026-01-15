@@ -293,6 +293,74 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 		tieredCtx, _ = h.tieredContextService.BuildTieredContext(ctx, tieredReq)
 	}
 
+	// ============================================================
+	// OSA ROUTING CHECK - Route to OSA-5 if app generation detected
+	// ============================================================
+	// TODO: Enable OSA routing when orchestration package is implemented
+	// if h.osaClient != nil && h.cfg.OSAEnabled {
+	// 	// Check if request should be routed to OSA for app generation
+	// 	osaOrch := orchestration.NewOSAOrchestrator(
+	// 		h.osaClient,
+	// 		h.agentRegistry,
+	// 		h.llamaService,
+	// 	)
+	//
+	// 	// Determine conversation mode from focus mode or default
+	// 	conversationMode := "general"
+	// 	if req.FocusMode != nil && *req.FocusMode != "" {
+	// 		conversationMode = *req.FocusMode
+	// 	}
+	//
+	// 	shouldContinue, osaEvents, osaErrs := osaOrch.ProcessWithOSARouting(
+	// 		ctx,
+	// 		&orchestration.AgentInput{
+	// 			Message:          req.Message,
+	// 			ConversationID:   uuid.UUID(conversationID.Bytes).String(),
+	// 			UserID:           user.ID,
+	// 			UserName:         user.Name,
+	// 			ConversationMode: conversationMode,
+	// 		},
+	// 	)
+	//
+	// 	if !shouldContinue {
+	// 		// OSA is handling this request - stream OSA events to frontend
+	// 		// Set streaming headers
+	// 		c.Header("Content-Type", "text/event-stream; charset=utf-8")
+	// 		c.Header("X-Conversation-Id", uuidToString(conversationID))
+	// 		c.Header("X-OSA-Routing", "true")
+	// 		c.Header("Cache-Control", "no-cache")
+	// 		c.Header("Connection", "keep-alive")
+	//
+	// 		// Stream OSA events using the existing pattern
+	// 		c.Stream(func(w io.Writer) bool {
+	// 			select {
+	// 			case event, ok := <-osaEvents:
+	// 				if !ok {
+	// 					return false
+	// 				}
+	// 				writeSSEEvent(w, event)
+	// 				return true
+	// 			case err, ok := <-osaErrs:
+	// 				if !ok {
+	// 					return false
+	// 				}
+	// 				if err != nil {
+	// 					writeSSEEvent(w, streaming.StreamEvent{
+	// 						Type:    streaming.EventTypeError,
+	// 						Content: err.Error(),
+	// 					})
+	// 				}
+	// 				return false
+	// 			case <-ctx.Done():
+	// 				return false
+	// 			}
+	// 		})
+	// 		return // OSA is handling, stop here
+	// 	}
+	// }
+
+	// Continue with normal BusinessOS agent routing if OSA didn't handle it
+
 	// Create AgentV2 registry
 	registry := agents.NewAgentRegistryV2(h.pool, h.cfg, h.embeddingService, h.promptPersonalizer)
 

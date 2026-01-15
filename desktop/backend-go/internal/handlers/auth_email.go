@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/config"
 	"github.com/rhl/businessos-backend/internal/services"
@@ -18,6 +20,8 @@ type EmailAuthHandler struct {
 	pool                 *pgxpool.Pool
 	cfg                  *config.Config
 	notificationTriggers *services.NotificationTriggers
+	workspaceInit        *services.OSAWorkspaceInitService
+	logger               *slog.Logger
 }
 
 // SignUpRequest represents the signup request body
@@ -34,11 +38,13 @@ type SignInRequest struct {
 }
 
 // NewEmailAuthHandler creates a new Email Auth handler
-func NewEmailAuthHandler(pool *pgxpool.Pool, cfg *config.Config, notifTriggers *services.NotificationTriggers) *EmailAuthHandler {
+func NewEmailAuthHandler(pool *pgxpool.Pool, cfg *config.Config, notifTriggers *services.NotificationTriggers, workspaceInit *services.OSAWorkspaceInitService, logger *slog.Logger) *EmailAuthHandler {
 	return &EmailAuthHandler{
 		pool:                 pool,
 		cfg:                  cfg,
 		notificationTriggers: notifTriggers,
+		workspaceInit:        workspaceInit,
+		logger:               logger,
 	}
 }
 
@@ -125,6 +131,29 @@ func (h *EmailAuthHandler) SignUp(c *gin.Context) {
 	// Send welcome notification
 	if h.notificationTriggers != nil {
 		go h.notificationTriggers.OnWelcome(context.Background(), userID, req.Name)
+	}
+
+	// Create default OSA workspace for new user (non-blocking, errors logged)
+	if h.workspaceInit != nil {
+		userUUID, parseErr := uuid.Parse(userID)
+		if parseErr == nil {
+			go func() {
+				wsCtx, wsCancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer wsCancel()
+
+				_, wsErr := h.workspaceInit.CreateDefaultWorkspace(wsCtx, userUUID)
+				if wsErr != nil {
+					h.logger.Error("Failed to create default workspace for new user",
+						slog.String("user_id", userID),
+						slog.Any("error", wsErr),
+					)
+				} else {
+					h.logger.Info("Default workspace created for new user",
+						slog.String("user_id", userID),
+					)
+				}
+			}()
+		}
 	}
 
 	c.JSON(http.StatusCreated, gin.H{

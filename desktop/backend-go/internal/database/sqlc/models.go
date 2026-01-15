@@ -3021,6 +3021,130 @@ type NotionPage struct {
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
+type OsaBuildEvent struct {
+	ID              pgtype.UUID        `json:"id"`
+	AppID           pgtype.UUID        `json:"app_id"`
+	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
+	EventType       string             `json:"event_type"`
+	EventData       []byte             `json:"event_data"`
+	BuildID         *string            `json:"build_id"`
+	Phase           *string            `json:"phase"`
+	ProgressPercent *int32             `json:"progress_percent"`
+	StatusMessage   *string            `json:"status_message"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+type OsaExecutionHistory struct {
+	ID               pgtype.UUID        `json:"id"`
+	UserID           pgtype.UUID        `json:"user_id"`
+	AppID            pgtype.UUID        `json:"app_id"`
+	WorkspaceID      pgtype.UUID        `json:"workspace_id"`
+	Command          string             `json:"command"`
+	WorkingDirectory *string            `json:"working_directory"`
+	EnvironmentVars  []byte             `json:"environment_vars"`
+	Output           *string            `json:"output"`
+	ErrorOutput      *string            `json:"error_output"`
+	ExitCode         *int32             `json:"exit_code"`
+	DurationMs       *int32             `json:"duration_ms"`
+	TriggeredBy      *string            `json:"triggered_by"`
+	Metadata         []byte             `json:"metadata"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
+type OsaGeneratedApp struct {
+	ID             pgtype.UUID        `json:"id"`
+	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
+	ModuleID       pgtype.UUID        `json:"module_id"`
+	Name           string             `json:"name"`
+	DisplayName    string             `json:"display_name"`
+	Description    *string            `json:"description"`
+	OsaWorkflowID  *string            `json:"osa_workflow_id"`
+	OsaSandboxID   *string            `json:"osa_sandbox_id"`
+	CodeRepository *string            `json:"code_repository"`
+	DeploymentUrl  *string            `json:"deployment_url"`
+	Status         *string            `json:"status"`
+	FilesCreated   *int32             `json:"files_created"`
+	TestsPassed    *bool              `json:"tests_passed"`
+	BuildStatus    *string            `json:"build_status"`
+	Metadata       []byte             `json:"metadata"`
+	ErrorMessage   *string            `json:"error_message"`
+	ErrorStack     *string            `json:"error_stack"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	GeneratedAt    pgtype.Timestamptz `json:"generated_at"`
+	DeployedAt     pgtype.Timestamptz `json:"deployed_at"`
+	LastBuildAt    pgtype.Timestamptz `json:"last_build_at"`
+}
+
+type OsaModule struct {
+	ID               pgtype.UUID        `json:"id"`
+	Name             string             `json:"name"`
+	DisplayName      string             `json:"display_name"`
+	Description      *string            `json:"description"`
+	ModuleType       string             `json:"module_type"`
+	SchemaDefinition []byte             `json:"schema_definition"`
+	ApiDefinition    []byte             `json:"api_definition"`
+	UiDefinition     []byte             `json:"ui_definition"`
+	CreatedBy        pgtype.UUID        `json:"created_by"`
+	WorkspaceID      pgtype.UUID        `json:"workspace_id"`
+	Status           *string            `json:"status"`
+	Version          *string            `json:"version"`
+	Metadata         []byte             `json:"metadata"`
+	Tags             []string           `json:"tags"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DeployedAt       pgtype.Timestamptz `json:"deployed_at"`
+}
+
+type OsaSyncStatus struct {
+	ID             pgtype.UUID        `json:"id"`
+	EntityType     string             `json:"entity_type"`
+	EntityID       pgtype.UUID        `json:"entity_id"`
+	OsaEntityID    *string            `json:"osa_entity_id"`
+	OsaEntityType  *string            `json:"osa_entity_type"`
+	SyncStatus     *string            `json:"sync_status"`
+	LastSyncAt     pgtype.Timestamptz `json:"last_sync_at"`
+	NextSyncAt     pgtype.Timestamptz `json:"next_sync_at"`
+	SyncDirection  *string            `json:"sync_direction"`
+	ErrorCount     *int32             `json:"error_count"`
+	LastError      *string            `json:"last_error"`
+	LocalSnapshot  []byte             `json:"local_snapshot"`
+	RemoteSnapshot []byte             `json:"remote_snapshot"`
+	Metadata       []byte             `json:"metadata"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type OsaWebhook struct {
+	ID              pgtype.UUID        `json:"id"`
+	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
+	AppID           pgtype.UUID        `json:"app_id"`
+	EventType       string             `json:"event_type"`
+	WebhookUrl      string             `json:"webhook_url"`
+	SecretKey       *string            `json:"secret_key"`
+	Enabled         *bool              `json:"enabled"`
+	LastTriggeredAt pgtype.Timestamptz `json:"last_triggered_at"`
+	SuccessCount    *int32             `json:"success_count"`
+	FailureCount    *int32             `json:"failure_count"`
+	Metadata        []byte             `json:"metadata"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
+type OsaWorkspace struct {
+	ID             pgtype.UUID        `json:"id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	Name           string             `json:"name"`
+	Mode           *string            `json:"mode"`
+	Layout         []byte             `json:"layout"`
+	ActiveModules  []pgtype.UUID      `json:"active_modules"`
+	TemplateType   *string            `json:"template_type"`
+	Settings       []byte             `json:"settings"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	LastAccessedAt pgtype.Timestamptz `json:"last_accessed_at"`
+}
+
 type PendingDecision struct {
 	ID             pgtype.UUID        `json:"id"`
 	ExecutionID    string             `json:"execution_id"`
@@ -3297,6 +3421,65 @@ type SlackOauthToken struct {
 	IncomingWebhookChannel *string            `json:"incoming_webhook_channel"`
 	CreatedAt              pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+}
+
+// Tracks conflicts detected during bidirectional sync operations
+type SyncConflict struct {
+	ID pgtype.UUID `json:"id"`
+	// Type of entity that has conflicts (workspace, app, module)
+	EntityType      string             `json:"entity_type"`
+	EntityID        pgtype.UUID        `json:"entity_id"`
+	LocalData       []byte             `json:"local_data"`
+	RemoteData      []byte             `json:"remote_data"`
+	LocalUpdatedAt  pgtype.Timestamptz `json:"local_updated_at"`
+	RemoteUpdatedAt pgtype.Timestamptz `json:"remote_updated_at"`
+	// Array of field names that are in conflict
+	ConflictFields []string `json:"conflict_fields"`
+	// Strategy used to resolve the conflict
+	ResolutionStrategy *string `json:"resolution_strategy"`
+	ResolvedData       []byte  `json:"resolved_data"`
+	// User who resolved manually, NULL for automatic resolution
+	ResolvedBy *string            `json:"resolved_by"`
+	ResolvedAt pgtype.Timestamptz `json:"resolved_at"`
+	// Human-readable explanation of how conflict was resolved
+	Reasoning  *string            `json:"reasoning"`
+	DetectedAt pgtype.Timestamptz `json:"detected_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type SyncDlq struct {
+	ID                pgtype.UUID        `json:"id"`
+	AggregateType     string             `json:"aggregate_type"`
+	AggregateID       pgtype.UUID        `json:"aggregate_id"`
+	EventType         string             `json:"event_type"`
+	Payload           []byte             `json:"payload"`
+	VectorClock       []byte             `json:"vector_clock"`
+	Attempts          int32              `json:"attempts"`
+	LastError         string             `json:"last_error"`
+	FailureReason     *string            `json:"failure_reason"`
+	OriginalCreatedAt pgtype.Timestamptz `json:"original_created_at"`
+	MovedToDlqAt      pgtype.Timestamptz `json:"moved_to_dlq_at"`
+	Resolved          *bool              `json:"resolved"`
+	ResolvedAt        pgtype.Timestamptz `json:"resolved_at"`
+	ResolutionNotes   *string            `json:"resolution_notes"`
+}
+
+type SyncOutbox struct {
+	ID            pgtype.UUID        `json:"id"`
+	AggregateType string             `json:"aggregate_type"`
+	AggregateID   pgtype.UUID        `json:"aggregate_id"`
+	EventType     string             `json:"event_type"`
+	Payload       []byte             `json:"payload"`
+	VectorClock   []byte             `json:"vector_clock"`
+	Status        string             `json:"status"`
+	Attempts      int32              `json:"attempts"`
+	MaxAttempts   int32              `json:"max_attempts"`
+	LastError     *string            `json:"last_error"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	ProcessedAt   pgtype.Timestamptz `json:"processed_at"`
+	ScheduledFor  pgtype.Timestamptz `json:"scheduled_for"`
 }
 
 type SystemEventLog struct {

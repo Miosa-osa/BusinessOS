@@ -1,0 +1,204 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # PostgreSQL Database
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: businessos-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: businessos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./desktop/backend-go/internal/database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d businessos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - businessos-network
+
+  # ============================================================================
+  # Redis Cache & Pub/Sub
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: businessos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+    command: >
+      sh -c '
+      redis-server
+      --requirepass "$${REDIS_PASSWORD}"
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      '
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$REDIS_PASSWORD", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - businessos-network
+
+  # ============================================================================
+  # BusinessOS Backend (Go)
+  # ============================================================================
+  backend:
+    build:
+      context: ./desktop/backend-go
+      dockerfile: Dockerfile
+    container_name: businessos-backend
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      # Database
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/businessos?sslmode=disable
+
+      # Server
+      - SERVER_PORT=8001
+      - ENVIRONMENT=production
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+
+      # Redis
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+
+      # Security
+      - SECRET_KEY=${SECRET_KEY:-change-this-in-production}
+      - TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY:-generate-with-openssl}
+
+      # AI Provider
+      - AI_PROVIDER=ollama_local
+      - OLLAMA_LOCAL_URL=http://host.docker.internal:11434
+      - DEFAULT_MODEL=llama3.2:3b
+
+      # OSA Integration
+      - OSA_ENABLED=true
+      - OSA_BASE_URL=http://osa-5:3003
+      - OSA_TIMEOUT=30s
+      - OSA_MAX_RETRIES=3
+      - OSA_WEBHOOK_SECRET=${OSA_WEBHOOK_SECRET:-change-this-webhook-secret}
+
+      # Sync Configuration
+      - OSA_SYNC_ENABLED=true
+      - OSA_SYNC_INTERVAL=60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      osa-5:
+        condition: service_healthy
+    volumes:
+      # Mount docker socket for container management
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Mount generated code directory (shared with OSA-5)
+      - generated_code:/app/generated
+    networks:
+      - businessos-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # BusinessOS Frontend (SvelteKit)
+  # ============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: businessos-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - PUBLIC_API_URL=http://localhost:8001
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    networks:
+      - businessos-network
+
+  # ============================================================================
+  # OSA-5 Orchestration System (21-Agent AI)
+  # ============================================================================
+  osa-5:
+    build:
+      context: ${OSA_PATH:-../OSA-5}
+      dockerfile: Dockerfile
+    container_name: businessos-osa-5
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      # OSA Server
+      - PORT=3003
+      - NODE_ENV=production
+
+      # BusinessOS Integration
+      - BUSINESSOS_URL=http://backend:8001
+      - WEBHOOK_SECRET=${OSA_WEBHOOK_SECRET:-change-this-webhook-secret}
+
+      # AI Provider (same as BusinessOS)
+      - AI_PROVIDER=ollama_local
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - DEFAULT_MODEL=llama3.2:3b
+
+      # Code Generation
+      - TARGET_FRAMEWORK=svelte+go+postgresql
+      - OUTPUT_PATH=/app/generated
+
+      # Agent Configuration
+      - AGENT_COUNT=21
+      - PARALLEL_EXECUTION=true
+      - MAX_RETRY=3
+    volumes:
+      # Shared volume for generated code
+      - generated_code:/app/generated
+      # Mount BusinessOS source for code integration
+      - ./:/businessos:ro
+    networks:
+      - businessos-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# ==============================================================================
+# Volumes
+# ==============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  generated_code:
+    driver: local
+
+# ==============================================================================
+# Networks
+# ==============================================================================
+networks:
+  businessos-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

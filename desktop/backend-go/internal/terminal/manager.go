@@ -392,6 +392,7 @@ func (m *Manager) buildEnvironment(userID string) map[string]string {
 	// This will show: MIOSA-LEGION ~/Desktop $
 	env["PS1"] = "%m %~ $ "
 
+	env["BUSINESSOS_USER_ID"] = userID // Pass user ID to container for internal API calls
 	return env
 }
 
@@ -472,20 +473,23 @@ func (m *Manager) startContainer(session *Session) error {
 	}
 	log.Printf("[Terminal] Container started: %s", containerID[:12])
 
-	// Determine shell command
-	shellCmd := []string{"/bin/bash"}
-	if session.Shell != "" {
-		shellCmd = []string{session.Shell}
-	}
+	// Determine shell command - load BusinessOS init script for osa command
+	// The init script is bind-mounted at /etc/businessos/init.sh
+	initScript := "/etc/businessos/init.sh"
 
-	// Create and start exec session with shell
-	execID, hijacked, err := m.containerMgr.StartExec(containerID, shellCmd, true)
+	// Force bash in containers for reliable --rcfile support
+	// zsh in containers has complex rc loading; bash is simpler and universal
+	shell := "/bin/bash"
+	shellCmd := []string{shell, "--rcfile", initScript}
+
+	// Create and start exec session with shell and environment variables
+	execID, hijacked, err := m.containerMgr.StartExecWithEnv(containerID, shellCmd, true, session.Environment)
 	if err != nil {
 		// If exec fails, try to stop the container
 		m.containerMgr.StopContainer(containerID, 10)
 		return fmt.Errorf("failed to start exec: %w", err)
 	}
-	log.Printf("[Terminal] Exec started: %s", execID)
+	log.Printf("[Terminal] Exec started: %s with env: %v", execID, session.Environment)
 
 	// Store container information in session
 	session.ContainerID = containerID

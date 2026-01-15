@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -123,6 +124,9 @@ func (m *ContainerManager) CreateContainer(userID string, sessionID string, imag
 		// DNS configuration for reliable resolution
 		DNS: []string{"8.8.8.8", "8.8.4.4", "1.1.1.1"},
 
+		// Add host.docker.internal to allow containers to reach host services
+		ExtraHosts: []string{"host.docker.internal:host-gateway"},
+
 		// Read-only root filesystem with tmpfs for required writable paths
 		ReadonlyRootfs: true,
 		Tmpfs: map[string]string{
@@ -131,12 +135,18 @@ func (m *ContainerManager) CreateContainer(userID string, sessionID string, imag
 			"/run":     "rw,noexec,nosuid,size=16m",  // Runtime files (pid, sockets)
 		},
 
-		// Mount user workspace volume
+		// Mount user workspace volume and init script
 		Mounts: []mount.Mount{
 			{
 				Type:   mount.TypeVolume,
 				Source: volumeName,
 				Target: defaultWorkspaceMount,
+			},
+			{
+				Type:     mount.TypeBind,
+				Source:   getInitScriptPath(),
+				Target:   "/etc/businessos/init.sh",
+				ReadOnly: true,
 			},
 		},
 
@@ -529,4 +539,34 @@ func buildPortMap(bindings []PortBinding) nat.PortMap {
 		}
 	}
 	return portMap
+}
+
+// getInitScriptPath returns the path to the BusinessOS init script on the host
+// This script is bind-mounted into containers at /etc/businessos/init.sh
+func getInitScriptPath() string {
+	// Check environment variable first
+	if path := os.Getenv("BUSINESSOS_INIT_SCRIPT"); path != "" {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	// Try common paths
+	possiblePaths := []string{
+		"/Users/rhl/Desktop/BusinessOS2/desktop/backend-go/internal/terminal/businessos_init.sh",
+		"/Users/ososerious/BusinessOS-1/desktop/backend-go/internal/terminal/businessos_init.sh",
+		"./internal/terminal/businessos_init.sh",
+	}
+
+	for _, p := range possiblePaths {
+		if _, err := os.Stat(p); err == nil {
+			log.Printf("[Container] Found init script at: %s", p)
+			return p
+		}
+	}
+
+	// Fallback - return first path even if it doesn't exist
+	// Container creation will fail with a clear error message
+	log.Printf("[Container] Warning: Init script not found, using default path")
+	return possiblePaths[0]
 }

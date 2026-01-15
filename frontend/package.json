@@ -57,6 +57,7 @@
 		"@threlte/core": "^8.3.1",
 		"@threlte/extras": "^9.7.1",
 		"@types/three": "^0.182.0",
+		"@xterm/addon-clipboard": "^0.2.0",
 		"@xterm/addon-fit": "^0.11.0",
 		"@xterm/addon-search": "^0.16.0",
 		"@xterm/addon-serialize": "^0.14.0",

@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # ════════════════════════════════════════════════════════════
+  # GO BACKEND (includes 6 Agent V2 agents)
+  # ════════════════════════════════════════════════════════════
+  backend:
+    build:
+      context: ./desktop/backend-go
+      dockerfile: Dockerfile
+    container_name: businessos-backend
+    restart: unless-stopped
+    ports:
+      - "8001:8080"
+    environment:
+      - PORT=8080
+      - ENVIRONMENT=production
+      - DATABASE_URL=${DATABASE_URL}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY}
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - OSA_BASE_URL=http://osa:3003
+      - OSA_WEBHOOK_SECRET=${OSA_WEBHOOK_SECRET}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - businessos-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ════════════════════════════════════════════════════════════
+  # SVELTEKIT FRONTEND
+  # ════════════════════════════════════════════════════════════
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: businessos-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:3000"
+    environment:
+      - PUBLIC_API_URL=http://backend:8080
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    networks:
+      - businessos-network
+
+  # ════════════════════════════════════════════════════════════
+  # REDIS (Session cache + pub/sub)
+  # ════════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: businessos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+    command: >
+      sh -c 'redis-server --requirepass "$${REDIS_PASSWORD}" --appendonly yes'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - businessos-network
+
+  # ════════════════════════════════════════════════════════════
+  # OSA-5 (Optional - if you have the OSA repo)
+  # Uncomment and configure if running OSA locally
+  # ════════════════════════════════════════════════════════════
+  # osa:
+  #   build:
+  #     context: /path/to/osa-5
+  #     dockerfile: Dockerfile
+  #   container_name: osa-5
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3003:3003"
+  #   environment:
+  #     - PORT=3003
+  #   networks:
+  #     - businessos-network
+
+networks:
+  businessos-network:
+    driver: bridge
+
+volumes:
+  redis-data:

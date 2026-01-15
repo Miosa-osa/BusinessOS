@@ -117,6 +117,11 @@ export default defineConfig({
 				target: 'http://localhost:8001',
 				changeOrigin: true,
 			},
+			// OSA Integration APIs
+			'/api/osa': {
+				target: 'http://localhost:8001',
+				changeOrigin: true,
+			},
 			// Pedro Tasks APIs
 			'/api/documents': {
 				target: 'http://localhost:8001',

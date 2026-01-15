@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"log"
 	"log/slog"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/config"
 	"github.com/rhl/businessos-backend/internal/container"
+	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/terminal"
@@ -44,21 +46,30 @@ type Handlers struct {
 	// Feature 7: Multi-modal Search services
 	multiModalHandler *MultiModalSearchHandler // Multi-modal search handler (text + image)
 	// Feature 1: Workspace & Team Collaboration
-	workspaceService         *services.WorkspaceService        // Workspace management
-	roleContextService       *services.RoleContextService      // Role-based access control
-	memoryHierarchyService   *services.MemoryHierarchyService  // Workspace memory hierarchy (Q1)
-	inviteService            *services.WorkspaceInviteService  // Workspace invitation management
-	auditService             *services.WorkspaceAuditService   // Workspace audit logging
-	projectAccessService     *services.ProjectAccessService    // Project-level access control
+	workspaceService       *services.WorkspaceService       // Workspace management
+	roleContextService     *services.RoleContextService     // Role-based access control
+	memoryHierarchyService *services.MemoryHierarchyService // Workspace memory hierarchy (Q1)
+	inviteService          *services.WorkspaceInviteService // Workspace invitation management
+	auditService           *services.WorkspaceAuditService  // Workspace audit logging
+	projectAccessService   *services.ProjectAccessService   // Project-level access control
 	// Voice services (3D Desktop)
-	whisperService           *services.WhisperService          // Local speech-to-text
-	elevenLabsService        *services.ElevenLabsService       // Text-to-speech (OSA voice)
+	whisperService    *services.WhisperService    // Local speech-to-text
+	elevenLabsService *services.ElevenLabsService // Text-to-speech (OSA voice)
 	// Agent Skills System
-	skillsLoader             *services.SkillsLoader            // Skills loader for agent prompts
+	skillsLoader *services.SkillsLoader // Skills loader for agent prompts
+	// OSA Integration - AI Agent Orchestration
+	osaClient           *osa.ResilientClient              // OSA resilient client with circuit breaker
+	osaSyncService      *services.OSASyncService          // OSA sync service for bidirectional sync
+	osaFileSyncService  *services.OSAFileSyncService      // OSA file polling service
+	osaWorkspaceInit    *services.OSAWorkspaceInitService // OSA workspace initialization service
+	osaWorkflowsHandler *OSAWorkflowsHandler              // OSA workflows handler
+	osaWebhooksHandler  *OSAWebhooksHandler               // OSA webhooks handler
+	osaBuildEventBus    *services.BuildEventBus           // OSA build event bus for real-time streaming
+	osaStreamingHandler *OSAStreamingHandler              // OSA SSE streaming handler
 }
 
 // NewHandlers creates a new Handlers instance
-func NewHandlers(pool *pgxpool.Pool, cfg *config.Config, containerMgr *container.ContainerManager, sessionCache *middleware.SessionCache, terminalPubSub *terminal.TerminalPubSub, embeddingService *services.EmbeddingService, contextBuilder *services.ContextBuilder, tieredContextService *services.TieredContextService, notificationService *services.NotificationService) *Handlers {
+func NewHandlers(pool *pgxpool.Pool, cfg *config.Config, containerMgr *container.ContainerManager, sessionCache *middleware.SessionCache, terminalPubSub *terminal.TerminalPubSub, embeddingService *services.EmbeddingService, contextBuilder *services.ContextBuilder, tieredContextService *services.TieredContextService, notificationService *services.NotificationService, osaClient *osa.ResilientClient, osaSyncService *services.OSASyncService) *Handlers {
 	var notifTriggers *services.NotificationTriggers
 	if notificationService != nil {
 		notifTriggers = services.NewNotificationTriggers(notificationService)
@@ -75,6 +86,8 @@ func NewHandlers(pool *pgxpool.Pool, cfg *config.Config, containerMgr *container
 		tieredContextService: tieredContextService,
 		notificationService:  notificationService,
 		notificationTriggers: notifTriggers,
+		osaClient:            osaClient,
+		osaSyncService:       osaSyncService,
 	}
 }
 
@@ -183,6 +196,22 @@ func (h *Handlers) SetProjectAccessService(projectAccessService *services.Projec
 // SetSkillsLoader sets the skills loader (Agent Skills System)
 func (h *Handlers) SetSkillsLoader(skillsLoader *services.SkillsLoader) {
 	h.skillsLoader = skillsLoader
+}
+
+// SetOSAServices sets the OSA integration services
+func (h *Handlers) SetOSAServices(client *osa.ResilientClient, syncService *services.OSASyncService) {
+	h.osaClient = client
+	h.osaSyncService = syncService
+}
+
+// SetOSAFileServices sets the OSA file sync and workflow services
+func (h *Handlers) SetOSAFileServices(fileSyncService *services.OSAFileSyncService, workspaceInit *services.OSAWorkspaceInitService, workflowsHandler *OSAWorkflowsHandler, webhooksHandler *OSAWebhooksHandler, eventBus *services.BuildEventBus, streamingHandler *OSAStreamingHandler) {
+	h.osaFileSyncService = fileSyncService
+	h.osaWorkspaceInit = workspaceInit
+	h.osaWorkflowsHandler = workflowsHandler
+	h.osaWebhooksHandler = webhooksHandler
+	h.osaBuildEventBus = eventBus
+	h.osaStreamingHandler = streamingHandler
 }
 
 // RegisterRoutes registers all API routes
@@ -405,8 +434,8 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 			workspaceScoped.GET("", h.GetWorkspace)
 			workspaceScoped.GET("/members", h.ListWorkspaceMembers)
 			workspaceScoped.GET("/roles", h.ListWorkspaceRoles)
-			workspaceScoped.GET("/profile", h.GetWorkspaceProfile)       // User's profile in workspace
-			workspaceScoped.GET("/role-context", h.GetUserRoleContext)   // User's role & permissions
+			workspaceScoped.GET("/profile", h.GetWorkspaceProfile)     // User's profile in workspace
+			workspaceScoped.GET("/role-context", h.GetUserRoleContext) // User's role & permissions
 
 			// Update user profile
 			workspaceScoped.PUT("/profile", h.UpdateWorkspaceProfile)
@@ -543,8 +572,8 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 
 		// Enhanced RAG search endpoints
 		if h.hybridSearchService != nil {
-			search.POST("/hybrid", h.HybridSearch)     // Hybrid semantic + keyword search
-			search.POST("/rerank", h.HybridSearch)     // Re-rank search results (uses hybrid search)
+			search.POST("/hybrid", h.HybridSearch) // Hybrid semantic + keyword search
+			search.POST("/rerank", h.HybridSearch) // Re-rank search results (uses hybrid search)
 		}
 		if h.multiModalHandler != nil {
 			search.POST("/multimodal", h.multiModalHandler.SearchWithImage) // Multi-modal search
@@ -862,7 +891,7 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	osa := api.Group("/osa")
 	osa.Use(auth)
 	{
-		osa.POST("/speak", h.HandleOSASpeak)             // Convert text to speech
+		osa.POST("/speak", h.HandleOSASpeak)              // Convert text to speech
 		osa.POST("/speak/stream", h.HandleOSASpeakStream) // Stream TTS for long text
 	}
 	slog.Info("OSA voice routes registered")
@@ -1054,7 +1083,8 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	strictRateLimit := middleware.StrictRateLimitMiddleware()
 
 	googleAuthHandler := NewGoogleAuthHandler(h.pool, h.cfg, h.sessionCache)
-	emailAuthHandler := NewEmailAuthHandler(h.pool, h.cfg, h.notificationTriggers)
+	logger := slog.Default()
+	emailAuthHandler := NewEmailAuthHandler(h.pool, h.cfg, h.notificationTriggers, h.osaWorkspaceInit, logger)
 	authRoutes := api.Group("/auth")
 	{
 		// Email/Password auth (public) - strict rate limiting
@@ -1206,4 +1236,73 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	onboardingHandler := NewOnboardingHandler(onboardingService)
 	onboardingHandler.RegisterOnboardingRoutes(api, auth)
 	slog.Info("Onboarding routes registered", "ai_provider", onboardingAIService.GetProvider())
+
+	// ============================================================================
+	// OSA Integration Module (21-Agent Orchestration System)
+	// ============================================================================
+
+	log.Printf("DEBUG: About to check OSA routes, h.osaClient != nil: %v", h.osaClient != nil)
+	if h.osaClient != nil {
+		log.Printf("DEBUG: Registering OSA authenticated routes...")
+
+		// OSA authenticated routes - /api/osa (auth required)
+		// Note: /api/osa/health is registered publicly in main.go (no auth)
+		osaAuth := api.Group("/osa")
+		osaAuth.Use(auth)
+		{
+			// Generation endpoints
+			osaAuth.POST("/generate", h.HandleGenerateApp)
+			osaAuth.GET("/status/:app_id", h.HandleGetAppStatus)
+			osaAuth.GET("/workspaces", h.HandleListWorkspaces)
+
+			// Workflow endpoints (if handlers are initialized)
+			if h.osaWorkflowsHandler != nil {
+				osaAuth.GET("/workflows", h.osaWorkflowsHandler.ListWorkflows)
+				osaAuth.GET("/workflows/:id", h.osaWorkflowsHandler.GetWorkflow)
+				osaAuth.GET("/workflows/:id/files", h.osaWorkflowsHandler.GetWorkflowFiles)
+				osaAuth.GET("/workflows/:id/files/:type", h.osaWorkflowsHandler.GetFileContent)
+				osaAuth.GET("/files/:id/content", h.osaWorkflowsHandler.GetFileContentByID)
+				osaAuth.POST("/modules/install", h.osaWorkflowsHandler.InstallModule)
+				osaAuth.POST("/sync/trigger", h.osaWorkflowsHandler.TriggerSync)
+			}
+
+			// Webhook management endpoints (if handlers are initialized)
+			if h.osaWebhooksHandler != nil {
+				osaAuth.GET("/webhooks", h.osaWebhooksHandler.ListWebhooks)
+				osaAuth.POST("/webhooks/register", h.osaWebhooksHandler.RegisterWebhook)
+			}
+
+			// SSE streaming endpoints (if handlers are initialized)
+			if h.osaStreamingHandler != nil {
+				osaAuth.GET("/stream/build/:app_id", h.osaStreamingHandler.StreamBuildProgress)
+				osaAuth.GET("/stream/stats", h.osaStreamingHandler.GetStreamStats)
+				osaAuth.GET("/stream/stats/:app_id", h.osaStreamingHandler.GetAppStreamStats)
+			}
+		}
+		log.Printf("✅ OSA authenticated API routes registered at /api/osa/*")
+
+		// OSA Internal routes - /api/internal/osa (for terminal containers)
+		// No auth middleware - uses X-User-ID header from container environment
+		osaInternal := api.Group("/internal/osa")
+		{
+			osaInternal.POST("/generate", h.HandleInternalGenerateApp)
+			osaInternal.GET("/status/:app_id", h.HandleInternalGetAppStatus)
+			osaInternal.GET("/workspaces", h.HandleInternalListWorkspaces)
+			osaInternal.GET("/health", h.HandleInternalOSAHealth)
+		}
+		log.Printf("✅ OSA internal API routes registered at /api/internal/osa/*")
+	} else {
+		log.Printf("DEBUG: Skipping OSA routes, osaClient is nil")
+	}
+
+	// OSA Webhook receiver routes - /api/osa/webhooks (OSA-5 → BusinessOS)
+	// Public endpoints with HMAC verification (no JWT auth)
+	if h.osaWebhooksHandler != nil {
+		osaWebhooks := api.Group("/osa/webhooks")
+		{
+			osaWebhooks.POST("/workflow-complete", h.osaWebhooksHandler.HandleWorkflowComplete)
+			osaWebhooks.POST("/build-event", h.osaWebhooksHandler.HandleBuildEvent)
+		}
+		log.Printf("✅ OSA webhook receiver routes registered at /api/osa/webhooks/*")
+	}
 }

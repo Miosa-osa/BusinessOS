@@ -30,8 +30,8 @@ type RateLimitConfig struct {
 // DefaultRateLimitConfig returns production-safe defaults
 func DefaultRateLimitConfig() *RateLimitConfig {
 	return &RateLimitConfig{
-		MessagesPerSecond:     100,    // 100 messages per second
-		BurstSize:             20,     // Allow burst of 20 messages
+		MessagesPerSecond:     1000,   // 1000 messages per second (increased for development)
+		BurstSize:             200,    // Allow burst of 200 messages (increased for terminal responsiveness)
 		MaxMessageSize:        16384,  // 16KB max message size
 		MaxConnectionsPerUser: 5,      // Max 5 concurrent connections per user
 		CleanupInterval:       5 * time.Minute,

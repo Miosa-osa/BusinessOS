@@ -4188,3 +4188,275 @@ CREATE TABLE IF NOT EXISTS comment_reactions (
 
 CREATE INDEX IF NOT EXISTS idx_comment_reactions_comment ON comment_reactions(comment_id);
 CREATE INDEX IF NOT EXISTS idx_comment_reactions_user ON comment_reactions(user_id);
+
+-- ============================================================================
+-- SYNC CONFLICTS (Migration 043)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS sync_conflicts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Conflict target
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id UUID NOT NULL,
+
+    -- Conflict data
+    local_data JSONB NOT NULL,
+    remote_data JSONB NOT NULL,
+    local_updated_at TIMESTAMPTZ NOT NULL,
+    remote_updated_at TIMESTAMPTZ NOT NULL,
+    conflict_fields TEXT[] NOT NULL,
+
+    -- Resolution
+    resolution_strategy VARCHAR(50),
+    resolved_data JSONB,
+    resolved_by VARCHAR(255),  -- NULL = automatic
+    resolved_at TIMESTAMPTZ,
+    reasoning TEXT,
+
+    -- Metadata
+    detected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    CONSTRAINT valid_resolution_strategy CHECK (
+        resolution_strategy IN ('timestamp_based', 'field_level_merge', 'manual_review', 'local_wins', 'remote_wins')
+    )
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_sync_conflicts_unresolved ON sync_conflicts(resolved_at)
+    WHERE resolved_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_sync_conflicts_entity ON sync_conflicts(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_sync_conflicts_detected ON sync_conflicts(detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sync_conflicts_strategy ON sync_conflicts(resolution_strategy);
+
+COMMENT ON TABLE sync_conflicts IS 'Tracks conflicts detected during bidirectional sync operations';
+COMMENT ON COLUMN sync_conflicts.entity_type IS 'Type of entity that has conflicts (workspace, app, module)';
+COMMENT ON COLUMN sync_conflicts.conflict_fields IS 'Array of field names that are in conflict';
+COMMENT ON COLUMN sync_conflicts.resolution_strategy IS 'Strategy used to resolve the conflict';
+COMMENT ON COLUMN sync_conflicts.resolved_by IS 'User who resolved manually, NULL for automatic resolution';
+COMMENT ON COLUMN sync_conflicts.reasoning IS 'Human-readable explanation of how conflict was resolved';
+
+-- =============================================================================
+-- OSA INTEGRATION TABLES (from 042_osa_integration.sql)
+-- =============================================================================
+
+CREATE TABLE osa_modules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    display_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    module_type VARCHAR(50) NOT NULL,
+    schema_definition JSONB,
+    api_definition JSONB,
+    ui_definition JSONB,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    workspace_id UUID,
+    status VARCHAR(50) DEFAULT 'draft',
+    version VARCHAR(50) DEFAULT '1.0.0',
+    metadata JSONB DEFAULT '{}',
+    tags TEXT[],
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deployed_at TIMESTAMPTZ,
+    CONSTRAINT osa_modules_name_workspace_unique UNIQUE(name, workspace_id)
+);
+
+CREATE INDEX idx_osa_modules_workspace ON osa_modules(workspace_id);
+CREATE INDEX idx_osa_modules_created_by ON osa_modules(created_by);
+CREATE INDEX idx_osa_modules_status ON osa_modules(status);
+CREATE INDEX idx_osa_modules_type ON osa_modules(module_type);
+CREATE INDEX idx_osa_modules_tags ON osa_modules USING GIN(tags);
+
+CREATE TABLE osa_workspaces (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    mode VARCHAR(20) DEFAULT '2d',
+    layout JSONB DEFAULT '{}',
+    active_modules UUID[] DEFAULT '{}',
+    template_type VARCHAR(50) DEFAULT 'business_os',
+    settings JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT osa_workspaces_user_name_unique UNIQUE(user_id, name)
+);
+
+CREATE INDEX idx_osa_workspaces_user ON osa_workspaces(user_id);
+CREATE INDEX idx_osa_workspaces_template ON osa_workspaces(template_type);
+CREATE INDEX idx_osa_workspaces_mode ON osa_workspaces(mode);
+
+ALTER TABLE osa_modules
+ADD CONSTRAINT fk_osa_modules_workspace
+FOREIGN KEY (workspace_id)
+REFERENCES osa_workspaces(id)
+ON DELETE CASCADE;
+
+CREATE TABLE osa_generated_apps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL REFERENCES osa_workspaces(id) ON DELETE CASCADE,
+    module_id UUID REFERENCES osa_modules(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    display_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    osa_workflow_id VARCHAR(255),
+    osa_sandbox_id VARCHAR(255),
+    code_repository TEXT,
+    deployment_url TEXT,
+    status VARCHAR(50) DEFAULT 'generated',
+    files_created INTEGER DEFAULT 0,
+    tests_passed BOOLEAN DEFAULT false,
+    build_status VARCHAR(50),
+    metadata JSONB DEFAULT '{}',
+    error_message TEXT,
+    error_stack TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    generated_at TIMESTAMPTZ,
+    deployed_at TIMESTAMPTZ,
+    last_build_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_osa_apps_workspace ON osa_generated_apps(workspace_id);
+CREATE INDEX idx_osa_apps_module ON osa_generated_apps(module_id);
+CREATE INDEX idx_osa_apps_status ON osa_generated_apps(status);
+CREATE INDEX idx_osa_apps_workflow ON osa_generated_apps(osa_workflow_id);
+
+CREATE TABLE osa_execution_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    app_id UUID REFERENCES osa_generated_apps(id) ON DELETE SET NULL,
+    workspace_id UUID REFERENCES osa_workspaces(id) ON DELETE CASCADE,
+    command TEXT NOT NULL,
+    working_directory TEXT,
+    environment_vars JSONB DEFAULT '{}',
+    output TEXT,
+    error_output TEXT,
+    exit_code INTEGER,
+    duration_ms INTEGER,
+    triggered_by VARCHAR(50),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_osa_exec_user ON osa_execution_history(user_id);
+CREATE INDEX idx_osa_exec_app ON osa_execution_history(app_id);
+CREATE INDEX idx_osa_exec_workspace ON osa_execution_history(workspace_id);
+CREATE INDEX idx_osa_exec_created ON osa_execution_history(created_at DESC);
+
+CREATE TABLE osa_sync_status (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id UUID NOT NULL,
+    osa_entity_id VARCHAR(255),
+    osa_entity_type VARCHAR(50),
+    sync_status VARCHAR(50) DEFAULT 'pending',
+    last_sync_at TIMESTAMPTZ,
+    next_sync_at TIMESTAMPTZ,
+    sync_direction VARCHAR(50) DEFAULT 'bidirectional',
+    error_count INTEGER DEFAULT 0,
+    last_error TEXT,
+    local_snapshot JSONB,
+    remote_snapshot JSONB,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT osa_sync_entity_unique UNIQUE(entity_type, entity_id)
+);
+
+CREATE INDEX idx_osa_sync_entity ON osa_sync_status(entity_type, entity_id);
+CREATE INDEX idx_osa_sync_status ON osa_sync_status(sync_status);
+CREATE INDEX idx_osa_sync_next ON osa_sync_status(next_sync_at);
+
+CREATE TABLE osa_build_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    app_id UUID NOT NULL REFERENCES osa_generated_apps(id) ON DELETE CASCADE,
+    workspace_id UUID REFERENCES osa_workspaces(id) ON DELETE SET NULL,
+    event_type VARCHAR(50) NOT NULL,
+    event_data JSONB DEFAULT '{}',
+    build_id VARCHAR(255),
+    phase VARCHAR(50),
+    progress_percent INTEGER DEFAULT 0,
+    status_message TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_osa_build_app ON osa_build_events(app_id);
+CREATE INDEX idx_osa_build_workspace ON osa_build_events(workspace_id);
+CREATE INDEX idx_osa_build_type ON osa_build_events(event_type);
+CREATE INDEX idx_osa_build_created ON osa_build_events(created_at DESC);
+CREATE INDEX idx_osa_build_build_id ON osa_build_events(build_id);
+
+CREATE TABLE osa_webhooks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID REFERENCES osa_workspaces(id) ON DELETE CASCADE,
+    app_id UUID REFERENCES osa_generated_apps(id) ON DELETE CASCADE,
+    event_type VARCHAR(50) NOT NULL,
+    webhook_url TEXT NOT NULL,
+    secret_key VARCHAR(255),
+    enabled BOOLEAN DEFAULT true,
+    last_triggered_at TIMESTAMPTZ,
+    success_count INTEGER DEFAULT 0,
+    failure_count INTEGER DEFAULT 0,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_osa_webhooks_workspace ON osa_webhooks(workspace_id);
+CREATE INDEX idx_osa_webhooks_app ON osa_webhooks(app_id);
+CREATE INDEX idx_osa_webhooks_event ON osa_webhooks(event_type);
+CREATE INDEX idx_osa_webhooks_enabled ON osa_webhooks(enabled);
+
+-- =============================================================================
+-- SYNC OUTBOX TABLES (from 043_sync_outbox.sql)
+-- =============================================================================
+
+CREATE TABLE sync_outbox (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    aggregate_type VARCHAR(50) NOT NULL,
+    aggregate_id UUID NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    payload JSONB NOT NULL,
+    vector_clock JSONB NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    attempts INT NOT NULL DEFAULT 0,
+    max_attempts INT NOT NULL DEFAULT 5,
+    last_error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    processed_at TIMESTAMPTZ,
+    scheduled_for TIMESTAMPTZ
+);
+
+CREATE INDEX idx_sync_outbox_pending ON sync_outbox (created_at)
+WHERE status = 'pending' AND (scheduled_for IS NULL OR scheduled_for <= NOW());
+
+CREATE INDEX idx_sync_outbox_status ON sync_outbox(status);
+CREATE INDEX idx_sync_outbox_aggregate ON sync_outbox(aggregate_type, aggregate_id);
+CREATE INDEX idx_sync_outbox_scheduled ON sync_outbox(scheduled_for)
+WHERE scheduled_for IS NOT NULL AND status = 'failed';
+
+CREATE TABLE sync_dlq (
+    id UUID PRIMARY KEY,
+    aggregate_type VARCHAR(50) NOT NULL,
+    aggregate_id UUID NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    payload JSONB NOT NULL,
+    vector_clock JSONB NOT NULL,
+    attempts INT NOT NULL,
+    last_error TEXT NOT NULL,
+    failure_reason VARCHAR(255),
+    original_created_at TIMESTAMPTZ NOT NULL,
+    moved_to_dlq_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved BOOLEAN DEFAULT FALSE,
+    resolved_at TIMESTAMPTZ,
+    resolution_notes TEXT
+);
+
+CREATE INDEX idx_sync_dlq_aggregate ON sync_dlq(aggregate_type, aggregate_id);
+CREATE INDEX idx_sync_dlq_resolved ON sync_dlq(resolved);
+CREATE INDEX idx_sync_dlq_moved_at ON sync_dlq(moved_to_dlq_at DESC);

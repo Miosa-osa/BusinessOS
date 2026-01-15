@@ -21,6 +21,11 @@ const (
 // CreateExec creates a new exec instance in a container
 // This sets up an exec session that can be attached to for interactive I/O
 func (m *ContainerManager) CreateExec(containerID string, cmd []string, tty bool) (string, error) {
+	return m.CreateExecWithEnv(containerID, cmd, tty, nil)
+}
+
+// CreateExecWithEnv creates a new exec instance with custom environment variables
+func (m *ContainerManager) CreateExecWithEnv(containerID string, cmd []string, tty bool, envVars map[string]string) (string, error) {
 	ctx, cancel := context.WithTimeout(m.ctx, execCreateTimeout)
 	defer cancel()
 
@@ -34,6 +39,18 @@ func (m *ContainerManager) CreateExec(containerID string, cmd []string, tty bool
 
 	log.Printf("[Container] Creating exec in container %s with cmd: %v (TTY: %t)", containerID, cmd, tty)
 
+	// Build environment variables array
+	env := []string{
+		"TERM=xterm-256color",
+		"COLORTERM=truecolor",
+		"LANG=en_US.UTF-8",
+	}
+
+	// Add custom environment variables
+	for key, value := range envVars {
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	}
+
 	// Create exec configuration
 	execConfig := container.ExecOptions{
 		AttachStdin:  true,
@@ -42,12 +59,7 @@ func (m *ContainerManager) CreateExec(containerID string, cmd []string, tty bool
 		Tty:          tty,
 		Cmd:          cmd,
 		WorkingDir:   "/workspace",
-		// Set environment variables for better terminal experience
-		Env: []string{
-			"TERM=xterm-256color",
-			"COLORTERM=truecolor",
-			"LANG=en_US.UTF-8",
-		},
+		Env:          env,
 	}
 
 	// Create the exec instance
@@ -144,8 +156,13 @@ func (m *ContainerManager) GetExecInfo(execID string) (container.ExecInspect, er
 // StartExec is a convenience method that creates and starts an exec instance
 // Returns the exec ID and the hijacked response for I/O
 func (m *ContainerManager) StartExec(containerID string, cmd []string, tty bool) (string, types.HijackedResponse, error) {
-	// Create exec instance
-	execID, err := m.CreateExec(containerID, cmd, tty)
+	return m.StartExecWithEnv(containerID, cmd, tty, nil)
+}
+
+// StartExecWithEnv creates and starts an exec instance with custom environment variables
+func (m *ContainerManager) StartExecWithEnv(containerID string, cmd []string, tty bool, envVars map[string]string) (string, types.HijackedResponse, error) {
+	// Create exec instance with environment variables
+	execID, err := m.CreateExecWithEnv(containerID, cmd, tty, envVars)
 	if err != nil {
 		return "", types.HijackedResponse{}, fmt.Errorf("failed to create exec: %w", err)
 	}

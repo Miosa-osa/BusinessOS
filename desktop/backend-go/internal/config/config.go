@@ -7,7 +7,9 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/spf13/viper"
 )
 
@@ -121,6 +123,15 @@ type Config struct {
 	MicrosoftClientSecret string `mapstructure:"MICROSOFT_CLIENT_SECRET"`
 	MicrosoftRedirectURI  string `mapstructure:"MICROSOFT_REDIRECT_URI"`
 
+	// OSA (Open Source Agent) Integration
+	OSAEnabled      bool   `mapstructure:"OSA_ENABLED"`
+	OSABaseURL      string `mapstructure:"OSA_BASE_URL"`
+	OSASharedSecret string `mapstructure:"OSA_SHARED_SECRET"`
+	OSATimeout      int    `mapstructure:"OSA_TIMEOUT"`       // seconds
+	OSAMaxRetries   int    `mapstructure:"OSA_MAX_RETRIES"`
+	OSARetryDelay   int    `mapstructure:"OSA_RETRY_DELAY"`   // seconds
+	OSA             *osa.Config // Built from above fields in Load()
+
 	// Web Search Providers
 	// Priority: Brave > Serper > Tavily > DuckDuckGo (fallback)
 	BraveSearchAPIKey string `mapstructure:"BRAVE_SEARCH_API_KEY"` // Free: 2000 queries/month
@@ -220,6 +231,14 @@ func Load() (*Config, error) {
 	viper.SetDefault("LINEAR_CLIENT_SECRET", "")
 	viper.SetDefault("LINEAR_REDIRECT_URI", "http://localhost:8001/api/integrations/linear/callback")
 
+	// OSA Integration
+	viper.SetDefault("OSA_ENABLED", false)
+	viper.SetDefault("OSA_BASE_URL", "http://localhost:8089")
+	viper.SetDefault("OSA_SHARED_SECRET", "")
+	viper.SetDefault("OSA_TIMEOUT", 30)      // seconds
+	viper.SetDefault("OSA_MAX_RETRIES", 3)
+	viper.SetDefault("OSA_RETRY_DELAY", 2)   // seconds
+
 	// Web Search Providers
 	viper.SetDefault("BRAVE_SEARCH_API_KEY", "")
 	viper.SetDefault("SERPER_API_KEY", "")
@@ -310,6 +329,19 @@ func Load() (*Config, error) {
 	// Python uses: postgresql+asyncpg://...
 	// Go pgx uses: postgres://... or postgresql://...
 	config.DatabaseURL = strings.Replace(config.DatabaseURL, "postgresql+asyncpg://", "postgres://", 1)
+
+	// Build OSA config from flat fields
+	if config.OSAEnabled {
+		config.OSA = &osa.Config{
+			BaseURL:      config.OSABaseURL,
+			SharedSecret: config.OSASharedSecret,
+			Timeout:      time.Duration(config.OSATimeout) * time.Second,
+			MaxRetries:   config.OSAMaxRetries,
+			RetryDelay:   time.Duration(config.OSARetryDelay) * time.Second,
+		}
+	} else {
+		config.OSA = &osa.Config{} // Empty config when disabled
+	}
 
 	AppConfig = config
 	return config, nil

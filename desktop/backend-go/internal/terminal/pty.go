@@ -19,8 +19,31 @@ func startPTY(session *Session) error {
 	shell := getShellPath(session.Shell)
 	log.Printf("[PTY] Using shell: %s", shell)
 
-	// Create command
-	cmd := exec.Command(shell)
+	// Create command with BusinessOS init script
+	var cmd *exec.Cmd
+	if shell == "zsh" || shell == "/bin/zsh" {
+		// Source BusinessOS init script in zsh
+		// Try to find the init script relative to the executable or use env var
+		initScript := os.Getenv("BUSINESSOS_INIT_SCRIPT")
+		if initScript == "" {
+			// Default paths to try
+			possiblePaths := []string{
+				"/Users/rhl/Desktop/BusinessOS2/desktop/backend-go/internal/terminal/businessos_init.sh",
+				"/Users/ososerious/BusinessOS-1/desktop/backend-go/internal/terminal/businessos_init.sh",
+				"./internal/terminal/businessos_init.sh",
+			}
+			for _, p := range possiblePaths {
+				if _, err := os.Stat(p); err == nil {
+					initScript = p
+					break
+				}
+			}
+		}
+		// Start zsh and source the init script (functions will persist in this shell)
+		cmd = exec.Command(shell, "--no-rcs", "-c", fmt.Sprintf("source %s; exec zsh --no-rcs", initScript))
+	} else {
+		cmd = exec.Command(shell)
+	}
 	log.Printf("[PTY] Command created")
 
 	// Set working directory

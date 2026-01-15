@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  nats:
+    image: nats:latest
+    container_name: nats-jetstream
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    ports:
+      - "4222:4222"  # Client connections
+      - "8222:8222"  # HTTP monitoring
+      - "6222:6222"  # Routing (cluster)
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - nats-network
+
+  # Optional: NATS monitoring UI
+  nats-surveyor:
+    image: natsio/nats-surveyor:latest
+    container_name: nats-surveyor
+    ports:
+      - "7777:7777"
+    environment:
+      - NATS_SURVEYOR_SERVERS=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - nats-network
+
+volumes:
+  nats-data:
+    driver: local
+
+networks:
+  nats-network:
+    driver: bridge
