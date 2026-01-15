@@ -19,7 +19,7 @@
 	import FileBrowser from '$lib/components/desktop/FileBrowser.svelte';
 	import IconPicker from '$lib/components/desktop/IconPicker.svelte';
 	import AnimatedBackground from '$lib/components/desktop/AnimatedBackground.svelte';
-	// import Desktop3D from '$lib/components/desktop3d/Desktop3D.svelte'; // Temporarily disabled - requires Node 22+
+	import Desktop3D from '$lib/components/desktop3d/Desktop3D.svelte';
 	import type { CustomIconConfig } from '$lib/stores/windowStore';
 
 	const APP_VERSION = '0.0.1';
