@@ -28,13 +28,6 @@ func NewOSAWorkspaceInitService(pool *pgxpool.Pool, logger *slog.Logger) *OSAWor
 	}
 }
 
-// uuidToPgtype converts uuid.UUID to pgtype.UUID
-func uuidToPgtype(u uuid.UUID) pgtype.UUID {
-	var pgu pgtype.UUID
-	_ = pgu.Scan(u.String())
-	return pgu
-}
-
 // stringPtr returns a pointer to the given string
 func stringPtr(s string) *string {
 	return &s
@@ -80,8 +73,8 @@ func (s *OSAWorkspaceInitService) DefaultWorkspaceSettings() map[string]interfac
 			"warnings":      true,
 		},
 		"terminal": map[string]interface{}{
-			"fontSize":   14,
-			"fontFamily": "Monaco, monospace",
+			"fontSize":    14,
+			"fontFamily":  "Monaco, monospace",
 			"cursorBlink": true,
 		},
 		"fileExplorer": map[string]interface{}{
