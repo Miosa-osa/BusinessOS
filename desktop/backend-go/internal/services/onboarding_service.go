@@ -594,10 +594,15 @@ func (s *OnboardingService) CompleteOnboarding(ctx context.Context, sessionID uu
 	// Add integrations
 	extractedData.Integrations = integrations
 
-	// Validate all required data before completing
-	validationErrors := s.validator.ValidateForCompletion(&extractedData)
-	if validationErrors.HasErrors() {
-		return nil, fmt.Errorf("validation failed: %s", validationErrors.Error())
+	// Apply defaults for missing required fields (allows "skip" flow)
+	if extractedData.WorkspaceName == "" {
+		extractedData.WorkspaceName = "My Workspace"
+	}
+	if extractedData.BusinessType == "" {
+		extractedData.BusinessType = "other"
+	}
+	if extractedData.TeamSize == "" {
+		extractedData.TeamSize = "solo"
 	}
 
 	// Validate integrations if provided

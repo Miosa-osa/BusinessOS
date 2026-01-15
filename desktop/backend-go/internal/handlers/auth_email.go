@@ -182,9 +182,14 @@ func (h *EmailAuthHandler) SignIn(c *gin.Context) {
 		domain = "" // Current domain
 	}
 
-	sameSite := http.SameSiteLaxMode // Secure default for production
-	if os.Getenv("ALLOW_CROSS_ORIGIN") == "true" {
+	// For development, use SameSite=None to allow cross-origin cookies (different ports)
+	// Browsers allow SameSite=None without Secure for localhost
+	sameSite := http.SameSiteLaxMode
+	secure := isProduction
+	
+	if !isProduction {
 		sameSite = http.SameSiteNoneMode
+		secure = false // localhost is exempt from Secure requirement for SameSite=None
 	}
 
 	http.SetCookie(c.Writer, &http.Cookie{
@@ -194,7 +199,7 @@ func (h *EmailAuthHandler) SignIn(c *gin.Context) {
 		Domain:   domain,
 		MaxAge:   60 * 60 * 24 * 7, // 7 days
 		HttpOnly: true,
-		Secure:   isProduction,
+		Secure:   secure,
 		SameSite: sameSite,
 	})
 

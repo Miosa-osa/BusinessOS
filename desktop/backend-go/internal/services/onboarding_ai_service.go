@@ -349,16 +349,29 @@ func (s *OnboardingAIService) parseAIResponse(content string) (*OnboardingAIResp
 		content = strings.TrimSpace(content)
 	}
 
+	// First try to parse the entire content as JSON
 	var response OnboardingAIResponse
-	if err := json.Unmarshal([]byte(content), &response); err != nil {
-		// If parsing fails, use the raw content as the message
-		return &OnboardingAIResponse{
-			AgentMessage:    content,
-			ConfidenceScore: 0.5,
-		}, nil
+	if err := json.Unmarshal([]byte(content), &response); err == nil {
+		return &response, nil
 	}
 
-	return &response, nil
+	// If that fails, try to extract JSON from anywhere in the response
+	// Look for JSON object pattern: starts with { and ends with }
+	jsonStart := strings.Index(content, "{")
+	jsonEnd := strings.LastIndex(content, "}")
+	
+	if jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart {
+		jsonContent := content[jsonStart : jsonEnd+1]
+		if err := json.Unmarshal([]byte(jsonContent), &response); err == nil {
+			return &response, nil
+		}
+	}
+
+	// If parsing still fails, use the raw content as the message
+	return &OnboardingAIResponse{
+		AgentMessage:    content,
+		ConfidenceScore: 0.5,
+	}, nil
 }
 
 // deterministicResponse provides a fallback when no AI is configured

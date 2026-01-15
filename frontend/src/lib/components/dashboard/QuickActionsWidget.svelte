@@ -57,8 +57,15 @@
 	</svg>
 {/snippet}
 
-<div class="bg-white rounded-xl border border-gray-200 p-5">
-	<h2 class="text-base font-semibold text-gray-900 mb-4">Quick Actions</h2>
+<div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
+	<div class="flex items-center gap-2 mb-4">
+		<div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+			<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+			</svg>
+		</div>
+		<h2 class="text-base font-semibold text-gray-900">Quick Actions</h2>
+	</div>
 
 	<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
 		{#each actions as action, index (action.id)}
@@ -66,10 +73,10 @@
 				onclick={() => onAction?.(action.id)}
 				onmouseenter={() => (hoveredId = action.id)}
 				onmouseleave={() => (hoveredId = null)}
-				class="group flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200 transition-all duration-200 {hoveredId ===
+				class="group flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100/50 hover:from-gray-100 hover:to-gray-50 border border-gray-100 hover:border-gray-200 transition-all duration-200 {hoveredId ===
 				action.id
-					? 'scale-105 shadow-md'
-					: ''}"
+					? 'scale-[1.02] shadow-md border-gray-300'
+					: 'shadow-sm'}"
 				in:fly={{ y: 10, duration: 300, delay: index * 50 }}
 			>
 				<span class="text-gray-600 group-hover:text-gray-900 group-hover:scale-110 transition-all duration-200">

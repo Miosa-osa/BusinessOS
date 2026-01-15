@@ -45,6 +45,7 @@ type AgentV2 interface {
 	SetOutputStylePrompt(prompt string)  // For output style specific instructions
 	SetRoleContextPrompt(prompt string)  // For role-based permission context (Feature 1)
 	SetMemoryContext(context string)     // For workspace memory injection (Feature: Memory Hierarchy)
+	SetSkillsPrompt(prompt string)       // For agent skills system context injection
 }
 
 // ContextRequirements declares what context an agent needs

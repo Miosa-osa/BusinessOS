@@ -470,6 +470,15 @@ func (h *Handlers) SendMessageV2(c *gin.Context) {
 		}
 	}
 
+	// Inject skills context if skills loader is available
+	if h.skillsLoader != nil && h.skillsLoader.IsLoaded() {
+		skillsPrompt := h.skillsLoader.GetSkillsPromptXML()
+		if skillsPrompt != "" {
+			agent.SetSkillsPrompt(skillsPrompt)
+			log.Printf("[ChatV2] Injected skills context (%d chars)", len(skillsPrompt))
+		}
+	}
+
 	// Apply focus mode system prompt prefix if set
 	if focusSystemPrompt != "" {
 		// Combine focus prompt with search context if available

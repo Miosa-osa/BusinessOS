@@ -77,16 +77,23 @@
 	}
 </script>
 
-<div class="bg-white rounded-xl border border-gray-200 p-5">
+<div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
 	<div class="flex items-center justify-between mb-4">
-		<h2 class="text-base font-semibold text-gray-900">My Tasks</h2>
+		<div class="flex items-center gap-2">
+			<div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-sm">
+				<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+				</svg>
+			</div>
+			<h2 class="text-base font-semibold text-gray-900">My Tasks</h2>
+		</div>
 		{#if tasks.length > 0}
 			<button
 				onclick={() => onViewAll?.()}
-				class="text-sm text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1"
+				class="text-xs text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100"
 			>
 				View All
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 				</svg>
 			</button>
@@ -95,8 +102,8 @@
 
 	{#if tasks.length === 0}
 		<div class="text-center py-8">
-			<div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center mx-auto mb-3">
-				<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="w-14 h-14 bg-gradient-to-br from-green-100 to-green-50 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+				<svg class="w-7 h-7 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7" />
 				</svg>
 			</div>
@@ -104,9 +111,12 @@
 			<p class="text-xs text-gray-500 mb-3">No tasks due soon.</p>
 			<button
 				onclick={() => goto('/tasks')}
-				class="text-sm text-gray-600 hover:text-gray-900 font-medium"
+				class="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
 			>
-				+ Add a task
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+				</svg>
+				Add a task
 			</button>
 		</div>
 	{:else}

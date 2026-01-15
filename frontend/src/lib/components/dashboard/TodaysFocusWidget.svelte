@@ -51,13 +51,20 @@
 	}
 </script>
 
-<div class="bg-white rounded-xl border border-gray-200 p-5">
+<div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
 	<div class="flex items-center justify-between mb-4">
-		<h2 class="text-base font-semibold text-gray-900">Today's Focus</h2>
+		<div class="flex items-center gap-2">
+			<div class="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-sm">
+				<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+				</svg>
+			</div>
+			<h2 class="text-base font-semibold text-gray-900">Today's Focus</h2>
+		</div>
 		{#if items.length > 0}
 			<button
 				onclick={() => onEdit?.()}
-				class="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+				class="text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-1 rounded-md hover:bg-gray-100"
 			>
 				Edit
 			</button>
@@ -65,13 +72,21 @@
 	</div>
 
 	{#if items.length === 0 && !isAdding}
-		<div class="text-center py-6">
+		<div class="text-center py-8">
+			<div class="w-14 h-14 bg-gradient-to-br from-gray-100 to-gray-50 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+				<svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+				</svg>
+			</div>
 			<p class="text-sm text-gray-500 mb-3">No focus items for today</p>
 			<button
 				onclick={() => (isAdding = true)}
-				class="text-sm text-gray-600 hover:text-gray-900 font-medium"
+				class="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
 			>
-				+ Add your first focus
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+				</svg>
+				Add your first focus
 			</button>
 		</div>
 	{:else}

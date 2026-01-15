@@ -71,6 +71,7 @@
 		"lucide-react": "^0.559.0",
 		"lucide-svelte": "^0.562.0",
 		"motion": "^12.23.26",
+		"ms": "^2.1.3",
 		"nanoid": "^5.1.6",
 		"ollama-ai-provider-v2": "^1.5.5",
 		"pg": "^8.16.3",
@@ -81,6 +82,7 @@
 		"tokenlens": "^1.3.1",
 		"use-stick-to-bottom": "^1.1.1",
 		"y-indexeddb": "^9.0.12",
-		"yjs": "^13.6.29"
+		"yjs": "^13.6.29",
+		"zod": "^4.3.5"
 	}
 }

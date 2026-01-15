@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { currentWorkspace, currentUserRole } from '$lib/stores/workspaces';
+  import { currentWorkspace, currentUserRole, currentWorkspaceRoles, currentWorkspaceMembers, currentUserRoleContext } from '$lib/stores/workspaces';
   import {
     getWorkspace,
     getWorkspaceMembers,
@@ -31,6 +31,7 @@
   let activeTab = $state<TabType>('general');
   let isLoading = $state(true);
   let error = $state<string | null>(null);
+  let isMockData = $state(false);
 
   // Workspace data
   let workspace = $state<Workspace | null>(null);
@@ -52,6 +53,32 @@
   async function loadWorkspaceData() {
     if (!$currentWorkspace?.id) {
       error = 'No workspace selected';
+      isLoading = false;
+      return;
+    }
+
+    // Check if using mock data (mock workspace IDs start with 'mock-')
+    if ($currentWorkspace.id.startsWith('mock-')) {
+      console.log('[Workspace Settings] Using mock workspace data');
+      isMockData = true;
+      
+      // Use data from stores instead of API
+      workspace = $currentWorkspace;
+      roles = $currentWorkspaceRoles || [];
+      members = $currentWorkspaceMembers || [];
+      invites = [];
+      roleContext = $currentUserRoleContext;
+      
+      if (roleContext) {
+        checkPermissions(roleContext);
+      } else {
+        // Default permissions for mock data
+        canManageSettings = true;
+        canManageMembers = true;
+        canManageRoles = true;
+        canInviteMembers = true;
+      }
+      
       isLoading = false;
       return;
     }
@@ -134,7 +161,7 @@
     loadWorkspaceData();
   }
 
-  const tabs = [
+  let tabs = $derived([
     {
       id: 'general' as TabType,
       label: 'General',
@@ -145,14 +172,14 @@
       id: 'members' as TabType,
       label: 'Members',
       icon: Users,
-      show: canManageMembers || canInviteMembers,
+      show: true,
       badge: members.length,
     },
     {
       id: 'roles' as TabType,
       label: 'Roles',
       icon: Shield,
-      show: canManageRoles,
+      show: true,
       badge: roles.length,
     },
     {
@@ -162,7 +189,7 @@
       show: canManageMembers || canInviteMembers,
       badge: invites.filter((i) => i.status === 'pending').length,
     },
-  ];
+  ]);
 </script>
 
 <div class="workspace-settings-page">
@@ -191,7 +218,13 @@
       <AlertCircle class="w-8 h-8" />
       <p>{error}</p>
     </div>
-  {:else if workspace && roleContext}
+  {:else if workspace}
+    {#if isMockData}
+      <div class="mock-data-banner">
+        <AlertCircle class="w-4 h-4" />
+        <span>Viewing demo workspace data. Create a real workspace to enable full functionality.</span>
+      </div>
+    {/if}
     <div class="settings-container">
       <!-- Tabs -->
       <div class="settings-tabs">
@@ -202,7 +235,7 @@
               class:active={activeTab === tab.id}
               onclick={() => (activeTab = tab.id)}
             >
-              <svelte:component this={tab.icon} class="w-5 h-5" />
+              <tab.icon class="w-5 h-5" />
               <span>{tab.label}</span>
               {#if tab.badge !== undefined && tab.badge > 0}
                 <span class="tab-badge">{tab.badge}</span>
@@ -218,7 +251,7 @@
           <WorkspaceGeneralSettings
             {workspace}
             canManage={canManageSettings}
-            isOwner={roleContext.role_name === 'owner'}
+            isOwner={roleContext?.role_name === 'owner'}
             on:updated={handleWorkspaceUpdated}
           />
         {:else if activeTab === 'members'}
@@ -226,8 +259,8 @@
             workspaceId={workspace.id}
             {members}
             {roles}
-            currentUserRole={roleContext.role_name}
-            currentUserId={roleContext.user_id}
+            currentUserRole={roleContext?.role_name ?? 'member'}
+            currentUserId={roleContext?.user_id ?? ''}
             canManage={canManageMembers}
             canInvite={canInviteMembers}
             on:updated={handleMembersUpdated}
@@ -323,6 +356,28 @@
 
   .error-state {
     color: #dc2626;
+  }
+
+  .mock-data-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    border-radius: 0.5rem;
+    color: #92400e;
+    font-size: 0.875rem;
+    margin: 1rem 2rem;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  :global(.dark) .mock-data-banner {
+    background: #422006;
+    border-color: #a16207;
+    color: #fef3c7;
   }
 
   .settings-container {

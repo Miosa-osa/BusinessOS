@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { fly, fade } from 'svelte/transition';
-	import { NotificationDropdown } from '$lib/components/notifications';
 
 	interface Props {
 		userName: string;
@@ -63,78 +62,94 @@
 	function dismissEnergyCheck() {
 		showEnergyCheck = false;
 	}
+	
+	// Get a contextual message based on time and energy
+	const getContextMessage = () => {
+		const hour = new Date().getHours();
+		if (hour >= 5 && hour < 9) return "Let's start the day strong 💪";
+		if (hour >= 9 && hour < 12) return "Peak productivity hours ahead 🚀";
+		if (hour >= 12 && hour < 14) return "Great time for focused work 🎯";
+		if (hour >= 14 && hour < 17) return "Keep the momentum going 📈";
+		if (hour >= 17 && hour < 21) return "Wrapping up for the day 🌅";
+		return "Night owl mode activated 🦉";
+	};
 </script>
 
-<header class="px-6 py-6" in:fade={{ duration: 300 }}>
-	<div class="flex items-start justify-between">
-		<div>
-			<h1
-				class="text-2xl font-semibold text-gray-900 dark:text-white"
-				in:fly={{ y: -10, duration: 400, delay: 100 }}
-			>
-				{getGreeting()}, {userName}
-			</h1>
-			<p class="text-sm text-gray-500 dark:text-gray-400 mt-1" in:fly={{ y: -10, duration: 400, delay: 200 }}>
-				{formatDate()}
-			</p>
-		</div>
-		<div in:fly={{ x: 10, duration: 400, delay: 150 }}>
-			<NotificationDropdown />
-		</div>
-	</div>
-
-	{#if showEnergyCheck}
-		<div
-			class="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200"
-			in:fly={{ y: 10, duration: 400, delay: 300 }}
-		>
-			<div class="flex items-center justify-between mb-4">
-				<p class="text-sm font-medium text-gray-700">How's your energy today?</p>
-				<button
-					onclick={dismissEnergyCheck}
-					class="text-gray-400 hover:text-gray-600 transition-colors"
-					aria-label="Dismiss"
+<header class="relative overflow-hidden" in:fade={{ duration: 300 }}>
+	<!-- Subtle gradient background -->
+	<div class="absolute inset-0 bg-gradient-to-br from-gray-50 via-white to-gray-50/50 pointer-events-none"></div>
+	<div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-50/40 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+	
+	<div class="relative px-6 py-6">
+		<div class="flex items-start justify-between">
+			<div>
+				<h1
+					class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight"
+					in:fly={{ y: -10, duration: 400, delay: 100 }}
 				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M6 18L18 6M6 6l12 12"
-						/>
-					</svg>
-				</button>
+					{getGreeting()}, {userName} 👋
+				</h1>
+				<p class="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2" in:fly={{ y: -10, duration: 400, delay: 200 }}>
+					<span>{formatDate()}</span>
+					<span class="text-gray-300">•</span>
+					<span class="text-gray-600">{getContextMessage()}</span>
+				</p>
 			</div>
+		</div>
 
-			<!-- Energy Slider -->
-			<div class="space-y-3">
-				<div class="flex items-center gap-4">
-					<span class="text-xs text-gray-500 w-8">1</span>
-					<input
-						type="range"
-						min="1"
-						max="10"
-						value={sliderValue}
-						oninput={handleSliderChange}
-						class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-900"
-					/>
-					<span class="text-xs text-gray-500 w-8 text-right">10</span>
-				</div>
-
-				<div class="flex items-center justify-between">
-					<div class="flex items-center gap-2">
-						<div class="w-3 h-3 rounded-full {getEnergyColor(sliderValue)}"></div>
-						<span class="text-sm font-medium text-gray-900">{sliderValue}</span>
-						<span class="text-sm text-gray-500">- {getEnergyLabel(sliderValue)}</span>
-					</div>
+		{#if showEnergyCheck}
+			<div
+				class="mt-6 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm"
+				in:fly={{ y: 10, duration: 400, delay: 300 }}
+			>
+				<div class="flex items-center justify-between mb-4">
+					<p class="text-sm font-medium text-gray-700">How's your energy today?</p>
 					<button
-						onclick={handleEnergySubmit}
-						class="px-3 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+						onclick={dismissEnergyCheck}
+						class="text-gray-400 hover:text-gray-600 transition-colors"
+						aria-label="Dismiss"
 					>
-						Log Energy
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M6 18L18 6M6 6l12 12"
+							/>
+						</svg>
 					</button>
 				</div>
+
+				<!-- Energy Slider -->
+				<div class="space-y-3">
+					<div class="flex items-center gap-4">
+						<span class="text-xs text-gray-500 w-8">1</span>
+						<input
+							type="range"
+							min="1"
+							max="10"
+							value={sliderValue}
+							oninput={handleSliderChange}
+							class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-900"
+						/>
+						<span class="text-xs text-gray-500 w-8 text-right">10</span>
+					</div>
+
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<div class="w-3 h-3 rounded-full {getEnergyColor(sliderValue)}"></div>
+							<span class="text-sm font-medium text-gray-900">{sliderValue}</span>
+							<span class="text-sm text-gray-500">- {getEnergyLabel(sliderValue)}</span>
+						</div>
+						<button
+							onclick={handleEnergySubmit}
+							class="px-3 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+						>
+							Log Energy
+						</button>
+					</div>
+				</div>
 			</div>
-		</div>
-	{/if}
+		{/if}
+	</div>
 </header>

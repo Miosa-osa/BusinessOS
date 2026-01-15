@@ -642,6 +642,19 @@ func main() {
 	h.SetProjectAccessService(projectAccessService)
 	log.Printf("Project access service registered (project member management)")
 
+	// Initialize Skills Loader (Agent Skills System)
+	var skillsHandler *handlers.SkillsHandler
+	skillsConfigPath := "./skills/skills.yaml"
+	skillsLoader := services.NewSkillsLoader(skillsConfigPath)
+	if err := skillsLoader.LoadConfig(); err != nil {
+		log.Printf("Warning: Skills loader failed to initialize: %v", err)
+		log.Printf("Agent skills system will be disabled")
+	} else {
+		skillsHandler = handlers.NewSkillsHandler(skillsLoader)
+		h.SetSkillsLoader(skillsLoader)
+		log.Printf("Skills loader initialized (%d skills loaded)", len(skillsLoader.GetEnabledSkills()))
+	}
+
 	// Optional background job: keep conversation_summaries fresh for context + semantic search.
 	if conversationIntelligence != nil && cfg.ConversationSummaryJobEnabled {
 		interval := time.Duration(cfg.ConversationSummaryJobIntervalMinutes) * time.Minute
@@ -795,6 +808,12 @@ func main() {
 
 	// Register routes
 	h.RegisterRoutes(api)
+
+	// Register skills routes (if handler available)
+	if skillsHandler != nil {
+		skillsHandler.RegisterRoutes(api)
+		log.Printf("Skills routes registered (/api/skills)")
+	}
 
 	// Register background jobs routes (if handler available)
 	if jobsHandler != nil {

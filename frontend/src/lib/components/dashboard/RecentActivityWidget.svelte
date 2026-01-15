@@ -115,16 +115,23 @@
 	</svg>
 {/snippet}
 
-<div class="bg-white rounded-xl border border-gray-200 p-5">
+<div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
 	<div class="flex items-center justify-between mb-4">
-		<h2 class="text-base font-semibold text-gray-900">Recent Activity</h2>
+		<div class="flex items-center gap-2">
+			<div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center shadow-sm">
+				<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+				</svg>
+			</div>
+			<h2 class="text-base font-semibold text-gray-900">Recent Activity</h2>
+		</div>
 		{#if activities.length > 0}
 			<button
 				onclick={() => onViewAll?.()}
-				class="text-sm text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1"
+				class="text-xs text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100"
 			>
 				View All
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 				</svg>
 			</button>
@@ -133,8 +140,8 @@
 
 	{#if activities.length === 0}
 		<div class="text-center py-8">
-			<div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-				<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="w-14 h-14 bg-gradient-to-br from-cyan-100 to-cyan-50 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+				<svg class="w-7 h-7 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path
 						stroke-linecap="round"
 						stroke-linejoin="round"

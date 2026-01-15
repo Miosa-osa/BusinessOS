@@ -100,6 +100,9 @@ func (r *AgentToolRegistry) registerTools() {
 	r.tools["log_activity"] = &LogActivityTool{pool: r.pool, userID: r.userID}
 	r.tools["create_artifact"] = &CreateArtifactTool{pool: r.pool, userID: r.userID}
 
+	// Dashboard tools
+	r.tools["configure_dashboard"] = &ConfigureDashboardTool{pool: r.pool, userID: r.userID}
+
 	// Search tools
 	r.tools["web_search"] = &WebSearchTool{pool: r.pool, userID: r.userID}
 }

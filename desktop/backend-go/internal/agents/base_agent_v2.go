@@ -32,6 +32,7 @@ type BaseAgentV2 struct {
 	outputStylePrompt string // Output style specific instructions
 	roleContextPrompt string // Role-based permissions context (Feature 1)
 	memoryContext     string // Workspace memory context (Feature: Memory Hierarchy)
+	skillsPrompt      string // Available skills context (Agent Skills System)
 	contextReqs       ContextRequirements
 	llmOptions        services.LLMOptions
 	toolRegistry      *tools.AgentToolRegistry
@@ -163,6 +164,11 @@ func (a *BaseAgentV2) SetRoleContextPrompt(prompt string) {
 // SetMemoryContext sets workspace memory context (Feature: Memory Hierarchy)
 func (a *BaseAgentV2) SetMemoryContext(context string) {
 	a.memoryContext = context
+}
+
+// SetSkillsPrompt sets the available skills context (Agent Skills System)
+func (a *BaseAgentV2) SetSkillsPrompt(prompt string) {
+	a.skillsPrompt = prompt
 }
 
 // SetLastUserMessage stores the last user message for personalization
@@ -502,6 +508,15 @@ func (a *BaseAgentV2) buildSystemPromptWithThinking() string {
 		}
 		result += a.memoryContext
 		fmt.Printf("[Agent] Applied memory context (%d chars)\n", len(a.memoryContext))
+	}
+
+	// Then add skills context if set (Agent Skills System)
+	if a.skillsPrompt != "" {
+		if result != "" {
+			result += "\n\n"
+		}
+		result += a.skillsPrompt
+		fmt.Printf("[Agent] Applied skills context (%d chars)\n", len(a.skillsPrompt))
 	}
 
 	// Now add the base system prompt

@@ -53,6 +53,8 @@ type Handlers struct {
 	// Voice services (3D Desktop)
 	whisperService           *services.WhisperService          // Local speech-to-text
 	elevenLabsService        *services.ElevenLabsService       // Text-to-speech (OSA voice)
+	// Agent Skills System
+	skillsLoader             *services.SkillsLoader            // Skills loader for agent prompts
 }
 
 // NewHandlers creates a new Handlers instance
@@ -176,6 +178,11 @@ func (h *Handlers) SetAuditService(auditService *services.WorkspaceAuditService)
 // SetProjectAccessService sets the project access service (Feature 1 - Project Access Control)
 func (h *Handlers) SetProjectAccessService(projectAccessService *services.ProjectAccessService) {
 	h.projectAccessService = projectAccessService
+}
+
+// SetSkillsLoader sets the skills loader (Agent Skills System)
+func (h *Handlers) SetSkillsLoader(skillsLoader *services.SkillsLoader) {
+	h.skillsLoader = skillsLoader
 }
 
 // RegisterRoutes registers all API routes
@@ -656,6 +663,18 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 				devNotifications.DELETE("/seed", seedHandler.ClearSeedNotifications)
 			}
 		}
+	}
+
+	// Email routes - /api/email
+	emailHandler := NewEmailHandler()
+	email := api.Group("/email")
+	email.Use(auth)
+	{
+		email.GET("/status", emailHandler.GetEmailStatus)
+		email.POST("/test", emailHandler.HandleTestEmail)
+		email.POST("/send/verification", emailHandler.HandleSendVerificationEmail)
+		email.POST("/send/password-reset", emailHandler.HandleSendPasswordResetEmail)
+		email.POST("/send/welcome", emailHandler.HandleSendWelcomeEmail)
 	}
 
 	// Custom Dashboards routes - /api/user-dashboards

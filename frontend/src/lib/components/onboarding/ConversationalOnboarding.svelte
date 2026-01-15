@@ -10,6 +10,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { fly } from 'svelte/transition';
 	import PurpleOrb from './PurpleOrb.svelte';
 	import SequentialTypewriter from './SequentialTypewriter.svelte';
 	import IntegrationCard from './IntegrationCard.svelte';
@@ -69,6 +70,16 @@
 	// Session state (for API mode)
 	let sessionId = $state<string | null>(initialSessionId || null);
 	let apiError = $state<string | null>(null);
+	let sessionExpired = $state(false);
+	let lastErrorAction = $state<(() => void) | null>(null);
+
+	// History tracking for Go Back
+	interface HistoryEntry {
+		question: QuestionType;
+		data: ExtractedData;
+		agentMessage: string;
+	}
+	let questionHistory = $state<HistoryEntry[]>([]);
 
 	// State
 	let phase = $state<OnboardingPhase>(useApi ? 'loading' : 'intro');
@@ -78,6 +89,9 @@
 	let extractedData = $state<ExtractedData>({});
 	let introComplete = $state(false);
 	let currentAgentMessage = $state('');
+
+	// Can go back derived (after phase and isAgentTyping are declared)
+	let canGoBack = $derived(questionHistory.length > 0 && phase === 'conversation' && !isAgentTyping);
 
 	// Integration state
 	let selectedIntegrations = $state<string[]>([]);
@@ -98,6 +112,10 @@
 	// Resume state for welcome back flow
 	let isResuming = $state(false);
 	let resumeMessage = $state('');
+
+	// OAuth error state for integration cards
+	let oauthError = $state<string | null>(null);
+	let failedIntegrationId = $state<string | null>(null);
 
 	// Chip options
 	const businessTypeOptions: ChipOption[] = [
@@ -227,7 +245,28 @@
 			}
 		} catch (error) {
 			console.error('Failed to initialize onboarding:', error);
-			apiError = error instanceof Error ? error.message : 'Failed to start onboarding';
+			const errorMessage = error instanceof Error ? error.message : 'Failed to start onboarding';
+			
+			if (errorMessage.toLowerCase().includes('expired') || 
+				errorMessage.toLowerCase().includes('invalid session') ||
+				errorMessage.toLowerCase().includes('session not found')) {
+				sessionExpired = true;
+				apiError = 'Your session has expired. Starting fresh...';
+				// Auto-create new session after a brief delay
+				setTimeout(async () => {
+					try {
+						const { session } = await onboardingApi.createSession();
+						sessionId = session.id;
+						sessionExpired = false;
+						apiError = null;
+						phase = 'intro';
+					} catch {
+						apiError = 'Unable to start a new session. Please refresh the page.';
+					}
+				}, 2000);
+			} else {
+				apiError = errorMessage;
+			}
 			// Fall back to local mode
 			phase = 'intro';
 		}
@@ -297,8 +336,13 @@
 		if (useApi && sessionId) {
 			// API mode: send to backend
 			isAgentTyping = true;
+			// Save current state before advancing
+			saveToHistory();
+			// Store retry action
+			lastErrorAction = () => handleChipSelect(chipId);
 			try {
 				const response = await onboardingApi.sendMessage(sessionId, chipId);
+				lastErrorAction = null; // Clear on success
 				
 				// Update local state from API response
 				const apiData = response.extracted_data;
@@ -360,8 +404,13 @@
 		if (useApi && sessionId) {
 			// API mode: send to backend
 			isAgentTyping = true;
+			// Save current state before advancing
+			saveToHistory();
+			// Store retry action
+			lastErrorAction = () => handleChatAnswer(answer);
 			try {
 				const response = await onboardingApi.sendMessage(sessionId, answer);
+				lastErrorAction = null; // Clear on success
 				
 				// Update local state from API response
 				const apiData = response.extracted_data;
@@ -491,6 +540,50 @@
 		}];
 	}
 
+	// Dismiss error banner
+	function dismissError() {
+		apiError = null;
+		oauthError = null;
+		lastErrorAction = null;
+	}
+
+	// Retry last failed action
+	function retryLastAction() {
+		if (lastErrorAction) {
+			apiError = null;
+			oauthError = null;
+			lastErrorAction();
+			lastErrorAction = null;
+		} else if (failedIntegrationId) {
+			// Retry the OAuth connection
+			oauthError = null;
+			handleIntegrationConnect(failedIntegrationId);
+			failedIntegrationId = null;
+		}
+	}
+
+	// Go back to previous question
+	function goBack() {
+		if (questionHistory.length === 0 || phase !== 'conversation') return;
+		
+		const lastEntry = questionHistory[questionHistory.length - 1];
+		questionHistory = questionHistory.slice(0, -1);
+		
+		// Restore the previous state
+		currentQuestion = lastEntry.question;
+		extractedData = lastEntry.data;
+		currentAgentMessage = lastEntry.agentMessage;
+	}
+
+	// Save current state to history before advancing
+	function saveToHistory() {
+		questionHistory = [...questionHistory, {
+			question: currentQuestion,
+			data: { ...extractedData },
+			agentMessage: currentAgentMessage
+		}];
+	}
+
 	// Handle integration connect via OAuth popup
 	async function handleIntegrationConnect(integrationId: string) {
 		integrationStatuses[integrationId] = 'connecting';
@@ -551,12 +644,15 @@
 					
 					if (event.data.success) {
 						integrationStatuses[integrationId] = 'connected';
+						oauthError = null;
+						failedIntegrationId = null;
 						if (!selectedIntegrations.includes(integrationId)) {
 							selectedIntegrations = [...selectedIntegrations, integrationId];
 						}
 					} else {
 						integrationStatuses[integrationId] = 'error';
-						console.error('OAuth failed:', event.data.error);
+						failedIntegrationId = integrationId;
+						oauthError = event.data.error || `Failed to connect ${integrations.find(i => i.id === integrationId)?.name || integrationId}`;
 					}
 				}
 			};
@@ -568,12 +664,16 @@
 				window.removeEventListener('message', handleMessage);
 				if (integrationStatuses[integrationId] === 'connecting') {
 					integrationStatuses[integrationId] = 'disconnected';
+					oauthError = 'Connection timed out. Please try again.';
+					failedIntegrationId = integrationId;
 				}
 			}, 5 * 60 * 1000);
 			
 		} catch (error) {
 			console.error('Failed to connect integration:', error);
 			integrationStatuses[integrationId] = 'error';
+			failedIntegrationId = integrationId;
+			oauthError = error instanceof Error ? error.message : 'Failed to start OAuth connection';
 		}
 	}
 	
@@ -657,12 +757,26 @@
 			} catch (error) {
 				console.error('Failed to complete onboarding:', error);
 				apiError = error instanceof Error ? error.message : 'Failed to complete';
-				// Fall back to client-side completion
-				onComplete?.(extractedData);
+				
+				// Store what we have and redirect anyway - don't leave user stuck
+				localStorage.setItem('onboarding_completed', 'true');
+				localStorage.setItem('onboarding_data', JSON.stringify(extractedData));
+				
+				// Fall back to client-side completion with redirect
+				if (onComplete) {
+					onComplete(extractedData);
+				} else {
+					// Direct redirect as final fallback
+					goto('/window');
+				}
 			}
 		} else {
-			// Local mode: call callback
-			onComplete?.(extractedData);
+			// Local mode: call callback or redirect directly
+			if (onComplete) {
+				onComplete(extractedData);
+			} else {
+				goto('/window');
+			}
 		}
 	}
 </script>
@@ -674,6 +788,37 @@
 		<span class="dot" class:active={currentStep >= 2} class:current={currentStep === 2}></span>
 		<span class="dot" class:active={currentStep >= 3} class:current={currentStep === 3}></span>
 	</div>
+
+	<!-- Error Banner -->
+	{#if apiError || oauthError}
+		<div class="error-banner" transition:fly={{ y: -20, duration: 300 }}>
+			<div class="error-content">
+				<svg class="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<circle cx="12" cy="12" r="10"/>
+					<line x1="12" y1="8" x2="12" y2="12"/>
+					<line x1="12" y1="16" x2="12.01" y2="16"/>
+				</svg>
+				<span class="error-message">{apiError || oauthError}</span>
+			</div>
+			<div class="error-actions">
+				{#if lastErrorAction || failedIntegrationId}
+					<button class="error-btn retry" onclick={retryLastAction}>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<polyline points="23 4 23 10 17 10"/>
+							<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+						</svg>
+						Retry
+					</button>
+				{/if}
+				<button class="error-btn dismiss" onclick={dismissError} aria-label="Dismiss error">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<line x1="18" y1="6" x2="6" y2="18"/>
+						<line x1="6" y1="6" x2="18" y2="18"/>
+					</svg>
+				</button>
+			</div>
+		</div>
+	{/if}
 
 	{#if phase === 'loading'}
 		<!-- Loading state -->
@@ -775,6 +920,16 @@
 								</svg>
 							</button>
 						</form>
+					{/if}
+
+					<!-- Go Back button -->
+					{#if canGoBack}
+						<button class="go-back-btn" onclick={goBack}>
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="15 18 9 12 15 6"/>
+							</svg>
+							Go back
+						</button>
 					{/if}
 				</div>
 			{/if}
@@ -897,6 +1052,90 @@
 		color: var(--foreground, #1f2937);
 	}
 
+	/* Error Banner */
+	.error-banner {
+		position: fixed;
+		top: 56px;
+		left: 50%;
+		transform: translateX(-50%);
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		padding: 12px 16px;
+		background: var(--destructive-bg, #fef2f2);
+		border: 1px solid var(--destructive-border, #fecaca);
+		border-radius: 10px;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+		max-width: 90%;
+		min-width: 320px;
+		z-index: 100;
+	}
+
+	.error-content {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex: 1;
+	}
+
+	.error-icon {
+		width: 20px;
+		height: 20px;
+		color: var(--destructive, #ef4444);
+		flex-shrink: 0;
+	}
+
+	.error-message {
+		font-size: 14px;
+		color: var(--destructive-text, #991b1b);
+		line-height: 1.4;
+	}
+
+	.error-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-shrink: 0;
+	}
+
+	.error-btn {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		padding: 6px 12px;
+		font-size: 13px;
+		font-weight: 500;
+		border: none;
+		border-radius: 6px;
+		cursor: pointer;
+		transition: background 0.2s, transform 0.1s;
+	}
+
+	.error-btn svg {
+		width: 14px;
+		height: 14px;
+	}
+
+	.error-btn.retry {
+		color: var(--destructive, #ef4444);
+		background: var(--destructive-btn-bg, #fee2e2);
+	}
+
+	.error-btn.retry:hover {
+		background: var(--destructive-btn-hover, #fecaca);
+	}
+
+	.error-btn.dismiss {
+		padding: 6px;
+		color: var(--muted-foreground, #6b7280);
+		background: transparent;
+	}
+
+	.error-btn.dismiss:hover {
+		background: var(--muted, #f3f4f6);
+	}
+
 	/* Resume/Welcome back styles */
 	.resume-message {
 		font-size: 16px;
@@ -983,6 +1222,36 @@
 	/* Minimal input */
 	.input-section {
 		margin-top: 16px;
+	}
+
+	/* Go Back button */
+	.go-back-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		margin-top: 16px;
+		padding: 8px 16px;
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--muted-foreground, #6b7280);
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		transition: color 0.2s, transform 0.1s;
+	}
+
+	.go-back-btn:hover {
+		color: var(--foreground, #1f2937);
+		transform: translateX(-2px);
+	}
+
+	.go-back-btn svg {
+		transition: transform 0.2s;
+	}
+
+	.go-back-btn:hover svg {
+		transform: translateX(-2px);
 	}
 
 	/* Chips for quick selection */
