@@ -23,9 +23,10 @@ export interface WindowState {
 }
 
 export interface CustomIconConfig {
-	type: 'lucide' | 'custom';
+	type: 'lucide' | 'custom' | 'image';
 	lucideName?: string;        // e.g., 'Home', 'Settings' - name from lucide-svelte
 	customSvg?: string;         // Base64 or raw SVG string for custom icons
+	imageUrl?: string;          // URL to an image (for user app logos)
 	foregroundColor?: string;   // Override icon color
 	backgroundColor?: string;   // Override background color
 }
@@ -78,12 +79,12 @@ const moduleDefaults: Record<string, { title: string; width: number; height: num
 	'ai-settings': { title: 'AI Settings', width: 800, height: 600, minWidth: 500, minHeight: 400 },
 	integrations: { title: 'Integrations', width: 950, height: 700, minWidth: 600, minHeight: 500 },
 	trash: { title: 'Trash', width: 600, height: 450, minWidth: 300, minHeight: 250 },
-	terminal: { title: 'Terminal - OS Agent', width: 700, height: 500, minWidth: 400, minHeight: 300 },
+	terminal: { title: 'Terminal - OS Agent', width: 800, height: 600, minWidth: 400, minHeight: 300 },
 	'desktop-settings': { title: 'Desktop Settings', width: 550, height: 500, minWidth: 450, minHeight: 400 },
 	folder: { title: 'Folder', width: 600, height: 450, minWidth: 300, minHeight: 250 },
 	files: { title: 'Files', width: 900, height: 600, minWidth: 500, minHeight: 400 },
 	finder: { title: 'Finder', width: 900, height: 600, minWidth: 500, minHeight: 400 },
-	help: { title: 'Help', width: 900, height: 650, minWidth: 600, minHeight: 450 },
+	help: { title: 'Help', width: 900, height: 650, minWidth: 600, minHeight: 450 }
 };
 
 // Initial desktop icon positions (right side, top to bottom)
@@ -524,6 +525,16 @@ function createWindowStore() {
 						height: Math.max(height, w.minHeight),
 						maximized: false
 					} : w
+				)
+			}));
+		},
+
+		// Update window title
+		updateWindowTitle: (windowId: string, title: string) => {
+			update(state => ({
+				...state,
+				windows: state.windows.map(w =>
+					w.id === windowId ? { ...w, title } : w
 				)
 			}));
 		},
@@ -1127,6 +1138,145 @@ function createWindowStore() {
 				saveSettings(newState);
 
 				console.log(`[windowStore] Unregistered OSA app: ${moduleId}`);
+
+				return newState;
+			});
+		},
+
+		// Register a user external app (from user_external_apps table)
+		registerUserApp: (app: { id: string; name: string; url: string; icon: string; color: string; logo_url?: string | null }) => {
+			const moduleId = `user-app-${app.id}`;
+
+			update(state => {
+				// Add to moduleDefaults (doesn't trigger reactive updates)
+				moduleDefaults[moduleId] = {
+					title: app.name,
+					width: 1000,
+					height: 700,
+					minWidth: 600,
+					minHeight: 400,
+				};
+
+				// Check if desktop icon already exists
+				const existingIconIndex = state.desktopIcons.findIndex(icon => icon.module === moduleId);
+
+				if (existingIconIndex !== -1) {
+					const existingIcon = state.desktopIcons[existingIconIndex];
+
+					// Check if update is actually needed
+					const needsPositionUpdate = existingIcon.x !== -3;
+					const currentImageUrl = existingIcon.customIcon?.type === 'image' ? existingIcon.customIcon.imageUrl : null;
+					const needsLogoUpdate = app.logo_url && currentImageUrl !== app.logo_url;
+					const needsLabelUpdate = existingIcon.label !== app.name;
+
+					// If nothing changed, don't update state (prevents infinite loops)
+					if (!needsPositionUpdate && !needsLogoUpdate && !needsLabelUpdate) {
+						return state; // Return unchanged state
+					}
+
+					// Calculate correct position if icon is in wrong column (legacy x: -1)
+					let newX = existingIcon.x;
+					let newY = existingIcon.y;
+					if (needsPositionUpdate) {
+						// Move to correct column - find next available y in x: -3
+						const userAppIcons = state.desktopIcons.filter(
+							(icon, idx) => icon.module.startsWith('user-app-') && idx !== existingIconIndex && icon.x === -3
+						);
+						newX = -3;
+						newY = userAppIcons.length;
+					}
+
+					const updatedIcons = [...state.desktopIcons];
+					updatedIcons[existingIconIndex] = {
+						...existingIcon,
+						label: app.name,
+						x: newX,
+						y: newY,
+						customIcon: app.logo_url ? {
+							type: 'image' as const,
+							imageUrl: app.logo_url,
+							backgroundColor: app.color || '#6366F1',
+						} : {
+							type: 'lucide' as const,
+							lucideName: app.icon || 'AppWindow',
+							foregroundColor: app.color || '#6366F1',
+							backgroundColor: '#F3E8FF',
+						}
+					};
+
+					const newState = {
+						...state,
+						desktopIcons: updatedIcons,
+					};
+
+					saveSettings(newState);
+					console.log(`[windowStore] Updated existing user app icon: ${app.name} (${moduleId}) at x:${newX} y:${newY}`);
+					return newState;
+				}
+
+				// Place user apps in a dedicated column (x: -3) at the top right area
+				// This positions them next to core modules, not at the bottom
+				const userAppIcons = state.desktopIcons.filter(icon => icon.module.startsWith('user-app-'));
+				const nextY = userAppIcons.length; // Start at y:0, increment for each user app
+
+				// Create desktop icon for user app
+				// Use actual logo if available, fall back to Lucide icon
+				const newIcon: DesktopIcon = {
+					id: `icon-${moduleId}`,
+					module: moduleId,
+					label: app.name,
+					x: -3, // Third column from right - dedicated for user apps
+					y: nextY,
+					type: 'app',
+					customIcon: app.logo_url ? {
+						type: 'image' as const,
+						imageUrl: app.logo_url,
+						backgroundColor: app.color || '#6366F1',
+					} : {
+						type: 'lucide' as const,
+						lucideName: app.icon || 'AppWindow',
+						foregroundColor: app.color || '#6366F1',
+						backgroundColor: '#F3E8FF',
+					}
+				};
+
+				const newState = {
+					...state,
+					desktopIcons: [...state.desktopIcons, newIcon],
+				};
+
+				// Save to localStorage
+				saveSettings(newState);
+
+				console.log(`[windowStore] Registered user app: ${app.name} (${moduleId})`);
+
+				return newState;
+			});
+		},
+
+		// Unregister a user external app
+		unregisterUserApp: (appId: string) => {
+			const moduleId = `user-app-${appId}`;
+
+			update(state => {
+				// Remove from moduleDefaults
+				delete moduleDefaults[moduleId];
+
+				// Remove desktop icon
+				const newState = {
+					...state,
+					desktopIcons: state.desktopIcons.filter(icon => icon.module !== moduleId),
+					// Close any open windows for this app
+					windows: state.windows.filter(w => w.module !== moduleId),
+					windowOrder: state.windowOrder.filter(id => {
+						const window = state.windows.find(w => w.id === id);
+						return window?.module !== moduleId;
+					}),
+				};
+
+				saveSettings(newState);
+
+				console.log(`[windowStore] Unregistered user app: ${moduleId}`);
 
 				return newState;
 			});

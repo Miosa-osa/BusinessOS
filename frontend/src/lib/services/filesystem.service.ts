@@ -1,4 +1,6 @@
 import { apiClient } from '$lib/api/client';
+import { get } from 'svelte/store';
+import { terminalPreferences } from '$lib/stores/terminalPreferences';
 
 export interface FileItem {
 	id: string;
@@ -50,7 +52,15 @@ export const filesystemService = {
 	 * List contents of a directory
 	 */
 	async listDirectory(path: string = '~', showHidden: boolean = false): Promise<ListDirectoryResponse> {
-		const params = new URLSearchParams({ path, showHidden: String(showHidden) });
+		// Get current terminal mode from preferences
+		const prefs = get(terminalPreferences);
+		const mode = prefs.defaultMode; // "docker" or "local"
+
+		const params = new URLSearchParams({
+			path,
+			showHidden: String(showHidden),
+			mode // Pass mode to backend
+		});
 		const response = await apiClient.get(`/filesystem/list?${params}`);
 		return handleResponse<ListDirectoryResponse>(response);
 	},

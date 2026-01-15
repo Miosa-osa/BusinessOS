@@ -5,12 +5,16 @@ import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
 import { MakerDMG } from '@electron-forge/maker-dmg';
 import { VitePlugin } from '@electron-forge/plugin-vite';
-import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 import { PublisherGithub } from '@electron-forge/publisher-github';
+import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: true,
+    // Disable asar to fix native module loading (better-sqlite3)
+    // TODO: Re-enable with proper unpack config once working
+    asar: false,
     icon: './resources/icons/icon',
     appBundleId: 'com.businessos.desktop',
     appCopyright: 'Copyright © 2025 BusinessOS',
@@ -37,6 +41,35 @@ const config: ForgeConfig = {
     } : undefined,
   },
   rebuildConfig: {},
+  hooks: {
+    postPackage: async (config, packageResult) => {
+      // Copy native node_modules to the packaged app
+      // This is needed because Vite externalizes native modules but forge doesn't copy them
+      // better-sqlite3 needs 'bindings' to locate its .node file
+      const nativeModules = ['better-sqlite3', 'bindings', 'file-uri-to-path'];
+
+      for (const outputPath of packageResult.outputPaths) {
+        const appPath = path.join(outputPath, 'BusinessOS.app', 'Contents', 'Resources', 'app');
+        const nodeModulesPath = path.join(appPath, 'node_modules');
+
+        // Create node_modules directory
+        if (!fs.existsSync(nodeModulesPath)) {
+          fs.mkdirSync(nodeModulesPath, { recursive: true });
+        }
+
+        // Copy each native module
+        for (const moduleName of nativeModules) {
+          const srcPath = path.join(__dirname, 'node_modules', moduleName);
+          const destPath = path.join(nodeModulesPath, moduleName);
+
+          if (fs.existsSync(srcPath)) {
+            console.log(`Copying ${moduleName} to packaged app...`);
+            execSync(`cp -R "${srcPath}" "${destPath}"`);
+          }
+        }
+      }
+    },
+  },
   makers: [
     new MakerSquirrel({
       name: 'BusinessOS',
@@ -61,7 +94,7 @@ const config: ForgeConfig = {
     }),
   ],
   plugins: [
-    new AutoUnpackNativesPlugin({}),
+    // AutoUnpackNativesPlugin removed - asar disabled for native module compatibility
     new VitePlugin({
       // `build` can specify multiple entry builds
       build: [

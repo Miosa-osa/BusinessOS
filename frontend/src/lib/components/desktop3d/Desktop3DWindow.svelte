@@ -6,6 +6,7 @@
 
 	interface Props {
 		window: Window3DState;
+		windowIndex: number; // Index for staggered loading
 		isFocused: boolean;
 		isNextWindow: boolean;
 		isPrevWindow: boolean;
@@ -18,6 +19,7 @@
 
 	let {
 		window,
+		windowIndex = 0,
 		isFocused = false,
 		isNextWindow = false,
 		isPrevWindow = false,
@@ -27,6 +29,26 @@
 		onResize,
 		onHover
 	}: Props = $props();
+
+	// STAGGERED LOADING: Load iframes sequentially to prevent ERR_INSUFFICIENT_RESOURCES
+	// Each window loads after a delay based on its index (300ms apart)
+	let iframeLoaded = $state(false);
+
+	$effect(() => {
+		// Focused window loads immediately
+		if (isFocused) {
+			iframeLoaded = true;
+			return;
+		}
+
+		// Other windows load with staggered delay (300ms per window)
+		const delay = windowIndex * 300;
+		const timer = setTimeout(() => {
+			iframeLoaded = true;
+		}, delay);
+
+		return () => clearTimeout(timer);
+	});
 
 	// Track pointer down position to distinguish click vs drag
 	let pointerDownPos: { x: number; y: number } | null = null;
@@ -210,6 +232,7 @@
 
 	// Route mapping for modules where route differs from module name
 	function getModuleRoute(module: string): string {
+		// Handle core modules with special routes
 		switch (module) {
 			case 'pages':
 				return '/knowledge-v2';  // pages redirects to knowledge-v2
@@ -222,8 +245,153 @@
 		}
 	}
 
+	// Detect if running in Electron (desktop app)
+	// In Electron, we can use <webview> tag which bypasses X-Frame-Options restrictions
+	// The preload script exposes window.electron API via contextBridge
+	// Use globalThis to avoid conflict with the 'window' prop (Window3DState)
+	function checkIsElectron(): boolean {
+		if (typeof globalThis === 'undefined' || typeof globalThis.window === 'undefined') return false;
+		const browserWindow = globalThis.window as any;
+		return browserWindow && 'electron' in browserWindow;
+	}
+
+	// Check immediately on client-side and make reactive
+	// Initialize with client-side check to avoid flash of wrong content
+	const browserWindow = typeof globalThis !== 'undefined' ? (globalThis as any).window : undefined;
+	let isElectron = $state(browserWindow && 'electron' in browserWindow);
+
+	$effect(() => {
+		// Re-check when component mounts (client-side) to ensure we have the latest value
+		const checked = checkIsElectron();
+		if (checked !== isElectron) {
+			isElectron = checked;
+		}
+	});
+
+	// Get the iframe src for user apps - use proxy for external URLs
+	function getUserAppIframeSrc(url: string): string {
+		// Native bundle IDs can't be proxied (e.g., com.apple.finder)
+		if (url.startsWith('com.') || url.startsWith('org.') || url.startsWith('io.')) {
+			return ''; // Will show native app UI instead
+		}
+
+		// In Electron, load URLs directly - webview bypasses X-Frame-Options
+		if (isElectron) {
+			return url;
+		}
+
+		// In browser, use proxy endpoint to strip X-Frame-Options/CSP headers
+		return `/api/proxy?url=${encodeURIComponent(url)}`;
+	}
+
+	// Check if this is a native bundle ID (not a URL)
+	function isNativeBundleId(url: string): boolean {
+		return url.startsWith('com.') || url.startsWith('org.') || url.startsWith('io.');
+	}
+
+	// List of domains known to block iframe embedding
+	// These sites use X-Frame-Options: DENY or strict CSP that proxying can't reliably fix
+	const KNOWN_BLOCKED_DOMAINS = [
+		'claude.ai',
+		'chat.openai.com',
+		'notion.so',
+		'notion.com',
+		'linear.app',
+		'slack.com',
+		'app.slack.com',
+		'figma.com',
+		'github.com',
+		'twitter.com',
+		'x.com',
+		'facebook.com',
+		'instagram.com',
+		'linkedin.com',
+		'mail.google.com',
+		'drive.google.com',
+		'docs.google.com',
+		'app.asana.com',
+		'trello.com',
+		'monday.com',
+		'clickup.com',
+		'airtable.com',
+		'hubspot.com',
+		'salesforce.com',
+		'dropbox.com',
+		'box.com'
+	];
+
+	// Check if URL is from a known blocked domain
+	function isKnownBlockedDomain(url: string): boolean {
+		try {
+			const parsedUrl = new URL(url);
+			const hostname = parsedUrl.hostname.toLowerCase();
+			return KNOWN_BLOCKED_DOMAINS.some(domain =>
+				hostname === domain || hostname.endsWith('.' + domain)
+			);
+		} catch {
+			return false;
+		}
+	}
+
+	// Determine if we should show launcher instead of iframe (in browser mode)
+	// This gives better UX by not showing a broken/loading iframe
+	function shouldShowLauncher(url: string): boolean {
+		if (isElectron) return false; // Electron can embed anything via webview
+		if (isNativeBundleId(url)) return false; // Handled separately
+		return isKnownBlockedDomain(url);
+	}
+
 	// Track iframe element for focus management
 	let iframeElement = $state<HTMLIFrameElement | null>(null);
+
+	// Open user app in new browser window (popup Chromium window)
+	function openInBrowser() {
+		if (window.userAppUrl) {
+			// Open as a popup window with specific size - like a mini browser
+			const width = 1400;
+			const height = 900;
+			const left = (screen.width - width) / 2;
+			const top = (screen.height - height) / 2;
+			globalThis.open(
+				window.userAppUrl,
+				window.title,
+				`width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=yes,status=no,resizable=yes,scrollbars=yes`
+			);
+		}
+	}
+
+	// Auto-open popup when user app window becomes focused (for blocked sites in browser mode)
+	let hasAutoOpened = $state(false);
+	$effect(() => {
+		// Only auto-open for user apps with blocked domains, when focused, and only once
+		if (
+			isFocused &&
+			!hasAutoOpened &&
+			window.isUserApp &&
+			window.userAppUrl &&
+			!isElectron &&
+			shouldShowLauncher(window.userAppUrl)
+		) {
+			hasAutoOpened = true;
+			// Small delay so user sees the window first
+			setTimeout(() => {
+				openInBrowser();
+			}, 300);
+		}
+		// Reset when unfocused so it can open again next time
+		if (!isFocused) {
+			hasAutoOpened = false;
+		}
+	});
+
+	// Track if proxy failed to load content
+	let proxyLoadFailed = $state(false);
+
+	// Handle iframe load error
+	function handleIframeError() {
+		console.log('[Desktop3DWindow] Proxy failed for:', window.userAppUrl);
+		proxyLoadFailed = true;
+	}
 
 	// Track previous focus state to only focus on transition
 	let wasFocused = $state(false);
@@ -308,6 +476,17 @@
 				<!-- Title bar -->
 				<div class="window-titlebar" style="border-left: 4px solid {window.color};">
 					<span class="module-title">{window.title}</span>
+					{#if window.isUserApp && window.userAppUrl}
+						<button
+							class="open-external-btn"
+							onclick={(e) => { e.stopPropagation(); openInBrowser(); }}
+							title="Open in browser"
+						>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+							</svg>
+						</button>
+					{/if}
 					<div class="titlebar-right">
 						{#if isFocused}
 							<!-- Size controls when focused -->
@@ -353,17 +532,114 @@
 					</div>
 				</div>
 
-				<!-- LIVE Content - Always show iframe -->
+				<!-- LIVE Content - STAGGERED LOADING to prevent ERR_INSUFFICIENT_RESOURCES -->
+				<!-- Windows load sequentially (300ms apart) to prevent browser resource exhaustion -->
 				<div class="window-content">
-					<iframe
-						bind:this={iframeElement}
-						src="{getModuleRoute(window.module)}?embed=true"
-						title={window.title}
-						class="window-iframe"
-						sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
-						loading="eager"
-						tabindex="0"
-					></iframe>
+					{#if iframeLoaded}
+						<!-- Window content loads after staggered delay -->
+						{#if window.isUserApp && window.userAppUrl && isNativeBundleId(window.userAppUrl)}
+							<!-- Native macOS App - Show launch button -->
+							<div class="native-app-container">
+								<div class="native-app-icon">
+									{#if window.userAppLogoUrl}
+										<img src={window.userAppLogoUrl} alt={window.title} />
+									{:else}
+										<div class="icon-placeholder" style="background-color: {window.color};">
+											{window.title.charAt(0)}
+										</div>
+									{/if}
+								</div>
+								<h3>{window.title}</h3>
+								<p class="native-app-info">This is a native macOS application</p>
+								<button
+									class="launch-button"
+									onclick={() => {
+										fetch(`/api/system/launch-app?bundle_id=${encodeURIComponent(window.userAppUrl || '')}`, { method: 'POST' })
+											.then(res => res.json())
+											.then(data => console.log('App launched:', data))
+											.catch(err => console.error('Failed to launch app:', err));
+									}}
+								>
+									Launch {window.title}
+								</button>
+							</div>
+						{:else if window.isUserApp && window.userAppUrl && (shouldShowLauncher(window.userAppUrl) || proxyLoadFailed)}
+							<!-- Known blocked site OR proxy failed - Show launcher card -->
+							<div class="webapp-launcher-container" style="--app-color: {window.color};">
+								<div class="webapp-launcher-icon">
+									{#if window.userAppLogoUrl}
+										<img src={window.userAppLogoUrl} alt={window.title} />
+									{:else}
+										<div class="icon-placeholder" style="background-color: {window.color};">
+											{window.title.charAt(0)}
+										</div>
+									{/if}
+								</div>
+								<h3 class="webapp-launcher-title">{window.title}</h3>
+								<p class="webapp-launcher-info">
+									{#if isElectron}
+										Web application ready to launch
+									{:else}
+										This app opens in a new window for the best experience
+									{/if}
+								</p>
+								<div class="webapp-launcher-actions">
+									<button class="webapp-launch-button primary" onclick={openInBrowser}>
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+										</svg>
+										Open {window.title}
+									</button>
+								</div>
+								<p class="webapp-launcher-hint">
+									Tip: In the desktop app, this will embed directly
+								</p>
+							</div>
+						{:else if window.isUserApp && window.userAppUrl}
+							<!-- User Web App -->
+							{#if isElectron}
+								<!-- In Electron: Use webview for unrestricted embedding -->
+								<!-- svelte-ignore element_invalid_self_closing_tag -->
+								<webview
+									src={window.userAppUrl}
+									class="window-iframe electron-webview"
+									style="width: 100%; height: 100%;"
+									allowpopups={true}
+								></webview>
+							{:else}
+								<!-- In Browser: Use proxy to strip X-Frame-Options/CSP headers -->
+								<iframe
+									bind:this={iframeElement}
+									src={getUserAppIframeSrc(window.userAppUrl)}
+									title={window.title}
+									class="window-iframe"
+									sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-top-navigation"
+									loading="eager"
+									tabindex="0"
+									onerror={handleIframeError}
+								></iframe>
+							{/if}
+						{:else}
+							<!-- Core Module - Direct embedding (no sandbox for same-origin content) -->
+							<iframe
+								bind:this={iframeElement}
+								src="{getModuleRoute(window.module)}?embed=true"
+								title={window.title}
+								class="window-iframe"
+								loading="eager"
+								tabindex="0"
+							></iframe>
+						{/if}
+					{:else}
+						<!-- Loading placeholder - will auto-load after staggered delay -->
+						<div class="lazy-placeholder">
+							<div class="lazy-placeholder-icon" style="background-color: {window.color}20; border-color: {window.color};">
+								<span style="color: {window.color};">{window.title.charAt(0).toUpperCase()}</span>
+							</div>
+							<p class="lazy-placeholder-text">{window.title}</p>
+							<p class="lazy-placeholder-hint">Loading...</p>
+						</div>
+					{/if}
 				</div>
 			</div>
 
@@ -483,6 +759,32 @@
 		color: #333;
 	}
 
+	.open-external-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 24px;
+		height: 24px;
+		padding: 4px;
+		background: rgba(59, 130, 246, 0.1);
+		border: 1px solid rgba(59, 130, 246, 0.3);
+		border-radius: 4px;
+		cursor: pointer;
+		transition: all 0.15s;
+		margin-left: 8px;
+	}
+
+	.open-external-btn:hover {
+		background: rgba(59, 130, 246, 0.2);
+		border-color: rgba(59, 130, 246, 0.5);
+	}
+
+	.open-external-btn svg {
+		width: 14px;
+		height: 14px;
+		stroke: #3b82f6;
+	}
+
 	.titlebar-right {
 		display: flex;
 		align-items: center;
@@ -583,5 +885,252 @@
 	/* Focus indicator for iframe */
 	.window-iframe:focus {
 		outline: none;
+	}
+
+	/* Native App Container */
+	.native-app-container {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 1.5rem;
+		padding: 2rem;
+		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	}
+
+	.native-app-icon {
+		width: 128px;
+		height: 128px;
+		border-radius: 24px;
+		overflow: hidden;
+		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+	}
+
+	.native-app-icon img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.icon-placeholder {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 64px;
+		font-weight: bold;
+		color: white;
+		text-transform: uppercase;
+	}
+
+	.native-app-container h3 {
+		color: white;
+		font-size: 28px;
+		font-weight: 700;
+		margin: 0;
+		text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+	}
+
+	.native-app-info {
+		color: rgba(255, 255, 255, 0.9);
+		font-size: 16px;
+		margin: 0;
+	}
+
+	.launch-button {
+		background: white;
+		color: #667eea;
+		border: none;
+		padding: 12px 32px;
+		font-size: 16px;
+		font-weight: 600;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: all 0.2s;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	}
+
+	.launch-button:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+	}
+
+	.launch-button:active {
+		transform: translateY(0);
+	}
+
+	/* Lazy Loading Placeholder Styles */
+	.lazy-placeholder {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+		cursor: pointer;
+	}
+
+	.lazy-placeholder-icon {
+		width: 80px;
+		height: 80px;
+		border-radius: 16px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 2px solid;
+		transition: transform 0.2s ease;
+	}
+
+	.lazy-placeholder-icon span {
+		font-size: 36px;
+		font-weight: 700;
+		text-transform: uppercase;
+	}
+
+	.lazy-placeholder-text {
+		font-size: 16px;
+		font-weight: 600;
+		color: #334155;
+		margin: 0;
+	}
+
+	.lazy-placeholder-hint {
+		font-size: 12px;
+		color: #94a3b8;
+		margin: 0;
+	}
+
+	.window-wrapper:hover .lazy-placeholder-icon {
+		transform: scale(1.05);
+	}
+
+	/* Web App Launcher Container - Modern card design for external apps */
+	.webapp-launcher-container {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 1.25rem;
+		padding: 2rem;
+		background: linear-gradient(
+			135deg,
+			color-mix(in srgb, var(--app-color, #6366f1) 8%, white) 0%,
+			color-mix(in srgb, var(--app-color, #6366f1) 15%, #f8fafc) 100%
+		);
+		position: relative;
+		overflow: hidden;
+	}
+
+	/* Subtle background pattern */
+	.webapp-launcher-container::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background-image: radial-gradient(
+			circle at 50% 50%,
+			color-mix(in srgb, var(--app-color, #6366f1) 10%, transparent) 0%,
+			transparent 50%
+		);
+		pointer-events: none;
+	}
+
+	.webapp-launcher-icon {
+		width: 96px;
+		height: 96px;
+		border-radius: 24px;
+		overflow: hidden;
+		box-shadow:
+			0 10px 30px color-mix(in srgb, var(--app-color, #6366f1) 30%, transparent),
+			0 4px 12px rgba(0, 0, 0, 0.1);
+		position: relative;
+		z-index: 1;
+	}
+
+	.webapp-launcher-icon img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.webapp-launcher-title {
+		margin: 0;
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: #1e293b;
+		text-align: center;
+		position: relative;
+		z-index: 1;
+	}
+
+	.webapp-launcher-info {
+		margin: 0;
+		font-size: 0.9rem;
+		color: #64748b;
+		text-align: center;
+		max-width: 280px;
+		line-height: 1.5;
+		position: relative;
+		z-index: 1;
+	}
+
+	.webapp-launcher-actions {
+		display: flex;
+		gap: 0.75rem;
+		position: relative;
+		z-index: 1;
+	}
+
+	.webapp-launch-button {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.875rem 1.75rem;
+		border: none;
+		border-radius: 12px;
+		font-size: 1rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.webapp-launch-button.primary {
+		background: var(--app-color, #6366f1);
+		color: white;
+		box-shadow:
+			0 4px 14px color-mix(in srgb, var(--app-color, #6366f1) 40%, transparent),
+			0 2px 4px rgba(0, 0, 0, 0.1);
+	}
+
+	.webapp-launch-button.primary:hover {
+		transform: translateY(-2px);
+		box-shadow:
+			0 6px 20px color-mix(in srgb, var(--app-color, #6366f1) 50%, transparent),
+			0 4px 8px rgba(0, 0, 0, 0.15);
+	}
+
+	.webapp-launch-button.primary:active {
+		transform: translateY(0);
+	}
+
+	.webapp-launch-button svg {
+		width: 18px;
+		height: 18px;
+	}
+
+	.webapp-launcher-hint {
+		margin: 0;
+		font-size: 0.75rem;
+		color: #94a3b8;
+		text-align: center;
+		position: relative;
+		z-index: 1;
+		margin-top: 0.5rem;
 	}
 </style>

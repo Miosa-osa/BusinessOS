@@ -2,10 +2,13 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { Canvas } from '@threlte/core';
 	import { desktop3dStore, openWindows, focusedWindow, type ModuleId, ALL_MODULES, MODULE_INFO } from '$lib/stores/desktop3dStore';
+	import { userAppsStore } from '$lib/stores/userAppsStore';
+	import { currentWorkspaceId, loadSavedWorkspace } from '$lib/stores/workspaces';
 	import Desktop3DScene from './Desktop3DScene.svelte';
 	import Desktop3DControls from './Desktop3DControls.svelte';
 	import Desktop3DDock from './Desktop3DDock.svelte';
 	import MenuBar from '$lib/components/desktop/MenuBar.svelte';
+	import AppRegistryModal from '$lib/components/desktop/AppRegistryModal.svelte';
 	// import PermissionPrompt from './PermissionPrompt.svelte'; // DISABLED: Permissions now requested lazily when features enabled
 	import LayoutManager from './LayoutManager.svelte';
 	import LiveCaptions from './LiveCaptions.svelte';
@@ -17,12 +20,15 @@
 	import { voiceTranscription } from '$lib/services/voiceTranscriptionService';
 	import { voiceCommandParser, type VoiceCommand } from '$lib/services/voiceCommands';
 	import { osaVoiceService } from '$lib/services/osaVoice';
+	import { useSession } from '$lib/auth-client';
 
 	interface Props {
 		onExit?: () => void;
 	}
 
 	let { onExit }: Props = $props();
+
+	const session = useSession();
 
 	// Voice command state
 	let isListening = $state(false);
@@ -38,6 +44,9 @@
 
 	// Layout manager state
 	let showLayoutManager = $state(false);
+
+	// App registry modal state
+	let showAppRegistry = $state(false);
 
 	// Conversation persistence
 	let conversationId = $state<string | null>(null);
@@ -100,7 +109,18 @@
 	// Initialize store and permissions on mount
 	onMount(async () => {
 		console.log('[Desktop3D] Initializing 3D Desktop mode...');
-		desktop3dStore.initialize();
+
+		// Initialize workspace store
+		loadSavedWorkspace();
+
+		// Fetch user apps first if we have a workspace
+		if ($currentWorkspaceId) {
+			console.log('[Desktop3D] Fetching user apps for workspace:', $currentWorkspaceId);
+			await userAppsStore.fetch($currentWorkspaceId);
+		}
+
+		// Initialize with user apps
+		desktop3dStore.initialize($userAppsStore.apps);
 
 		// Wait for OrbitControls to be ready
 		setTimeout(() => {
@@ -1103,6 +1123,7 @@ RESPOND NOW:`;
 		onToggleView={handleToggleView}
 		onToggleAutoRotate={() => desktop3dStore.toggleAutoRotate()}
 		onExit={handleExit}
+		onOpenAppRegistry={() => showAppRegistry = true}
 	/>
 
 	<!-- Bottom Dock -->
@@ -1134,6 +1155,14 @@ RESPOND NOW:`;
 		<LayoutManager
 			show={showLayoutManager}
 			onClose={() => (showLayoutManager = false)}
+		/>
+	{/if}
+
+	<!-- App Registry Modal -->
+	{#if showAppRegistry}
+		<AppRegistryModal
+			workspaceId={$currentWorkspaceId || 'a438da8e-d245-4e7a-bde2-3a053499ab87'}
+			onClose={() => showAppRegistry = false}
 		/>
 	{/if}
 

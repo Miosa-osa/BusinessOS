@@ -982,6 +982,9 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		terminalRoutes.DELETE("/sessions/:id", terminalHandler.CloseSession)
 	}
 
+	// NOTE: Native Window Capture routes moved to feature/native-app-capture branch
+	// Web apps (iframe) are the recommended approach - see user_apps.go
+
 	// Filesystem routes - /api/filesystem (optional auth for dev)
 	filesystem := api.Group("/filesystem")
 	filesystem.Use(optionalAuth)
@@ -1305,4 +1308,13 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		}
 		log.Printf("✅ OSA webhook receiver routes registered at /api/osa/webhooks/*")
 	}
+
+	// Proxy routes - for embedding external web apps in iframes
+	// These routes strip X-Frame-Options and CSP headers to allow embedding
+	proxy := api.Group("/proxy")
+	{
+		proxy.GET("", h.HandleProxyURL)   // GET /api/proxy?url=<encoded-url>
+		proxy.POST("", h.HandleProxyPost) // POST /api/proxy with JSON body
+	}
+	log.Printf("✅ Proxy routes registered at /api/proxy/*")
 }

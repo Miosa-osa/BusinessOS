@@ -3719,6 +3719,29 @@ type UserDashboard struct {
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
+type UserExternalApp struct {
+	ID            pgtype.UUID        `json:"id"`
+	UserID        string             `json:"user_id"`
+	WorkspaceID   pgtype.UUID        `json:"workspace_id"`
+	Name          string             `json:"name"`
+	Url           string             `json:"url"`
+	Icon          string             `json:"icon"`
+	Color         string             `json:"color"`
+	LogoUrl       *string            `json:"logo_url"`
+	Category      *string            `json:"category"`
+	Description   *string            `json:"description"`
+	PositionX     *int32             `json:"position_x"`
+	PositionY     *int32             `json:"position_y"`
+	PositionZ     *int32             `json:"position_z"`
+	IframeConfig  []byte             `json:"iframe_config"`
+	IsActive      *bool              `json:"is_active"`
+	OpenOnStartup *bool              `json:"open_on_startup"`
+	AppType       string             `json:"app_type"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	LastOpenedAt  pgtype.Timestamptz `json:"last_opened_at"`
+}
+
 type UserFact struct {
 	ID              pgtype.UUID        `json:"id"`
 	UserID          string             `json:"user_id"`

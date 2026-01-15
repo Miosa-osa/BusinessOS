@@ -16,16 +16,16 @@ import (
 
 // AllowedOrigins contains the list of allowed origins for WebSocket connections
 var AllowedOrigins = []string{
-	"http://localhost:5173",   // Vite dev server
-	"http://localhost:3000",   // Alternative dev server
-	"https://localhost:5173",  // HTTPS dev server
+	"http://localhost:5173",      // Vite dev server
+	"http://localhost:3000",      // Alternative dev server
+	"https://localhost:5173",     // HTTPS dev server
 	"https://app.businessos.com", // Production domain (update as needed)
 }
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  4096,
 	WriteBufferSize: 4096,
-	CheckOrigin: checkWebSocketOrigin,
+	CheckOrigin:     checkWebSocketOrigin,
 }
 
 // MaxMessageSize sets the maximum message size for WebSocket connections
@@ -59,7 +59,7 @@ func checkWebSocketOrigin(r *http.Request) bool {
 
 		// Compare scheme, host, and port
 		if originURL.Scheme == allowedURL.Scheme &&
-		   originURL.Host == allowedURL.Host {
+			originURL.Host == allowedURL.Host {
 			logging.Debug("WebSocket connection allowed from origin: %s", origin)
 			return true
 		}
@@ -139,13 +139,27 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	shell := query.Get("shell")
 	// Leave shell empty to let getShellPath auto-detect (zsh on macOS, bash on Linux)
 	workingDir := query.Get("cwd")
-	logging.Debug("[Terminal] Config: cols=%d, rows=%d, shell=%s", cols, rows, shell)
+
+	// Parse terminal mode (docker/local/glimpse)
+	modeStr := query.Get("mode")
+	var requestedMode TerminalMode
+	switch strings.ToLower(strings.TrimSpace(modeStr)) {
+	case "docker":
+		requestedMode = TerminalModeDocker
+	case "local", "glimpse":
+		requestedMode = TerminalModeLocal
+	default:
+		requestedMode = TerminalMode("") // Use manager default
+	}
+
+	// CRITICAL DEBUG LOGGING - ALWAYS LOG MODE SELECTION
+	logging.Info("[Terminal] 🔧 WebSocket Config: mode_param=%q, requestedMode=%q, cols=%d, rows=%d, shell=%s", modeStr, requestedMode, cols, rows, shell)
 
 	// Get client IP for session binding (hijacking protection)
 	clientIP := getClientIP(r)
 
 	// Create terminal session with security binding
-	session, err := h.manager.CreateSession(userID, cols, rows, shell, workingDir, clientIP)
+	session, err := h.manager.CreateSession(userID, cols, rows, shell, workingDir, requestedMode, clientIP)
 	if err != nil {
 		logging.Error("[Terminal] CreateSession error: %v", err)
 		h.sendError(conn, err.Error())
@@ -156,13 +170,14 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	logging.Info("[Terminal] Session created: %s for user %s", maskedSessionID, maskedUserID)
 	defer h.manager.CloseSession(session.ID)
 
-	// Send connected status with session ID
+	// Send connected status with session ID and mode metadata
 	h.sendStatus(conn, "connected", map[string]interface{}{
-		"session_id":     session.ID,
-		"cols":           cols,
-		"rows":           rows,
-		"shell":          shell,
-		"containerized":  session.IsContainerized(),
+		"session_id":    session.ID,
+		"cols":          cols,
+		"rows":          rows,
+		"shell":         shell,
+		"containerized": session.IsContainerized(),
+		"mode":          session.RequestedMode,
 	})
 
 	// Send welcome banner via WebSocket (not PTY!)

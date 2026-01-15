@@ -408,6 +408,14 @@
 			>
 				{@html customIcon.customSvg}
 			</div>
+		{:else if customIcon?.type === 'image' && customIcon.imageUrl}
+			<!-- Image URL (for user app logos) -->
+			<img
+				src={customIcon.imageUrl}
+				alt={label}
+				class="icon-image-logo"
+				style="width: {svgSize * 1.4}px; height: {svgSize * 1.4}px; object-fit: contain;"
+			/>
 		{:else if isTerminal}
 			<div class="terminal-icon">
 				<span class="terminal-prompt" style="font-size: {svgSize * 0.65}px;">&gt;_</span>
@@ -1097,6 +1105,12 @@
 	.custom-svg-container :global(svg) {
 		width: 100%;
 		height: 100%;
+	}
+
+	/* User app logo image */
+	.icon-image-logo {
+		border-radius: 6px;
+		background: transparent;
 	}
 
 	/* Context Menu */

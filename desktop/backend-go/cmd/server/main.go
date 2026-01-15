@@ -925,6 +925,21 @@ func main() {
 		log.Printf("✅ OSA deployment routes registered (/api/osa/apps/:id/deploy, /stop, /status)")
 	}
 
+	// Register User External Apps routes (Feature 2: Web App Integration)
+	userAppsHandler := handlers.NewUserAppsHandler(queries)
+	api.GET("/user-apps", userAppsHandler.ListUserApps)
+	api.GET("/user-apps/startup", userAppsHandler.GetStartupApps)
+	api.GET("/user-apps/:id", userAppsHandler.GetUserApp)
+	api.POST("/user-apps", userAppsHandler.CreateUserApp)
+	api.PUT("/user-apps/:id", userAppsHandler.UpdateUserApp)
+	api.PUT("/user-apps/:id/position", userAppsHandler.UpdateAppPosition)
+	api.POST("/user-apps/:id/open", userAppsHandler.RecordAppOpened)
+	api.DELETE("/user-apps/:id", userAppsHandler.DeleteUserApp)
+	log.Printf("✅ User external apps routes registered (/api/user-apps/*)")
+
+	// NOTE: System Apps Detection routes (macOS native app scanning) moved to feature/native-app-capture branch
+	// For now, we only support web apps via iframe embedding
+
 	// Public OSA health endpoint (no auth required)
 	if osaClient != nil {
 		router.GET("/api/osa/health", h.HandleOSAHealth)

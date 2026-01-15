@@ -5,6 +5,8 @@
 	import { FitAddon } from '@xterm/addon-fit';
 	import { WebLinksAddon } from '@xterm/addon-web-links';
 	import { SearchAddon } from '@xterm/addon-search';
+	import TerminalModeToggle from '$lib/components/terminal/TerminalModeToggle.svelte';
+	import { terminalPreferences, type TerminalMode } from '$lib/stores/terminalPreferences';
 	import '@xterm/xterm/css/xterm.css';
 
 	let terminalContainer: HTMLDivElement;
@@ -13,6 +15,7 @@
 	let service: TerminalService | null = null;
 	let isConnected = $state(false);
 	let connectionError = $state<string | null>(null);
+	let currentMode = $state<TerminalMode>($terminalPreferences.defaultMode);
 
 	function initTerminal() {
 		if (!terminalContainer) return;
@@ -105,6 +108,10 @@
 				connectionError = null;
 				console.log('Terminal connected:', sessionId, metadata);
 
+				// Display mode in terminal
+				const modeText = metadata.mode === 'docker' ? 'Docker (Sandboxed)' : 'Glimpse (Local Mac)';
+				xterm?.write(`\r\n\x1b[36m[Mode: ${modeText}]\x1b[0m\r\n`);
+
 				// CRITICAL: Send actual terminal size after fit
 				setTimeout(() => {
 					if (xterm && fitAddon && service?.isConnected()) {
@@ -127,11 +134,69 @@
 		}, {
 			cols: xterm.cols,
 			rows: xterm.rows,
-			shell: 'zsh'
+			shell: 'zsh',
+			mode: currentMode
 		});
 
 		// Connect to backend
 		service.connect();
+	}
+
+	function handleModeChange(newMode: TerminalMode) {
+		// Display mode change notification in terminal
+		xterm?.write(`\r\n\x1b[33m[Switching to ${newMode === 'docker' ? 'Docker' : 'Glimpse'} mode...]\x1b[0m\r\n`);
+
+		// Disconnect current session
+		if (service) {
+			service.disconnect();
+			service = null;
+		}
+
+		// Update mode
+		currentMode = newMode;
+
+		// Reconnect with new mode
+		setTimeout(() => {
+			if (!xterm) return;
+
+			service = createTerminalService({
+				onData: (data) => {
+					xterm?.write(data);
+				},
+				onConnect: (sessionId, metadata) => {
+					isConnected = true;
+					connectionError = null;
+					console.log('Terminal reconnected:', sessionId, metadata);
+
+					const modeText = metadata.mode === 'docker' ? 'Docker (Sandboxed)' : 'Glimpse (Local Mac)';
+					xterm?.write(`\r\n\x1b[32m[Connected - Mode: ${modeText}]\x1b[0m\r\n`);
+
+					setTimeout(() => {
+						if (xterm && fitAddon && service?.isConnected()) {
+							const dims = fitAddon.proposeDimensions();
+							if (dims) {
+								service.resize(dims.cols, dims.rows);
+							}
+						}
+					}, 150);
+				},
+				onDisconnect: () => {
+					isConnected = false;
+					xterm?.write('\r\n\x1b[31m[Disconnected from terminal]\x1b[0m\r\n');
+				},
+				onError: (error) => {
+					connectionError = error;
+					xterm?.write(`\r\n\x1b[31m[Error: ${error}]\x1b[0m\r\n`);
+				}
+			}, {
+				cols: xterm.cols,
+				rows: xterm.rows,
+				shell: 'zsh',
+				mode: newMode
+			});
+
+			service.connect();
+		}, 100);
 	}
 
 	function handleResize() {
@@ -206,15 +271,21 @@
 	tabindex="0"
 	aria-label="Terminal window"
 >
-	{#if connectionError}
-		<div class="connection-status error">
-			Connection Error: {connectionError}
+	<div class="terminal-header">
+		<div class="header-left">
+			<span class="terminal-title">Terminal</span>
+			{#if connectionError}
+				<span class="connection-status error">Error: {connectionError}</span>
+			{:else if !isConnected}
+				<span class="connection-status connecting">Connecting...</span>
+			{:else}
+				<span class="connection-status connected">Connected</span>
+			{/if}
 		</div>
-	{:else if !isConnected}
-		<div class="connection-status connecting">
-			Connecting to terminal...
+		<div class="header-right">
+			<TerminalModeToggle bind:currentMode onModeChange={handleModeChange} />
 		</div>
-	{/if}
+	</div>
 	<div
 		class="terminal-container"
 		bind:this={terminalContainer}
@@ -232,11 +303,63 @@
 		background: #1a1a1a;
 		position: relative;
 		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.terminal-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 8px 12px;
+		background: #0f0f0f;
+		border-bottom: 1px solid #2a2a2a;
+		flex-shrink: 0;
+	}
+
+	.header-left {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.terminal-title {
+		font-family: 'SF Mono', monospace;
+		font-size: 13px;
+		color: #999;
+		font-weight: 600;
+	}
+
+	.header-right {
+		display: flex;
+		align-items: center;
+	}
+
+	.connection-status {
+		font-size: 11px;
+		font-family: 'SF Mono', monospace;
+		padding: 2px 8px;
+		border-radius: 3px;
+	}
+
+	.connection-status.connecting {
+		background: #333;
+		color: #ffcc00;
+	}
+
+	.connection-status.connected {
+		background: rgba(0, 255, 0, 0.1);
+		color: #00ff00;
+	}
+
+	.connection-status.error {
+		background: #ff5555;
+		color: white;
 	}
 
 	.terminal-container {
 		width: 100%;
-		height: 100%;
+		flex: 1;
 		padding: 8px;
 		box-sizing: border-box;
 		outline: none; /* Remove focus outline */
@@ -267,26 +390,5 @@
 	.terminal-container :global(.xterm-viewport::-webkit-scrollbar-thumb) {
 		background: #333;
 		border-radius: 4px;
-	}
-
-	.connection-status {
-		position: absolute;
-		top: 8px;
-		right: 8px;
-		padding: 4px 12px;
-		border-radius: 4px;
-		font-size: 12px;
-		font-family: 'SF Mono', monospace;
-		z-index: 10;
-	}
-
-	.connection-status.connecting {
-		background: #333;
-		color: #ffcc00;
-	}
-
-	.connection-status.error {
-		background: #ff5555;
-		color: white;
 	}
 </style>

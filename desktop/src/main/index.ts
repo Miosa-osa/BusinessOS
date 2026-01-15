@@ -1,3 +1,13 @@
+// Early crash handling - must be at the very top
+process.on('uncaughtException', (error) => {
+  console.error('UNCAUGHT EXCEPTION:', error);
+  console.error('Stack:', error.stack);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION at:', promise, 'reason:', reason);
+});
+
 import { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, protocol, net } from 'electron';
 import path from 'path';
 import { createMainWindow, getMainWindow } from './window';
@@ -9,23 +19,34 @@ import { initializeMeetingRecorder } from './audio/meeting-recorder';
 import { closeDatabase } from './database/sqlite';
 import { pathToFileURL } from 'url';
 
+console.log('Main process starting - imports complete');
+console.log('Platform:', process.platform);
+console.log('Is packaged:', app.isPackaged);
+
 // Handle Squirrel events for Windows installer (only on Windows)
 if (process.platform === 'win32') {
+  console.log('Checking Squirrel startup...');
   try {
     if (require('electron-squirrel-startup')) {
+      console.log('Squirrel startup - quitting');
       app.quit();
     }
   } catch {
+    console.log('Squirrel startup not available');
     // electron-squirrel-startup not available, ignore on non-Windows
   }
 }
 
 // Single instance lock
+console.log('Requesting single instance lock...');
 const gotTheLock = app.requestSingleInstanceLock();
+console.log('Got lock:', gotTheLock);
 
 if (!gotTheLock) {
+  console.log('Another instance running - quitting');
   app.quit();
 } else {
+  console.log('Single instance lock acquired');
   app.on('second-instance', () => {
     // Someone tried to run a second instance, focus our window
     const mainWindow = getMainWindow();

@@ -87,14 +87,19 @@ function createDeployedAppsStore() {
 			});
 
 			if (!response.ok) {
+				// Silently return empty array if endpoint doesn't exist yet
+				if (response.status === 404) {
+					return [];
+				}
 				throw new Error(`Failed to fetch deployed apps: ${response.statusText}`);
 			}
 
 			const data = await response.json();
 			return data.apps || [];
 		} catch (err) {
-			console.error('Error fetching deployed apps:', err);
-			throw err;
+			// Silently fail - this feature is optional
+			// console.error('Error fetching deployed apps:', err);
+			return [];
 		}
 	}
 

@@ -40,6 +40,8 @@ export async function createMainWindow(): Promise<BrowserWindow> {
       sandbox: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
+      // Enable webview tag for embedding external apps
+      webviewTag: true,
     },
   });
 
@@ -62,6 +64,16 @@ export async function createMainWindow(): Promise<BrowserWindow> {
     // DevTools can be opened manually via View menu (Cmd+Option+I)
   });
 
+  // Configure webview permissions for embedding external apps
+  mainWindow.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+    // Allow webviews to load external content without security restrictions
+    // This is needed for embedding apps like Linear, Notion, Claude, etc.
+    webPreferences.webSecurity = false;
+    webPreferences.allowRunningInsecureContent = true;
+
+    console.log('Webview attaching:', params.src);
+  });
+
   // Handle external links
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     // Allow opening external URLs in the default browser
@@ -72,10 +84,27 @@ export async function createMainWindow(): Promise<BrowserWindow> {
     return { action: 'allow' };
   });
 
-  // Prevent navigation away from the app
+  // Handle navigation - allow OAuth flows to stay within Electron
+  // Without this, OAuth redirects would open in external browser
   mainWindow.webContents.on('will-navigate', (event, url) => {
     const appUrl = isDev ? 'http://localhost:5173' : `file://${__dirname}`;
-    if (!url.startsWith(appUrl) && !url.startsWith('file://')) {
+
+    // URLs that should be allowed to navigate within Electron
+    const allowedPatterns = [
+      appUrl,
+      'file://',
+      'http://localhost:8001',  // Local backend OAuth
+      'http://localhost:18080', // Alternative local backend port
+      'https://businessos-api', // Cloud backend
+      'https://accounts.google.com', // Google OAuth
+      'https://www.google.com/accounts', // Google OAuth alternative
+      'https://oauth', // Generic OAuth
+    ];
+
+    const isAllowed = allowedPatterns.some(pattern => url.startsWith(pattern));
+
+    if (!isAllowed) {
+      // Open truly external URLs in system browser
       event.preventDefault();
       shell.openExternal(url);
     }

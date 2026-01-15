@@ -4,6 +4,8 @@
 	import { windowStore, visibleWindows, focusedWindow, type SnapZone } from '$lib/stores/windowStore';
 	import { desktopSettings, getBackgroundCSS, isBackgroundDark } from '$lib/stores/desktopStore';
 	import { deployedAppsStore } from '$lib/stores/deployedAppsStore';
+	import { userAppsStore } from '$lib/stores/userAppsStore';
+	import { currentWorkspaceId, loadSavedWorkspace } from '$lib/stores/workspaces';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { isElectron, isMacOS } from '$lib/utils/platform';
@@ -20,6 +22,7 @@
 	import IconPicker from '$lib/components/desktop/IconPicker.svelte';
 	import AnimatedBackground from '$lib/components/desktop/AnimatedBackground.svelte';
 	import Desktop3D from '$lib/components/desktop3d/Desktop3D.svelte';
+	import AppRegistryModal from '$lib/components/desktop/AppRegistryModal.svelte';
 	import type { CustomIconConfig } from '$lib/stores/windowStore';
 
 	const APP_VERSION = '0.0.1';
@@ -29,12 +32,17 @@
 	let showBootScreen = $state(true);
 	let bootComplete = $state(false);
 
-	onMount(() => {
+	onMount(async () => {
+		// Initialize workspace store
+		loadSavedWorkspace();
+
 		// Initialize window store to load saved settings from localStorage
 		windowStore.initialize();
 
 		// Start discovering deployed OSA apps
 		deployedAppsStore.startDiscovery();
+
+		// Note: User apps are fetched reactively via $effect when currentWorkspaceId becomes available
 
 		// Show loading screen for consistent duration (matches CSS animation)
 		setTimeout(() => {
@@ -51,6 +59,70 @@
 	$effect(() => {
 		if (!$session.isPending && bootComplete) {
 			showBootScreen = false;
+		}
+	});
+
+	// Track if we've already fetched apps for this workspace
+	let fetchedWorkspaceId: string | null = null;
+	// Track registered app IDs to prevent infinite loops
+	let registeredAppIds = new Set<string>();
+	// Track window IDs whose titles have been updated
+	let updatedWindowTitles = new Set<string>();
+
+	// Fetch user apps when workspace becomes available (handles race condition)
+	$effect(() => {
+		const workspaceId = $currentWorkspaceId;
+		if (workspaceId && workspaceId !== fetchedWorkspaceId && !$userAppsStore.loading) {
+			fetchedWorkspaceId = workspaceId;
+			registeredAppIds.clear(); // Clear registered apps when workspace changes
+			updatedWindowTitles.clear();
+			console.log('[Desktop] Fetching user apps for workspace:', workspaceId);
+			userAppsStore.fetch(workspaceId).catch(error => {
+				console.error('[Desktop] Failed to fetch user apps:', error);
+			});
+		}
+	});
+
+	// Register user apps with windowStore when they're loaded (only once per app)
+	$effect(() => {
+		const apps = $userAppsStore.apps;
+		if (apps && apps.length > 0) {
+			// Only register apps that haven't been registered yet
+			const newApps = apps.filter(app => !registeredAppIds.has(app.id));
+
+			if (newApps.length > 0) {
+				console.log('[Desktop] Registering', newApps.length, 'new user apps with windowStore');
+				newApps.forEach(app => {
+					registeredAppIds.add(app.id);
+					windowStore.registerUserApp({
+						id: app.id,
+						name: app.name,
+						url: app.url,
+						icon: app.icon,
+						color: app.color,
+						logo_url: app.logo_url
+					});
+				});
+			}
+		}
+	});
+
+	// Update window titles for user apps (separate effect to avoid title update loops)
+	$effect(() => {
+		const apps = $userAppsStore.apps;
+		const windows = $visibleWindows;
+
+		if (apps && apps.length > 0 && windows) {
+			windows.forEach(win => {
+				if (win.module.startsWith('user-app-') && !updatedWindowTitles.has(win.id)) {
+					const appId = win.module.replace('user-app-', '');
+					const app = apps.find(a => a.id === appId);
+					if (app && win.title !== app.name) {
+						updatedWindowTitles.add(win.id);
+						windowStore.updateWindowTitle(win.id, app.name);
+					}
+				}
+			});
 		}
 	});
 
@@ -140,6 +212,9 @@
 
 	// Spotlight search state
 	let showSpotlight = $state(false);
+
+	// App registry modal state
+	let showAppRegistry = $state(false);
 
 	// Icon picker state
 	let showIconPicker = $state(false);
@@ -702,6 +777,27 @@
 		closeContextMenu();
 	}
 
+	async function deleteUserApp() {
+		if (!contextMenuIconId) return;
+		const icon = $windowStore.desktopIcons.find(i => i.id === contextMenuIconId);
+
+		if (icon && icon.module.startsWith('user-app-')) {
+			const appId = icon.module.replace('user-app-', '');
+
+			if (confirm(`Delete "${icon.label}"?`)) {
+				try {
+					if ($currentWorkspaceId) {
+						await userAppsStore.delete(appId, $currentWorkspaceId);
+					}
+				} catch (error) {
+					console.error('Failed to delete app:', error);
+					alert('Failed to delete app. Please try again.');
+				}
+			}
+		}
+		closeContextMenu();
+	}
+
 	function openIcon() {
 		if (!contextMenuIconId) return;
 		const icon = $windowStore.desktopIcons.find(i => i.id === contextMenuIconId);
@@ -929,6 +1025,48 @@
 								<FileBrowser />
 							{:else if win.module === 'help'}
 								<iframe src="/help?embed=true" title="Help" class="module-iframe"></iframe>
+							{:else if win.module.startsWith('user-app-')}
+								{@const appId = win.module.replace('user-app-', '')}
+								{@const userApp = $userAppsStore.apps.find(app => app.id === appId)}
+								{#if userApp}
+									{#if isElectron}
+										<!-- Electron: Use webview for unrestricted embedding (bypasses X-Frame-Options) -->
+										<!-- svelte-ignore element_invalid_self_closing_tag -->
+										<webview
+											src={userApp.url}
+											title={userApp.name}
+											class="module-iframe user-app-iframe electron-webview"
+											allowpopups="true"
+										></webview>
+									{:else}
+										<!-- Browser: Use iframe with sandbox (limited - some sites may block) -->
+										<iframe
+											src={userApp.url}
+											title={userApp.name}
+											class="module-iframe user-app-iframe"
+											sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+										></iframe>
+									{/if}
+								{:else if $userAppsStore.loading}
+									<!-- Apps still loading -->
+									<div class="module-placeholder">
+										<span class="placeholder-icon loading-spinner">
+											<svg class="w-12 h-12 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+											</svg>
+										</span>
+										<span class="placeholder-text">Loading...</span>
+									</div>
+								{:else}
+									<div class="module-placeholder">
+										<span class="placeholder-icon">
+											<svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+											</svg>
+										</span>
+										<span class="placeholder-text">App Not Found</span>
+									</div>
+								{/if}
 							{:else if win.module.startsWith('osa-app-')}
 								{@const appId = win.module.replace('osa-app-', '')}
 								{@const deployedApp = $deployedAppsStore.apps.find(app => app.id === appId)}
@@ -1026,6 +1164,15 @@
 							Delete Folder
 						</button>
 					{/if}
+					{#if contextMenuIcon.module.startsWith('user-app-')}
+						<div class="context-menu-separator"></div>
+						<button class="context-menu-item context-menu-item--danger" onclick={deleteUserApp}>
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+								<path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+							</svg>
+							Delete App
+						</button>
+					{/if}
 				{:else}
 					<!-- Desktop Context Menu -->
 					<button class="context-menu-item" onclick={createNewFolder}>
@@ -1057,6 +1204,14 @@
 
 		<!-- Spotlight Search -->
 		<SpotlightSearch open={showSpotlight} onClose={() => showSpotlight = false} />
+
+		<!-- App Registry Modal -->
+		{#if showAppRegistry && $currentWorkspaceId}
+			<AppRegistryModal
+				workspaceId={$currentWorkspaceId}
+				onClose={() => showAppRegistry = false}
+			/>
+		{/if}
 
 		<!-- Icon Picker Modal -->
 		{#if showIconPicker}
@@ -1447,9 +1602,97 @@
 		color: #ccc;
 	}
 
+	.placeholder-icon.loading-spinner {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
+	}
+
 	.placeholder-text {
 		font-size: 14px;
 		font-weight: 500;
+	}
+
+	/* Native App Launch UI */
+	.native-app-container {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 1.5rem;
+		padding: 2rem;
+		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	}
+
+	.native-app-icon {
+		width: 128px;
+		height: 128px;
+		border-radius: 24px;
+		overflow: hidden;
+		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+		background: white;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.native-app-icon img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
+
+	.icon-placeholder {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 48px;
+		font-weight: 700;
+		color: white;
+	}
+
+	.native-app-title {
+		font-size: 28px;
+		font-weight: 700;
+		color: white;
+		margin: 0;
+		text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+	}
+
+	.native-app-info {
+		font-size: 14px;
+		color: rgba(255, 255, 255, 0.9);
+		margin: 0;
+	}
+
+	.launch-button {
+		background: white;
+		color: #667eea;
+		border: none;
+		padding: 12px 32px;
+		font-size: 16px;
+		font-weight: 600;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: all 0.2s;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	}
+
+	.launch-button:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+	}
+
+	.launch-button:active {
+		transform: translateY(0);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 	}
 
 	.desktop-icon-wrapper {

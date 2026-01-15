@@ -1,7 +1,21 @@
-import Database from 'better-sqlite3';
+import type Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
+
+// Lazy load better-sqlite3 to avoid crashes at module load time
+let BetterSqlite3: typeof import('better-sqlite3') | null = null;
+function getBetterSqlite3() {
+  if (!BetterSqlite3) {
+    try {
+      BetterSqlite3 = require('better-sqlite3');
+    } catch (error) {
+      console.error('Failed to load better-sqlite3:', error);
+      throw error;
+    }
+  }
+  return BetterSqlite3;
+}
 
 let db: Database.Database | null = null;
 
@@ -31,6 +45,7 @@ export function initDatabase(): Database.Database {
   }
 
   // Create or open the database
+  const Database = getBetterSqlite3();
   db = new Database(dbPath);
 
   // Enable foreign keys

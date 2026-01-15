@@ -17,6 +17,14 @@ const (
 	StatusClosed SessionStatus = "closed"
 )
 
+// TerminalMode represents the execution environment for a terminal session
+type TerminalMode string
+
+const (
+	TerminalModeDocker TerminalMode = "docker" // Run in Docker container (sandboxed)
+	TerminalModeLocal  TerminalMode = "local"  // Run on local machine (full access)
+)
+
 // SessionSecurityConfig holds security-related session settings
 type SessionSecurityConfig struct {
 	// MaxSessionDuration is the hard limit on session lifetime (0 = no limit)
@@ -32,7 +40,7 @@ type SessionSecurityConfig struct {
 // DefaultSessionSecurityConfig returns production-safe defaults
 func DefaultSessionSecurityConfig() *SessionSecurityConfig {
 	return &SessionSecurityConfig{
-		MaxSessionDuration: 8 * time.Hour,  // Hard limit: 8 hours max
+		MaxSessionDuration: 8 * time.Hour, // Hard limit: 8 hours max
 		IdleTimeout:        30 * time.Minute,
 		EnableIPBinding:    true,  // Detect session hijacking
 		AllowIPMigration:   false, // Strict by default
@@ -41,31 +49,32 @@ func DefaultSessionSecurityConfig() *SessionSecurityConfig {
 
 // Session represents an active terminal session
 type Session struct {
-	ID           string            `json:"id"`
-	UserID       string            `json:"user_id"`
-	CreatedAt    time.Time         `json:"created_at"`
-	LastActivity time.Time         `json:"last_activity"`
-	Cols         int               `json:"cols"`
-	Rows         int               `json:"rows"`
-	Shell        string            `json:"shell"`
-	WorkingDir   string            `json:"working_dir"`
-	Environment  map[string]string `json:"-"`
-	Status       SessionStatus     `json:"status"`
+	ID            string            `json:"id"`
+	UserID        string            `json:"user_id"`
+	CreatedAt     time.Time         `json:"created_at"`
+	LastActivity  time.Time         `json:"last_activity"`
+	Cols          int               `json:"cols"`
+	Rows          int               `json:"rows"`
+	Shell         string            `json:"shell"`
+	WorkingDir    string            `json:"working_dir"`
+	Environment   map[string]string `json:"-"`
+	Status        SessionStatus     `json:"status"`
+	RequestedMode TerminalMode      `json:"requested_mode"` // User's preferred terminal mode
 
 	// Security fields
-	ClientIP      string `json:"-"` // Original client IP for hijacking detection
-	ClientSubnet  string `json:"-"` // Client subnet (first 3 octets for IPv4)
-	ExpiresAt     time.Time `json:"-"` // Hard expiration time
+	ClientIP     string    `json:"-"` // Original client IP for hijacking detection
+	ClientSubnet string    `json:"-"` // Client subnet (first 3 octets for IPv4)
+	ExpiresAt    time.Time `json:"-"` // Hard expiration time
 
 	// Local PTY mode (backwards compatibility - unused in container mode)
 	PTY *os.File  `json:"-"`
 	Cmd *exec.Cmd `json:"-"`
 
 	// Container isolation mode
-	ContainerID string                   `json:"-"` // Docker container ID
-	VolumeID    string                   `json:"-"` // Docker volume ID
-	ExecID      string                   `json:"-"` // Docker exec instance ID
-	ExecConn    *types.HijackedResponse  `json:"-"` // Docker exec hijacked connection
+	ContainerID string                  `json:"-"` // Docker container ID
+	VolumeID    string                  `json:"-"` // Docker volume ID
+	ExecID      string                  `json:"-"` // Docker exec instance ID
+	ExecConn    *types.HijackedResponse `json:"-"` // Docker exec hijacked connection
 }
 
 // IsContainerized returns true if this session is running in a Docker container

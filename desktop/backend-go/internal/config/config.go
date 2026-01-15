@@ -18,8 +18,8 @@ type Config struct {
 	Environment string `mapstructure:"ENVIRONMENT"`
 
 	// Database
-	DatabaseURL string `mapstructure:"DATABASE_URL"`
-	DatabaseRequired bool `mapstructure:"DATABASE_REQUIRED"`
+	DatabaseURL      string `mapstructure:"DATABASE_URL"`
+	DatabaseRequired bool   `mapstructure:"DATABASE_REQUIRED"`
 
 	// Server
 	ServerPort string `mapstructure:"SERVER_PORT"`
@@ -85,7 +85,7 @@ type Config struct {
 	// Google OAuth
 	GoogleClientID               string `mapstructure:"GOOGLE_CLIENT_ID"`
 	GoogleClientSecret           string `mapstructure:"GOOGLE_CLIENT_SECRET"`
-	GoogleRedirectURI            string `mapstructure:"GOOGLE_REDIRECT_URI"`              // For login flow
+	GoogleRedirectURI            string `mapstructure:"GOOGLE_REDIRECT_URI"`             // For login flow
 	GoogleIntegrationRedirectURI string `mapstructure:"GOOGLE_INTEGRATION_REDIRECT_URI"` // For calendar integration
 
 	// Slack OAuth
@@ -124,12 +124,12 @@ type Config struct {
 	MicrosoftRedirectURI  string `mapstructure:"MICROSOFT_REDIRECT_URI"`
 
 	// OSA (Open Source Agent) Integration
-	OSAEnabled      bool   `mapstructure:"OSA_ENABLED"`
-	OSABaseURL      string `mapstructure:"OSA_BASE_URL"`
-	OSASharedSecret string `mapstructure:"OSA_SHARED_SECRET"`
-	OSATimeout      int    `mapstructure:"OSA_TIMEOUT"`       // seconds
-	OSAMaxRetries   int    `mapstructure:"OSA_MAX_RETRIES"`
-	OSARetryDelay   int    `mapstructure:"OSA_RETRY_DELAY"`   // seconds
+	OSAEnabled      bool        `mapstructure:"OSA_ENABLED"`
+	OSABaseURL      string      `mapstructure:"OSA_BASE_URL"`
+	OSASharedSecret string      `mapstructure:"OSA_SHARED_SECRET"`
+	OSATimeout      int         `mapstructure:"OSA_TIMEOUT"` // seconds
+	OSAMaxRetries   int         `mapstructure:"OSA_MAX_RETRIES"`
+	OSARetryDelay   int         `mapstructure:"OSA_RETRY_DELAY"` // seconds
 	OSA             *osa.Config // Built from above fields in Load()
 
 	// Web Search Providers
@@ -210,7 +210,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("REDIS_PASSWORD", "")
 	viper.SetDefault("REDIS_TLS_ENABLED", false)
 	viper.SetDefault("REDIS_KEY_HMAC_SECRET", "") // CRITICAL: Set strong value in production (min 32 bytes)
-	viper.SetDefault("TOKEN_ENCRYPTION_KEY", "") // CRITICAL: Set in production for OAuth token encryption
+	viper.SetDefault("TOKEN_ENCRYPTION_KEY", "")  // CRITICAL: Set in production for OAuth token encryption
 
 	// Other services
 	viper.SetDefault("SUPERMEMORY_API_KEY", "")
@@ -235,9 +235,9 @@ func Load() (*Config, error) {
 	viper.SetDefault("OSA_ENABLED", false)
 	viper.SetDefault("OSA_BASE_URL", "http://localhost:8089")
 	viper.SetDefault("OSA_SHARED_SECRET", "")
-	viper.SetDefault("OSA_TIMEOUT", 30)      // seconds
+	viper.SetDefault("OSA_TIMEOUT", 30) // seconds
 	viper.SetDefault("OSA_MAX_RETRIES", 3)
-	viper.SetDefault("OSA_RETRY_DELAY", 2)   // seconds
+	viper.SetDefault("OSA_RETRY_DELAY", 2) // seconds
 
 	// Web Search Providers
 	viper.SetDefault("BRAVE_SEARCH_API_KEY", "")
@@ -276,6 +276,16 @@ func Load() (*Config, error) {
 	config := &Config{}
 	if err := viper.Unmarshal(config); err != nil {
 		return nil, err
+	}
+
+	// Explicit environment variable override for SERVER_PORT (supports Electron mode)
+	// viper.AutomaticEnv() doesn't always pick up env vars reliably
+	if portEnv := os.Getenv("SERVER_PORT"); portEnv != "" {
+		config.ServerPort = portEnv
+	}
+	// Also support PORT as a common convention
+	if portEnv := os.Getenv("PORT"); portEnv != "" && config.ServerPort == "8001" {
+		config.ServerPort = portEnv
 	}
 
 	// In local development it's common to have a globally-set DATABASE_URL (e.g. Supabase)

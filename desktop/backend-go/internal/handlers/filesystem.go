@@ -37,6 +37,7 @@ type FileItem struct {
 type ListDirectoryRequest struct {
 	Path       string `json:"path" form:"path"`
 	ShowHidden bool   `json:"showHidden" form:"showHidden"`
+	Mode       string `json:"mode" form:"mode"` // "docker", "local", or "" (use default)
 }
 
 // ListDirectoryResponse represents the response for listing a directory
@@ -63,14 +64,34 @@ func (h *Handlers) ListDirectory(c *gin.Context) {
 		return
 	}
 
-	// Check if container isolation is enabled
-	if h.containerMgr != nil {
-		h.listDirectoryContainer(c, req)
-		return
+	// Determine filesystem mode based on request or global setting
+	// "local" or "glimpse" → force local filesystem (Mac)
+	// "docker" → use container if available
+	// "" (empty) → use global default
+
+	useLocal := false
+	if req.Mode == "local" || req.Mode == "glimpse" {
+		log.Printf("[Filesystem] 🚫 Mode=%s requested - FORCING local filesystem", req.Mode)
+		useLocal = true
+	} else if req.Mode == "docker" {
+		if h.containerMgr != nil {
+			log.Printf("[Filesystem] 🐳 Mode=docker requested - using container")
+			useLocal = false
+		} else {
+			log.Printf("[Filesystem] ⚠️  Mode=docker requested but no containerMgr - using local")
+			useLocal = true
+		}
+	} else {
+		// Default behavior: use container if available
+		useLocal = (h.containerMgr == nil)
+		log.Printf("[Filesystem] ⚙️  Mode=DEFAULT - containerMgr=%v, useLocal=%v", h.containerMgr != nil, useLocal)
 	}
 
-	// Fallback to local filesystem (development mode)
-	h.listDirectoryLocal(c, req)
+	if useLocal {
+		h.listDirectoryLocal(c, req)
+	} else {
+		h.listDirectoryContainer(c, req)
+	}
 }
 
 // listDirectoryContainer lists directory contents from user's container workspace

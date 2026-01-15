@@ -7,7 +7,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DESKTOP_DIR="$(dirname "$SCRIPT_DIR")"
-BACKEND_DIR="$(dirname "$DESKTOP_DIR")/backend-go"
+BACKEND_DIR="$DESKTOP_DIR/backend-go"
 OUTPUT_DIR="$DESKTOP_DIR/resources/bin"
 
 BINARY_NAME="businessos-server"

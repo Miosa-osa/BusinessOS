@@ -37,6 +37,20 @@ export default defineConfig({
 					});
 				},
 			},
+			// Window Capture WebSocket - for native app streaming
+			'/api/window-capture': {
+				target: 'http://localhost:8001',
+				changeOrigin: false,
+				ws: true,
+				configure: (proxy, _options) => {
+					proxy.on('error', (err, _req, _res) => {
+						console.log('[Vite Proxy] Window Capture Error:', err);
+					});
+					proxy.on('proxyReqWs', (proxyReq, req, socket, options, head) => {
+						console.log('[Vite Proxy] Window Capture WebSocket upgrade:', req.url);
+					});
+				},
+			},
 			'/api/chat': {
 				target: 'http://localhost:8001',
 				changeOrigin: true,
@@ -144,6 +158,19 @@ export default defineConfig({
 				changeOrigin: true,
 			},
 			'/api/onboarding': {
+				target: 'http://localhost:8001',
+				changeOrigin: true,
+			},
+			'/api/user-apps': {
+				target: 'http://localhost:8001',
+				changeOrigin: true,
+			},
+			'/api/system': {
+				target: 'http://localhost:8001',
+				changeOrigin: true,
+			},
+			// Web app proxy - strips X-Frame-Options/CSP headers for iframe embedding
+			'/api/proxy': {
 				target: 'http://localhost:8001',
 				changeOrigin: true,
 			},

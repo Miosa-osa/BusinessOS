@@ -4292,12 +4292,12 @@ CREATE INDEX idx_osa_workspaces_mode ON osa_workspaces(mode);
 ALTER TABLE osa_modules
 ADD CONSTRAINT fk_osa_modules_workspace
 FOREIGN KEY (workspace_id)
-REFERENCES osa_workspaces(id)
+REFERENCES workspaces(id)
 ON DELETE CASCADE;
 
 CREATE TABLE osa_generated_apps (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES osa_workspaces(id) ON DELETE CASCADE,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     module_id UUID REFERENCES osa_modules(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
     display_name VARCHAR(255) NOT NULL,
@@ -4329,7 +4329,7 @@ CREATE TABLE osa_execution_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     app_id UUID REFERENCES osa_generated_apps(id) ON DELETE SET NULL,
-    workspace_id UUID REFERENCES osa_workspaces(id) ON DELETE CASCADE,
+    workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
     command TEXT NOT NULL,
     working_directory TEXT,
     environment_vars JSONB DEFAULT '{}',
@@ -4374,7 +4374,7 @@ CREATE INDEX idx_osa_sync_next ON osa_sync_status(next_sync_at);
 CREATE TABLE osa_build_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     app_id UUID NOT NULL REFERENCES osa_generated_apps(id) ON DELETE CASCADE,
-    workspace_id UUID REFERENCES osa_workspaces(id) ON DELETE SET NULL,
+    workspace_id UUID REFERENCES workspaces(id) ON DELETE SET NULL,
     event_type VARCHAR(50) NOT NULL,
     event_data JSONB DEFAULT '{}',
     build_id VARCHAR(255),
@@ -4392,7 +4392,7 @@ CREATE INDEX idx_osa_build_build_id ON osa_build_events(build_id);
 
 CREATE TABLE osa_webhooks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID REFERENCES osa_workspaces(id) ON DELETE CASCADE,
+    workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
     app_id UUID REFERENCES osa_generated_apps(id) ON DELETE CASCADE,
     event_type VARCHAR(50) NOT NULL,
     webhook_url TEXT NOT NULL,
@@ -4460,3 +4460,38 @@ CREATE TABLE sync_dlq (
 CREATE INDEX idx_sync_dlq_aggregate ON sync_dlq(aggregate_type, aggregate_id);
 CREATE INDEX idx_sync_dlq_resolved ON sync_dlq(resolved);
 CREATE INDEX idx_sync_dlq_moved_at ON sync_dlq(moved_to_dlq_at DESC);
+
+-- =============================================================================
+-- USER EXTERNAL APPS TABLE (from 047_user_external_apps.sql)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS user_external_apps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    workspace_id UUID NOT NULL,  -- Flexible workspace ID (no FK constraint for flexibility)
+    name VARCHAR(255) NOT NULL,
+    url TEXT NOT NULL,
+    icon VARCHAR(100) NOT NULL DEFAULT 'app-window',
+    color VARCHAR(7) NOT NULL DEFAULT '#6366F1',
+    logo_url TEXT,
+    category VARCHAR(100) DEFAULT 'productivity',
+    description TEXT,
+    position_x INTEGER DEFAULT 0,
+    position_y INTEGER DEFAULT 0,
+    position_z INTEGER DEFAULT 0,
+    iframe_config JSONB DEFAULT '{"sandbox": ["allow-same-origin", "allow-scripts", "allow-popups", "allow-forms"], "allowFullscreen": true}'::jsonb,
+    is_active BOOLEAN DEFAULT true,
+    open_on_startup BOOLEAN DEFAULT false,
+    app_type VARCHAR(50) DEFAULT 'web' NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    last_opened_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_user_external_apps_user ON user_external_apps(user_id);
+CREATE INDEX idx_user_external_apps_workspace ON user_external_apps(workspace_id);
+CREATE INDEX idx_user_external_apps_active ON user_external_apps(workspace_id, is_active) WHERE is_active = true;
+
+ALTER TABLE user_external_apps
+ADD CONSTRAINT user_external_apps_name_workspace_unique
+UNIQUE(workspace_id, name);

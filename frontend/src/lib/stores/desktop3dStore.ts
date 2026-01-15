@@ -4,6 +4,7 @@
  */
 import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
+import type { UserApp } from './userAppsStore';
 
 // Core modules that are always visible - only modules with actual routes
 export const CORE_MODULES = [
@@ -54,7 +55,7 @@ export type ViewMode = 'orb' | 'grid' | 'focused';
 
 export interface Window3DState {
 	id: string;
-	module: ModuleId;
+	module: ModuleId | string; // Allow string for user apps
 	title: string;
 	position: [number, number, number];
 	targetPosition: [number, number, number];
@@ -71,6 +72,11 @@ export interface Window3DState {
 	// Window dimensions (resizable)
 	width: number;
 	height: number;
+	// User app specific fields
+	isUserApp?: boolean;
+	userAppUrl?: string;
+	userAppIcon?: string;
+	userAppLogoUrl?: string | null; // URL to actual app logo/favicon
 }
 
 export interface Desktop3DState {
@@ -280,14 +286,15 @@ function createDesktop3DStore() {
 	return {
 		subscribe,
 
-		// Initialize with ALL modules (every available module in the 3D Desktop)
-		initialize: () => {
+		// Initialize with ALL modules (every available module in the 3D Desktop) + user apps
+		initialize: (userApps: UserApp[] = []) => {
 			update((state) => {
-				const windows: Window3DState[] = ALL_MODULES.map((module, index) => {
+				// Create windows for core modules
+				const moduleWindows: Window3DState[] = ALL_MODULES.map((module, index) => {
 					const info = MODULE_INFO[module];
 					const position = calculateOrbPosition(
 						index,
-						ALL_MODULES.length,
+						ALL_MODULES.length + userApps.length,
 						state.sphereRadius,
 						module
 					);
@@ -312,6 +319,43 @@ function createDesktop3DStore() {
 						height: 900
 					};
 				});
+
+				// Create windows for user apps
+				const userAppWindows: Window3DState[] = userApps.map((app, index) => {
+					const globalIndex = ALL_MODULES.length + index;
+					const position = calculateOrbPosition(
+						globalIndex,
+						ALL_MODULES.length + userApps.length,
+						state.sphereRadius,
+						app.id
+					);
+
+					return {
+						id: `window-userapp-${app.id}`,
+						module: `userapp-${app.id}`,
+						title: app.name,
+						position,
+						targetPosition: position,
+						rotation: [0, 0, 0],
+						scale: 1,
+						targetScale: 1,
+						opacity: 1,
+						targetOpacity: 1,
+						isCore: false,
+						isOpen: true,
+						isFocused: false,
+						lastFocused: Date.now(),
+						color: app.color,
+						width: 1300,
+						height: 900,
+						isUserApp: true,
+						userAppUrl: app.url,
+						userAppIcon: app.icon,
+						userAppLogoUrl: app.logo_url
+					};
+				});
+
+				const windows = [...moduleWindows, ...userAppWindows];
 
 				return { ...state, windows };
 			});
@@ -794,6 +838,83 @@ function createDesktop3DStore() {
 				}, 0);
 
 				return updatedState;
+			});
+		},
+
+		// Add a user app dynamically (after creation via AppRegistryModal)
+		addUserApp: (app: UserApp) => {
+			update((state) => {
+				const windowId = `window-userapp-${app.id}`;
+
+				// Check if already exists
+				if (state.windows.some((w) => w.id === windowId)) {
+					console.log('[Desktop3D Store] User app already exists:', app.name);
+					return state;
+				}
+
+				const totalWindows = state.windows.filter((w) => w.isOpen).length + 1;
+				const position = calculateOrbPosition(
+					totalWindows - 1,
+					totalWindows,
+					state.sphereRadius,
+					app.id
+				);
+
+				const newWindow: Window3DState = {
+					id: windowId,
+					module: `userapp-${app.id}`,
+					title: app.name,
+					position,
+					targetPosition: position,
+					rotation: [0, 0, 0],
+					scale: 1,
+					targetScale: 1,
+					opacity: 1,
+					targetOpacity: 1,
+					isCore: false,
+					isOpen: true,
+					isFocused: false,
+					lastFocused: Date.now(),
+					color: app.color,
+					width: 1300,
+					height: 900,
+					isUserApp: true,
+					userAppUrl: app.url,
+					userAppIcon: app.icon,
+					userAppLogoUrl: app.logo_url
+				};
+
+				console.log('[Desktop3D Store] Adding user app to sphere:', app.name);
+
+				const newWindows = [...state.windows, newWindow];
+
+				// Recalculate all positions after adding
+				setTimeout(() => {
+					desktop3dStore.recalculatePositions();
+				}, 0);
+
+				return { ...state, windows: newWindows };
+			});
+		},
+
+		// Remove a user app (when deleted)
+		removeUserApp: (appId: string) => {
+			update((state) => {
+				const windowId = `window-userapp-${appId}`;
+				const newWindows = state.windows.filter((w) => w.id !== windowId);
+
+				console.log('[Desktop3D Store] Removing user app from sphere:', appId);
+
+				// Recalculate positions after removal
+				setTimeout(() => {
+					desktop3dStore.recalculatePositions();
+				}, 0);
+
+				return {
+					...state,
+					windows: newWindows,
+					focusedWindowId: state.focusedWindowId === windowId ? null : state.focusedWindowId
+				};
 			});
 		}
 	};

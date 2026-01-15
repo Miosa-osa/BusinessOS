@@ -57,18 +57,14 @@ export function initiateGoogleOAuth(serverUrl?: string): boolean {
 		return false;
 	}
 
-	// In Electron, open system browser for OAuth
-	// The callback will redirect back with a token
+	// Build the OAuth URL with redirect back to our auth callback
 	const redirectUrl = encodeURIComponent(window.location.origin + '/auth/callback');
 	const authUrl = `${baseUrl}/api/auth/google?redirect=${redirectUrl}`;
 
-	if (isElectron && (window as any).electron?.openExternal) {
-		// Use Electron's shell to open in system browser
-		(window as any).electron.openExternal(authUrl);
-	} else {
-		// Standard web redirect
-		window.location.href = authUrl;
-	}
+	// IMPORTANT: In Electron, we navigate WITHIN the window (not external browser)
+	// This ensures cookies are set in Electron's session, not the system browser
+	// The OAuth flow will redirect back to our app after authentication
+	window.location.href = authUrl;
 	return true;
 }
 
@@ -339,31 +335,50 @@ const cloudSignOut = async () => {
 	return {};
 };
 
-// Export auth functions based on mode
-export const signIn = (() => {
-	const mode = typeof window !== 'undefined' ? get(appMode) : null;
-	if (isElectron && mode === 'local') return localSignIn;
-	return cloudSignIn;
-})();
+// Export auth functions - check mode dynamically at call time (not module load time)
+// This fixes timing issues in Electron where mode isn't set until after module load
+export const signIn = {
+	email: async ({ email, password }: { email: string; password: string }) => {
+		const mode = typeof window !== 'undefined' ? get(appMode) : null;
+		if (isElectron && mode === 'local') {
+			return localSignIn.email({ email, password });
+		}
+		return cloudSignIn.email({ email, password });
+	},
+	social: async () => {
+		const mode = typeof window !== 'undefined' ? get(appMode) : null;
+		if (isElectron && mode === 'local') {
+			return localSignIn.social();
+		}
+		return cloudSignIn.social();
+	},
+};
 
-export const signUp = (() => {
-	const mode = typeof window !== 'undefined' ? get(appMode) : null;
-	if (isElectron && mode === 'local') return localSignUp;
-	return cloudSignUp;
-})();
+export const signUp = {
+	email: async ({ email, password, name }: { email: string; password: string; name: string }) => {
+		const mode = typeof window !== 'undefined' ? get(appMode) : null;
+		if (isElectron && mode === 'local') {
+			return localSignUp.email({ email, password, name });
+		}
+		return cloudSignUp.email({ email, password, name });
+	},
+};
 
-export const signOut = (() => {
+export const signOut = async () => {
 	const mode = typeof window !== 'undefined' ? get(appMode) : null;
-	if (isElectron && mode === 'local') return localSignOut;
-	return cloudSignOut;
-})();
+	console.log('[Auth] signOut called, mode:', mode, 'isElectron:', isElectron);
+	if (isElectron && mode === 'local') {
+		return localSignOut();
+	}
+	return cloudSignOut();
+};
 
-export const useSession = (() => {
+export function useSession() {
 	const mode = typeof window !== 'undefined' ? get(appMode) : null;
 	// In Electron with no mode selected, return pending session
-	if (isElectron && mode === null) return () => pendingSession;
+	if (isElectron && mode === null) return pendingSession;
 	// In local mode, return local session
-	if (isElectron && mode === 'local') return () => localSession;
+	if (isElectron && mode === 'local') return localSession;
 	// In cloud mode or web, use cloud session
-	return () => cloudSession;
-})();
+	return cloudSession;
+}

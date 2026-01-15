@@ -242,16 +242,16 @@ export function loadMockWorkspaceData(): void {
   console.log('[Workspaces] Loading mock data for development');
   
   const mockWorkspace: Workspace = {
-    id: 'mock-workspace-001',
-    name: 'Test Workspace',
-    slug: 'test-workspace',
+    id: 'a438da8e-d245-4e7a-bde2-3a053499ab87', // Real workspace ID from database
+    name: 'Roberto Workspace',
+    slug: 'roberto-workspace',
     description: 'A mock workspace for UI development',
     logo_url: null,
     plan_type: 'professional',
     max_members: 50,
     max_projects: 100,
     max_storage_gb: 50,
-    owner_id: 'mock-user-001',
+    owner_id: 'J4OG6wYzz6Mz4YcBQee8luJhxeNw2z9A', // Real user ID (roberto@accelerants.ai)
     settings: {},
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -266,7 +266,7 @@ export function loadMockWorkspaceData(): void {
   ];
   
   const mockRoleContext: UserRoleContext = {
-    user_id: 'mock-user-001',
+    user_id: 'J4OG6wYzz6Mz4YcBQee8luJhxeNw2z9A', // Real user ID (roberto@accelerants.ai)
     workspace_id: mockWorkspace.id,
     role_name: 'owner',
     role_display_name: 'Owner',

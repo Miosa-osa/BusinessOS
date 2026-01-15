@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rhl/businessos-backend/internal/container"
+	"github.com/rhl/businessos-backend/internal/logging"
 )
 
 // Manager handles terminal session lifecycle
@@ -82,9 +83,26 @@ func (m *Manager) UpdateSecurityConfig(config *SessionSecurityConfig) {
 	m.securityConfig = config
 }
 
+// shouldUseContainer determines if a session should use Docker based on requested mode
+func (m *Manager) shouldUseContainer(requestedMode TerminalMode) bool {
+	if requestedMode == TerminalModeLocal {
+		logging.Info("[Terminal] 🚫 Mode=LOCAL requested - FORCING PTY (not Docker)")
+		return false // User explicitly wants local PTY
+	}
+	if requestedMode == TerminalModeDocker {
+		result := m.useContainers && m.containerMgr != nil
+		logging.Info("[Terminal] 🐳 Mode=DOCKER requested - useContainers=%v, containerMgr=%v, result=%v", m.useContainers, m.containerMgr != nil, result)
+		return result // Docker only if available
+	}
+	// Default: use global setting
+	logging.Info("[Terminal] ⚙️  Mode=DEFAULT (empty) - using global setting useContainers=%v", m.useContainers)
+	return m.useContainers
+}
+
 // CreateSession creates a new terminal session
 // clientIP is optional but recommended for session hijacking protection
-func (m *Manager) CreateSession(userID string, cols, rows int, shell, workingDir string, clientIP ...string) (*Session, error) {
+// requestedMode allows per-session mode override (docker/local)
+func (m *Manager) CreateSession(userID string, cols, rows int, shell, workingDir string, requestedMode TerminalMode, clientIP ...string) (*Session, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -99,9 +117,9 @@ func (m *Manager) CreateSession(userID string, cols, rows int, shell, workingDir
 		return nil, fmt.Errorf("maximum global session limit reached")
 	}
 
-	// Determine working directory
+	// Determine working directory based on requested mode
 	if workingDir == "" {
-		if m.useContainers {
+		if m.shouldUseContainer(requestedMode) {
 			workingDir = "/workspace"
 		} else {
 			workingDir = getDefaultWorkingDir()
@@ -123,24 +141,29 @@ func (m *Manager) CreateSession(userID string, cols, rows int, shell, workingDir
 	}
 
 	// Create session with security fields
+	// Determine if we should use container BEFORE creating session
+	// so we can set the correct PS1 prompt
+	willUseContainer := m.shouldUseContainer(requestedMode)
+
 	session := &Session{
-		ID:           uuid.New().String(),
-		UserID:       userID,
-		CreatedAt:    now,
-		LastActivity: now,
-		Cols:         cols,
-		Rows:         rows,
-		Shell:        shell,
-		WorkingDir:   workingDir,
-		Status:       StatusActive,
-		Environment:  m.buildEnvironment(userID),
-		ClientIP:     ip,
-		ClientSubnet: subnet,
-		ExpiresAt:    expiresAt,
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		CreatedAt:     now,
+		LastActivity:  now,
+		Cols:          cols,
+		Rows:          rows,
+		Shell:         shell,
+		WorkingDir:    workingDir,
+		Status:        StatusActive,
+		RequestedMode: requestedMode,
+		Environment:   m.buildEnvironment(userID, willUseContainer),
+		ClientIP:      ip,
+		ClientSubnet:  subnet,
+		ExpiresAt:     expiresAt,
 	}
 
-	// Start container or PTY based on configuration
-	if m.useContainers && m.containerMgr != nil {
+	// Start container or PTY based on requested mode
+	if willUseContainer {
 		if err := m.startContainer(session); err != nil {
 			return nil, fmt.Errorf("failed to start container: %w", err)
 		}
@@ -381,21 +404,24 @@ func (m *Manager) getUserSessionCount(userID string) int {
 	return count
 }
 
-func (m *Manager) buildEnvironment(userID string) map[string]string {
+func (m *Manager) buildEnvironment(userID string, useContainer bool) map[string]string {
 	env := make(map[string]string)
 	env["TERM"] = "xterm-256color"
 	env["LANG"] = "en_US.UTF-8"
 	env["COLORTERM"] = "truecolor"
 
-	// Enhanced PS1 to show Docker container info
-	// Shows: [🐳 docker] ~/workspace $
-	// Colors: green for docker indicator, cyan for path, white for $
-	if m.useContainers {
-		// Running in Docker container
+	// Enhanced PS1 to show terminal mode
+	if useContainer {
+		// Running in Docker container - show Docker indicator
+		// Shows: [🐳 docker] ~/workspace $
 		env["PS1"] = "\\[\\033[1;32m\\][🐳 docker]\\[\\033[0m\\] \\[\\033[1;36m\\]\\w\\[\\033[0m\\] \\$ "
 	} else {
-		// Running in local PTY
-		env["PS1"] = "\\[\\033[1;35m\\][local]\\[\\033[0m\\] \\[\\033[1;36m\\]\\w\\[\\033[0m\\] \\$ "
+		// Running in local PTY (Glimpse mode) - show real Mac prompt
+		// Shows: username@hostname currentdir %
+		// DON'T set PS1 at all - let zsh/bash use their defaults
+		// This will show the actual user@hostname prompt from the system
+		// For zsh (default on macOS), this will be: rhl@Robertos-Mac-Studio ~ %
+		// We intentionally don't set PS1 here to use system defaults
 	}
 
 	env["BUSINESSOS_USER_ID"] = userID // Pass user ID to container for internal API calls

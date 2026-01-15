@@ -13,7 +13,7 @@ export default defineConfig({
       external: [
         'electron',
         'better-sqlite3',
-        'electron-store',
+        // electron-store removed - let Vite bundle it with its dependencies
       ],
     },
   },

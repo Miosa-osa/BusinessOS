@@ -8,6 +8,7 @@
 		onToggleView?: () => void;
 		onToggleAutoRotate?: () => void;
 		onExit?: () => void;
+		onOpenAppRegistry?: () => void;
 	}
 
 	let {
@@ -16,7 +17,8 @@
 		hasFocusedWindow = false,
 		onToggleView,
 		onToggleAutoRotate,
-		onExit
+		onExit,
+		onOpenAppRegistry
 	}: Props = $props();
 
 	let showHelp = $state(false);
@@ -35,6 +37,18 @@
 
 	<!-- Top Right: View Controls -->
 	<div class="controls-top-right">
+		<!-- Add App Button -->
+		<button
+			class="control-btn add-app-btn"
+			onclick={onOpenAppRegistry}
+			title="Add Web App"
+		>
+			<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+			</svg>
+			<span>Add App</span>
+		</button>
+
 		<!-- Auto-Rotate Toggle -->
 		<button
 			class="control-btn"
@@ -248,6 +262,18 @@
 		border-color: rgba(200, 100, 100, 0.3);
 	}
 
+	.add-app-btn {
+		background: rgba(240, 253, 244, 0.9);
+		border-color: rgba(34, 197, 94, 0.2);
+		color: #16a34a;
+	}
+
+	.add-app-btn:hover {
+		background: rgba(220, 252, 231, 0.95);
+		border-color: rgba(34, 197, 94, 0.4);
+		color: #15803d;
+	}
+
 	.voice-btn.active {
 		background: rgba(59, 130, 246, 0.15);
 		border-color: rgba(59, 130, 246, 0.3);
@@ -305,6 +331,21 @@
 
 	:global(.dark) .exit-btn svg {
 		stroke: #ff8888;
+	}
+
+	:global(.dark) .add-app-btn {
+		background: rgba(30, 60, 40, 0.85);
+		border-color: rgba(34, 197, 94, 0.3);
+		color: #4ade80;
+	}
+
+	:global(.dark) .add-app-btn:hover {
+		background: rgba(40, 80, 50, 0.95);
+		border-color: rgba(34, 197, 94, 0.5);
+	}
+
+	:global(.dark) .add-app-btn svg {
+		stroke: #4ade80;
 	}
 
 	:global(.dark) .voice-btn.active {

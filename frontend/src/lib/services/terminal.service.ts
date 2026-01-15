@@ -15,6 +15,7 @@ export interface TerminalConfig {
 	rows?: number;
 	shell?: string;
 	cwd?: string;
+	mode?: 'docker' | 'local'; // Terminal mode: docker (containerized) or local (Mac)
 }
 
 export type TerminalEventHandler = {
@@ -41,7 +42,8 @@ export class TerminalService {
 			cols: config.cols ?? 80,
 			rows: config.rows ?? 24,
 			shell: config.shell ?? 'zsh',
-			cwd: config.cwd ?? ''
+			cwd: config.cwd ?? '',
+			mode: config.mode // CRITICAL: Copy mode from config parameter
 		};
 	}
 
@@ -63,7 +65,17 @@ export class TerminalService {
 			params.set('cwd', this.config.cwd);
 		}
 
+		// Add mode parameter if specified
+		if (this.config.mode) {
+			params.set('mode', this.config.mode);
+		}
+
 		const wsUrl = `${wsBase}/api/terminal/ws?${params.toString()}`;
+
+		// DEBUG: Log WebSocket URL to verify mode is being sent
+		console.log('[TerminalService] 🔧 Connecting with config:', this.config);
+		console.log('[TerminalService] 🔧 WebSocket URL:', wsUrl);
+		console.log('[TerminalService] 🔧 Mode parameter:', this.config.mode || '(not set)');
 
 		try {
 			this.ws = new WebSocket(wsUrl);

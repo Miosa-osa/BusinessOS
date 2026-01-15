@@ -8,6 +8,8 @@
 	import { browser } from '$app/environment';
 	import { isElectron, isMacOS } from '$lib/utils/platform';
 	import LayoutManager from '$lib/components/desktop3d/LayoutManager.svelte';
+	import AppRegistryModal from '$lib/components/desktop/AppRegistryModal.svelte';
+	import { currentWorkspaceId } from '$lib/stores/workspaces';
 
 	const session = useSession();
 
@@ -15,6 +17,7 @@
 	let showLayoutManager = $state(false);
 	let showSaveLayoutModal = $state(false);
 	let layoutNameInput = $state('');
+	let showAppRegistry = $state(false);
 
 	// Theme state
 	const isDarkMode = $derived($themeStore.resolvedTheme === 'dark');
@@ -176,6 +179,9 @@
 					desktop3dLayoutStore.resetToDefault();
 				}
 				break;
+			case 'add-apps':
+				showAppRegistry = true;
+				break;
 		}
 	}
 
@@ -254,6 +260,13 @@
 						{ label: 'Arrange Windows', action: 'arrange', disabled: true },
 						{ label: 'Tile Windows', action: 'tile', disabled: true },
 				  ]
+		},
+		{
+			id: 'apps',
+			label: 'Apps',
+			items: [
+				{ label: 'Add Applications', action: 'add-apps' },
+			]
 		},
 		{
 			id: 'window',
@@ -582,6 +595,11 @@
 
 <!-- Layout Manager Modal (3D Desktop) -->
 <LayoutManager show={showLayoutManager} onClose={() => showLayoutManager = false} />
+
+<!-- App Registry Modal -->
+{#if showAppRegistry && $currentWorkspaceId}
+	<AppRegistryModal workspaceId={$currentWorkspaceId} onClose={() => showAppRegistry = false} />
+{/if}
 
 <style>
 	.menu-bar {

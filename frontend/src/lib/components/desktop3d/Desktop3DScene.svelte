@@ -177,6 +177,7 @@
 {#each windows as window, index (window.id)}
 	<Desktop3DWindow
 		{window}
+		windowIndex={index}
 		isFocused={window.id === focusedWindowId}
 		isPrevWindow={focusedWindowId !== null && index === prevIndex}
 		isNextWindow={focusedWindowId !== null && index === nextIndex}

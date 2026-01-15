@@ -135,19 +135,34 @@ export class BackendManager {
         throw new Error(`Backend binary not found at: ${binaryPath}`);
       }
 
-      // Get user data path for SQLite database
-      const userDataPath = app.getPath('userData');
-      const dbPath = path.join(userDataPath, 'businessos.db');
+      // Local PostgreSQL database URL (same credentials as the web development server)
+      // For production, this should be replaced with the Supabase URL or environment config
+      const databaseUrl = process.env.DATABASE_URL ||
+        'postgres://rhl:password@localhost:5432/business_os?sslmode=disable';
+
+      // AI API keys (Groq for fast inference)
+      const groqApiKey = process.env.GROQ_API_KEY || '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';
+
+      // Log environment for debugging
+      console.log(`Backend env: SERVER_PORT=${this.port}, DATABASE_URL=${databaseUrl.substring(0, 30)}...`);
 
       // Spawn the backend process
+      // IMPORTANT: Set cwd to /tmp to avoid loading any .env files from the current directory
       this.process = spawn(binaryPath, [], {
         env: {
           ...process.env,
-          PORT: String(this.port),
-          DATABASE_MODE: 'sqlite',
-          DATABASE_PATH: dbPath,
+          SERVER_PORT: String(this.port),  // Go config uses SERVER_PORT not PORT
+          DATABASE_URL: databaseUrl,
+          // Skip Redis - backend gracefully handles missing Redis
+          REDIS_URL: '',
+          GROQ_API_KEY: groqApiKey,
+          AI_PROVIDER: 'groq',
           ELECTRON_MODE: 'true',
+          SECRET_KEY: 'desktop-app-secret-key-32-chars!',
+          // Allow connections from the Electron app
+          ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:18080,app://localhost,app://-',
         },
+        cwd: '/tmp',  // Run from /tmp to avoid loading any .env files
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: false,
       });
