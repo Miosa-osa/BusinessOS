@@ -107,6 +107,14 @@ export default defineConfig({
 				target: 'http://localhost:8001',
 				changeOrigin: true,
 			},
+			'/api/livekit': {
+				target: 'http://localhost:8001',
+				changeOrigin: true,
+			},
+			'/api/voice': {
+				target: 'http://localhost:8001',
+				changeOrigin: true,
+			},
 			'/api/ai': {
 				target: 'http://localhost:8001',
 				changeOrigin: true,

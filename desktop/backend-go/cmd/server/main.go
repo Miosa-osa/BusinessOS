@@ -698,6 +698,11 @@ func main() {
 		log.Printf("ElevenLabs service not configured (API key/voice ID not set)")
 	}
 
+	// NOTE: Voice processing moved to Python LiveKit agents (see python-voice-agent/)
+	// LiveKit token generation handled by handlers.HandleLiveKitToken
+	// User context provided by handlers.HandleVoiceUserContext
+	log.Printf("Voice system: Python LiveKit agents (tokens via /api/livekit/token, context via /api/voice/user-context)")
+
 	// Set Workspace service (Feature 1 - Team/Collaboration)
 	workspaceService := services.NewWorkspaceService(pool)
 	h.SetWorkspaceService(workspaceService)

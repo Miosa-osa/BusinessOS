@@ -5,13 +5,17 @@
  * Provides voice responses in 3D Desktop with speaking indicators.
  *
  * Features:
- * - Text-to-speech via ElevenLabs backend
+ * - Text-to-speech via ElevenLabs backend with emotional voice settings
  * - Audio playback with volume control
  * - Speaking state tracking
  * - Voice activity callbacks
+ * - Emotion-based voice modulation (Phase 1: Voice Agent Redesign)
  */
 
 import { browser } from '$app/environment';
+
+// Voice emotion types (moved from deleted emotionalTTS.ts)
+export type VoiceEmotion = 'excited' | 'empathetic' | 'thoughtful' | 'playful' | 'focused' | 'neutral';
 
 export type SpeakingCallback = (isSpeaking: boolean) => void;
 
@@ -41,9 +45,14 @@ export class OSAVoiceService {
 	}
 
 	/**
-	 * Speak text using OSA voice
+	 * Speak text using OSA voice with optional emotion
+	 *
+	 * Phase 1: Voice Agent Redesign - Emotion-based voice modulation
+	 *
+	 * @param text - Text to speak
+	 * @param emotion - Optional emotion for voice modulation (excited, empathetic, thoughtful, playful, focused, neutral)
 	 */
-	async speak(text: string): Promise<boolean> {
+	async speak(text: string, emotion?: VoiceEmotion): Promise<boolean> {
 		if (!browser) return false;
 
 		if (!text || text.trim().length === 0) {
@@ -51,9 +60,9 @@ export class OSAVoiceService {
 			return false;
 		}
 
-		// Add to queue
-		this.audioQueue.push(text);
-		console.log(`[OSA Voice] Queued: "${text.substring(0, 50)}..." (Queue size: ${this.audioQueue.length})`);
+		// Add to queue with emotion
+		this.audioQueue.push(JSON.stringify({ text, emotion: emotion || 'neutral' }));
+		console.log(`[OSA Voice] Queued: "${text.substring(0, 50)}..." (Emotion: ${emotion || 'neutral'}, Queue size: ${this.audioQueue.length})`);
 
 		// Start processing queue if not already processing
 		if (!this.isProcessingQueue) {
@@ -105,10 +114,23 @@ export class OSAVoiceService {
 		this.isProcessingQueue = true;
 
 		while (this.audioQueue.length > 0) {
-			const text = this.audioQueue.shift()!;
-			console.log(`[OSA Voice] Speaking: "${text.substring(0, 50)}..."`);
+			const queueItem = this.audioQueue.shift()!;
+
+			// Parse queue item (text + emotion)
+			let text: string;
+			let emotion: VoiceEmotion = 'neutral';
 			try {
-				await this.speakNow(text);
+				const parsed = JSON.parse(queueItem);
+				text = parsed.text;
+				emotion = parsed.emotion || 'neutral';
+			} catch {
+				// Fallback for legacy queue items (plain text)
+				text = queueItem;
+			}
+
+			console.log(`[OSA Voice] Speaking: "${text.substring(0, 50)}..." (Emotion: ${emotion})`);
+			try {
+				await this.speakNow(text, emotion);
 			} catch (err) {
 				console.error('[OSA Voice] Error speaking, continuing queue:', err);
 				// Continue processing queue even on error
@@ -128,19 +150,21 @@ export class OSAVoiceService {
 
 	/**
 	 * Speak immediately (internal)
+	 *
+	 * Phase 1: Voice Agent Redesign - Send emotion to backend for emotional TTS
 	 */
-	private async speakNow(text: string): Promise<void> {
+	private async speakNow(text: string, emotion: VoiceEmotion = 'neutral'): Promise<void> {
 		try {
-			console.log('[OSA Voice] Requesting TTS', { text_length: text.length });
+			console.log('[OSA Voice] Requesting TTS', { text_length: text.length, emotion });
 
-			// Call backend TTS endpoint
+			// Call backend TTS endpoint with emotion
 			const response = await fetch('/api/osa/speak', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
 				credentials: 'include',
-				body: JSON.stringify({ text })
+				body: JSON.stringify({ text, emotion })
 			});
 
 			if (!response.ok) {
@@ -153,7 +177,7 @@ export class OSAVoiceService {
 			const audioBlob = await response.blob();
 			const audioUrl = URL.createObjectURL(audioBlob);
 
-			console.log('[OSA Voice] Audio received', { size_bytes: audioBlob.size });
+			console.log('[OSA Voice] Audio received', { size_bytes: audioBlob.size, emotion });
 
 			// Play audio
 			await this.playAudio(audioUrl);

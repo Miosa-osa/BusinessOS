@@ -664,7 +664,7 @@
 			category: 'ai',
 			subcategory: 'Chat Assistants',
 			description: 'AI assistant by OpenAI',
-			logo: 'https://www.google.com/s2/favicons?domain=chat.openai.com&sz=128',
+			logo: '/logos/integrations/openai.svg',
 			featured: true
 		},
 		{
@@ -2212,7 +2212,7 @@
 		width: 100%;
 		display: flex;
 		flex-direction: column;
-		background: #1a1a1a;
+		background: #f8fafc;
 	}
 
 	.page-content {
@@ -2220,7 +2220,7 @@
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
-		background: #1a1a1a;
+		background: #f8fafc;
 	}
 
 	.page-header {
@@ -2249,25 +2249,25 @@
 	}
 
 	.page-container .main-tabs {
-		background: #1a1a1a;
+		background: white;
 		padding: 0.875rem 1.5rem;
-		border-bottom: 1px solid #333;
+		border-bottom: 1px solid #e5e7eb;
 		gap: 0.75rem;
 	}
 
 	.page-container .main-tab {
-		color: #9ca3af;
-		background: #2a2a2a;
-		border: 1px solid #3a3a3a;
+		color: #6b7280;
+		background: #f3f4f6;
+		border: 1px solid #e5e7eb;
 		padding: 0.625rem 1.25rem;
 		border-radius: 0.5rem;
 		font-weight: 500;
 	}
 
 	.page-container .main-tab:hover {
-		background: #333;
-		color: #ffffff;
-		border-color: #4a4a4a;
+		background: #e5e7eb;
+		color: #374151;
+		border-color: #d1d5db;
 	}
 
 	.page-container .main-tab.active {
@@ -2276,10 +2276,10 @@
 		border-color: #0A84FF !important;
 	}
 
-	/* Page mode - Dark sidebar */
+	/* Page mode - Light sidebar */
 	.page-container .sidebar {
-		background: #1f1f1f;
-		border-right-color: #333;
+		background: #f9fafb;
+		border-right-color: #e5e7eb;
 	}
 
 	.page-container .sidebar-title {
@@ -2287,13 +2287,13 @@
 	}
 
 	.page-container .category-btn {
-		color: #9ca3af;
+		color: #6b7280;
 		background: transparent;
 	}
 
 	.page-container .category-btn:hover {
-		background: #2a2a2a;
-		color: #fff;
+		background: #e5e7eb;
+		color: #374151;
 	}
 
 	.page-container .category-btn.active {
@@ -2309,29 +2309,29 @@
 		color: #6b7280;
 	}
 
-	/* Page mode - Dark content area */
+	/* Page mode - Light content area */
 	.page-container .main-content {
-		background: #1a1a1a;
+		background: #f8fafc;
 	}
 
 	.page-container .search-wrapper {
-		background: #2a2a2a;
-		border-color: #3a3a3a;
+		background: white;
+		border-color: #e5e7eb;
 	}
 
 	.page-container .search-input {
 		background: transparent;
-		color: #fff;
+		color: #111827;
 	}
 
 	.page-container .search-input::placeholder {
-		color: #6b7280;
+		color: #9ca3af;
 	}
 
 	/* Page mode - Featured Apps section */
 	.page-container .featured-section {
-		background: #222 !important;
-		border: 1px solid #333 !important;
+		background: white !important;
+		border: 1px solid #e5e7eb !important;
 		border-radius: 16px !important;
 		padding: 1.25rem !important;
 		margin: 0 0 1.5rem 0 !important;
@@ -2342,7 +2342,7 @@
 	}
 
 	.page-container .section-header h3 {
-		color: #fff;
+		color: #111827;
 		font-size: 1rem;
 	}
 
@@ -2357,8 +2357,8 @@
 	}
 
 	.page-container .featured-card {
-		background: #2a2a2a !important;
-		border: 1px solid #3a3a3a !important;
+		background: #f9fafb !important;
+		border: 1px solid #e5e7eb !important;
 		border-radius: 14px !important;
 		padding: 14px !important;
 		transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
@@ -2366,31 +2366,31 @@
 	}
 
 	.page-container .featured-card:hover:not(:disabled) {
-		background: #323232 !important;
-		border-color: #4a4a4a !important;
+		background: white !important;
+		border-color: #d1d5db !important;
 		transform: translateY(-1px) !important;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
 	}
 
 	.page-container .featured-card.added {
-		background: #2a2a2a !important;
-		border-color: #0A84FF !important;
+		background: #f0fdf4 !important;
+		border-color: #22c55e !important;
 	}
 
 	.page-container .featured-card.added:hover {
-		background: #2a2a2a !important;
-		border-color: #555 !important;
+		background: #f0fdf4 !important;
+		border-color: #16a34a !important;
 	}
 
 	.page-container .featured-name {
-		color: #fff !important;
+		color: #111827 !important;
 		font-weight: 500 !important;
 		white-space: normal !important;
 		overflow: visible !important;
 	}
 
 	.page-container .featured-desc {
-		color: #888 !important;
+		color: #6b7280 !important;
 		font-size: 0.75rem !important;
 		white-space: normal !important;
 		overflow: visible !important;
@@ -2415,7 +2415,7 @@
 	/* Featured card action button - subtle by default */
 	.page-container .featured-action {
 		background: transparent !important;
-		color: #666 !important;
+		color: #9ca3af !important;
 		border-radius: 8px !important;
 		width: 32px !important;
 		height: 32px !important;
@@ -2424,7 +2424,7 @@
 		display: flex !important;
 		align-items: center !important;
 		justify-content: center !important;
-		border: 1px solid #444 !important;
+		border: 1px solid #d1d5db !important;
 	}
 
 	/* Hover on non-added card - show blue */
@@ -2448,9 +2448,9 @@
 		border: none !important;
 	}
 
-	/* Override harsh red hover background for featured cards in dark mode */
+	/* Featured card red hover for remove action */
 	.page-container .featured-card.added:hover {
-		background: #2a2a2a !important;
+		background: #fef2f2 !important;
 		border-color: #ef4444 !important;
 	}
 
@@ -2481,17 +2481,17 @@
 	}
 
 	.page-container .apps-header h3 {
-		color: #fff;
+		color: #111827;
 	}
 
 	.page-container .apps-header span {
 		color: #6b7280;
 	}
 
-	/* Page mode - Dark app cards */
+	/* Page mode - Light app cards */
 	.page-container .app-card {
-		background: #2a2a2a !important;
-		border: 1px solid #3a3a3a !important;
+		background: white !important;
+		border: 1px solid #e5e7eb !important;
 		border-radius: 14px !important;
 		padding: 14px !important;
 		transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
@@ -2499,20 +2499,20 @@
 	}
 
 	.page-container .app-card:hover:not(:disabled) {
-		background: #323232 !important;
-		border-color: #4a4a4a !important;
+		background: #f9fafb !important;
+		border-color: #d1d5db !important;
 		transform: translateY(-1px) !important;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
 	}
 
 	.page-container .app-card.added {
-		background: #2a2a2a !important;
-		border-color: #0A84FF !important;
+		background: #f0fdf4 !important;
+		border-color: #22c55e !important;
 	}
 
 	.page-container .app-card.added:hover {
-		background: #2a2a2a !important;
-		border-color: #555 !important;
+		background: #f0fdf4 !important;
+		border-color: #16a34a !important;
 	}
 
 	.page-container .app-logo {
@@ -2526,7 +2526,7 @@
 	}
 
 	.page-container .app-name {
-		color: #fff !important;
+		color: #111827 !important;
 		font-weight: 500 !important;
 		white-space: normal !important;
 		overflow: visible !important;
@@ -2534,7 +2534,7 @@
 	}
 
 	.page-container .app-desc {
-		color: #888 !important;
+		color: #6b7280 !important;
 		font-size: 0.75rem !important;
 		white-space: normal !important;
 		overflow: visible !important;
@@ -2553,7 +2553,7 @@
 
 	/* Page mode - Subcategory headers */
 	.page-container .subcategory-header {
-		border-color: #3a3a3a !important;
+		border-color: #e5e7eb !important;
 		margin: 1.75rem 0 1.25rem 0 !important;
 		padding-bottom: 0.625rem !important;
 		border-bottom-width: 1px !important;
@@ -2564,23 +2564,23 @@
 	}
 
 	.page-container .subcategory-name {
-		color: #a0a0a0 !important;
+		color: #374151 !important;
 		font-size: 0.8125rem !important;
 		font-weight: 600 !important;
 		letter-spacing: 0.02em !important;
 	}
 
 	.page-container .subcategory-count {
-		color: #666 !important;
+		color: #6b7280 !important;
 		font-size: 0.75rem !important;
-		background: #333 !important;
+		background: #e5e7eb !important;
 		padding: 0.125rem 0.5rem !important;
 		border-radius: 10px !important;
 	}
 
 	/* Page mode - Content scroll area */
 	.page-container .content-scroll {
-		background: #1a1a1a;
+		background: #f8fafc;
 	}
 
 	.page-container .app-count {
@@ -2590,7 +2590,7 @@
 	/* Page mode - Add button - subtle by default, blue on hover */
 	.page-container .add-btn {
 		background: transparent !important;
-		color: #666 !important;
+		color: #9ca3af !important;
 		border-radius: 8px !important;
 		width: 32px !important;
 		height: 32px !important;
@@ -2599,7 +2599,7 @@
 		display: flex !important;
 		align-items: center !important;
 		justify-content: center !important;
-		border: 1px solid #444 !important;
+		border: 1px solid #d1d5db !important;
 	}
 
 	.page-container .app-card:hover:not(:disabled):not(.added) .add-btn {
@@ -2640,9 +2640,9 @@
 		display: flex !important;
 	}
 
-	/* Override the harsh light mode red hover for app cards in dark mode */
+	/* Added app card red hover for remove action */
 	.page-container .app-card.added:hover {
-		background: #2a2a2a !important;
+		background: #fef2f2 !important;
 		border-color: #ef4444 !important;
 	}
 
@@ -2659,7 +2659,7 @@
 
 	/* Page mode - Apps grid scroll area */
 	.page-container .apps-scroll {
-		background: #1a1a1a;
+		background: #f8fafc;
 	}
 
 	.page-container .apps-section {
@@ -2680,11 +2680,11 @@
 	.page-container .apps-section .section-header {
 		margin-bottom: 1.25rem !important;
 		padding-bottom: 0.75rem !important;
-		border-bottom: 1px solid #333 !important;
+		border-bottom: 1px solid #e5e7eb !important;
 	}
 
 	.page-container .apps-section .section-header h3 {
-		color: #fff;
+		color: #111827;
 		font-size: 1rem;
 	}
 
@@ -2696,11 +2696,11 @@
 
 	/* Page mode - Your apps section */
 	.page-container .your-apps-count {
-		background: #2a2a2a !important;
-		color: #9ca3af !important;
+		background: #f3f4f6 !important;
+		color: #6b7280 !important;
 		padding: 0.625rem 0.875rem !important;
 		border-radius: 10px !important;
-		border: 1px solid #3a3a3a !important;
+		border: 1px solid #e5e7eb !important;
 		font-size: 0.8125rem !important;
 	}
 
@@ -2713,7 +2713,7 @@
 		border-radius: 0.5rem;
 		padding: 0.5rem 0.75rem !important;
 		margin: 0 0.5rem;
-		border-top-color: #333 !important;
+		border-top-color: #e5e7eb !important;
 	}
 
 	.page-container .your-apps-section .sidebar-title {
@@ -2723,11 +2723,11 @@
 
 	/* Page mode - My Apps tab */
 	.page-container .myapps-wrapper {
-		background: #1a1a1a;
+		background: white;
 	}
 
 	.page-container .myapps-header h3 {
-		color: #fff;
+		color: #111827;
 	}
 
 	.page-container .myapps-header p {
@@ -2739,17 +2739,17 @@
 	}
 
 	.page-container .myapp-card {
-		background: #2a2a2a;
-		border-color: #3a3a3a;
+		background: white;
+		border-color: #e5e7eb;
 	}
 
 	.page-container .myapp-card:hover {
-		background: #333;
-		border-color: #4a4a4a;
+		background: #f9fafb;
+		border-color: #d1d5db;
 	}
 
 	.page-container .myapp-name {
-		color: #fff;
+		color: #111827;
 	}
 
 	.page-container .myapp-url {
@@ -2761,14 +2761,14 @@
 	}
 
 	.page-container .myapp-actions button {
-		background: #333;
-		color: #9ca3af;
-		border-color: #4a4a4a;
+		background: #f3f4f6;
+		color: #6b7280;
+		border-color: #e5e7eb;
 	}
 
 	.page-container .myapp-actions button:hover {
-		background: #444;
-		color: #fff;
+		background: #e5e7eb;
+		color: #374151;
 	}
 
 	.page-container .myapp-actions .myapp-delete:hover {

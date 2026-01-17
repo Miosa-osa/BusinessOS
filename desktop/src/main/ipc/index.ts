@@ -118,7 +118,8 @@ export function setupIpcHandlers(backendManager: BackendManager | null): void {
     }
   });
 
-  // Sync operations (to be implemented with sync engine)
+  // Sync operations are now handled in database.ts via setupDatabaseHandlers()
+  // Keeping only the stub status handler here for backwards compatibility
   ipcMain.handle('sync:get-status', () => {
     return {
       status: 'synced',
@@ -127,11 +128,7 @@ export function setupIpcHandlers(backendManager: BackendManager | null): void {
     };
   });
 
-  ipcMain.handle('sync:trigger', async () => {
-    // Trigger manual sync
-    console.log('Manual sync triggered');
-    return true;
-  });
+  // NOTE: sync:trigger handler is registered in database.ts, not here
 
   // Update operations (to be implemented with auto-updater)
   ipcMain.handle('updates:check', async () => {

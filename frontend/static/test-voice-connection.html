@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LiveKit Voice Test</title>
+    <script src="https://unpkg.com/livekit-client@2.0.7/dist/livekit-client.umd.js"></script>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover { background: #00cc00; }
+        button:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+        #log {
+            background: #0a0a0a;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #00ff00;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        .log-entry.error { color: #ff0000; }
+        .log-entry.success { color: #00ff00; }
+        .log-entry.info { color: #ffff00; }
+    </style>
+</head>
+<body>
+    <h1>🎤 LiveKit Voice Connection Test</h1>
+    <p>This tests the voice connection independently of the main app.</p>
+
+    <div>
+        <button id="connectBtn" onclick="connect()">Connect to Voice</button>
+        <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+        const { Room, RoomEvent, Track } = LivekitClient;
+        let room = null;
+
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            document.getElementById('log').appendChild(entry);
+            document.getElementById('log').scrollTop = document.getElementById('log').scrollHeight;
+            console.log(message);
+        }
+
+        async function connect() {
+            document.getElementById('connectBtn').disabled = true;
+            log('🎤 Starting voice connection test...', 'info');
+
+            try {
+                // 1. Get token from backend
+                log('Step 1: Requesting LiveKit token from backend...', 'info');
+                const response = await fetch('http://localhost:8001/api/livekit/token', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Token request failed: ${response.status} ${response.statusText}`);
+                }
+
+                const { token, url, room_name, identity } = await response.json();
+                log(`✅ Got token! Room: ${room_name}, Identity: ${identity}`, 'success');
+                log(`URL: ${url}`, 'info');
+
+                // 2. Create room and setup listeners
+                log('Step 2: Creating LiveKit room...', 'info');
+                room = new Room();
+
+                room.on(RoomEvent.Connected, () => {
+                    log('✅ Connected to LiveKit room!', 'success');
+                    document.getElementById('disconnectBtn').disabled = false;
+                });
+
+                room.on(RoomEvent.Disconnected, () => {
+                    log('❌ Disconnected from room', 'error');
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+                });
+
+                room.on(RoomEvent.ParticipantConnected, (participant) => {
+                    log(`🤖 Participant joined: ${participant.identity}`, 'success');
+                    if (participant.identity.includes('agent')) {
+                        log('🎉 VOICE AGENT JOINED THE ROOM!', 'success');
+                    }
+                });
+
+                room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                    log(`🔊 Track subscribed: ${track.kind} from ${participant.identity}`, 'success');
+
+                    if (track.kind === Track.Kind.Audio) {
+                        log('🗣️ Agent is speaking - attaching audio...', 'success');
+                        const audioElement = track.attach();
+                        document.body.appendChild(audioElement);
+                        audioElement.play().catch(e => {
+                            log(`Audio playback error: ${e.message}`, 'error');
+                        });
+
+                        track.on('ended', () => {
+                            log('🔇 Agent finished speaking', 'info');
+                            audioElement.remove();
+                        });
+                    }
+                });
+
+                room.on(RoomEvent.DataReceived, (payload, participant) => {
+                    try {
+                        const text = new TextDecoder().decode(payload);
+                        const data = JSON.parse(text);
+                        if (data.type === 'user_transcript') {
+                            log(`💬 You said: "${data.text}"`, 'success');
+                        } else if (data.type === 'agent_transcript') {
+                            log(`🤖 Agent said: "${data.text}"`, 'success');
+                        }
+                    } catch (e) {
+                        // Ignore non-JSON data
+                    }
+                });
+
+                // 3. Connect to room
+                log('Step 3: Connecting to room...', 'info');
+                await room.connect(url, token);
+                log('✅ Room connection established!', 'success');
+
+                // 4. Enable microphone
+                log('Step 4: Enabling microphone...', 'info');
+                await room.localParticipant.setMicrophoneEnabled(true);
+                log('✅ Microphone enabled! You can speak now.', 'success');
+                log('💡 Say "Hello OSA" and wait for the Python agent to join and respond.', 'info');
+
+            } catch (error) {
+                log(`❌ ERROR: ${error.message}`, 'error');
+                console.error('Full error:', error);
+                document.getElementById('connectBtn').disabled = false;
+            }
+        }
+
+        async function disconnect() {
+            if (room) {
+                log('🔌 Disconnecting...', 'info');
+                room.disconnect();
+                room = null;
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+            }
+        }
+
+        // Show initial instructions
+        log('Ready to test! Click "Connect to Voice" to start.', 'info');
+        log('Make sure:', 'info');
+        log('1. Go backend is running on port 8001', 'info');
+        log('2. Python voice agent is running (python agent.py dev)', 'info');
+        log('3. Browser has microphone permission', 'info');
+    </script>
+</body>
+</html>

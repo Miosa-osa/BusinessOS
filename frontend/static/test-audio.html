@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Browser Audio Diagnostic Test</h1>
+
+    <h2>Test 1: HTML5 Audio Element</h2>
+    <button onclick="testAudioElement()">Play Test Beep</button>
+    <div id="status1" class="status"></div>
+
+    <h2>Test 2: Web Audio API</h2>
+    <button onclick="testWebAudio()">Play 440Hz Tone</button>
+    <div id="status2" class="status"></div>
+
+    <h2>Test 3: Speech Synthesis</h2>
+    <button onclick="testSpeech()">Speak Test Message</button>
+    <div id="status3" class="status"></div>
+
+    <h2>Troubleshooting Steps:</h2>
+    <ol>
+        <li><strong>Check system volume</strong> - Make sure your Mac volume is up</li>
+        <li><strong>Check browser tab</strong> - Look for a mute icon on the browser tab itself</li>
+        <li><strong>Check output device</strong> - System Settings → Sound → Output (make sure correct speakers selected)</li>
+        <li><strong>Try headphones</strong> - Plug in headphones to rule out speaker issues</li>
+        <li><strong>Try different browser</strong> - Test in Safari or Firefox</li>
+        <li><strong>Check browser permissions</strong> - Site Settings → Sound (make sure not blocked)</li>
+    </ol>
+
+    <script>
+        function testAudioElement() {
+            const status = document.getElementById('status1');
+            status.innerHTML = 'Loading...';
+
+            // Create a simple beep using data URI
+            const audio = new Audio('data:audio/wav;base64,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');
+
+            audio.onloadedmetadata = () => {
+                status.innerHTML += '<br>✅ Audio loaded';
+            };
+
+            audio.onplay = () => {
+                status.innerHTML += '<br>▶️ Playing...';
+            };
+
+            audio.onended = () => {
+                status.innerHTML += '<br>✅ Playback complete';
+            };
+
+            audio.onerror = (e) => {
+                status.innerHTML += '<br>❌ Error: ' + audio.error.message;
+            };
+
+            audio.play().then(() => {
+                status.innerHTML += '<br>✅ play() resolved';
+            }).catch(err => {
+                status.innerHTML = '❌ Failed: ' + err.message;
+            });
+        }
+
+        function testWebAudio() {
+            const status = document.getElementById('status2');
+            status.innerHTML = 'Creating tone...';
+
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = 440; // A4 note
+                gainNode.gain.value = 0.3;
+
+                oscillator.start();
+                status.innerHTML = '▶️ Playing 440Hz tone for 1 second...';
+
+                setTimeout(() => {
+                    oscillator.stop();
+                    status.innerHTML += '<br>✅ Done';
+                }, 1000);
+            } catch (err) {
+                status.innerHTML = '❌ Error: ' + err.message;
+            }
+        }
+
+        function testSpeech() {
+            const status = document.getElementById('status3');
+
+            if (!('speechSynthesis' in window)) {
+                status.innerHTML = '❌ Speech Synthesis not supported';
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance('Audio test successful. If you can hear this, your browser audio is working.');
+
+            utterance.onstart = () => {
+                status.innerHTML = '▶️ Speaking...';
+            };
+
+            utterance.onend = () => {
+                status.innerHTML = '✅ Speech complete';
+            };
+
+            utterance.onerror = (err) => {
+                status.innerHTML = '❌ Error: ' + err.error;
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+    </script>
+</body>
+</html>

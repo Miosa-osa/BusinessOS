@@ -8,7 +8,7 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('UNHANDLED REJECTION at:', promise, 'reason:', reason);
 });
 
-import { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, protocol, net } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, protocol, net, session } from 'electron';
 import path from 'path';
 import { createMainWindow, getMainWindow } from './window';
 import { setupIpcHandlers, initializeDatabaseSystem, startSync, stopSync } from './ipc';
@@ -290,6 +290,28 @@ function createAppMenu(): void {
 }
 
 /**
+ * Configure session to persist cookies for authentication
+ */
+function configureSessionPersistence(): void {
+  const ses = session.defaultSession;
+
+  // Configure session to persist cookies
+  // This ensures OAuth cookies survive app restarts
+  ses.setUserAgent(ses.getUserAgent() + ' BusinessOS-Desktop');
+
+  // Log session configuration for debugging
+  console.log('Session persistence configured');
+  console.log(`Session path: ${ses.getStoragePath()}`);
+
+  // Get all cookies to verify persistence (async, will complete after init)
+  ses.cookies.get({}).then(cookies => {
+    console.log(`Found ${cookies.length} persisted cookies`);
+  }).catch(err => {
+    console.error('Error checking cookies:', err);
+  });
+}
+
+/**
  * Initialize the application
  */
 async function initialize(): Promise<void> {
@@ -297,6 +319,10 @@ async function initialize(): Promise<void> {
   console.log(`Environment: ${isDev ? 'development' : 'production'}`);
   console.log(`App path: ${appPath}`);
   console.log(`Resources path: ${resourcesPath}`);
+
+  // Configure session persistence BEFORE anything else
+  // This ensures cookies from OAuth survive app restarts
+  configureSessionPersistence();
 
   // Initialize local SQLite database and sync engine
   initializeDatabaseSystem();
@@ -325,17 +351,20 @@ async function initialize(): Promise<void> {
   }
 
   // Start the Go backend sidecar
-  backendManager = new BackendManager(resourcesPath);
+  // Skip BackendManager in dev mode - use external backend instead
+  if (!isDev) {
+    backendManager = new BackendManager(resourcesPath);
 
-  try {
-    await backendManager.start();
-    console.log('Go backend started successfully');
-  } catch (error) {
-    console.error('Failed to start Go backend:', error);
-    // In dev mode, assume backend is running separately
-    if (!isDev) {
+    try {
+      await backendManager.start();
+      console.log('Go backend started successfully');
+    } catch (error) {
+      console.error('Failed to start Go backend:', error);
       throw error;
     }
+  } else {
+    console.log('Dev mode: Skipping embedded backend (use external backend)');
+    backendManager = null;
   }
 
   // Set up IPC handlers

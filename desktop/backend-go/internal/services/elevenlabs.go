@@ -43,7 +43,7 @@ func NewElevenLabsService() *ElevenLabsService {
 		voiceID: voiceID,
 		model:   model,
 		client: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: 10 * time.Second, // FAST: Reduce timeout
 		},
 	}
 }
@@ -53,6 +53,68 @@ type TextToSpeechRequest struct {
 	Text          string                 `json:"text"`
 	ModelID       string                 `json:"model_id"`
 	VoiceSettings map[string]interface{} `json:"voice_settings,omitempty"`
+}
+
+// VoiceEmotion represents emotional voice settings
+type VoiceEmotion string
+
+const (
+	EmotionExcited    VoiceEmotion = "excited"
+	EmotionEmpathetic VoiceEmotion = "empathetic"
+	EmotionThoughtful VoiceEmotion = "thoughtful"
+	EmotionPlayful    VoiceEmotion = "playful"
+	EmotionFocused    VoiceEmotion = "focused"
+	EmotionNeutral    VoiceEmotion = "neutral"
+)
+
+// EmotionalVoiceSettings returns ElevenLabs voice settings for a given emotion
+func EmotionalVoiceSettings(emotion VoiceEmotion) map[string]interface{} {
+	switch emotion {
+	case EmotionExcited:
+		return map[string]interface{}{
+			"stability":         0.3, // More expressive
+			"similarity_boost":  0.75,
+			"style":             0.6, // Higher style exaggeration
+			"use_speaker_boost": true,
+		}
+	case EmotionEmpathetic:
+		return map[string]interface{}{
+			"stability":         0.7, // More stable, calming
+			"similarity_boost":  0.8,
+			"style":             0.2, // Subtle style
+			"use_speaker_boost": true,
+		}
+	case EmotionThoughtful:
+		return map[string]interface{}{
+			"stability":         0.5,
+			"similarity_boost":  0.75,
+			"style":             0.3,
+			"use_speaker_boost": true,
+		}
+	case EmotionPlayful:
+		return map[string]interface{}{
+			"stability":         0.4,
+			"similarity_boost":  0.7,
+			"style":             0.5,
+			"use_speaker_boost": true,
+		}
+	case EmotionFocused:
+		return map[string]interface{}{
+			"stability":         0.6, // Clear and direct
+			"similarity_boost":  0.8,
+			"style":             0.3,
+			"use_speaker_boost": true,
+		}
+	case EmotionNeutral:
+		fallthrough
+	default:
+		return map[string]interface{}{
+			"stability":         0.5,
+			"similarity_boost":  0.75,
+			"style":             0.4,
+			"use_speaker_boost": true,
+		}
+	}
 }
 
 // TextToSpeech converts text to speech audio
@@ -71,9 +133,9 @@ func (s *ElevenLabsService) TextToSpeech(ctx context.Context, text string) ([]by
 		Text:    text,
 		ModelID: s.model,
 		VoiceSettings: map[string]interface{}{
-			"stability":        0.5,
-			"similarity_boost": 0.75,
-			"style":            0.0,
+			"stability":         0.5,
+			"similarity_boost":  0.75,
+			"style":             0.0,
 			"use_speaker_boost": true,
 		},
 	}
@@ -94,8 +156,6 @@ func (s *ElevenLabsService) TextToSpeech(ctx context.Context, text string) ([]by
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("xi-api-key", s.apiKey)
 
-	slog.Info("[ElevenLabs] Requesting TTS", "text_length", len(text), "model", s.model)
-
 	// Execute request
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -115,8 +175,6 @@ func (s *ElevenLabsService) TextToSpeech(ctx context.Context, text string) ([]by
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-
-	slog.Info("[ElevenLabs] ✅ TTS successful", "audio_size_bytes", len(audioData))
 
 	return audioData, nil
 }
@@ -211,6 +269,77 @@ func (s *ElevenLabsService) TextToSpeechStream(ctx context.Context, text string)
 	}()
 
 	return audioChan, errChan
+}
+
+// TextToSpeechWithSettings converts text to speech with custom voice settings
+// Allows dynamic emotion-based voice settings
+func (s *ElevenLabsService) TextToSpeechWithSettings(ctx context.Context, text string, voiceSettings map[string]interface{}) ([]byte, error) {
+	if s.apiKey == "" {
+		return nil, fmt.Errorf("ElevenLabs API key not configured")
+	}
+
+	if s.voiceID == "" {
+		return nil, fmt.Errorf("ElevenLabs voice ID not configured")
+	}
+
+	// Prepare request payload with custom settings
+	payload := TextToSpeechRequest{
+		Text:          text,
+		ModelID:       s.model,
+		VoiceSettings: voiceSettings,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Create HTTP request
+	url := fmt.Sprintf("https://api.elevenlabs.io/v1/text-to-speech/%s", s.voiceID)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("xi-api-key", s.apiKey)
+
+	slog.Info("[ElevenLabs] Requesting TTS with custom settings",
+		"text_length", len(text),
+		"model", s.model,
+		"stability", voiceSettings["stability"])
+
+	// Execute request
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		slog.Error("[ElevenLabs] API error", "status", resp.StatusCode, "body", string(body))
+		return nil, fmt.Errorf("ElevenLabs API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	// Read audio data
+	audioData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	slog.Info("[ElevenLabs] ✅ TTS with custom settings successful", "audio_size_bytes", len(audioData))
+
+	return audioData, nil
+}
+
+// TextToSpeechWithEmotion converts text to speech with emotion-based settings
+// Convenience method that uses EmotionalVoiceSettings
+func (s *ElevenLabsService) TextToSpeechWithEmotion(ctx context.Context, text string, emotion VoiceEmotion) ([]byte, error) {
+	settings := EmotionalVoiceSettings(emotion)
+	return s.TextToSpeechWithSettings(ctx, text, settings)
 }
 
 // IsConfigured checks if the service is properly configured

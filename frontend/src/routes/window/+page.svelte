@@ -23,7 +23,11 @@
 	import AnimatedBackground from '$lib/components/desktop/AnimatedBackground.svelte';
 	import Desktop3D from '$lib/components/desktop3d/Desktop3D.svelte';
 	import AppRegistryModal from '$lib/components/desktop/AppRegistryModal.svelte';
+	import VoiceOrbPanel from '$lib/components/desktop3d/VoiceOrbPanel.svelte';
 	import type { CustomIconConfig } from '$lib/stores/windowStore';
+
+	// Simple voice service - clean and minimal
+	import { simpleVoice, type VoiceState } from '$lib/services/simpleVoice';
 
 	const APP_VERSION = '0.0.1';
 	const session = useSession();
@@ -31,6 +35,11 @@
 	// Boot screen logic - show full loading on every visit
 	let showBootScreen = $state(true);
 	let bootComplete = $state(false);
+
+	// Simple voice state
+	let isListening = $state(false);
+	let isSpeaking = $state(false);
+	let voiceState = $state<VoiceState>('disconnected');
 
 	onMount(async () => {
 		// Initialize workspace store
@@ -49,6 +58,8 @@
 			showBootScreen = false;
 			bootComplete = true;
 		}, 1000); // 1 second for boot animation
+
+		// Voice is handled by LiveKit - see toggleVoiceListening()
 	});
 
 	onDestroy(() => {
@@ -815,6 +826,43 @@
 	const contextMenuIcon = $derived(
 		contextMenuIconId ? $windowStore.desktopIcons.find(i => i.id === contextMenuIconId) : null
 	);
+
+	// Voice Agent - Toggle voice listening
+	async function toggleVoiceListening() {
+		if (voiceState !== 'disconnected') {
+			// Disconnect
+			console.log('[WindowDesktop] 🎤 Disconnecting...');
+			await simpleVoice.disconnect();
+			isListening = false;
+			console.log('[WindowDesktop] ✅ Disconnected');
+		} else {
+			try {
+				console.log('[WindowDesktop] 🎤 Connecting...');
+
+				// Set up callbacks
+				simpleVoice.setStateCallback((state: VoiceState) => {
+					voiceState = state;
+					isListening = state === 'connected' || state === 'speaking';
+					isSpeaking = state === 'speaking';
+				});
+
+				simpleVoice.setUserCallback((text: string) => {
+					console.log('[WindowDesktop] User said:', text);
+				});
+
+				simpleVoice.setAgentCallback((text: string) => {
+					console.log('[WindowDesktop] Agent said:', text);
+				});
+
+				await simpleVoice.connect();
+				isListening = true;
+				console.log('[WindowDesktop] ✅ Connected - speak naturally!');
+			} catch (err) {
+				console.error('[WindowDesktop] Voice activation failed:', err);
+				alert('Failed to activate voice: ' + (err as Error).message);
+			}
+		}
+	}
 </script>
 
 <svelte:head>
@@ -1298,6 +1346,9 @@
 				{/if}
 			</div>
 		{/if}
+
+		<!-- Voice Agent Cloud Panel -->
+		<VoiceOrbPanel {isListening} {isSpeaking} onToggleListening={toggleVoiceListening} />
 	</div>
 	{/if}
 {/if}

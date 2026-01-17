@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -242,6 +243,22 @@ func (sc *SessionCache) InvalidateUserSessions(ctx context.Context, userID strin
 // CachedAuthMiddleware provides Redis-cached session validation with PostgreSQL fallback
 func CachedAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// DEV MODE: Bypass auth for local development
+		if os.Getenv("DEV_AUTH_BYPASS") == "true" {
+			devUser := &BetterAuthUser{
+				ID:            "iV1MnkDZLcQRh9HkII3Q_Q",
+				Name:          "Roberto Huacuja Luna",
+				Email:         "roberto@lunivate.com",
+				EmailVerified: true,
+				CreatedAt:     time.Now(),
+				UpdatedAt:     time.Now(),
+			}
+			c.Set(UserContextKey, devUser)
+			c.Set("user_id", devUser.ID)
+			c.Next()
+			return
+		}
+
 		// Extract session token
 		sessionCookie, err := c.Cookie(SessionCookieName)
 		if err != nil || sessionCookie == "" {
@@ -289,7 +306,7 @@ func CachedAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.HandlerFu
 					UpdatedAt:     cached.UpdatedAt,
 				}
 				c.Set(UserContextKey, user)
-			c.Set("user_id", user.ID) // Also set user_id for integration handlers
+				c.Set("user_id", user.ID) // Also set user_id for integration handlers
 				c.Next()
 				return
 			}

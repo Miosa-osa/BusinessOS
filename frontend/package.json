@@ -42,7 +42,6 @@
 		"wait-on": "^9.0.3"
 	},
 	"dependencies": {
-		"@deepgram/sdk": "^4.11.3",
 		"@mediapipe/camera_utils": "^0.3.1675466862",
 		"@mediapipe/drawing_utils": "^0.3.1675466124",
 		"@mediapipe/hands": "^0.4.1675469240",
@@ -73,6 +72,7 @@
 		"cmdk": "^1.1.1",
 		"embla-carousel-react": "^8.6.0",
 		"frontend": "file:",
+		"livekit-client": "^2.17.0",
 		"lucide-react": "^0.559.0",
 		"lucide-svelte": "^0.562.0",
 		"motion": "^12.23.26",

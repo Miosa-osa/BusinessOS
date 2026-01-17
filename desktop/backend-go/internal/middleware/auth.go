@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -31,6 +32,24 @@ const (
 // AuthMiddleware validates Better Auth session from cookie
 func AuthMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// DEV MODE: Bypass auth for local development
+		devBypass := os.Getenv("DEV_AUTH_BYPASS")
+		log.Printf("[AuthMiddleware] DEV_AUTH_BYPASS=%q", devBypass)
+		if devBypass == "true" {
+			devUser := &BetterAuthUser{
+				ID:            "iV1MnkDZLcQRh9HkII3Q_Q",
+				Name:          "Roberto Huacuja Luna",
+				Email:         "roberto@lunivate.com",
+				EmailVerified: true,
+				CreatedAt:     time.Now(),
+				UpdatedAt:     time.Now(),
+			}
+			c.Set(UserContextKey, devUser)
+			c.Set("user_id", devUser.ID)
+			c.Next()
+			return
+		}
+
 		// Get session token from cookie
 		sessionCookie, err := c.Cookie(SessionCookieName)
 		if err != nil || sessionCookie == "" {

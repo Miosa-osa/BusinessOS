@@ -122,7 +122,7 @@ func (h *EmailAuthHandler) SignUp(c *gin.Context) {
 		Value:    sessionToken,
 		Path:     "/",
 		Domain:   domain,
-		MaxAge:   60 * 60 * 24 * 7, // 7 days
+		MaxAge:   60 * 60 * 24 * 30, // 30 days - persistent login
 		HttpOnly: true,
 		Secure:   isProduction,
 		SameSite: sameSite,
@@ -215,7 +215,7 @@ func (h *EmailAuthHandler) SignIn(c *gin.Context) {
 	// Browsers allow SameSite=None without Secure for localhost
 	sameSite := http.SameSiteLaxMode
 	secure := isProduction
-	
+
 	if !isProduction {
 		sameSite = http.SameSiteNoneMode
 		secure = false // localhost is exempt from Secure requirement for SameSite=None
@@ -226,7 +226,7 @@ func (h *EmailAuthHandler) SignIn(c *gin.Context) {
 		Value:    sessionToken,
 		Path:     "/",
 		Domain:   domain,
-		MaxAge:   60 * 60 * 24 * 7, // 7 days
+		MaxAge:   60 * 60 * 24 * 30, // 30 days - persistent login
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: sameSite,
@@ -246,7 +246,7 @@ func (h *EmailAuthHandler) SignIn(c *gin.Context) {
 func (h *EmailAuthHandler) createSession(ctx context.Context, userID string) (string, error) {
 	sessionToken := generateSessionToken()
 	sessionID := generateSessionID()
-	expiresAt := time.Now().Add(7 * 24 * time.Hour) // 7 days
+	expiresAt := time.Now().Add(30 * 24 * time.Hour) // 30 days - persistent login
 
 	_, err := h.pool.Exec(ctx, `
 		INSERT INTO session (id, "userId", token, "expiresAt", "createdAt", "updatedAt")

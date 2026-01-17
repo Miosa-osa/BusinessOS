@@ -115,6 +115,35 @@ function createUserAppsStore() {
 				});
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : 'Failed to fetch apps';
+
+				// In dev mode, fall back to mock apps
+				const isDev = typeof window !== 'undefined' &&
+					(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+				if (isDev) {
+					console.log('[UserApps] API failed in dev mode, loading mock apps');
+					const mockApps = getMockUserApps(workspaceId);
+					update((state) => ({
+						...state,
+						apps: mockApps,
+						loading: false,
+						error: null
+					}));
+
+					// Register mock apps with windowStore
+					mockApps.forEach((app: UserApp) => {
+						windowStore.registerUserApp({
+							id: app.id,
+							name: app.name,
+							url: app.url,
+							icon: app.icon,
+							color: app.color,
+							logo_url: app.logo_url
+						});
+					});
+					return;
+				}
+
 				update((state) => ({
 					...state,
 					loading: false,
@@ -349,3 +378,97 @@ function createUserAppsStore() {
 }
 
 export const userAppsStore = createUserAppsStore();
+
+/**
+ * Mock user apps for dev mode when API is unavailable
+ */
+function getMockUserApps(workspaceId: string): UserApp[] {
+	const now = new Date().toISOString();
+	return [
+		{
+			id: 'mock-app-1',
+			user_id: 'mock-user',
+			workspace_id: workspaceId,
+			name: 'Notion',
+			url: 'https://notion.so',
+			icon: 'FileText',
+			color: '#000000',
+			logo_url: 'https://www.notion.so/images/favicon.ico',
+			category: 'productivity',
+			description: 'Notes and documentation',
+			iframe_config: {},
+			is_active: true,
+			app_type: 'web',
+			created_at: now,
+			updated_at: now
+		},
+		{
+			id: 'mock-app-2',
+			user_id: 'mock-user',
+			workspace_id: workspaceId,
+			name: 'Figma',
+			url: 'https://figma.com',
+			icon: 'Pen',
+			color: '#F24E1E',
+			logo_url: 'https://static.figma.com/app/icon/1/favicon.ico',
+			category: 'design',
+			description: 'Design and prototyping',
+			iframe_config: {},
+			is_active: true,
+			app_type: 'web',
+			created_at: now,
+			updated_at: now
+		},
+		{
+			id: 'mock-app-3',
+			user_id: 'mock-user',
+			workspace_id: workspaceId,
+			name: 'Linear',
+			url: 'https://linear.app',
+			icon: 'CheckSquare',
+			color: '#5E6AD2',
+			logo_url: 'https://linear.app/favicon.ico',
+			category: 'project',
+			description: 'Issue tracking',
+			iframe_config: {},
+			is_active: true,
+			app_type: 'web',
+			created_at: now,
+			updated_at: now
+		},
+		{
+			id: 'mock-app-4',
+			user_id: 'mock-user',
+			workspace_id: workspaceId,
+			name: 'Slack',
+			url: 'https://slack.com',
+			icon: 'MessageSquare',
+			color: '#4A154B',
+			logo_url: 'https://a.slack-edge.com/80588/marketing/img/meta/favicon-32.png',
+			category: 'communication',
+			description: 'Team communication',
+			iframe_config: {},
+			is_active: true,
+			app_type: 'web',
+			created_at: now,
+			updated_at: now
+		},
+		{
+			id: 'mock-app-5',
+			user_id: 'mock-user',
+			workspace_id: workspaceId,
+			name: 'GitHub',
+			url: 'https://github.com',
+			icon: 'GitBranch',
+			color: '#181717',
+			logo_url: 'https://github.com/favicon.ico',
+			category: 'development',
+			description: 'Code repository',
+			iframe_config: {},
+			is_active: true,
+			app_type: 'web',
+			created_at: now,
+			updated_at: now
+		}
+	];
+}

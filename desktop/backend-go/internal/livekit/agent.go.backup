@@ -1,0 +1,357 @@
+package livekit
+
+import (
+	"bytes"
+	"context"
+	"encoding/binary"
+	"fmt"
+	"log/slog"
+	"os"
+	"sync"
+	"time"
+
+	lksdk "github.com/livekit/server-sdk-go/v2"
+	"github.com/pion/webrtc/v4"
+	"github.com/rhl/businessos-backend/internal/voice"
+	"gopkg.in/hraban/opus.v2"
+)
+
+// VoiceAgent represents a LiveKit voice agent that joins rooms and processes audio
+type VoiceAgent struct {
+	voiceService *voice.VoiceAgentService
+	activeRooms  map[string]*lksdk.Room
+	mu           sync.RWMutex
+	livekitURL   string
+	apiKey       string
+	apiSecret    string
+	shutdownChan chan struct{}
+}
+
+// NewVoiceAgent creates a new LiveKit voice agent
+func NewVoiceAgent(voiceService *voice.VoiceAgentService) (*VoiceAgent, error) {
+	livekitURL := os.Getenv("LIVEKIT_URL")
+	apiKey := os.Getenv("LIVEKIT_API_KEY")
+	apiSecret := os.Getenv("LIVEKIT_API_SECRET")
+
+	if livekitURL == "" || apiKey == "" || apiSecret == "" {
+		return nil, fmt.Errorf("LiveKit credentials not configured")
+	}
+
+	return &VoiceAgent{
+		voiceService: voiceService,
+		activeRooms:  make(map[string]*lksdk.Room),
+		livekitURL:   livekitURL,
+		apiKey:       apiKey,
+		apiSecret:    apiSecret,
+		shutdownChan: make(chan struct{}),
+	}, nil
+}
+
+// JoinRoom joins a LiveKit room as the OSA voice agent
+func (a *VoiceAgent) JoinRoom(ctx context.Context, roomName, userID, userName string) error {
+	a.mu.Lock()
+	// Check if already in this room
+	if _, exists := a.activeRooms[roomName]; exists {
+		a.mu.Unlock()
+		slog.Info("[LiveKit Agent] Already in room", "room", roomName)
+		return nil
+	}
+	a.mu.Unlock()
+
+	slog.Info("[LiveKit Agent] 🚀 Joining room", "room", roomName, "user", userName)
+
+	// Create room connection
+	room, err := lksdk.ConnectToRoom(a.livekitURL, lksdk.ConnectInfo{
+		APIKey:              a.apiKey,
+		APISecret:           a.apiSecret,
+		RoomName:            roomName,
+		ParticipantIdentity: "agent-osa",
+		ParticipantName:     "OSA",
+	}, &lksdk.RoomCallback{
+		ParticipantCallback: lksdk.ParticipantCallback{
+			OnTrackSubscribed: func(track *webrtc.TrackRemote, pub *lksdk.RemoteTrackPublication, rp *lksdk.RemoteParticipant) {
+				slog.Info("[LiveKit Agent] 🎯 OnTrackSubscribed CALLED",
+					"participant", rp.Identity(),
+					"track_sid", pub.SID(),
+					"track_kind", track.Kind())
+				a.onTrackSubscribed(ctx, track, pub, rp, userID, userName, roomName)
+			},
+			OnTrackPublished: func(pub *lksdk.RemoteTrackPublication, rp *lksdk.RemoteParticipant) {
+				slog.Info("[LiveKit Agent] 📢 OnTrackPublished",
+					"participant", rp.Identity(),
+					"track_sid", pub.SID(),
+					"track_kind", pub.Kind())
+			},
+			OnTrackUnsubscribed: func(track *webrtc.TrackRemote, pub *lksdk.RemoteTrackPublication, rp *lksdk.RemoteParticipant) {
+				slog.Info("[LiveKit Agent] 🔇 OnTrackUnsubscribed",
+					"participant", rp.Identity(),
+					"track_sid", pub.SID())
+			},
+		},
+		OnParticipantConnected: func(rp *lksdk.RemoteParticipant) {
+			slog.Info("[LiveKit Agent] 👥 Participant connected",
+				"identity", rp.Identity(),
+				"name", rp.Name())
+		},
+		OnParticipantDisconnected: func(rp *lksdk.RemoteParticipant) {
+			slog.Info("[LiveKit Agent] 👋 Participant disconnected",
+				"identity", rp.Identity())
+		},
+		OnDisconnected: func() {
+			slog.Info("[LiveKit Agent] 🔌 Disconnected from room", "room", roomName)
+			a.mu.Lock()
+			delete(a.activeRooms, roomName)
+			a.mu.Unlock()
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to connect to room: %w", err)
+	}
+
+	// Store active room
+	a.mu.Lock()
+	a.activeRooms[roomName] = room
+	a.mu.Unlock()
+
+	slog.Info("[LiveKit Agent] ✅ Joined room successfully", "room", roomName)
+
+	return nil
+}
+
+// onTrackSubscribed handles incoming audio tracks from users
+func (a *VoiceAgent) onTrackSubscribed(ctx context.Context, track *webrtc.TrackRemote, pub *lksdk.RemoteTrackPublication, participant *lksdk.RemoteParticipant, userID, userName, roomName string) {
+	// Only process audio tracks
+	if track.Kind() != webrtc.RTPCodecTypeAudio {
+		return
+	}
+
+	slog.Info("[LiveKit Agent] 🎤 Audio track subscribed - starting real-time processing",
+		"participant", participant.Identity(),
+		"track", pub.SID())
+
+	// Get the room instance
+	a.mu.RLock()
+	room, exists := a.activeRooms[roomName]
+	a.mu.RUnlock()
+
+	if !exists {
+		slog.Error("[LiveKit Agent] Room not found in activeRooms", "room", roomName)
+		return
+	}
+
+	// Process audio track in background goroutine
+	go a.processAudioTrack(ctx, track, pub, participant, room, userID, userName)
+}
+
+// processAudioTrack reads RTP packets and processes audio in real-time
+func (a *VoiceAgent) processAudioTrack(ctx context.Context, track *webrtc.TrackRemote, pub *lksdk.RemoteTrackPublication, participant *lksdk.RemoteParticipant, room *lksdk.Room, userID, userName string) {
+	const (
+		sampleRate       = 48000 // LiveKit uses 48kHz
+		channels         = 1     // Mono audio
+		frameSizeSamples = 960   // 20ms at 48kHz (48000 / 50)
+		silenceThreshold = 1500 * time.Millisecond
+	)
+
+	// Create Opus decoder
+	decoder, err := opus.NewDecoder(sampleRate, channels)
+	if err != nil {
+		slog.Error("[LiveKit Agent] Failed to create Opus decoder", "error", err)
+		return
+	}
+
+	// Buffer for collecting decoded PCM samples
+	pcmBuffer := make([]int16, 0, sampleRate*10) // 10 seconds max buffer
+	var lastPacketTime = time.Now()
+	frameBuffer := make([]int16, frameSizeSamples*channels)
+
+	// Silence detection timer
+	silenceCheckTicker := time.NewTicker(100 * time.Millisecond)
+	defer silenceCheckTicker.Stop()
+
+	slog.Info("[LiveKit Agent] 🎧 Starting real-time Opus decoding",
+		"participant", participant.Identity(),
+		"sample_rate", sampleRate,
+		"channels", channels)
+
+	// Channel for RTP packets
+	rtpChan := make(chan []byte, 100)
+
+	// Goroutine to read RTP packets
+	go func() {
+		for {
+			rtpPacket, _, err := track.ReadRTP()
+			if err != nil {
+				if err.Error() != "EOF" {
+					slog.Error("[LiveKit Agent] Error reading RTP packet", "error", err)
+				}
+				close(rtpChan)
+				return
+			}
+			rtpChan <- rtpPacket.Payload
+		}
+	}()
+
+	for {
+		select {
+		case payload, ok := <-rtpChan:
+			if !ok {
+				// Channel closed, process any remaining audio
+				if len(pcmBuffer) > 0 {
+					a.processUtterance(ctx, pcmBuffer, userID, userName, room, sampleRate, channels)
+				}
+				return
+			}
+
+			// Decode Opus frame to PCM
+			n, err := decoder.Decode(payload, frameBuffer)
+			if err != nil {
+				slog.Warn("[LiveKit Agent] Failed to decode Opus frame", "error", err)
+				continue
+			}
+
+			// Append decoded PCM samples to buffer
+			pcmBuffer = append(pcmBuffer, frameBuffer[:n*channels]...)
+			lastPacketTime = time.Now()
+
+		case <-silenceCheckTicker.C:
+			// Check for silence (no packets for silenceThreshold duration)
+			if time.Since(lastPacketTime) > silenceThreshold && len(pcmBuffer) > 0 {
+				slog.Info("[LiveKit Agent] 🔇 Silence detected - processing utterance",
+					"pcm_samples", len(pcmBuffer),
+					"duration_ms", len(pcmBuffer)*1000/sampleRate)
+
+				// Process the collected PCM audio
+				a.processUtterance(ctx, pcmBuffer, userID, userName, room, sampleRate, channels)
+
+				// Reset buffer
+				pcmBuffer = pcmBuffer[:0]
+			}
+		}
+	}
+
+	slog.Info("[LiveKit Agent] 🛑 Audio track processing stopped",
+		"participant", participant.Identity())
+}
+
+// processUtterance handles a complete user utterance (PCM samples)
+func (a *VoiceAgent) processUtterance(ctx context.Context, pcmSamples []int16, userID, userName string, participant *lksdk.RemoteParticipant, sampleRate, channels int) {
+	slog.Info("[LiveKit Agent] 🎯 Processing utterance",
+		"pcm_samples", len(pcmSamples),
+		"user", userName,
+		"duration_ms", len(pcmSamples)*1000/sampleRate)
+
+	// Convert PCM samples to WAV format for Whisper
+	wavData := wrapPCMInWAV(pcmSamples, sampleRate, channels)
+
+	// Create voice request
+	req := &voice.VoiceRequest{
+		AudioData: wavData,
+		Filename:  "livekit_audio.wav",
+		SystemState: voice.SystemState{
+			DesktopMode:   "orbit",
+			OpenWindows:   []string{},
+			FocusedWindow: "",
+			ActiveModule:  "",
+			Timestamp:     time.Now().Unix(),
+		},
+	}
+
+	// Process with voice service
+	response, err := a.voiceService.ProcessVoice(ctx, userID, userName, req)
+	if err != nil {
+		slog.Error("[LiveKit Agent] Voice processing failed", "error", err)
+		return
+	}
+
+	slog.Info("[LiveKit Agent] ✅ Voice processed",
+		"transcript", response.Transcript,
+		"response", response.Response)
+
+	// TODO: Publish TTS audio back to LiveKit room as audio track
+	slog.Warn("[LiveKit Agent] ⚠️ TTS audio playback not yet implemented - need to publish track")
+}
+
+// wrapPCMInWAV wraps PCM samples (int16) in a proper WAV container
+func wrapPCMInWAV(pcmSamples []int16, sampleRate, channels int) []byte {
+	var buf bytes.Buffer
+
+	// Convert int16 samples to bytes
+	pcmBytes := make([]byte, len(pcmSamples)*2)
+	for i, sample := range pcmSamples {
+		binary.LittleEndian.PutUint16(pcmBytes[i*2:], uint16(sample))
+	}
+
+	bitsPerSample := 16
+	byteRate := sampleRate * channels * bitsPerSample / 8
+	blockAlign := channels * bitsPerSample / 8
+
+	// WAV header
+	buf.WriteString("RIFF")
+	binary.Write(&buf, binary.LittleEndian, uint32(36+len(pcmBytes))) // File size - 8
+	buf.WriteString("WAVE")
+
+	// Format chunk
+	buf.WriteString("fmt ")
+	binary.Write(&buf, binary.LittleEndian, uint32(16))            // Subchunk1Size
+	binary.Write(&buf, binary.LittleEndian, uint16(1))             // Audio format (1 = PCM)
+	binary.Write(&buf, binary.LittleEndian, uint16(channels))      // Num channels
+	binary.Write(&buf, binary.LittleEndian, uint32(sampleRate))    // Sample rate
+	binary.Write(&buf, binary.LittleEndian, uint32(byteRate))      // Byte rate
+	binary.Write(&buf, binary.LittleEndian, uint16(blockAlign))    // Block align
+	binary.Write(&buf, binary.LittleEndian, uint16(bitsPerSample)) // Bits per sample
+
+	// Data chunk
+	buf.WriteString("data")
+	binary.Write(&buf, binary.LittleEndian, uint32(len(pcmBytes)))
+	buf.Write(pcmBytes)
+
+	return buf.Bytes()
+}
+
+// LeaveRoom disconnects from a specific room
+func (a *VoiceAgent) LeaveRoom(roomName string) error {
+	a.mu.Lock()
+	room, exists := a.activeRooms[roomName]
+	if !exists {
+		a.mu.Unlock()
+		return fmt.Errorf("not in room: %s", roomName)
+	}
+	delete(a.activeRooms, roomName)
+	a.mu.Unlock()
+
+	room.Disconnect()
+	slog.Info("[LiveKit Agent] 👋 Left room", "room", roomName)
+	return nil
+}
+
+// LeaveAllRooms disconnects from all active rooms
+func (a *VoiceAgent) LeaveAllRooms() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	for roomName, room := range a.activeRooms {
+		room.Disconnect()
+		slog.Info("[LiveKit Agent] 👋 Left room", "room", roomName)
+	}
+	a.activeRooms = make(map[string]*lksdk.Room)
+}
+
+// Shutdown gracefully shuts down the agent
+func (a *VoiceAgent) Shutdown() {
+	close(a.shutdownChan)
+	a.LeaveAllRooms()
+	slog.Info("[LiveKit Agent] 🛑 Shutdown complete")
+}
+
+// GetActiveRooms returns the list of active room names
+func (a *VoiceAgent) GetActiveRooms() []string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	rooms := make([]string, 0, len(a.activeRooms))
+	for name := range a.activeRooms {
+		rooms = append(rooms, name)
+	}
+	return rooms
+}

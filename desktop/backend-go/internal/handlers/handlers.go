@@ -53,8 +53,10 @@ type Handlers struct {
 	auditService           *services.WorkspaceAuditService  // Workspace audit logging
 	projectAccessService   *services.ProjectAccessService   // Project-level access control
 	// Voice services (3D Desktop)
-	whisperService    *services.WhisperService    // Local speech-to-text
-	elevenLabsService *services.ElevenLabsService // Text-to-speech (OSA voice)
+	// NOTE: Voice processing now uses Python LiveKit agents (see python-voice-agent/)
+	whisperService    *services.WhisperService    // Local speech-to-text (for voice notes)
+	elevenLabsService *services.ElevenLabsService // Text-to-speech (OSA voice, for non-voice-agent TTS)
+	// LiveKit token generation is in livekit.go handler (no service needed)
 	// Agent Skills System
 	skillsLoader *services.SkillsLoader // Skills loader for agent prompts
 	// OSA Integration - AI Agent Orchestration
@@ -119,6 +121,9 @@ func (h *Handlers) SetVoiceServices(whisper *services.WhisperService, elevenLabs
 	h.whisperService = whisper
 	h.elevenLabsService = elevenLabs
 }
+
+// SetLiveKitAgent removed - token generation now handled directly in livekit.go handler
+// No separate service needed for Python voice agents
 
 // SetPedroServices sets the Pedro task services (optional, to avoid breaking existing code)
 func (h *Handlers) SetPedroServices(
@@ -883,18 +888,35 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	{
 		transcribe.POST("", transcriptionHandler.TranscribeAudio)
 		transcribe.GET("/status", transcriptionHandler.GetTranscriptionStatus)
-		transcribe.POST("/realtime", h.HandleRealtimeTranscription) // Real-time voice transcription for active listening
+		// ⚡ Removed deprecated realtime endpoint - LiveKit handles all voice now
 	}
-	slog.Info("Transcription routes registered (including real-time)")
+	slog.Info("Transcription routes registered")
 
 	// OSA Voice routes - /api/osa
-	osa := api.Group("/osa")
-	osa.Use(auth)
+	// NOTE: These routes are deprecated - voice now uses Python LiveKit agent
+	// Uncomment if you need standalone TTS endpoints
+	// osa := api.Group("/osa")
+	// osa.Use(auth)
+	// {
+	// 	osa.POST("/speak", h.HandleOSASpeak)              // Convert text to speech
+	// 	osa.POST("/speak/stream", h.HandleOSASpeakStream) // Stream TTS for long text
+	// }
+	// slog.Info("OSA voice routes registered")
+
+	// LiveKit Voice routes - /api/livekit (Real-time voice with LiveKit)
+	livekit := api.Group("/livekit")
+	livekit.Use(auth)
 	{
-		osa.POST("/speak", h.HandleOSASpeak)              // Convert text to speech
-		osa.POST("/speak/stream", h.HandleOSASpeakStream) // Stream TTS for long text
+		livekit.POST("/token", h.HandleLiveKitToken) // Generate LiveKit room token
+		livekit.GET("/rooms", h.HandleLiveKitRooms)  // Get room info/status
+		// NOTE: /transcribe and /greeting routes deprecated - use /api/voice/* instead
 	}
-	slog.Info("OSA voice routes registered")
+	slog.Info("LiveKit voice routes registered")
+
+	// User context endpoint for Python LiveKit voice agent (no auth - internal service call)
+	// Called by python-voice-agent/ to fetch user context for personalized responses
+	api.GET("/voice/user-context/:user_id", h.HandleVoiceUserContext)
+	slog.Info("Voice user-context route registered")
 
 	// Voice notes routes - /api/voice-notes
 	voiceNotesHandler := NewVoiceNotesHandler(h.pool, h.embeddingService)

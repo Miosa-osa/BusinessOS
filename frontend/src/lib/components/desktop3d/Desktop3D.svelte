@@ -12,15 +12,39 @@
 	// import PermissionPrompt from './PermissionPrompt.svelte'; // DISABLED: Permissions now requested lazily when features enabled
 	import LayoutManager from './LayoutManager.svelte';
 	import LiveCaptions from './LiveCaptions.svelte';
-	import VoiceControlPanel from './VoiceControlPanel.svelte';
+	// Phase 0: Voice Agent Redesign - Replace cloud with silver orb
+	import VoiceOrbPanel from './VoiceOrbPanel.svelte';
 	import { desktop3dPermissions } from '$lib/services/desktop3dPermissions';
 	import { SimpleGestureController } from '$lib/services/simpleGestureController';
 	import * as THREE from 'three';
 	import { desktop3dLayoutStore } from '$lib/stores/desktop3dLayoutStore';
-	import { voiceTranscription } from '$lib/services/voiceTranscriptionService';
+	// Voice command parsing (still used for local commands)
 	import { voiceCommandParser, type VoiceCommand } from '$lib/services/voiceCommands';
-	import { osaVoiceService } from '$lib/services/osaVoice';
+	// Simple voice service - clean and minimal
+	import { simpleVoice, type VoiceState } from '$lib/services/simpleVoice';
 	import { useSession } from '$lib/auth-client';
+
+	// STUBS: Old voice services removed - LiveKit handles everything now
+	// These stubs prevent runtime errors while we clean up legacy code
+	const osaVoiceService = {
+		speak: (text: string, emotion?: string) => console.log('[Stub] OSA speak (ignored):', text?.substring(0, 30)),
+		stop: () => {},
+		onSpeakingChange: (cb: (speaking: boolean) => void) => {}
+	};
+	const emotionalTTS = {
+		detectEmotion: (text: string) => 'neutral' as const
+	};
+	const stateObserver = {
+		currentState: { openModules: [] as string[] },
+		trackModuleOpen: (module: string) => {},
+		trackModuleClose: (module: string) => {}
+	};
+	const executionOrchestrator = null;
+	// voiceTranscription stub (old Deepgram system)
+	const voiceTranscription = {
+		start: async (cb: any) => { console.log('[Stub] voiceTranscription.start (ignored)'); return false; },
+		stop: () => console.log('[Stub] voiceTranscription.stop (ignored)')
+	};
 
 	interface Props {
 		onExit?: () => void;
@@ -38,7 +62,13 @@
 	let lastRequestTime = 0;
 	const REQUEST_COOLDOWN = 1000; // 1 second cooldown between requests
 
-	// Conversation display
+	// Simple voice state
+	let voiceState = $state<VoiceState>('disconnected');
+
+	// Voice Agent state (alternative: backend AI processing with commands)
+	// REMOVED: voiceAgent system - LiveKit is the only voice system now
+
+	// Conversation display (from LiveKit transcripts)
 	let userMessage = $state('');
 	let osaMessage = $state('');
 
@@ -48,6 +78,9 @@
 	// Conversation persistence
 	let conversationId = $state<string | null>(null);
 	let conversationHistory: Array<{role: string, content: string}> = $state([]);
+
+	// Store unsubscribe function for desktop state
+	let unsubscribeDesktopState: (() => void) | null = null;
 
 	// Gesture control state (SIMPLE - using SimpleGestureController)
 	let gestureControlEnabled = $state(false);
@@ -128,10 +161,27 @@
 			}
 		}, 2000);
 
-		// Setup OSA voice speaking callback
-		osaVoiceService.onSpeakingChange((speaking) => {
-			isSpeaking = speaking;
+		// Setup simple voice callbacks
+		simpleVoice.setStateCallback((state: VoiceState) => {
+			console.log('[Desktop3D] Voice state:', state);
+			voiceState = state;
+			isListening = state === 'connected' || state === 'speaking';
+			isSpeaking = state === 'speaking';
 		});
+
+		simpleVoice.setUserCallback((text: string) => {
+			console.log('[Desktop3D] User said:', text);
+			userMessage = text;
+			currentTranscript = text;
+		});
+
+		simpleVoice.setAgentCallback((text: string) => {
+			console.log('[Desktop3D] Agent said:', text);
+			osaMessage = text;
+		});
+
+		// Voice is handled by LiveKit only
+		console.log('[Desktop3D] Voice system: LiveKit only');
 
 		// Check if media permissions are supported
 		if (!desktop3dPermissions.isSupported()) {
@@ -140,6 +190,19 @@
 			// Initialize permission service
 			desktop3dPermissions.initialize();
 			console.log('[Desktop3D] Permission service initialized');
+
+			// PRE-WARM: Request microphone permission early for faster voice activation
+			// This runs in background so it doesn't block UI
+			console.log('[Desktop3D] 🎤 Pre-warming microphone...');
+			desktop3dPermissions.acquireMicrophoneStream().then((stream) => {
+				if (stream) {
+					console.log('[Desktop3D] ✅ Microphone pre-warmed and ready');
+				} else {
+					console.log('[Desktop3D] ⚠️ Microphone not available (will request when needed)');
+				}
+			}).catch((err) => {
+				console.log('[Desktop3D] ⚠️ Microphone pre-warm skipped:', err.message);
+			});
 		}
 
 		// Initialize layout system (async - wait for it)
@@ -154,6 +217,11 @@
 		// Cleanup gesture controller
 		if (gestureController) {
 			gestureController.destroy();
+		}
+
+		// Cleanup desktop state subscription
+		if (unsubscribeDesktopState) {
+			unsubscribeDesktopState();
 		}
 
 		// CRITICAL: Release camera and microphone streams
@@ -252,48 +320,26 @@
 
 	// Voice command functions
 	async function toggleVoiceCommands() {
-		if (isListening) {
-			// Stop voice transcription
-			voiceTranscription.stop();
+		if (voiceState !== 'disconnected') {
+			// Disconnect
+			console.log('[Desktop3D] 🎤 Disconnecting...');
+			await simpleVoice.disconnect();
 			isListening = false;
 			currentTranscript = '';
-
-			// Stop the microphone stream
-			const micStream = desktop3dPermissions.getMicrophoneStream();
-			if (micStream) {
-				micStream.getTracks().forEach(track => track.stop());
-				console.log('[Desktop3D] 🎤 Microphone turned OFF');
-			}
+			console.log('[Desktop3D] ✅ Disconnected');
 		} else {
-			try {
-				console.log('[Desktop3D] 🎤 Acquiring microphone...');
-
-				// Acquire microphone stream (this will request permission if needed)
-				const stream = await desktop3dPermissions.acquireMicrophoneStream();
-
-				if (!stream) {
-					alert('Microphone access denied or unavailable');
-					return;
-				}
-
-				console.log('[Desktop3D] 🎤 Microphone acquired, starting voice system...');
-
-				// Start voice transcription with the acquired stream
-				const started = await voiceTranscription.start(handleTranscript);
-				if (started) {
-					isListening = true;
-					console.log('[Desktop3D] ✅ Voice system started');
-				} else {
-					alert('Voice system failed to start');
-					// Clean up stream if voice failed
-					stream.getTracks().forEach(track => track.stop());
-				}
-			} catch (err) {
-				console.error('[Desktop3D] Voice activation failed:', err);
-				alert('Failed to activate voice: ' + (err as Error).message);
-			}
+			// Connect
+			console.log('[Desktop3D] 🎤 Connecting...');
+			await simpleVoice.connect();
+			console.log('[Desktop3D] ✅ Connected - speak naturally!');
 		}
 	}
+
+	/**
+	 * Execute a command from the Voice Agent backend
+	 * Maps ParsedCommand to desktop3dStore actions
+	 */
+	// REMOVED: executeVoiceAgentCommand - LiveKit handles commands directly via callbacks
 
 	function handleTranscript(text: string, isFinal: boolean) {
 		currentTranscript = text;
@@ -312,10 +358,92 @@
 			// Store user message for display
 			userMessage = text;
 
-			// ARCHITECTURE FIX: Don't parse user input as commands!
-			// Just talk to AI agent. AI will execute commands via [CMD:xxx] markers.
-			console.log('[Voice] 💬 Routing to AI agent (no command parsing)');
-			handleConversation(text);
+			try {
+				// VOICE AGENT: Try local command parsing first, then AI for conversation
+				const command = voiceCommandParser.parse(text);
+				console.log('[Voice] 🧠 Parsed command:', command.type);
+
+				if (command.type !== 'unknown') {
+					// Known command - execute directly and give voice feedback
+					console.log('[Voice] ⚡ Executing command directly:', command.type);
+					executeCommandAction(command);
+					lastCommand = command;
+
+					// Give contextual voice feedback
+					const feedback = getCommandFeedback(command);
+					osaMessage = feedback;
+					console.log('[Voice] 🔊 Speaking feedback:', feedback);
+					osaVoiceService.speak(feedback);
+				} else {
+					// Unknown/conversational - route to AI for response
+					console.log('[Voice] 💬 Routing to AI conversation for:', text);
+					handleConversation(text);
+				}
+			} catch (err) {
+				console.error('[Voice] ❌ Error processing voice:', err);
+				// Fallback: route to conversation
+				console.log('[Voice] 💬 Fallback to AI conversation');
+				handleConversation(text);
+			}
+		}
+	}
+
+	/**
+	 * Get voice feedback for a command
+	 */
+	function getCommandFeedback(command: VoiceCommand): string {
+		switch (command.type) {
+			case 'focus_module':
+			case 'open_module':
+				return `Opening ${command.module}.`;
+			case 'close_module':
+				return `Closing ${command.module}.`;
+			case 'close_all_windows':
+				return 'Closing all windows.';
+			case 'switch_view':
+				return `Switching to ${command.view} view.`;
+			case 'zoom_in':
+				return 'Zooming in.';
+			case 'zoom_out':
+				return 'Zooming out.';
+			case 'reset_zoom':
+				return 'Resetting zoom.';
+			case 'toggle_auto_rotate':
+				return 'Toggling rotation.';
+			case 'rotate_left':
+				return 'Rotating left.';
+			case 'rotate_right':
+				return 'Rotating right.';
+			case 'stop_rotation':
+				return 'Stopping rotation.';
+			case 'expand_orb':
+				return 'Expanding.';
+			case 'contract_orb':
+				return 'Contracting.';
+			case 'next_window':
+				return 'Next window.';
+			case 'previous_window':
+				return 'Previous window.';
+			case 'minimize_window':
+				return 'Minimizing.';
+			case 'maximize_window':
+				return 'Maximizing.';
+			case 'unfocus':
+				return 'Going back.';
+			case 'enter_edit_mode':
+				return 'Entering edit mode.';
+			case 'exit_edit_mode':
+				return 'Exiting edit mode.';
+			case 'save_layout':
+				return `Saving layout as ${command.name}.`;
+			case 'load_layout':
+				return `Loading layout ${command.name}.`;
+			case 'reset_layout':
+				return 'Resetting to default layout.';
+			case 'help':
+				return 'I can open modules, navigate windows, control the camera, and switch views. What would you like to do?';
+			default:
+				return 'Got it.';
 		}
 	}
 
@@ -489,6 +617,16 @@
 	}
 
 	function executeVoiceCommand(command: VoiceCommand) {
+		// Execute with orchestrator if available
+		if (executionOrchestrator) {
+			console.log('[Voice] 🤖 Executing with orchestrator');
+			executeWithOrchestrator(command);
+			return;
+		}
+
+		// Fallback to legacy path if orchestrator not initialized
+		console.log('[Voice] ⚠️ Using legacy voice command system');
+
 		// For conversations (unknown type), route to AI
 		if (command.type === 'unknown') {
 			console.log('[Voice] 💬 ROUTING TO AI for conversation');
@@ -499,7 +637,8 @@
 		// Give instant acknowledgment for actual commands
 		const quickAck = getQuickAck(command.type);
 		console.log('[Voice] 🔊 SPEAKING ACK:', quickAck);
-		osaVoiceService.speak(quickAck);
+		const emotion = emotionalTTS.detectEmotion(quickAck);
+		osaVoiceService.speak(quickAck, emotion);
 
 		// Execute command with error handling
 		try {
@@ -508,8 +647,75 @@
 			console.log('[Voice] ✅ SUCCESS:', command.type);
 		} catch (err) {
 			console.error('[Voice] ❌ FAILED:', command.type, err);
-			osaVoiceService.speak("Sorry, that didn't work");
+			osaVoiceService.speak("Sorry, that didn't work", "empathetic");
 		}
+	}
+
+	// Voice Agent - Execution-first voice command handler
+	async function executeWithOrchestrator(command: VoiceCommand) {
+		console.log('[VoiceAgent] 🚀 Executing command:', command.text);
+
+		// Detect emotion from command text
+		const emotion = emotionalTTS.detectEmotion(command.text);
+
+		try {
+			// Map old VoiceCommand to new VoiceIntent
+			const intent = {
+				intent: command.text,
+				tools: mapCommandToTools(command),
+				narration: '', // Orchestrator will generate
+				confidence: 0.9
+			};
+
+			// Execute via orchestrator (parallel execution + narration)
+			const results = await executionOrchestrator.execute(intent);
+
+			console.log('[VoiceV2] ✅ Execution complete:', {
+				total: results.length,
+				success: results.filter(r => r.success).length,
+				failed: results.filter(r => !r.success).length
+			});
+		} catch (err) {
+			console.error('[VoiceV2] ❌ Execution failed:', err);
+			osaVoiceService.speak("Sorry, I encountered an error", "empathetic");
+		}
+	}
+
+	// Helper: Map legacy VoiceCommand to new ToolCall format
+	function mapCommandToTools(command: VoiceCommand): Array<{tool: string, params: any}> {
+		// Map command type to tool name
+		const toolMap: Record<string, string> = {
+			'focus_module': 'open_module',
+			'close_module': 'close_module',
+			'zoom_in': 'zoom_camera',
+			'zoom_out': 'zoom_camera',
+			'rotate_left': 'rotate_camera',
+			'rotate_right': 'rotate_camera',
+			'enter_edit_mode': 'layout_enter_edit_mode',
+			'exit_edit_mode': 'layout_exit_edit_mode',
+			'save_layout': 'layout_save',
+			'load_layout': 'layout_load',
+			'reset_layout': 'layout_reset',
+			// Add more mappings as needed
+		};
+
+		const toolName = toolMap[command.type];
+		if (!toolName) {
+			console.warn('[VoiceV2] No tool mapping for command:', command.type);
+			return [];
+		}
+
+		// Build params based on command
+		const params: any = {};
+		if (command.module) params.module_id = command.module;
+		if (command.name) params.name = command.name;
+		if (command.view) params.view = command.view;
+		if (command.type === 'zoom_in') params.direction = 'in';
+		if (command.type === 'zoom_out') params.direction = 'out';
+		if (command.type === 'rotate_left') params.direction = 'left';
+		if (command.type === 'rotate_right') params.direction = 'right';
+
+		return [{ tool: toolName, params }];
 	}
 
 	function executeCommandAction(command: VoiceCommand) {
@@ -739,11 +945,13 @@
 
 	// Handle conversational mode (for non-command speech)
 	async function handleConversation(text: string) {
+		const startTime = performance.now();
+		console.log('[Conversation] 🚀 START:', text);
 		try {
 			// Rate limiting - prevent rapid-fire requests
 			const now = Date.now();
 			if (now - lastRequestTime < REQUEST_COOLDOWN) {
-				console.log('[Voice] Rate limited, please wait');
+				console.log('[Conversation] ⏱️ Rate limited');
 				return;
 			}
 			lastRequestTime = now;
@@ -753,136 +961,39 @@
 			const openModules = $openWindows.map(w => w.module).join(', ') || 'none';
 			const viewMode = $desktop3dStore.viewMode;
 
-			// VOICE AGENT: Short, conversational, 3D-Desktop-focused
-			const systemPrompt = `You are OSA - a fast, casual voice assistant for BusinessOS 3D Desktop.
+			// VOICE AGENT: Prepend ultra-short instructions to the message itself
+			// (Backend ignores system_prompt field, so we put it in the message)
+			const voiceInstruction = `[VOICE MODE - Reply in 5-10 words ONLY. Be casual like texting. No formalities.]`;
+			const messageWithInstruction = `${voiceInstruction}\n\nUser: ${text}`;
 
-STATE: ${viewMode} view | Open: ${openModules || 'none'} | Focus: ${currentModule || 'desktop'}
+			// Only keep last 2 exchanges for speed (4 messages max)
+			conversationHistory.push({ role: 'user', content: text });
+			if (conversationHistory.length > 4) {
+				conversationHistory = conversationHistory.slice(-4);
+			}
 
-═══════════════════════════════════════════════════════════════
-YOUR STYLE (THIS IS HOW YOU TALK):
-═══════════════════════════════════════════════════════════════
-
-▸ SHORT: 1-2 sentences max. You're being SPOKEN out loud.
-▸ CASUAL: "got it", "on it", "sure" NOT "certainly", "of course", "I shall"
-▸ NO MARKDOWN: No **, ##, lists, bullets. Just plain talk.
-▸ ACTIONS: When user wants something done → include [CMD:xxx]
-
-═══════════════════════════════════════════════════════════════
-COMMANDS YOU CAN EXECUTE:
-═══════════════════════════════════════════════════════════════
-
-MODULES: open/close {dashboard, chat, tasks, projects, team, clients, terminal, settings, help, agents, crm, tables, pages, nodes, daily, knowledge}
-WINDOWS: next window, previous window, close all windows, minimize, maximize, unfocus
-CAMERA: zoom in/out, reset zoom, rotate left/right, stop rotation, rotate faster/slower
-VIEW: switch to grid/orb, expand/contract orb, increase/decrease grid spacing
-RESIZE: make wider/narrower/taller/shorter
-LAYOUT: enter/exit edit mode, save layout [name], load layout [name]
-
-═══════════════════════════════════════════════════════════════
-PERFECT RESPONSES (COPY THIS STYLE EXACTLY):
-═══════════════════════════════════════════════════════════════
-
-"Hey OSA"
-→ "Hey! What's up?"
-
-"Open the terminal"
-→ "On it. [CMD:open terminal]"
-
-"Open chat"
-→ "Opening chat. [CMD:open chat]"
-
-"What can we do here?"
-→ "I can open modules, control the camera, switch views. What do you need?"
-
-"Go to the next page"
-→ "Next one. [CMD:next window]"
-
-"Go to the next window"
-→ "Got it. [CMD:next window]"
-
-"Switch to tasks"
-→ "Switching to tasks. [CMD:open tasks]"
-
-"Zoom in"
-→ "Zooming in. [CMD:zoom in]"
-
-"Close everything"
-→ "Closing all. [CMD:close all windows]"
-
-"Make this wider"
-→ "Making it wider. [CMD:make wider]"
-
-"Rotate left"
-→ "Rotating left. [CMD:rotate left]"
-
-"Switch to grid view"
-→ "Switching to grid. [CMD:switch to grid]"
-
-"What's your plan today?"
-→ "Whatever you need! Want to open something or change the view?"
-
-"Help"
-→ "I can open stuff, zoom around, switch views. What do you need?"
-
-═══════════════════════════════════════════════════════════════
-BAD RESPONSES (NEVER DO THIS):
-═══════════════════════════════════════════════════════════════
-
-❌ "**Terminal Opened**
-
-You are now in the terminal. What would you like to do in the terminal? Type a command, and I'll resp"
-WHY: Way too long, markdown **, no [CMD:xxx], fake simulation
-
-❌ "## Chat Mode Capabilities
-
-In this chat mode, we can:
-1. **Discuss topics**: Share thoughts, ask questions..."
-WHY: Markdown headers/lists, way too long, no [CMD:xxx]
-
-❌ "Certainly sir, let me pull that up for you right away."
-WHY: Too formal ("certainly", "sir"), no [CMD:xxx]
-
-❌ "I can simulate a terminal for you. What would you like to do?"
-WHY: Never simulate - use [CMD:xxx] to open REAL things
-
-❌ "Terminal opened! You now have access to a terminal window where you can execute commands."
-WHY: Too long, no [CMD:xxx], describing instead of doing
-
-═══════════════════════════════════════════════════════════════
-CRITICAL RULES:
-═══════════════════════════════════════════════════════════════
-
-1. MAX 1-2 sentences per response
-2. When user wants action → include [CMD:xxx]
-3. Be casual: "got it", "on it", "sure" NOT "certainly", "of course"
-4. NO markdown (**, ##, lists, bullets) EVER
-5. Don't describe/explain - just execute with [CMD:xxx]
-6. Match the PERFECT RESPONSES style EXACTLY
-
-RESPOND NOW:`;
-
-			// Add user message to history
-			conversationHistory.push({
-				role: 'user',
-				content: text
-			});
-
-			// IMPROVED: Send conversation history for better context
+			// Fast API call - minimal payload with FAST model for voice
+			console.log('[Conversation] 📤 Sending with fast model...');
 			const response = await fetch('/api/chat/message', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				credentials: 'include',
 				body: JSON.stringify({
-					message: text,
+					message: messageWithInstruction,
 					context: 'voice_desktop_3d',
 					stream: true,
 					conversation_id: conversationId,
-					system_prompt: systemPrompt,
-					conversation_history: conversationHistory // Send full history
+					model: 'llama-3.1-8b-instant', // FAST model for voice (8B vs 70B)
+					max_tokens: 30, // Very short responses only
+					temperature: 0.5, // More consistent
+					output_style: 'concise' // Request concise output
 				})
 			});
 
+			const apiTime = performance.now() - startTime;
+			console.log(`[Conversation] 📥 Response: ${response.status} (${Math.round(apiTime)}ms)`);
 			if (!response.ok) {
+				console.error('[Conversation] ❌ API error:', response.status);
 				osaVoiceService.speak("Sorry, I'm having trouble connecting right now");
 				return;
 			}
@@ -1065,8 +1176,9 @@ RESPOND NOW:`;
 
 	// Cleanup voice commands on unmount
 	onDestroy(() => {
-		if (isListening) {
-			voiceTranscription.stop();
+		// Cleanup voice if connected
+		if (voiceState !== 'disconnected') {
+			simpleVoice.disconnect();
 		}
 	});
 </script>
@@ -1163,8 +1275,8 @@ RESPOND NOW:`;
 	<!-- Live Captions (voice command feedback) -->
 	<LiveCaptions {userMessage} {osaMessage} command={lastCommand} {isListening} {isSpeaking} />
 
-	<!-- Voice Control Panel (enhanced UI) -->
-	<VoiceControlPanel {isListening} {isSpeaking} onToggleListening={toggleVoiceCommands} />
+	<!-- Voice Orb Panel (Phase 0: Silver orb branding) -->
+	<VoiceOrbPanel {isListening} {isSpeaking} onToggleListening={toggleVoiceCommands} />
 
 	<!-- Hidden video element for gesture camera (MediaPipe) -->
 	<!-- svelte-ignore a11y-media-has-caption -->

@@ -47,7 +47,7 @@ export async function createMainWindow(): Promise<BrowserWindow> {
 
   // Load the app
   if (isDev) {
-    // In development, load from the Vite dev server (port 5173)
+    // In development, load from the Vite dev server
     const devUrl = 'http://localhost:5173';
     console.log(`Loading from ${devUrl}`);
     await mainWindow.loadURL(devUrl);
