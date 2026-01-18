@@ -1,13 +1,50 @@
-# BusinessOS Frontend API Documentation Index
+# BusinessOS API Documentation Index
 
 ## Overview
-This index documents the API patterns used in BusinessOS frontend for AI/agent endpoints. All patterns are extracted from production code in `frontend/src/lib/api/ai/ai.ts`.
+This index documents all API documentation for BusinessOS, including:
+- Frontend API patterns for AI/agent endpoints
+- Backend API reference documentation (REST endpoints)
+- Integration guides
 
 ---
 
 ## Documentation Files
 
-### 1. **API_PATTERNS_ANALYSIS.md** (Comprehensive Reference)
+### 1. **OSA_BUILD_API_REFERENCE.md** (Backend Endpoint Reference)
+Comprehensive REST API documentation for OSA Build Phase 3 endpoints.
+
+**Contents:**
+- OSA Onboarding endpoints (analyze, generate apps, check status, get profile)
+- Username management endpoints (check availability, set username, get user)
+- Complete authentication guide
+- Data models (UserAnalysisResult, StarterApp, OnboardingProfile)
+- Error handling and HTTP status codes
+- Rate limiting policy
+- Complete curl examples and TypeScript polling strategies
+- Full onboarding flow walkthrough
+
+**Use this when:** You need to call the backend API from frontend/mobile or integrate with external systems.
+
+**Key sections:**
+- OSA Onboarding Endpoints (4 POST/GET endpoints)
+- Username Management (3 endpoints)
+- Authentication requirements
+- Request/response schemas with examples
+- Error codes and scenarios
+- Complete integration examples
+
+**API Endpoints:**
+- `POST /osa-onboarding/analyze` - Analyze user data
+- `POST /osa-onboarding/generate-apps` - Generate personalized apps
+- `GET /osa-onboarding/apps-status` - Check app generation status
+- `GET /osa-onboarding/profile` - Get saved onboarding profile
+- `GET /users/check-username/:username` - Check username availability
+- `PATCH /users/me/username` - Set/update user username
+- `GET /users/me` - Get current user profile
+
+---
+
+### 2. **API_PATTERNS_ANALYSIS.md** (Comprehensive Reference)
 Complete deep-dive analysis of API patterns used in BusinessOS.
 
 **Contents:**
@@ -87,6 +124,11 @@ One-page quick reference guide for API patterns.
 ---
 
 ## Quick Start by Use Case
+
+### I want to integrate with OSA Build endpoints (backend API)
+1. Read: **OSA_BUILD_API_REFERENCE.md** "Authentication" and "Endpoints"
+2. Check examples: **OSA_BUILD_API_REFERENCE.md** section "Examples"
+3. Reference: Specific endpoint documentation with curl examples
 
 ### I want to understand API patterns
 1. Read: **API_PATTERNS_ANALYSIS.md** sections 1-4

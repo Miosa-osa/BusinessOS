@@ -6,15 +6,35 @@
 	import { goto } from '$app/navigation';
 	import { GradientBackground, PillButton, RoundedInput } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
+	import { checkUsernameAvailability, setUsername } from '$lib/api/users';
 
 	let username = $state('');
 	let isChecking = $state(false);
 	let isAvailable = $state<boolean | null>(null);
 	let error = $state('');
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	// Username validation regex: alphanumeric + underscore only
+	const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
+
+	function validateUsername(value: string): string | null {
+		if (!value) {
+			return 'Username is required';
+		}
+		if (value.length < 3) {
+			return 'Username must be at least 3 characters';
+		}
+		if (!USERNAME_REGEX.test(value)) {
+			return 'Username can only contain letters, numbers, and underscores';
+		}
+		return null;
+	}
 
 	async function checkAvailability() {
-		if (!username || username.length < 3) {
-			error = 'Username must be at least 3 characters';
+		// Validate first
+		const validationError = validateUsername(username);
+		if (validationError) {
+			error = validationError;
 			isAvailable = false;
 			return;
 		}
@@ -22,35 +42,78 @@
 		isChecking = true;
 		error = '';
 
-		// TODO: Implement actual availability check API call
-		await new Promise(resolve => setTimeout(resolve, 500));
+		try {
+			const response = await checkUsernameAvailability(username);
+			isAvailable = response.available;
 
-		// Mock check
-		const taken = ['admin', 'osa', 'test'];
-		isAvailable = !taken.includes(username.toLowerCase());
-		isChecking = false;
-
-		if (!isAvailable) {
-			error = 'Username is already taken';
+			if (!response.available) {
+				error = response.reason || 'Username is already taken';
+			}
+		} catch (err) {
+			error = 'Unable to check availability. Please try again.';
+			isAvailable = null;
+			console.error('Error checking username availability:', err);
+		} finally {
+			isChecking = false;
 		}
 	}
 
-	function handleUsernameChange(event: Event) {
-		const target = event.target as HTMLInputElement;
-		username = target.value;
+	// Watch for username changes and debounce availability check
+	$effect(() => {
+		// Reset state when username changes
 		isAvailable = null;
 		error = '';
-	}
 
-	function handleContinue() {
+		// Clear any existing timer
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
+
+		// Don't check empty username
+		if (!username) {
+			return;
+		}
+
+		// Only auto-check if username passes basic validation
+		const validationError = validateUsername(username);
+		if (validationError) {
+			error = validationError;
+			return;
+		}
+
+		// Auto-check after 500ms of no typing
+		debounceTimer = setTimeout(() => {
+			checkAvailability();
+		}, 500);
+	});
+
+	async function handleContinue() {
 		if (!isAvailable) {
 			error = 'Please choose an available username';
 			return;
 		}
 
-		onboardingStore.setUserData({ username });
-		onboardingStore.nextStep();
-		goto('/onboarding/analyzing');
+		isChecking = true;
+		error = '';
+
+		try {
+			// Call API to set username
+			const response = await setUsername(username);
+
+			if (response.success) {
+				// Update local store
+				onboardingStore.setUserData({ username });
+				onboardingStore.nextStep();
+				goto('/onboarding/analyzing');
+			} else {
+				error = 'Failed to set username. Please try again.';
+				isChecking = false;
+			}
+		} catch (err) {
+			error = 'Something went wrong. Please try again.';
+			isChecking = false;
+			console.error('Error setting username:', err);
+		}
 	}
 
 	function handleBack() {
@@ -85,7 +148,6 @@
 					required
 					error={error}
 					helperText={isAvailable === true ? '✓ Available!' : ''}
-					oninput={handleUsernameChange}
 				/>
 
 				<PillButton
@@ -119,7 +181,8 @@
 				variant="primary"
 				size="lg"
 				onclick={handleContinue}
-				disabled={!isAvailable}
+				disabled={!isAvailable || isChecking}
+				loading={isChecking}
 			>
 				Continue
 			</PillButton>

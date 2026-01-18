@@ -20,6 +20,7 @@ import (
 	"github.com/rhl/businessos-backend/internal/container"
 	"github.com/rhl/businessos-backend/internal/database"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
+	grpcserver "github.com/rhl/businessos-backend/internal/grpc"
 	"github.com/rhl/businessos-backend/internal/handlers"
 	"github.com/rhl/businessos-backend/internal/integrations"
 	"github.com/rhl/businessos-backend/internal/integrations/google"
@@ -658,13 +659,14 @@ func main() {
 			}
 
 			// Initialize onboarding service with non-resilient client (for simpler API)
-			osaSimpleClient := &osa.Client{
-				BaseURL:      cfg.OSA.BaseURL,
-				SharedSecret: cfg.OSA.SharedSecret,
+			osaSimpleClient, err := osa.NewClient(cfg.OSA)
+			if err != nil {
+				log.Printf("Failed to create OSA simple client: %v", err)
+			} else {
+				osaOnboardingService = services.NewOSAOnboardingService(pool, osaSimpleClient, googleProvider, cfg.AIProvider)
+				osaOnboardingHandler = handlers.NewOSAOnboardingHandler(osaOnboardingService)
+				log.Printf("✅ OSA onboarding service initialized (Build Your OS flow)")
 			}
-			osaOnboardingService = services.NewOSAOnboardingService(pool, osaSimpleClient, googleProvider, cfg.AIProvider)
-			osaOnboardingHandler = handlers.NewOSAOnboardingHandler(osaOnboardingService)
-			log.Printf("✅ OSA onboarding service initialized (Build Your OS flow)")
 		}
 	}
 
@@ -739,6 +741,12 @@ func main() {
 			// Note: osaWorkspaceInitService is created earlier in the OSA initialization block
 			h.SetOSAFileServices(osaFileSyncService, osaWorkspaceInitService, osaWorkflowsHandler, osaWebhooksHandler, osaBuildEventBus, osaStreamingHandler)
 			log.Printf("✅ OSA file sync, workflow, and streaming services registered")
+		}
+
+		// Set OSA onboarding handler
+		if osaOnboardingHandler != nil {
+			h.SetOSAOnboardingHandler(osaOnboardingHandler)
+			log.Printf("✅ OSA onboarding handler registered")
 		}
 	}
 
@@ -982,13 +990,33 @@ func main() {
 		log.Printf("✅ Public OSA health endpoint registered at GET /api/osa/health")
 	}
 
-	// Start server
+	// Start HTTP server
 	go func() {
-		log.Printf("Server starting on port %s", cfg.ServerPort)
+		log.Printf("HTTP server starting on port %s", cfg.ServerPort)
 		if err := router.Run(":" + cfg.ServerPort); err != nil {
-			log.Fatalf("Failed to start server: %v", err)
+			log.Fatalf("Failed to start HTTP server: %v", err)
 		}
 	}()
+
+	// ============================================================
+	// Start gRPC Voice Server (Go Voice Controller)
+	// ============================================================
+	var voiceServer *grpcserver.VoiceServer
+	grpcPort := 50051 // Default gRPC port for voice service
+	if envPort := os.Getenv("GRPC_VOICE_PORT"); envPort != "" {
+		if port, err := fmt.Sscanf(envPort, "%d", &grpcPort); err == nil && port == 1 {
+			// Successfully parsed custom port
+		}
+	}
+
+	voiceServer = grpcserver.NewVoiceServer(grpcPort, pool, cfg)
+	go func() {
+		log.Printf("🎤 gRPC Voice Server starting on port %d", grpcPort)
+		if err := voiceServer.Start(ctx); err != nil {
+			log.Printf("gRPC Voice Server error: %v", err)
+		}
+	}()
+	log.Printf("✅ gRPC Voice Server initialized (Hybrid Go-First Architecture)")
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
@@ -996,6 +1024,12 @@ func main() {
 	<-quit
 
 	log.Println("Shutting down server...")
+
+	// Stop gRPC Voice Server
+	if voiceServer != nil {
+		log.Println("Shutting down gRPC Voice Server...")
+		voiceServer.Shutdown()
+	}
 
 	// Stop batch worker
 	log.Println("Stopping notification batch worker...")

@@ -3,3 +3,8 @@ livekit-plugins-groq>=0.6.0
 livekit-plugins-elevenlabs>=0.6.0
 livekit-plugins-silero>=0.6.0
 python-dotenv>=1.0.0
+
+# gRPC for Go Voice Controller communication
+grpcio>=1.60.0
+grpcio-tools>=1.60.0
+protobuf>=4.25.0

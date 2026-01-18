@@ -191,11 +191,8 @@ func (h *OSAOnboardingHandler) GetProfile(c *gin.Context) {
 
 // RegisterOSAOnboardingRoutes registers OSA onboarding routes
 func RegisterOSAOnboardingRoutes(router *gin.RouterGroup, handler *OSAOnboardingHandler) {
-	group := router.Group("/osa-onboarding")
-	{
-		group.POST("/analyze", handler.AnalyzeUser)
-		group.POST("/generate-apps", handler.GenerateStarterApps)
-		group.GET("/apps-status", handler.CheckAppsStatus)
-		group.GET("/profile", handler.GetProfile)
-	}
+	router.POST("/analyze", handler.AnalyzeUser)
+	router.POST("/generate-apps", handler.GenerateStarterApps)
+	router.GET("/apps-status", handler.CheckAppsStatus)
+	router.GET("/profile", handler.GetProfile)
 }

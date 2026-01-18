@@ -220,6 +220,11 @@ func (h *Handlers) SetOSAFileServices(fileSyncService *services.OSAFileSyncServi
 	h.osaStreamingHandler = streamingHandler
 }
 
+// SetOSAOnboardingHandler sets the OSA onboarding handler
+func (h *Handlers) SetOSAOnboardingHandler(handler *OSAOnboardingHandler) {
+	h.osaOnboardingHandler = handler
+}
+
 // RegisterRoutes registers all API routes
 func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	// Auth middleware for protected routes - uses Redis cache if available
@@ -944,6 +949,18 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		profile.DELETE("/background", h.DeleteBackground)
 	}
 
+	// Username routes - /api/users
+	usernameHandler := NewUsernameHandler(h.pool)
+	users := api.Group("/users")
+	{
+		// Public route - check username availability (no auth required for UX)
+		users.GET("/check-username/:username", usernameHandler.CheckUsernameAvailability)
+
+		// Protected routes
+		users.GET("/me", auth, usernameHandler.GetCurrentUser)
+		users.PATCH("/me/username", auth, usernameHandler.SetUsername)
+	}
+
 	// MCP routes - /api/mcp
 	mcp := api.Group("/mcp")
 	mcp.Use(auth)
@@ -1340,4 +1357,12 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		proxy.POST("", h.HandleProxyPost) // POST /api/proxy with JSON body
 	}
 	log.Printf("✅ Proxy routes registered at /api/proxy/*")
+
+	// OSA Onboarding routes - /api/osa-onboarding (Build Your OS flow)
+	if h.osaOnboardingHandler != nil {
+		osaOnboarding := api.Group("/osa-onboarding")
+		osaOnboarding.Use(auth)
+		RegisterOSAOnboardingRoutes(osaOnboarding, h.osaOnboardingHandler)
+		log.Printf("✅ OSA onboarding routes registered at /api/osa-onboarding/*")
+	}
 }

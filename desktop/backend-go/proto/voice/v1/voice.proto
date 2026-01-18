@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package voice.v1;
+
+option go_package = "github.com/rhl/businessos-backend/proto/voice/v1;voicev1";
+
+// VoiceService handles bidirectional audio streaming between Python adapter and Go Voice Controller
+service VoiceService {
+  // ProcessVoice handles bidirectional audio streaming
+  // Client (Python) sends audio frames, server (Go) returns processed audio
+  rpc ProcessVoice(stream AudioFrame) returns (stream AudioResponse);
+
+  // GetSessionContext retrieves user context for voice session
+  rpc GetSessionContext(SessionRequest) returns (SessionContext);
+
+  // UpdateSessionState updates session state (listening, thinking, speaking)
+  rpc UpdateSessionState(SessionStateUpdate) returns (SessionStateResponse);
+}
+
+// AudioFrame represents a chunk of audio data from user or agent
+message AudioFrame {
+  // Unique session identifier (LiveKit room name)
+  string session_id = 1;
+
+  // User identifier
+  string user_id = 2;
+
+  // Audio data (PCM 16-bit, 24kHz mono)
+  bytes audio_data = 3;
+
+  // Frame sequence number (for ordering)
+  uint64 sequence = 4;
+
+  // Timestamp in milliseconds
+  int64 timestamp_ms = 5;
+
+  // Audio direction: "user" or "agent"
+  string direction = 6;
+
+  // Is this the final frame in a speech segment?
+  bool is_final = 7;
+
+  // Sample rate (default: 24000)
+  int32 sample_rate = 8;
+}
+
+// AudioResponse contains processed audio or status updates
+message AudioResponse {
+  // Response type
+  ResponseType type = 1;
+
+  // Audio data to send back to user (if type is AUDIO)
+  bytes audio_data = 2;
+
+  // Transcript text (if type is TRANSCRIPT_USER or TRANSCRIPT_AGENT)
+  string text = 3;
+
+  // Session state (if type is STATE_UPDATE)
+  SessionState state = 4;
+
+  // Error message (if type is ERROR)
+  string error = 5;
+
+  // Metadata (JSON string for flexibility)
+  string metadata = 6;
+
+  // Sequence number for ordering
+  uint64 sequence = 7;
+}
+
+// ResponseType indicates what kind of response this is
+enum ResponseType {
+  RESPONSE_TYPE_UNSPECIFIED = 0;
+  AUDIO = 1;                    // Audio data to play
+  TRANSCRIPT_USER = 2;          // User speech transcript
+  TRANSCRIPT_AGENT = 3;         // Agent response transcript
+  STATE_UPDATE = 4;             // Session state changed
+  ERROR = 5;                    // Error occurred
+  DONE = 6;                     // Agent finished speaking
+}
+
+// SessionState represents current voice session state
+enum SessionState {
+  SESSION_STATE_UNSPECIFIED = 0;
+  IDLE = 1;              // Not doing anything
+  LISTENING = 2;         // Listening to user
+  THINKING = 3;          // Processing with LLM
+  SPEAKING = 4;          // Agent is speaking
+  ERROR_STATE = 5;       // Error occurred
+}
+
+// SessionRequest requests session context
+message SessionRequest {
+  string session_id = 1;
+  string user_id = 2;
+
+  // Optional: workspace context
+  string workspace_id = 3;
+
+  // Optional: agent role/personality
+  string agent_role = 4;
+}
+
+// SessionContext provides context for voice session
+message SessionContext {
+  string session_id = 1;
+  string user_id = 2;
+  string user_name = 3;
+
+  // User's workspace context
+  string workspace_id = 4;
+  string workspace_name = 5;
+
+  // Agent configuration
+  string agent_role = 6;
+  string agent_personality = 7;
+
+  // Recent conversation history (JSON array of messages)
+  string conversation_history = 8;
+
+  // Relevant context from RAG (JSON array of context items)
+  string rag_context = 9;
+
+  // User preferences
+  map<string, string> preferences = 10;
+}
+
+// SessionStateUpdate updates session state
+message SessionStateUpdate {
+  string session_id = 1;
+  SessionState state = 2;
+  string metadata = 3;
+}
+
+// SessionStateResponse confirms state update
+message SessionStateResponse {
+  bool success = 1;
+  string message = 2;
+}
