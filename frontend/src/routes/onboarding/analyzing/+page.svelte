@@ -6,15 +6,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { GradientBackground } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
 	import { onboardingAnalysis, analyzingInsights, analysisFailed } from '$lib/stores/onboardingAnalysis';
+	import { getSession } from '$lib/auth-client';
 
 	let analyzing = true;
 	let error: string | null = null;
 	let insightMessage = '';
 
-	onMount(() => {
+	onMount(async () => {
 		// Subscribe to streaming analysis store
 		const unsubscribe = analyzingInsights.subscribe(($insights) => {
 			insightMessage = $insights.message1;
@@ -52,11 +52,16 @@
 			}
 		});
 
-		// Check if analysis is already running
-		const currentAnalysis = $onboardingAnalysis;
-		if (!currentAnalysis.analysisId && !currentAnalysis.isLoading) {
-			// Analysis not started yet - use fallback insights
-			console.warn('Analysis not started - using fallback insights. Analysis should be triggered in OAuth callback.');
+		// Get user session and start polling for real data
+		const session = await getSession();
+		if (session.data && session.data.user && session.data.user.id) {
+			const userId = session.data.user.id;
+			console.log('[Analyzing] Starting analysis polling for user:', userId);
+
+			// Start polling for analysis status by user_id
+			onboardingAnalysis.pollByUserId(userId);
+		} else {
+			console.warn('[Analyzing] No user session found - using fallback insights');
 
 			// Set fallback insights
 			insightMessage = 'No-code builder energy';
@@ -86,7 +91,7 @@
 	<title>Analyzing - OSA Build</title>
 </svelte:head>
 
-<GradientBackground>
+<div class="onboarding-background">
 	<div class="analyzing-screen">
 		<div class="content">
 			{#if analyzing}
@@ -120,9 +125,18 @@
 			{/if}
 		</div>
 	</div>
-</GradientBackground>
+</div>
 
 <style>
+	.onboarding-background {
+		min-height: 100vh;
+		width: 100%;
+		background-image: url('/logos/integrations/MIOSABRANDBackround.png');
+		background-size: cover;
+		background-position: center;
+		background-repeat: no-repeat;
+	}
+
 	.analyzing-screen {
 		min-height: 100vh;
 		display: flex;

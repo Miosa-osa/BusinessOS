@@ -971,6 +971,7 @@ func main() {
 		api.POST("/osa-onboarding/analyze", osaOnboardingHandler.StartAnalysis)
 		api.GET("/osa-onboarding/analyze/:analysis_id", osaOnboardingHandler.GetAnalysisProgress)
 		api.GET("/osa-onboarding/analyze/:analysis_id/stream", osaOnboardingHandler.StreamAnalysisProgress)
+		api.GET("/osa-onboarding/user-analysis/:user_id", osaOnboardingHandler.GetUserAnalysisStatus)
 		api.POST("/osa-onboarding/generate-apps", osaOnboardingHandler.GenerateStarterApps)
 		log.Printf("✅ OSA onboarding analysis routes registered (Groq-powered AI analysis)")
 	}

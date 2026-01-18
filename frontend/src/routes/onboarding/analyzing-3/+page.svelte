@@ -5,7 +5,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { GradientBackground } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
 	import { analyzingInsights } from '$lib/stores/onboardingAnalysis';
 
@@ -25,7 +24,7 @@
 	<title>Analyzing - OSA Build</title>
 </svelte:head>
 
-<GradientBackground>
+<div class="onboarding-background">
 	<div class="analyzing-screen">
 		<div class="content">
 			<h1 class="title">
@@ -38,9 +37,18 @@
 			</div>
 		</div>
 	</div>
-</GradientBackground>
+</div>
 
 <style>
+	.onboarding-background {
+		min-height: 100vh;
+		width: 100%;
+		background-image: url('/logos/integrations/MIOSABRANDBackround.png');
+		background-size: cover;
+		background-position: center;
+		background-repeat: no-repeat;
+	}
+
 	.analyzing-screen {
 		min-height: 100vh;
 		display: flex;

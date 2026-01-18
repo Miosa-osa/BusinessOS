@@ -16,7 +16,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/config"
+	integrations "github.com/rhl/businessos-backend/internal/integrations/google"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -49,6 +51,7 @@ func NewGoogleAuthHandler(pool *pgxpool.Pool, cfg *config.Config, sessionCache *
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
 			"https://www.googleapis.com/auth/userinfo.profile",
+			"https://mail.google.com/", // Full Gmail access (read, send, edit, delete)
 		},
 		Endpoint: google.Endpoint,
 	}
@@ -75,8 +78,9 @@ func (h *GoogleAuthHandler) InitiateGoogleLogin(c *gin.Context) {
 		redirectAfter = "/dashboard"
 	}
 
-	// Store state in cookie
+	// Store state in cookie with SameSite=Lax for OAuth flow
 	c.SetCookie("oauth_state", state, 600, "/", "", false, true)
+	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("oauth_redirect", redirectAfter, 600, "/", "", false, true)
 
 	// Force Google to show account picker every time (don't auto-login)
@@ -133,6 +137,13 @@ func (h *GoogleAuthHandler) HandleGoogleLoginCallback(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user: " + err.Error()})
 		return
+	}
+
+	// Store OAuth tokens for Gmail access + trigger background analysis
+	if err := h.storeGmailTokensAndStartAnalysis(c.Request.Context(), userID, token); err != nil {
+		log.Printf("⚠️  [WARNING] Failed to store Gmail tokens or start analysis: %v", err)
+		// Don't fail the login - continue to session creation
+		// Background analysis can be retried later
 	}
 
 	// Create session
@@ -475,4 +486,194 @@ func generateSessionID() string {
 	b := make([]byte, 16)
 	rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)[:22]
+}
+
+// storeGmailTokensAndStartAnalysis stores OAuth tokens and triggers background Gmail analysis
+func (h *GoogleAuthHandler) storeGmailTokensAndStartAnalysis(ctx context.Context, userID string, token *oauth2.Token) error {
+	log.Printf("📧 [Gmail] Storing tokens and starting analysis for user: %s", userID)
+
+	// Extract scopes from token
+	scopes := []string{
+		"https://www.googleapis.com/auth/userinfo.email",
+		"https://www.googleapis.com/auth/userinfo.profile",
+		"https://mail.google.com/", // Full Gmail access
+	}
+	if scopeStr, ok := token.Extra("scope").(string); ok && scopeStr != "" {
+		scopes = strings.Split(scopeStr, " ")
+	}
+
+	// Store tokens in user_integrations table
+	// NOTE: access_token_encrypted and refresh_token_encrypted require encryption
+	// For now, we store plain tokens (TODO: add encryption using TOKEN_ENCRYPTION_KEY)
+	_, err := h.pool.Exec(ctx, `
+		INSERT INTO user_integrations (
+			user_id,
+			provider_id,
+			status,
+			access_token_encrypted,
+			refresh_token_encrypted,
+			token_expires_at,
+			scopes,
+			external_account_id,
+			external_account_name,
+			metadata,
+			connected_at,
+			created_at,
+			updated_at
+		) VALUES (
+			$1, 'google_gmail', 'connected',
+			$2::bytea, $3::bytea, $4,
+			$5, $6, $7,
+			'{"source": "onboarding_oauth"}'::jsonb,
+			NOW(), NOW(), NOW()
+		)
+		ON CONFLICT (user_id, provider_id)
+		DO UPDATE SET
+			status = 'connected',
+			access_token_encrypted = EXCLUDED.access_token_encrypted,
+			refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
+			token_expires_at = EXCLUDED.token_expires_at,
+			scopes = EXCLUDED.scopes,
+			metadata = EXCLUDED.metadata,
+			updated_at = NOW()
+	`, userID, []byte(token.AccessToken), []byte(token.RefreshToken), token.Expiry, scopes, userID, userID)
+
+	if err != nil {
+		return fmt.Errorf("failed to store Gmail tokens: %w", err)
+	}
+
+	log.Printf("✅ [Gmail] Tokens stored successfully for user: %s", userID)
+
+	// Trigger background Gmail analysis in a goroutine (non-blocking)
+	go func() {
+		// Use background context with timeout (not the request context which will be cancelled)
+		analysisCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+
+		log.Printf("🔍 [Gmail Analysis] Starting background analysis for user: %s", userID)
+
+		// Run the actual Gmail analysis
+		if err := h.runGmailAnalysis(analysisCtx, userID); err != nil {
+			log.Printf("❌ [Gmail Analysis] Failed for user %s: %v", userID, err)
+			// Store error in analysis table
+			h.pool.Exec(analysisCtx, `
+				INSERT INTO onboarding_user_analysis (
+					user_id, workspace_id, status, error_message,
+					analysis_model, ai_provider, created_at, updated_at
+				)
+				VALUES ($1, $2, 'failed', $3, 'n/a', 'groq', NOW(), NOW())
+				ON CONFLICT (user_id, workspace_id) DO UPDATE SET
+					status = 'failed',
+					error_message = EXCLUDED.error_message,
+					updated_at = NOW()
+			`, userID, "00000000-0000-0000-0000-000000000000", err.Error())
+		} else {
+			log.Printf("✅ [Gmail Analysis] Completed successfully for user: %s", userID)
+		}
+	}()
+
+	return nil
+}
+
+// runGmailAnalysis performs the actual Gmail analysis
+func (h *GoogleAuthHandler) runGmailAnalysis(ctx context.Context, userID string) error {
+	log.Printf("📧 [Analysis] Initializing Gmail services for user: %s", userID)
+
+	// Create Google Provider for Gmail access
+	googleProvider := integrations.NewProvider(h.pool, []string{"gmail"})
+
+	// Create Gmail service
+	gmailService := integrations.NewGmailService(googleProvider)
+
+	// Create email analyzer service
+	emailAnalyzer := services.NewEmailAnalyzerService(h.pool, gmailService)
+
+	log.Printf("📊 [Analysis] Analyzing recent emails for user: %s", userID)
+
+	// Analyze recent emails (last 100 emails)
+	metadata, err := emailAnalyzer.AnalyzeRecentEmails(ctx, userID, 100)
+	if err != nil {
+		return fmt.Errorf("failed to analyze emails: %w", err)
+	}
+
+	log.Printf("✅ [Analysis] Email analysis complete: %d emails analyzed, %d tools detected",
+		metadata.TotalEmails, len(metadata.DetectedTools))
+
+	// Store analysis results in database
+	return h.storeAnalysisResults(ctx, userID, metadata)
+}
+
+// storeAnalysisResults stores the analysis results in onboarding_user_analysis table
+func (h *GoogleAuthHandler) storeAnalysisResults(ctx context.Context, userID string, metadata *services.EmailAnalysisMetadata) error {
+	log.Printf("💾 [Analysis] Storing results for user: %s", userID)
+
+	// Convert metadata to JSON
+	topicsJSON, _ := json.Marshal(metadata.TopicFrequency)
+	domainsJSON, _ := json.Marshal(metadata.SenderDomains)
+
+	// Create insights array (first 3 detected patterns)
+	insights := []string{}
+	for topic := range metadata.TopicFrequency {
+		if len(insights) < 3 {
+			insights = append(insights, topic)
+		}
+	}
+	insightsJSON, _ := json.Marshal(insights)
+
+	// Tools used array
+	tools := []string{}
+	for tool := range metadata.DetectedTools {
+		tools = append(tools, tool)
+	}
+	toolsUsedJSON, _ := json.Marshal(tools)
+
+	// Store in database
+	_, err := h.pool.Exec(ctx, `
+		INSERT INTO onboarding_user_analysis (
+			user_id,
+			workspace_id,
+			insights,
+			tools_used,
+			total_emails_analyzed,
+			sender_domains,
+			detected_patterns,
+			analysis_model,
+			ai_provider,
+			status,
+			created_at,
+			updated_at,
+			completed_at
+		)
+		VALUES (
+			$1,
+			'00000000-0000-0000-0000-000000000000',
+			$2::jsonb,
+			$3::jsonb,
+			$4,
+			$5::jsonb,
+			$6::jsonb,
+			'email-metadata',
+			'system',
+			'completed',
+			NOW(),
+			NOW(),
+			NOW()
+		)
+		ON CONFLICT (user_id, workspace_id) DO UPDATE SET
+			insights = EXCLUDED.insights,
+			tools_used = EXCLUDED.tools_used,
+			total_emails_analyzed = EXCLUDED.total_emails_analyzed,
+			sender_domains = EXCLUDED.sender_domains,
+			detected_patterns = EXCLUDED.detected_patterns,
+			status = 'completed',
+			updated_at = NOW(),
+			completed_at = NOW()
+	`, userID, insightsJSON, toolsUsedJSON, metadata.TotalEmails, domainsJSON, topicsJSON)
+
+	if err != nil {
+		return fmt.Errorf("failed to store analysis: %w", err)
+	}
+
+	log.Printf("✅ [Analysis] Results stored successfully for user: %s", userID)
+	return nil
 }

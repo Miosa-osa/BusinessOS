@@ -419,6 +419,73 @@ func (h *OSAOnboardingHandler) GenerateStarterApps(c *gin.Context) {
 	})
 }
 
+// GetUserAnalysisStatus returns the onboarding analysis status for a user
+// GET /api/osa-onboarding/user-analysis/:user_id
+func (h *OSAOnboardingHandler) GetUserAnalysisStatus(c *gin.Context) {
+	userID := c.Param("user_id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	// Query the onboarding_user_analysis table directly
+	var status, errorMessage *string
+	var insights, toolsUsed, senderDomains, detectedPatterns []byte
+	var totalEmails *int
+
+	err := h.pool.QueryRow(c.Request.Context(), `
+		SELECT
+			status,
+			insights,
+			tools_used,
+			total_emails_analyzed,
+			sender_domains,
+			detected_patterns,
+			error_message
+		FROM onboarding_user_analysis
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, userID).Scan(&status, &insights, &toolsUsed, &totalEmails, &senderDomains, &detectedPatterns, &errorMessage)
+
+	if err != nil {
+		// Analysis not started yet - return not_started status
+		c.JSON(http.StatusOK, gin.H{
+			"status":       "not_started",
+			"insights":     []string{},
+			"tools":        []string{},
+			"total_emails": 0,
+		})
+		return
+	}
+
+	// Parse JSON arrays
+	insightsArray := parseJSONArray(insights)
+	toolsArray := parseJSONArray(toolsUsed)
+	domainsArray := parseJSONArray(senderDomains)
+	patternsArray := parseJSONArray(detectedPatterns)
+
+	response := gin.H{
+		"status":            derefString(status),
+		"insights":          insightsArray,
+		"tools":             toolsArray,
+		"sender_domains":    domainsArray,
+		"detected_patterns": patternsArray,
+	}
+
+	if totalEmails != nil {
+		response["total_emails"] = *totalEmails
+	} else {
+		response["total_emails"] = 0
+	}
+
+	if errorMessage != nil && *errorMessage != "" {
+		response["error"] = *errorMessage
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // Helper: parseJSONArray parses a JSON byte array into []string
 func parseJSONArray(data []byte) []string {
 	var result []string

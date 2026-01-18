@@ -254,11 +254,67 @@ function createOnboardingAnalysisStore() {
 		set(initialState);
 	}
 
+	/**
+	 * Poll for analysis by user_id (for OAuth flow)
+	 * This is used when analysis is triggered automatically in OAuth callback
+	 */
+	async function pollByUserId(userId: string) {
+		update((s) => ({
+			...s,
+			isLoading: true,
+			error: null,
+			startedAt: Date.now()
+		}));
+
+		const backendUrl = 'http://localhost:8001';
+		const maxAttempts = 60; // 2 minutes max
+		let attempts = 0;
+
+		const pollInterval = setInterval(async () => {
+			attempts++;
+
+			if (attempts > maxAttempts) {
+				clearInterval(pollInterval);
+				update((s) => ({
+					...s,
+					isLoading: false,
+					error: 'Analysis timeout',
+					status: 'failed',
+					completedAt: Date.now()
+				}));
+				return;
+			}
+
+			try {
+				const response = await fetch(`${backendUrl}/api/osa-onboarding/user-analysis/${userId}`);
+				if (!response.ok) throw new Error('Failed to fetch analysis');
+
+				const data = await response.json();
+
+				update((s) => ({
+					...s,
+					status: data.status as AnalysisStatus,
+					insights: data.insights || [],
+					toolsUsed: data.tools || [],
+					isLoading: data.status === 'analyzing',
+					completedAt: data.status === 'completed' || data.status === 'failed' ? Date.now() : null
+				}));
+
+				if (data.status === 'completed' || data.status === 'failed') {
+					clearInterval(pollInterval);
+				}
+			} catch (err) {
+				console.error('Polling error:', err);
+			}
+		}, 2000); // Poll every 2 seconds
+	}
+
 	return {
 		subscribe,
 		start,
 		cancel,
-		reset
+		reset,
+		pollByUserId
 	};
 }
 

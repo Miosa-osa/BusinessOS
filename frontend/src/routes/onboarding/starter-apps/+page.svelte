@@ -5,7 +5,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { GradientBackground, PillButton } from '$lib/components/osa';
+	import { PillButton } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
@@ -114,7 +114,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<GradientBackground>
+<div class="onboarding-background">
 	<div class="starter-apps-screen">
 		<div class="content">
 			<h1 class="title">
@@ -162,8 +162,8 @@
 						{#key currentAppIndex}
 							<div
 								class="app-card"
-								in:fly={{ x: 100, duration: 400, delay: 100 }}
-								out:fly={{ x: -100, duration: 300 }}
+								in:fly={{ x: 300, duration: 500, opacity: 0 }}
+								out:fly={{ x: -300, duration: 500, opacity: 0 }}
 							>
 								<div class="app-icon">
 									{currentApp.title.charAt(0)}
@@ -198,9 +198,18 @@
 			{/if}
 		</div>
 	</div>
-</GradientBackground>
+</div>
 
 <style>
+	.onboarding-background {
+		min-height: 100vh;
+		width: 100%;
+		background-image: url('/logos/integrations/MIOSABRANDBackround.png');
+		background-size: cover;
+		background-position: center;
+		background-repeat: no-repeat;
+	}
+
 	.starter-apps-screen {
 		min-height: 100vh;
 		display: flex;
@@ -296,14 +305,17 @@
 
 	.app-display {
 		position: relative;
-		min-height: 400px;
+		min-height: 450px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		overflow: hidden; /* Prevent horizontal scrollbar during slide */
 	}
 
 	.app-card {
+		position: absolute;
 		width: 100%;
+		max-width: 600px;
 		padding: 2rem;
 		background: white;
 		border-radius: 1.5rem;
@@ -312,6 +324,7 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 1.5rem;
+		transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
 	}
 
 	.app-icon {
