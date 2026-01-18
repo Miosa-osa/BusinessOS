@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix App Store Icon</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        button {
+            background: #0D84FF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #0066CC;
+        }
+        .success {
+            background: #34C759;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+        .code {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            margin: 15px 0;
+            border-left: 3px solid #0D84FF;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🛠️ Fix App Store Icon</h1>
+        <p>If you don't see the App Store icon on your desktop, it's because you have old localStorage data.</p>
+
+        <p>This will clear your desktop settings and restore the App Store icon to the dock.</p>
+
+        <div class="code">
+            Key to clear: <strong>businessos_desktop_settings</strong>
+        </div>
+
+        <button onclick="fix()">Fix App Store Icon</button>
+
+        <div class="success" id="success">
+            ✅ Desktop settings cleared! Refresh your page to see the App Store icon.
+        </div>
+    </div>
+
+    <script>
+        function fix() {
+            // Clear the desktop settings
+            localStorage.removeItem('businessos_desktop_settings');
+
+            // Show success message
+            document.getElementById('success').style.display = 'block';
+
+            // Wait 2 seconds then refresh
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

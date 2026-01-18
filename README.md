@@ -6,6 +6,18 @@ AI-native. Self-hosted. Built for fast software.
 
 ---
 
+## 🎯 Team Reviews & Recent Changes
+
+**📚 Start here for recent updates:** [docs/TEAM_START_HERE.md](docs/TEAM_START_HERE.md)
+
+Quick links:
+- [Recent Changes Summary](docs/RECENT_CHANGES.md)
+- [Frontend Team Review](frontend/docs/team-review/)
+- [Backend Team Review](desktop/backend-go/docs/team-review/)
+- [API Documentation](docs/API_DOCUMENTATION_INDEX.md)
+
+---
+
 ## Quick Start
 
 ```bash
