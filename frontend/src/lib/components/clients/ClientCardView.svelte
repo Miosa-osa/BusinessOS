@@ -49,7 +49,7 @@
 		{#each clients as client}
 			<button
 				onclick={() => onClientClick(client.id)}
-				class="text-left bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer"
+				class="text-left bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
 			>
 				<!-- Header -->
 				<div class="flex items-start gap-3">

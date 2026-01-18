@@ -190,9 +190,9 @@
       {#each categories as category}
         <button
           type="button"
-          class="px-4 py-2 rounded-lg transition-all font-medium {selectedCategory === category.id
-            ? 'bg-blue-600 text-white shadow-md'
-            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}"
+          class="btn-pill btn-pill-sm {selectedCategory === category.id
+            ? 'btn-pill-primary'
+            : 'btn-pill-secondary'}"
           onclick={() => selectedCategory = category.id}
         >
           {category.label}
@@ -215,7 +215,7 @@
         <p class="text-red-600 text-sm mb-4">{error}</p>
         <button
           onclick={loadPresets}
-          class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          class="btn-pill btn-pill-danger btn-pill-sm"
         >
           Try Again
         </button>
@@ -243,7 +243,7 @@
               searchQuery = '';
               selectedCategory = 'all';
             }}
-            class="text-blue-600 hover:text-blue-700 font-medium"
+            class="btn-pill btn-pill-link btn-pill-sm"
           >
             Clear filters
           </button>
@@ -401,19 +401,16 @@
         <button
           onclick={closeModal}
           disabled={creating}
-          class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="btn-pill btn-pill-secondary"
         >
           Cancel
         </button>
         <button
           onclick={handleCreateAgent}
           disabled={creating}
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          class="btn-pill btn-pill-primary {creating ? 'btn-pill-loading' : ''}"
         >
-          {#if creating}
-            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            Creating...
-          {:else}
+          {#if !creating}
             Create Agent
           {/if}
         </button>

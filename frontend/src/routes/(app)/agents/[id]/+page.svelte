@@ -158,7 +158,7 @@
         <p class="text-red-700 mb-4">{error || 'The requested agent could not be found.'}</p>
         <button
           onclick={() => goto('/agents')}
-          class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          class="btn-pill btn-pill-danger btn-pill-sm"
         >
           Back to Agents
         </button>
@@ -245,7 +245,7 @@
           <div class="flex gap-2">
             <button
               onclick={handleEdit}
-              class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+              class="btn-pill btn-pill-secondary btn-pill-sm flex items-center gap-2"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -255,7 +255,7 @@
 
             <button
               onclick={handleClone}
-              class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+              class="btn-pill btn-pill-secondary btn-pill-sm flex items-center gap-2"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -265,7 +265,7 @@
 
             <button
               onclick={() => (activeTab = 'testing')}
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+              class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -277,7 +277,7 @@
             {#if !showDeleteConfirm}
               <button
                 onclick={handleDelete}
-                class="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors font-medium flex items-center gap-2"
+                class="btn-pill btn-pill-danger btn-pill-sm flex items-center gap-2"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -289,13 +289,13 @@
                 <span class="text-sm text-red-700 font-medium">Confirm?</span>
                 <button
                   onclick={handleDelete}
-                  class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                  class="btn-pill btn-pill-danger btn-pill-xs"
                 >
                   Yes
                 </button>
                 <button
                   onclick={() => (showDeleteConfirm = false)}
-                  class="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
+                  class="btn-pill btn-pill-secondary btn-pill-xs"
                 >
                   No
                 </button>
@@ -363,7 +363,7 @@
                   <h3 class="text-lg font-semibold text-gray-900">System Prompt</h3>
                   <button
                     onclick={handleCopySystemPrompt}
-                    class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    class="btn-pill btn-pill-ghost btn-pill-xs flex items-center gap-2"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />

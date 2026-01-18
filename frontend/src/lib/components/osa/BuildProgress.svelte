@@ -606,7 +606,7 @@
 					href={deploymentUrl}
 					target="_blank"
 					rel="noopener noreferrer"
-					class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors"
+					class="btn-pill btn-pill-success flex items-center gap-2"
 				>
 					<ExternalLink class="w-4 h-4" />
 					Open App
@@ -627,7 +627,7 @@
 				</div>
 				<button
 					onclick={handleRetry}
-					class="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+					class="btn-pill btn-pill-secondary flex items-center gap-2"
 				>
 					<RefreshCw class="w-4 h-4" />
 					Retry Build

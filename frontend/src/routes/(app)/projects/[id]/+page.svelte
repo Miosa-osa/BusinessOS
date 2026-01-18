@@ -525,7 +525,7 @@
 		<div class="flex-1 flex items-center justify-center">
 			<div class="text-center">
 				<p class="text-gray-500 mb-4">{error || 'Project not found'}</p>
-				<a href="/projects{embedSuffix}" class="btn btn-secondary">Back to Projects</a>
+				<a href="/projects{embedSuffix}" class="btn-pill btn-pill-secondary">Back to Projects</a>
 			</div>
 		</div>
 	{:else}
@@ -616,13 +616,13 @@
 						</div>
 					</div>
 					<div class="flex gap-2">
-						<button onclick={() => showEditDialog = true} class="btn btn-secondary text-sm">
+						<button onclick={() => showEditDialog = true} class="btn-pill btn-pill-secondary btn-pill-sm">
 							<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
 							</svg>
 							Edit
 						</button>
-						<button onclick={() => showDeleteConfirm = true} class="btn text-sm bg-red-50 text-red-600 hover:bg-red-100">
+						<button onclick={() => showDeleteConfirm = true} class="btn-pill btn-pill-danger btn-pill-sm">
 							<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
 							</svg>
@@ -729,7 +729,7 @@
 											</svg>
 										</div>
 										<p class="text-gray-500 mb-2">No tasks yet</p>
-										<button onclick={() => { activeTab = 'tasks'; showAddTask = true; }} class="btn btn-primary text-sm">
+										<button onclick={() => { activeTab = 'tasks'; showAddTask = true; }} class="btn-pill btn-pill-primary btn-pill-sm">
 											Add First Task
 										</button>
 									</div>
@@ -778,7 +778,7 @@
 												await api.updateProject(project!.id, { status: 'completed' });
 												await loadProject();
 											}}
-											class="btn btn-secondary w-full text-sm justify-start"
+											class="btn-pill btn-pill-secondary btn-pill-sm w-full justify-start"
 										>
 											<svg class="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -792,7 +792,7 @@
 												await api.updateProject(project!.id, { status: 'paused' });
 												await loadProject();
 											}}
-											class="btn btn-secondary w-full text-sm justify-start"
+											class="btn-pill btn-pill-secondary btn-pill-sm w-full justify-start"
 										>
 											<svg class="w-4 h-4 mr-2 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -805,7 +805,7 @@
 												await api.updateProject(project!.id, { status: 'active' });
 												await loadProject();
 											}}
-											class="btn btn-secondary w-full text-sm justify-start"
+											class="btn-pill btn-pill-secondary btn-pill-sm w-full justify-start"
 										>
 											<svg class="w-4 h-4 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -816,7 +816,7 @@
 									{/if}
 									<button
 										onclick={() => { activeTab = 'tasks'; showAddTask = true; }}
-										class="btn btn-secondary w-full text-sm justify-start"
+										class="btn-pill btn-pill-secondary btn-pill-sm w-full justify-start"
 									>
 										<svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -825,7 +825,7 @@
 									</button>
 									<a
 										href="/knowledge-v2{embedSuffix}"
-										class="btn btn-secondary w-full text-sm justify-start"
+										class="btn-pill btn-pill-secondary btn-pill-sm w-full justify-start"
 									>
 										<svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -838,7 +838,7 @@
 												await api.updateProject(project!.id, { status: 'archived' });
 												await loadProject();
 											}}
-											class="btn btn-secondary w-full text-sm justify-start text-gray-500"
+											class="btn-pill btn-pill-soft btn-pill-sm w-full justify-start"
 										>
 											<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
@@ -942,13 +942,13 @@
 									<span class="text-sm text-gray-400">({totalTasks})</span>
 								</div>
 								<div class="flex items-center gap-2">
-									<a href="/tasks{embedSuffix}" class="btn btn-secondary text-sm">
+									<a href="/tasks{embedSuffix}" class="btn-pill btn-pill-secondary btn-pill-sm">
 										<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
 										</svg>
 										Open Tasks
 									</a>
-									<button onclick={() => showAddTask = true} class="btn btn-primary text-sm">
+									<button onclick={() => showAddTask = true} class="btn-pill btn-pill-primary btn-pill-sm">
 										<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 										</svg>
@@ -966,7 +966,7 @@
 									</div>
 									<h3 class="text-lg font-medium text-gray-900 mb-1">No tasks yet</h3>
 									<p class="text-gray-500 mb-4">Break down your project into manageable tasks</p>
-									<button onclick={() => showAddTask = true} class="btn btn-primary">
+									<button onclick={() => showAddTask = true} class="btn-pill btn-pill-primary">
 										Add First Task
 									</button>
 								</div>
@@ -1133,7 +1133,7 @@
 										</button>
 									</div>
 								{/if}
-								<a href="/knowledge-v2{embedSuffix}" class="btn btn-primary text-sm">
+								<a href="/knowledge-v2{embedSuffix}" class="btn-pill btn-pill-primary btn-pill-sm">
 									<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 									</svg>
@@ -1155,7 +1155,7 @@
 								</div>
 								<h3 class="text-lg font-medium text-gray-900 mb-1">No documents yet</h3>
 								<p class="text-gray-500 mb-4">Create documents in the Knowledge Base to link them here</p>
-								<a href="/knowledge-v2{embedSuffix}" class="btn btn-primary">
+								<a href="/knowledge-v2{embedSuffix}" class="btn-pill btn-pill-primary">
 									Go to Knowledge Base
 								</a>
 							</div>
@@ -1206,7 +1206,7 @@
 								<button
 									onclick={handleAddNote}
 									disabled={!newNote.trim() || isAddingNote}
-									class="btn btn-primary text-sm disabled:opacity-50"
+									class="btn-pill btn-pill-primary btn-pill-sm disabled:opacity-50"
 								>
 									{isAddingNote ? 'Adding...' : 'Add Note'}
 								</button>
@@ -1338,10 +1338,10 @@
 				</div>
 
 				<div class="flex gap-3 pt-2">
-					<button type="button" onclick={() => showAddTask = false} class="btn btn-secondary flex-1">
+					<button type="button" onclick={() => showAddTask = false} class="btn-pill btn-pill-secondary flex-1">
 						Cancel
 					</button>
-					<button type="submit" class="btn btn-primary flex-1">
+					<button type="submit" class="btn-pill btn-pill-primary flex-1">
 						Add Task
 					</button>
 				</div>
@@ -1438,10 +1438,10 @@
 				</div>
 
 				<div class="flex gap-3 pt-2">
-					<button type="button" onclick={() => { showEditTask = false; editingTask = null; }} class="btn btn-secondary flex-1">
+					<button type="button" onclick={() => { showEditTask = false; editingTask = null; }} class="btn-pill btn-pill-secondary flex-1">
 						Cancel
 					</button>
-					<button type="submit" class="btn btn-primary flex-1">
+					<button type="submit" class="btn-pill btn-pill-primary flex-1">
 						Save Changes
 					</button>
 				</div>
@@ -1521,10 +1521,10 @@
 				</div>
 
 				<div class="flex gap-3 pt-2">
-					<button type="button" onclick={() => showEditDialog = false} class="btn btn-secondary flex-1">
+					<button type="button" onclick={() => showEditDialog = false} class="btn-pill btn-pill-secondary flex-1">
 						Cancel
 					</button>
-					<button type="submit" disabled={isSaving} class="btn btn-primary flex-1">
+					<button type="submit" disabled={isSaving} class="btn-pill btn-pill-primary flex-1">
 						{isSaving ? 'Saving...' : 'Save Changes'}
 					</button>
 				</div>
@@ -1543,10 +1543,10 @@
 				Are you sure you want to delete "{project?.name}"? This action cannot be undone.
 			</p>
 			<div class="flex gap-3">
-				<button onclick={() => showDeleteConfirm = false} class="btn btn-secondary flex-1">
+				<button onclick={() => showDeleteConfirm = false} class="btn-pill btn-pill-secondary flex-1">
 					Cancel
 				</button>
-				<button onclick={handleDelete} class="btn flex-1 bg-red-600 text-white hover:bg-red-700">
+				<button onclick={handleDelete} class="btn-pill btn-pill-danger flex-1">
 					Delete
 				</button>
 			</div>
@@ -1891,7 +1891,7 @@
 
 				<a
 					href="/knowledge-v2/{selectedDocument.id}{embedSuffix}"
-					class="btn btn-secondary text-sm ml-2"
+					class="btn-pill btn-pill-secondary btn-pill-sm ml-2"
 					title="Open in Knowledge Base"
 				>
 					Open in Knowledge Base

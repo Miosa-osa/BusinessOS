@@ -333,13 +333,13 @@
 				</select>
 				<button
 					onclick={addProperty}
-					class="px-3 py-1 text-sm bg-gray-900 text-white rounded hover:bg-gray-800"
+					class="btn-pill btn-pill-primary btn-pill-sm"
 				>
 					Add
 				</button>
 				<button
 					onclick={() => showAddProperty = false}
-					class="px-3 py-1 text-sm text-gray-500 hover:text-gray-700"
+					class="btn-pill btn-pill-ghost btn-pill-sm"
 				>
 					Cancel
 				</button>

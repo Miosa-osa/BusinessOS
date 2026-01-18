@@ -2290,10 +2290,10 @@
 				{/if}
 
 				<div class="flex gap-3 pt-2">
-					<button type="button" onclick={() => { showNewContext = false; showAdvancedProfile = false; }} class="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+					<button type="button" onclick={() => { showNewContext = false; showAdvancedProfile = false; }} class="btn-pill btn-pill-ghost flex-1">
 						Cancel
 					</button>
-					<button type="submit" class="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">
+					<button type="submit" class="btn-pill btn-pill-primary flex-1">
 						Create Profile
 					</button>
 				</div>
@@ -2318,7 +2318,7 @@
 				{#each profiles as profile}
 					<button
 						onclick={() => assignDocumentToProfile(profile.id)}
-						class="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
+						class="btn-pill btn-pill-ghost btn-pill-block justify-start"
 					>
 						{#if profile.icon}
 							<span class="text-xl">{profile.icon}</span>
@@ -2338,7 +2338,7 @@
 			</div>
 
 			<div class="mt-4 pt-4 border-t border-gray-100">
-				<button type="button" onclick={() => { showAssignModal = false; documentToAssign = null; }} class="w-full px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+				<button type="button" onclick={() => { showAssignModal = false; documentToAssign = null; }} class="btn-pill btn-pill-ghost btn-pill-block">
 					Cancel
 				</button>
 			</div>

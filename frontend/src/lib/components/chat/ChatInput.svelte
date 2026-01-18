@@ -302,7 +302,7 @@
 			{#if streaming}
 				<button
 					onclick={onStop}
-					class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors"
+					class="btn-pill btn-pill-icon btn-pill-danger"
 				>
 					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
 						<rect x="6" y="6" width="12" height="12" rx="2" />
@@ -312,7 +312,7 @@
 				<button
 					onclick={handleSend}
 					disabled={!value.trim() || disabled}
-					class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+					class="btn-pill btn-pill-icon btn-pill-primary"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />

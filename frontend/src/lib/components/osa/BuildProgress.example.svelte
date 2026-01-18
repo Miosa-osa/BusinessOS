@@ -80,7 +80,7 @@
 		<!-- Controls -->
 		<div class="flex items-center justify-center gap-4 mb-8">
 			<button
-				class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
+				class="btn-pill btn-pill-primary flex items-center gap-2"
 				onclick={startNewBuild}
 				disabled={showProgress}
 			>
@@ -89,7 +89,7 @@
 			</button>
 
 			<button
-				class="flex items-center gap-2 px-5 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors"
+				class="btn-pill btn-pill-secondary flex items-center gap-2"
 				onclick={resetDemo}
 			>
 				<RotateCcw class="w-4 h-4" />

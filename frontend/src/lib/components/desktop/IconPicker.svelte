@@ -394,14 +394,14 @@
 
 	<!-- Actions -->
 	<div class="picker-actions">
-		<button class="btn-secondary" onclick={resetToDefault}>
+		<button class="btn-pill btn-pill-ghost" onclick={resetToDefault}>
 			Reset to Default
 		</button>
-		<button class="btn-secondary" onclick={close}>
+		<button class="btn-pill btn-pill-ghost" onclick={close}>
 			Cancel
 		</button>
 		<button
-			class="btn-primary"
+			class="btn-pill btn-pill-primary"
 			onclick={applySelection}
 			disabled={!selectedIcon && !customSvg}
 		>

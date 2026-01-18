@@ -235,7 +235,7 @@
 			{#if contextDoc}
 				<button
 					onclick={openFullPage}
-					class="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-1.5"
+					class="btn-pill btn-pill-secondary btn-pill-xs flex items-center gap-1.5"
 					title="Open full page"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,7 +247,7 @@
 			<button
 				onclick={() => saveDocument()}
 				disabled={isSaving || !hasUnsavedChanges}
-				class="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+				class="btn-pill btn-pill-primary btn-pill-xs"
 			>
 				{isSaving ? 'Saving...' : 'Save'}
 			</button>

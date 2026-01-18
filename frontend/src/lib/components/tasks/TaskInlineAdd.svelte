@@ -150,14 +150,14 @@
 				<div class="flex items-center gap-2">
 					<button
 						onclick={handleCancel}
-						class="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+						class="btn-pill btn-pill-ghost btn-pill-xs"
 					>
 						Cancel
 					</button>
 					<button
 						onclick={handleSubmit}
 						disabled={!title.trim()}
-						class="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+						class="btn-pill btn-pill-primary btn-pill-xs"
 					>
 						Add
 					</button>

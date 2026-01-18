@@ -832,19 +832,18 @@
 						<!-- Project Selector -->
 						<div class="dropdown-wrapper">
 							<button
-								class="selector-btn"
-								class:selected={selectedProject}
+								class="btn-pill btn-pill-sm selector-btn {selectedProject ? 'btn-pill-secondary' : 'btn-pill-ghost'}"
 								class:required={!selectedProject && inputValue.trim()}
 								onclick={() => { showProjectDropdown = !showProjectDropdown; showModelDropdown = false; }}
 							>
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
 									<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
 								</svg>
-								<span>{selectedProject ? selectedProject.name : 'Project'}</span>
+								<span>{selectedProject ? selectedProject.name : 'Continue'}</span>
 								{#if !selectedProject}
 									<span class="required-dot"></span>
 								{/if}
-								<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<svg class="chevron w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 									<path d="M19 9l-7 7-7-7" />
 								</svg>
 							</button>
@@ -940,7 +939,7 @@
 
 						<!-- Send Button (circle) -->
 						<button
-							class="send-btn"
+							class="btn-pill btn-pill-icon {canSend ? 'btn-pill-primary' : 'btn-pill-ghost'} send-btn"
 							onclick={sendMessage}
 							disabled={!canSend}
 							title={!selectedProjectId ? 'Select a project first' : 'Send message'}
@@ -980,8 +979,7 @@
 			<!-- Footer -->
 			<div class="footer">
 				<button
-					class="mode-btn"
-					class:active={mode === 'search'}
+					class="btn-pill {mode === 'search' ? 'btn-pill-primary' : 'btn-pill-ghost'} btn-pill-sm"
 					onclick={() => mode = 'search'}
 				>
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -991,8 +989,7 @@
 					Search
 				</button>
 				<button
-					class="mode-btn"
-					class:active={mode === 'chat'}
+					class="btn-pill {mode === 'chat' ? 'btn-pill-primary' : 'btn-pill-ghost'} btn-pill-sm"
 					onclick={() => mode = 'chat'}
 				>
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1768,36 +1765,6 @@
 		padding: 0 4px;
 	}
 
-	.mode-btn {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		padding: 6px 12px;
-		border: none;
-		background: rgba(255, 255, 255, 0.8);
-		border-radius: 8px;
-		cursor: pointer;
-		font-size: 13px;
-		color: #666;
-		transition: all 0.15s;
-	}
-
-	.mode-btn:hover {
-		background: white;
-		color: #333;
-	}
-
-	.mode-btn.active {
-		background: white;
-		color: #111;
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-	}
-
-	.mode-btn svg {
-		width: 14px;
-		height: 14px;
-	}
-
 	.footer-spacer {
 		flex: 1;
 	}
@@ -2027,22 +1994,6 @@
 
 	:global(.dark) .item-desc {
 		color: #6e6e73;
-	}
-
-	:global(.dark) .mode-btn {
-		background: rgba(44, 44, 46, 0.8);
-		color: #a1a1a6;
-	}
-
-	:global(.dark) .mode-btn:hover {
-		background: #2c2c2e;
-		color: #f5f5f7;
-	}
-
-	:global(.dark) .mode-btn.active {
-		background: #2c2c2e;
-		color: #f5f5f7;
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 	}
 
 	:global(.dark) .footer-hint {

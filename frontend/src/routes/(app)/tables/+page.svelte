@@ -203,7 +203,7 @@
 				<!-- Sidebar Toggle -->
 				<button
 					type="button"
-					class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+					class="btn-pill btn-pill-icon btn-pill-ghost"
 					onclick={() => (sidebarCollapsed = !sidebarCollapsed)}
 					title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
 				>
@@ -239,12 +239,10 @@
 				</div>
 
 				<!-- View Switcher -->
-				<div class="flex items-center rounded-lg border border-gray-200 bg-white p-1">
+				<div class="btn-pill-group">
 					<button
 						type="button"
-						class="rounded p-1.5 transition-colors {viewMode === 'card'
-							? 'bg-gray-100 text-gray-900'
-							: 'text-gray-400 hover:text-gray-600'}"
+						class="btn-pill btn-pill-icon {viewMode === 'card' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 						onclick={() => handleViewChange('card')}
 						title="Card view"
 					>
@@ -252,9 +250,7 @@
 					</button>
 					<button
 						type="button"
-						class="rounded p-1.5 transition-colors {viewMode === 'list'
-							? 'bg-gray-100 text-gray-900'
-							: 'text-gray-400 hover:text-gray-600'}"
+						class="btn-pill btn-pill-icon {viewMode === 'list' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 						onclick={() => handleViewChange('list')}
 						title="List view"
 					>
@@ -265,7 +261,7 @@
 				<!-- Actions -->
 				<button
 					type="button"
-					class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+					class="btn-pill btn-pill-secondary btn-pill-sm flex items-center gap-2"
 					onclick={() => (showImportModal = true)}
 				>
 					<Upload class="h-4 w-4" />
@@ -274,7 +270,7 @@
 
 				<button
 					type="button"
-					class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+					class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2"
 					onclick={() => (showTemplateGallery = true)}
 				>
 					<Plus class="h-4 w-4" />
@@ -286,45 +282,39 @@
 		<!-- Source Filter Tabs -->
 		{#if tablesList.length > 0 || searchQuery}
 			<div class="flex items-center gap-2 border-b border-gray-200 bg-white px-6 py-2">
-				<button
-					type="button"
-					class="rounded-full px-3 py-1 text-sm font-medium transition-colors {sourceFilter === null
-						? 'bg-blue-100 text-blue-700'
-						: 'text-gray-500 hover:bg-gray-100'}"
-					onclick={() => handleSourceFilter(null)}
-				>
-					All
-				</button>
-				<button
-					type="button"
-					class="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors {sourceFilter === 'custom'
-						? 'bg-blue-100 text-blue-700'
-						: 'text-gray-500 hover:bg-gray-100'}"
-					onclick={() => handleSourceFilter('custom')}
-				>
-					<Database class="h-3.5 w-3.5" />
-					Custom
-				</button>
-				<button
-					type="button"
-					class="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors {sourceFilter === 'import'
-						? 'bg-orange-100 text-orange-700'
-						: 'text-gray-500 hover:bg-gray-100'}"
-					onclick={() => handleSourceFilter('import')}
-				>
-					<Upload class="h-3.5 w-3.5" />
-					Imported
-				</button>
-				<button
-					type="button"
-					class="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors {sourceFilter === 'integration'
-						? 'bg-green-100 text-green-700'
-						: 'text-gray-500 hover:bg-gray-100'}"
-					onclick={() => handleSourceFilter('integration')}
-				>
-					<Sparkles class="h-3.5 w-3.5" />
-					Connected
-				</button>
+				<div class="btn-pill-group">
+					<button
+						type="button"
+						class="btn-pill btn-pill-sm {sourceFilter === null ? 'btn-pill-primary' : 'btn-pill-ghost'}"
+						onclick={() => handleSourceFilter(null)}
+					>
+						All
+					</button>
+					<button
+						type="button"
+						class="btn-pill btn-pill-sm {sourceFilter === 'custom' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
+						onclick={() => handleSourceFilter('custom')}
+					>
+						<Database class="h-3.5 w-3.5" />
+						Custom
+					</button>
+					<button
+						type="button"
+						class="btn-pill btn-pill-sm {sourceFilter === 'import' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
+						onclick={() => handleSourceFilter('import')}
+					>
+						<Upload class="h-3.5 w-3.5" />
+						Imported
+					</button>
+					<button
+						type="button"
+						class="btn-pill btn-pill-sm {sourceFilter === 'integration' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
+						onclick={() => handleSourceFilter('integration')}
+					>
+						<Sparkles class="h-3.5 w-3.5" />
+						Connected
+					</button>
+				</div>
 			</div>
 		{/if}
 
@@ -340,7 +330,7 @@
 					<p class="text-sm text-red-600">{error}</p>
 					<button
 						type="button"
-						class="mt-2 text-sm font-medium text-red-600 hover:text-red-700"
+						class="btn-pill btn-pill-danger btn-pill-sm mt-2"
 						onclick={() => tables.loadTables()}
 					>
 						Try again
@@ -365,7 +355,7 @@
 						<div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
 							<button
 								type="button"
-								class="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-blue-400 hover:shadow-md"
+								class="btn-pill btn-pill-outline flex items-center gap-4 p-4 text-left"
 								onclick={() => (showAddModal = true)}
 							>
 								<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
@@ -379,7 +369,7 @@
 
 							<button
 								type="button"
-								class="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-orange-400 hover:shadow-md"
+								class="btn-pill btn-pill-outline flex items-center gap-4 p-4 text-left"
 								onclick={() => (showImportModal = true)}
 							>
 								<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100">
@@ -393,7 +383,7 @@
 
 							<button
 								type="button"
-								class="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-green-400 hover:shadow-md"
+								class="btn-pill btn-pill-outline flex items-center gap-4 p-4 text-left"
 								onclick={() => (showTemplateGallery = true)}
 							>
 								<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
@@ -431,7 +421,7 @@
 					</p>
 					<button
 						type="button"
-						class="text-sm font-medium text-blue-600 hover:text-blue-700"
+						class="btn-pill btn-pill-primary btn-pill-sm"
 						onclick={() => {
 							handleSearchChange('');
 							handleSourceFilter(null);

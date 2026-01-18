@@ -195,14 +195,14 @@
 					<button
 						type="button"
 						onclick={handleClose}
-						class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+						class="btn-pill btn-pill-ghost btn-pill-sm"
 					>
 						Cancel
 					</button>
 					<button
 						type="submit"
 						disabled={loading || !name.trim()}
-						class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+						class="btn-pill btn-pill-primary btn-pill-sm"
 					>
 						{#if loading}
 							Creating...

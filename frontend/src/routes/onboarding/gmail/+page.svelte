@@ -4,15 +4,15 @@
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { GradientBackground, PillButton } from '$lib/components/osa';
+	import { PillButton } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
 
 	function handleConnect() {
-		// TODO: Implement Gmail OAuth
-		console.log('Connect Gmail clicked');
-		onboardingStore.setUserData({ gmailConnected: true });
-		onboardingStore.nextStep();
-		goto('/onboarding/username');
+		// Initiate Google OAuth flow
+		// After OAuth completes, backend will redirect to /onboarding/username
+		const backendUrl = 'http://localhost:8001';
+		const redirectAfter = '/onboarding/username';
+		window.location.href = `${backendUrl}/api/auth/google?redirect=${encodeURIComponent(redirectAfter)}`;
 	}
 
 	function handleSkip() {
@@ -31,7 +31,7 @@
 	<title>Connect Gmail - OSA Build</title>
 </svelte:head>
 
-<GradientBackground>
+<div class="onboarding-background">
 	<div class="gmail-screen">
 		<div class="content">
 			<!-- Main Message -->
@@ -60,9 +60,18 @@
 			</div>
 		</div>
 	</div>
-</GradientBackground>
+</div>
 
 <style>
+	.onboarding-background {
+		min-height: 100vh;
+		width: 100%;
+		background-image: url('/logos/integrations/MIOSABRANDBackround.png');
+		background-size: cover;
+		background-position: center;
+		background-repeat: no-repeat;
+	}
+
 	.gmail-screen {
 		min-height: 100vh;
 		display: flex;

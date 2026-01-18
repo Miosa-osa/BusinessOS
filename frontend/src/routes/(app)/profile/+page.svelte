@@ -160,7 +160,7 @@
 		{#if !isEditing}
 			<button
 				onclick={() => isEditing = true}
-				class="btn btn-secondary"
+				class="btn-pill btn-pill-secondary btn-pill-sm"
 			>
 				Edit Profile
 			</button>
@@ -280,14 +280,14 @@
 								<div class="flex gap-3 pt-2">
 									<button
 										onclick={() => isEditing = false}
-										class="btn btn-secondary"
+										class="btn-pill btn-pill-secondary btn-pill-sm"
 									>
 										Cancel
 									</button>
 									<button
 										onclick={handleSave}
 										disabled={isSaving}
-										class="btn btn-primary"
+										class="btn-pill btn-pill-primary btn-pill-sm"
 									>
 										{#if isSaving}
 											Saving...

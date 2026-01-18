@@ -17,21 +17,21 @@
 <div class="h-full flex flex-col">
 	<!-- Header with Tabs -->
 	<div class="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-		<div class="px-6 pt-4">
-			<h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Communication Hub</h1>
-			<nav class="flex gap-1">
+		<div class="px-6 pt-6 pb-4">
+			<h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Communication Hub</h1>
+			<nav class="flex gap-2">
 				{#each tabs as tab}
 					<a
 						href={tab.href}
-						class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors
+						class="flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-full transition-all duration-200
 							{isActiveTab(tab.href)
-								? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-								: 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}"
+								? 'bg-blue-600 text-white shadow-md hover:shadow-lg hover:bg-blue-700 dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700'
+								: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'}"
 					>
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={tab.icon} />
 						</svg>
-						{tab.label}
+						<span class="hidden sm:inline">{tab.label}</span>
 					</a>
 				{/each}
 			</nav>

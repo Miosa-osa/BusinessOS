@@ -300,7 +300,7 @@
           <button
             type="button"
             onclick={handleStop}
-            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            class="btn-pill btn-pill-danger"
           >
             Stop
           </button>
@@ -309,7 +309,7 @@
             type="button"
             onclick={handleTest}
             disabled={!testMessage.trim()}
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+            class="btn-pill btn-pill-primary"
           >
             Test
           </button>

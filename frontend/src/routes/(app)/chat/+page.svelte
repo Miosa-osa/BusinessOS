@@ -3441,11 +3441,11 @@ Use this context to inform your responses.`;
 	<div class="{artifactsPanelOpen && isArtifactFocused ? 'w-1/2' : 'flex-1'} flex flex-col min-w-0 h-full bg-gray-50">
 		<!-- Toggle button - fixed header -->
 		<div class="h-12 flex items-center justify-between px-4 flex-shrink-0 border-b border-gray-100 min-w-0">
-			<!-- Left group: Hamburger + Model Selector -->
+			<!-- Left group: Hamburger + Model Selector + Agent Selector -->
 			<div class="flex items-center gap-1 flex-shrink-0">
 				<button
 					onclick={() => chatSidebarOpen = !chatSidebarOpen}
-					class="p-2 text-gray-400 hover:text-gray-600 hover:bg-white rounded-lg transition-colors flex-shrink-0"
+					class="btn-pill btn-pill-icon btn-pill-ghost"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						{#if chatSidebarOpen}
@@ -3460,7 +3460,7 @@ Use this context to inform your responses.`;
 				<div class="relative">
 					<button
 						onclick={() => showModelDropdown = !showModelDropdown}
-						class="flex items-center gap-1.5 px-2 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+						class="btn-pill btn-pill-secondary btn-pill-sm"
 						title="Select AI Model"
 					>
 						{#if warmingUpModel === selectedModel}
@@ -3707,17 +3707,7 @@ Use this context to inform your responses.`;
 					{/if}
 				</div>
 
-				<!-- COT is always enabled - no toggle needed -->
-			</div>
-
-			<!-- Center: Role Context Badge -->
-			<div class="flex items-center justify-center flex-1 min-w-0">
-				<RoleContextBadge size="sm" showLabel={true} showTooltip={true} />
-			</div>
-
-			<!-- Right group: Agent, Project, Node, Panel -->
-			<div class="flex items-center gap-2 min-w-0">
-				<!-- Agent Selector -->
+				<!-- Agent Selector (next to model selector) -->
 				<div class="relative flex-shrink-0" style="width: 220px;">
 					<AgentSelector
 						agents={customAgents}
@@ -3729,6 +3719,16 @@ Use this context to inform your responses.`;
 					/>
 				</div>
 
+				<!-- COT is always enabled - no toggle needed -->
+			</div>
+
+			<!-- Center: Role Context Badge -->
+			<div class="flex items-center justify-center flex-1 min-w-0">
+				<RoleContextBadge size="sm" showLabel={true} showTooltip={true} />
+			</div>
+
+			<!-- Right group: Project, Node, Panel -->
+			<div class="flex items-center gap-2 min-w-0">
 				<!-- Project Selector (required for chat) -->
 				<div class="relative flex-shrink-0">
 					<button
@@ -3739,7 +3739,7 @@ Use this context to inform your responses.`;
 							showNodeDropdown = false;
 						}}
 						onkeydown={handleProjectDropdownKeydown}
-						class="header-toggle-btn {selectedProject ? 'active' : 'warning'}"
+						class="btn-pill btn-pill-sm {selectedProject ? 'btn-pill-secondary' : 'btn-pill-warning'}"
 						title={selectedProject ? selectedProject.name : 'Select Project'}
 					>
 						<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3832,7 +3832,7 @@ Use this context to inform your responses.`;
 					<div class="relative flex-shrink-0">
 						<button
 							onclick={() => showNodeDropdown = !showNodeDropdown}
-							class="header-toggle-btn active"
+							class="btn-pill btn-pill-secondary btn-pill-sm"
 						>
 							<svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
 								<path d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -3875,7 +3875,7 @@ Use this context to inform your responses.`;
 				{:else}
 					<a
 						href="/nodes"
-						class="header-toggle-btn"
+						class="btn-pill btn-pill-secondary btn-pill-sm"
 					>
 						<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -3887,15 +3887,14 @@ Use this context to inform your responses.`;
 				<!-- Panel Toggle (combines Progress, Context, Artifacts) -->
 				<button
 					onclick={() => rightPanelOpen = !rightPanelOpen}
-					class="header-toggle-btn {rightPanelOpen ? 'active' : ''}"
+					class="btn-pill btn-pill-icon {rightPanelOpen ? 'btn-pill-secondary' : 'btn-pill-ghost'}"
 					title="Toggle Side Panel"
 				>
 					<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
 					</svg>
-					<span>Panel</span>
 					{#if artifacts.length > 0}
-						<span class="header-toggle-badge">{artifacts.length}</span>
+						<span class="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-blue-500 text-white text-[10px] font-medium flex items-center justify-center">{artifacts.length}</span>
 					{/if}
 				</button>
 			</div>
@@ -4208,14 +4207,14 @@ Use this context to inform your responses.`;
 											<div class="flex gap-2">
 												<button
 													onclick={dismissInlineTasks}
-													class="flex-1 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+													class="btn-pill btn-pill-ghost flex-1"
 												>
 													Skip
 												</button>
 												<button
 													onclick={confirmInlineTasks}
 													disabled={creatingInlineTasks}
-													class="flex-1 px-4 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+													class="btn-pill btn-pill-success flex-1"
 												>
 													{#if creatingInlineTasks}
 														<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -4365,7 +4364,7 @@ Use this context to inform your responses.`;
 											liveTranscript = '';
 											recordingDuration = 0;
 										}}
-										class="p-1.5 text-gray-400 hover:text-white transition-colors"
+										class="btn-pill btn-pill-icon btn-pill-danger"
 										aria-label="Cancel recording"
 									>
 										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4389,7 +4388,7 @@ Use this context to inform your responses.`;
 									<!-- Confirm button -->
 									<button
 										onclick={(e) => { e.stopPropagation(); stopRecording(); }}
-										class="p-1.5 bg-white text-gray-800 rounded-full hover:bg-gray-200 transition-colors"
+										class="btn-pill btn-pill-icon btn-pill-primary"
 										aria-label="Stop and transcribe"
 									>
 										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4571,7 +4570,7 @@ Use this context to inform your responses.`;
 								<div class="relative">
 									<button
 										onclick={(e) => { e.stopPropagation(); showPlusMenu = !showPlusMenu; showContextDropdown = false; showModelDropdown = false; }}
-										class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+										class="btn-pill btn-pill-icon btn-pill-ghost"
 										aria-label="Add"
 									>
 										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4585,7 +4584,7 @@ Use this context to inform your responses.`;
 										>
 											<button
 												onclick={() => startNewConversation()}
-												class="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
+												class="btn-pill btn-pill-ghost btn-pill-sm justify-start w-full"
 											>
 												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -4594,7 +4593,7 @@ Use this context to inform your responses.`;
 											</button>
 											<button
 												onclick={() => { showPlusMenu = false; showContextDropdown = true; }}
-												class="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
+												class="btn-pill btn-pill-ghost btn-pill-sm justify-start w-full"
 											>
 												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -4603,7 +4602,7 @@ Use this context to inform your responses.`;
 											</button>
 											<button
 												onclick={() => { showPlusMenu = false; showHybridSearchPanel = true; }}
-												class="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
+												class="btn-pill btn-pill-ghost btn-pill-sm justify-start w-full"
 											>
 												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -4612,7 +4611,7 @@ Use this context to inform your responses.`;
 											</button>
 											<button
 												onclick={() => { showPlusMenu = false; fileInputRef?.click(); }}
-												class="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
+												class="btn-pill btn-pill-ghost btn-pill-sm justify-start w-full"
 											>
 												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
@@ -4621,7 +4620,7 @@ Use this context to inform your responses.`;
 											</button>
 											<button
 												onclick={() => { showPlusMenu = false; showDocumentUploadModal = true; }}
-												class="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
+												class="btn-pill btn-pill-ghost btn-pill-sm justify-start w-full"
 											>
 												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -4635,7 +4634,7 @@ Use this context to inform your responses.`;
 								<!-- Attachment -->
 								<button
 									onclick={(e) => { e.stopPropagation(); fileInputRef?.click(); }}
-									class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+									class="btn-pill btn-pill-icon btn-pill-ghost"
 									aria-label="Attach image"
 								>
 									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4647,7 +4646,7 @@ Use this context to inform your responses.`;
 								<div class="relative">
 									<button
 										onclick={() => { showContextDropdown = !showContextDropdown; showModelDropdown = false; }}
-										class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+										class="btn-pill btn-pill-secondary btn-pill-sm"
 									>
 										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -4701,7 +4700,7 @@ Use this context to inform your responses.`;
 								<div class="relative">
 									<button
 										onclick={() => { showFocusDropdown = !showFocusDropdown; showModelDropdown = false; showContextDropdown = false; }}
-										class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors {selectedFocusId ? 'text-purple-600 bg-purple-50 hover:bg-purple-100' : 'text-gray-600 hover:bg-gray-100'}"
+										class="btn-pill btn-pill-sm {selectedFocusId ? 'btn-pill-warning' : 'btn-pill-ghost'}"
 									>
 										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -4822,7 +4821,7 @@ Use this context to inform your responses.`;
 								<button
 									type="button"
 									onclick={toggleCOT}
-									class="flex-shrink-0 group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 {useCOT ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'}"
+									class="btn-pill btn-pill-sm {useCOT ? 'btn-pill-warning' : 'btn-pill-ghost'} group relative"
 									aria-label="Toggle Chain of Thought reasoning"
 									title="{useCOT ? 'Thinking enabled' : 'Thinking disabled'}"
 								>
@@ -4842,7 +4841,7 @@ Use this context to inform your responses.`;
 									<button
 										type="button"
 										onclick={(e) => { e.stopPropagation(); toggleRecording(); }}
-										class="flex-shrink-0 w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+										class="btn-pill btn-pill-icon btn-pill-ghost"
 										aria-label="Voice input"
 									>
 										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4856,7 +4855,7 @@ Use this context to inform your responses.`;
 									<button
 										type="button"
 										onclick={handleStop}
-										class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors"
+										class="btn-pill btn-pill-danger btn-pill-icon"
 									>
 										<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
 											<rect x="6" y="6" width="12" height="12" rx="2" />
@@ -4867,7 +4866,7 @@ Use this context to inform your responses.`;
 										type="button"
 										onclick={handleSendMessage}
 										disabled={!inputValue.trim()}
-										class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+										class="btn-pill btn-pill-primary btn-pill-icon"
 									>
 										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
@@ -4988,7 +4987,7 @@ Use this context to inform your responses.`;
 											liveTranscript = '';
 											recordingDuration = 0;
 										}}
-										class="p-1.5 text-gray-400 hover:text-white transition-colors"
+										class="btn-pill btn-pill-icon btn-pill-danger"
 										aria-label="Cancel recording"
 									>
 										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -5012,7 +5011,7 @@ Use this context to inform your responses.`;
 									<!-- Confirm button -->
 									<button
 										onclick={(e) => { e.stopPropagation(); stopRecording(); }}
-										class="p-1.5 bg-white text-gray-800 rounded-full hover:bg-gray-200 transition-colors"
+										class="btn-pill btn-pill-icon btn-pill-primary"
 										aria-label="Stop and transcribe"
 									>
 										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -5255,7 +5254,7 @@ Use this context to inform your responses.`;
 									<button
 										type="button"
 										onclick={(e) => { e.stopPropagation(); toggleRecording(); }}
-										class="flex-shrink-0 w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+										class="btn-pill btn-pill-icon btn-pill-ghost"
 										aria-label="Voice input"
 									>
 										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -5268,7 +5267,7 @@ Use this context to inform your responses.`;
 									type="button"
 									onclick={handleSendMessage}
 									disabled={!inputValue.trim() || isStreaming}
-									class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+									class="btn-pill btn-pill-primary btn-pill-icon"
 								>
 									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
@@ -5283,7 +5282,7 @@ Use this context to inform your responses.`;
 						{#each quickActions as action}
 							<button
 								onclick={() => handleQuickAction(action)}
-								class="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
+								class="btn-pill btn-pill-secondary btn-pill-sm"
 							>
 								{action}
 							</button>
@@ -5294,7 +5293,7 @@ Use this context to inform your responses.`;
 					<div class="flex justify-center mt-6">
 						<button
 							onclick={() => focusModeEnabled = true}
-							class="flex items-center gap-2 px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-full hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all"
+							class="btn-pill btn-pill-ghost btn-pill-sm"
 						>
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -5798,14 +5797,14 @@ Use this context to inform your responses.`;
 			<div class="p-4 border-t border-gray-100 flex gap-3">
 				<button
 					onclick={() => showSaveToProfileModal = false}
-					class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+					class="btn-pill btn-pill-secondary flex-1"
 				>
 					Cancel
 				</button>
 				<button
 					onclick={saveArtifactToProfile}
 					disabled={!selectedProfileForSave || savingArtifactToProfile}
-					class="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+					class="btn-pill btn-pill-primary flex-1 {savingArtifactToProfile ? 'btn-pill-loading' : ''} disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					{#if savingArtifactToProfile}
 						<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -5933,14 +5932,14 @@ Use this context to inform your responses.`;
 				<div class="flex gap-3">
 					<button
 						onclick={() => { showTaskGenerationModal = false; generatedTasks = []; }}
-						class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+						class="btn-pill btn-pill-secondary btn-pill-sm"
 					>
 						Cancel
 					</button>
 					<button
 						onclick={confirmTaskCreation}
 						disabled={!selectedProjectForTasks || generatedTasks.length === 0}
-						class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+						class="btn-pill btn-pill-success btn-pill-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -5974,14 +5973,14 @@ Use this context to inform your responses.`;
 			<div class="p-4 border-t border-gray-100 flex justify-end gap-3">
 				<button
 					onclick={() => { showNewProjectModal = false; newProjectName = ''; }}
-					class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+					class="btn-pill btn-pill-secondary btn-pill-sm"
 				>
 					Cancel
 				</button>
 				<button
 					onclick={createProjectQuick}
 					disabled={!newProjectName.trim() || creatingProject}
-					class="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+					class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2 {creatingProject ? 'btn-pill-loading' : ''} disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					{#if creatingProject}
 						<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">

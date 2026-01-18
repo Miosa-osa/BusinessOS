@@ -126,7 +126,7 @@ const initialState: WindowStore = {
 	windows: [],
 	focusedWindowId: null,
 	windowOrder: [],
-	dockPinnedItems: ['finder', 'dashboard', 'chat', 'projects', 'tasks', 'clients'],
+	dockPinnedItems: ['finder', 'dashboard', 'chat', 'projects', 'tasks', 'clients', 'app-store'],
 	desktopIcons: initialDesktopIcons,
 	selectedIconIds: [],
 	folders: [],

@@ -354,14 +354,14 @@
 				<button
 					onclick={handleClose}
 					disabled={uploading}
-					class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
+					class="btn-pill btn-pill-ghost btn-pill-sm"
 				>
 					Cancel
 				</button>
 				<button
 					onclick={handleUpload}
 					disabled={files.length === 0 || uploading}
-					class="px-4 py-2 text-sm font-medium text-white bg-gray-900 dark:bg-zinc-100 dark:text-zinc-900 hover:bg-gray-800 dark:hover:bg-zinc-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+					class="btn-pill btn-pill-primary btn-pill-sm {uploading ? 'btn-pill-loading' : ''}"
 				>
 					{uploading ? 'Uploading...' : `Upload ${files.length} file${files.length !== 1 ? 's' : ''}`}
 				</button>

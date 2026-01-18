@@ -228,7 +228,7 @@
 			</button>
 			<button
 				onclick={onAssignTask}
-				class="flex-1 px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors"
+				class="flex-1 btn-pill btn-pill-primary"
 			>
 				Assign Task
 			</button>

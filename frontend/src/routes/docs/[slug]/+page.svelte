@@ -324,14 +324,14 @@
 				{/if}
 			</div>
 			{#if $session.data}
-				<a href="/window" class="bg-black text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-gray-800 transition-colors font-mono flex items-center gap-2">
+				<a href="/window" class="btn-pill btn-pill-primary btn-pill-xs flex items-center gap-2">
 					<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
 					</svg>
 					Back to Desktop
 				</a>
 			{:else}
-				<a href="/register" class="bg-black text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-gray-800 transition-colors font-mono">
+				<a href="/register" class="btn-pill btn-pill-primary btn-pill-xs">
 					Get Started
 				</a>
 			{/if}
@@ -414,7 +414,7 @@
 					<div class="font-mono text-xs text-gray-400 mb-2">> ready?</div>
 					<h3 class="text-lg font-bold text-black mb-2 font-mono">Try {feature.name}</h3>
 					<p class="text-gray-500 mb-6 font-mono text-sm">Get started with Business OS today.</p>
-					<a href="/register" class="inline-flex items-center gap-2 bg-black text-white px-6 py-3 text-xs font-medium hover:bg-gray-800 transition-colors font-mono">
+					<a href="/register" class="btn-pill btn-pill-primary btn-pill-sm inline-flex items-center gap-2">
 						initialize_workspace
 						<span>→</span>
 					</a>

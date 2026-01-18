@@ -232,7 +232,7 @@
 				<h2 class="text-lg font-semibold text-foreground">Chats</h2>
 				<button
 					onclick={onNewChat}
-					class="w-8 h-8 flex items-center justify-center bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+					class="btn-pill btn-pill-icon btn-pill-primary btn-pill-sm"
 					title="New chat"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

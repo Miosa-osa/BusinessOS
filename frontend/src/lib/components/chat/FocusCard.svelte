@@ -32,13 +32,12 @@
 </script>
 
 <button
-	class="focus-card"
-	class:selected={isSelected}
+	class="btn-pill {isSelected ? 'btn-pill-primary' : 'btn-pill-secondary'}"
 	onclick={handleClick}
 	type="button"
 >
 	<svg
-		class="card-icon"
+		class="w-4 h-4"
 		xmlns="http://www.w3.org/2000/svg"
 		fill="none"
 		viewBox="0 0 24 24"
@@ -47,95 +46,14 @@
 	>
 		{@html getIcon(mode.icon)}
 	</svg>
-	<span class="card-name">{mode.name}</span>
+	<span>{mode.name}</span>
 	{#if isSelected}
-		<svg class="check-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+		<svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
 			<path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" />
 		</svg>
 	{/if}
 </button>
 
 <style>
-	.focus-card {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 10px 16px;
-		background: var(--color-bg-secondary);
-		border: 1px solid var(--color-border);
-		border-radius: 24px;
-		cursor: pointer;
-		transition: all 0.15s ease;
-		white-space: nowrap;
-	}
-
-	.focus-card:hover:not(.selected) {
-		background: var(--color-bg-tertiary);
-		border-color: var(--color-border-hover);
-	}
-
-	.focus-card.selected {
-		background: var(--color-primary);
-		border-color: var(--color-primary);
-		color: white;
-	}
-
-	:global(.dark) .focus-card {
-		background: #2c2c2e;
-		border-color: rgba(255, 255, 255, 0.12);
-	}
-
-	:global(.dark) .focus-card:hover:not(.selected) {
-		background: #3a3a3c;
-		border-color: rgba(255, 255, 255, 0.2);
-	}
-
-	:global(.dark) .focus-card.selected {
-		background: #0A84FF;
-		border-color: #0A84FF;
-	}
-
-	.card-icon {
-		width: 16px;
-		height: 16px;
-		color: var(--color-text-secondary);
-		flex-shrink: 0;
-	}
-
-	.selected .card-icon {
-		color: white;
-	}
-
-	:global(.dark) .card-icon {
-		color: #a1a1a6;
-	}
-
-	:global(.dark) .selected .card-icon {
-		color: white;
-	}
-
-	.card-name {
-		font-size: 14px;
-		font-weight: 500;
-		color: var(--color-text);
-	}
-
-	.selected .card-name {
-		color: white;
-	}
-
-	:global(.dark) .card-name {
-		color: #f5f5f7;
-	}
-
-	:global(.dark) .selected .card-name {
-		color: white;
-	}
-
-	.check-icon {
-		width: 14px;
-		height: 14px;
-		color: white;
-		flex-shrink: 0;
-	}
+	/* No custom styles needed - using btn-pill system */
 </style>

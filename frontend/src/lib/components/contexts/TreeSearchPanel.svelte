@@ -171,12 +171,12 @@
 						</button>
 					{/if}
 				</div>
-				<button type="submit" class="search-btn" disabled={loading || (!searchQuery && searchType !== 'browse')}>
+				<button type="submit" class="btn-pill btn-pill-primary" disabled={loading || (!searchQuery && searchType !== 'browse')}>
 					{loading ? 'Searching...' : 'Search'}
 				</button>
 				<button
 					type="button"
-					class="image-search-btn"
+					class="btn-pill"
 					onclick={() => showImageSearch = true}
 					title="Multimodal Image Search"
 				>
@@ -215,7 +215,7 @@
 					<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
 				</svg>
 				<p class="error-text">{error}</p>
-				<button class="retry-btn" onclick={handleSearch}>Try Again</button>
+				<button class="btn-pill btn-pill-primary" onclick={handleSearch}>Try Again</button>
 			</div>
 		{:else if loading}
 			<div class="loading-state">
@@ -310,7 +310,7 @@
 				<div class="flex items-center gap-3">
 					<button
 						onclick={backToTextResults}
-						class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+						class="btn-pill"
 						title="Back to text search"
 					>
 						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
@@ -324,7 +324,7 @@
 				</div>
 				<button
 					onclick={backToTextResults}
-					class="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+					class="btn-pill"
 				>
 					Close
 				</button>

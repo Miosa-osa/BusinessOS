@@ -54,7 +54,7 @@
 				<button
 					type="button"
 					onclick={onSkip}
-					class="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+					class="btn-pill-sm"
 				>
 					Skip
 				</button>
@@ -102,7 +102,7 @@
 				<button
 					type="button"
 					onclick={onBack}
-					class="btn btn-secondary flex items-center gap-2"
+					class="btn-pill flex items-center gap-2"
 					in:fade={{ duration: 200 }}
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,7 +119,7 @@
 					type="button"
 					onclick={onContinue}
 					disabled={continueDisabled}
-					class="btn btn-primary flex items-center gap-2"
+					class="btn-pill btn-pill-primary flex items-center gap-2"
 				>
 					{continueText}
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

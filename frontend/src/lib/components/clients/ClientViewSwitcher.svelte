@@ -86,7 +86,7 @@
 			<select
 				value={statusFilter || ''}
 				onchange={(e) => onStatusChange((e.target as HTMLSelectElement).value as ClientStatus || null)}
-				class="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+				class="btn-pill btn-pill-secondary btn-pill-sm"
 			>
 				{#each statuses as status}
 					<option value={status.id}>{status.label}</option>
@@ -97,7 +97,7 @@
 			<select
 				value={typeFilter || ''}
 				onchange={(e) => onTypeChange((e.target as HTMLSelectElement).value as ClientType || null)}
-				class="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+				class="btn-pill btn-pill-secondary btn-pill-sm"
 			>
 				{#each types as type}
 					<option value={type.id}>{type.label}</option>
@@ -106,17 +106,14 @@
 		</div>
 
 		<!-- Right: View Switcher -->
-		<div class="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+		<div class="btn-pill-group">
 			{#each views as v}
 				<button
 					onclick={() => {
 						view = v.id;
 						onViewChange(v.id);
 					}}
-					class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors {view ===
-					v.id
-						? 'bg-white text-gray-900 shadow-sm'
-						: 'text-gray-600 hover:text-gray-900'}"
+					class="btn-pill btn-pill-sm {view === v.id ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={v.icon} />

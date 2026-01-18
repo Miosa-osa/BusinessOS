@@ -784,7 +784,7 @@
 			<div class="flex items-center gap-2">
 				<button
 					onclick={() => openCreateModal()}
-					class="btn btn-primary text-sm"
+					class="btn-pill btn-pill-primary"
 				>
 					<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -795,7 +795,7 @@
 					<button
 						onclick={syncCalendar}
 						disabled={isSyncing}
-						class="btn btn-secondary text-sm disabled:opacity-50"
+						class="btn-pill btn-pill-secondary btn-pill-sm disabled:opacity-50"
 					>
 						{#if isSyncing}
 							<svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -838,7 +838,7 @@
 					{#each upcomingEvents.slice(0, 5) as event (event.id)}
 						<button
 							onclick={() => openEventModal(event)}
-							class="flex-shrink-0 w-48 p-3 bg-white border border-green-100 rounded-lg hover:shadow-md transition-shadow text-left"
+							class="btn-pill btn-pill-secondary btn-pill-sm flex-shrink-0 w-48 border-green-100 hover:shadow-md text-left"
 						>
 							<p class="text-xs text-green-600 font-medium mb-1">
 								{new Date(event.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -879,13 +879,13 @@
 				<div class="flex items-center gap-2">
 					<button
 						onclick={jumpToFirstEvent}
-						class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
+						class="btn-pill btn-pill-secondary btn-pill-sm"
 					>
 						View Past Events
 					</button>
 					<button
 						onclick={jumpToLatestEvent}
-						class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
+						class="btn-pill btn-pill-secondary btn-pill-sm"
 					>
 						View Recent Events
 					</button>
@@ -927,7 +927,7 @@
 				<div class="flex items-center gap-1">
 					<button
 						onclick={navigatePrev}
-						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -935,7 +935,7 @@
 					</button>
 					<button
 						onclick={navigateNext}
-						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -944,7 +944,7 @@
 				</div>
 				<button
 					onclick={navigateToday}
-					class="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+					class="btn-pill btn-pill-secondary btn-pill-sm"
 				>
 					Today
 				</button>
@@ -974,28 +974,28 @@
 				</select>
 
 				<!-- View Mode Toggle -->
-				<div class="flex items-center bg-gray-100 rounded-lg p-0.5">
+				<div class="btn-pill-group">
 					<button
 						onclick={() => { viewMode = 'day'; loadEvents(); }}
-						class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'day' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}"
+						class="btn-pill btn-pill-sm {viewMode === 'day' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 					>
 						Day
 					</button>
 					<button
 						onclick={() => { viewMode = 'week'; loadEvents(); }}
-						class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'week' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}"
+						class="btn-pill btn-pill-sm {viewMode === 'week' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 					>
 						Week
 					</button>
 					<button
 						onclick={() => { viewMode = 'month'; loadEvents(); }}
-						class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'month' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}"
+						class="btn-pill btn-pill-sm {viewMode === 'month' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 					>
 						Month
 					</button>
 					<button
 						onclick={() => { viewMode = 'agenda'; loadEvents(); }}
-						class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'agenda' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}"
+						class="btn-pill btn-pill-sm {viewMode === 'agenda' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 					>
 						Agenda
 					</button>
@@ -1004,10 +1004,10 @@
 				<!-- Sidebar Toggle -->
 				<button
 					onclick={() => showSidebar = !showSidebar}
-					class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+					class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm"
 					title={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
 				>
-					<svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
 					</svg>
 				</button>
@@ -1028,7 +1028,7 @@
 							<div class="flex items-center gap-1">
 								<button
 									onclick={() => { const d = new Date(selectedDay); d.setMonth(d.getMonth() - 1); selectedDay = d; }}
-									class="p-1 hover:bg-gray-200 rounded"
+									class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-xs"
 								>
 									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -1036,7 +1036,7 @@
 								</button>
 								<button
 									onclick={() => { const d = new Date(selectedDay); d.setMonth(d.getMonth() + 1); selectedDay = d; }}
-									class="p-1 hover:bg-gray-200 rounded"
+									class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-xs"
 								>
 									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -1094,7 +1094,7 @@
 								<p class="text-sm text-gray-500 mt-2">No events</p>
 								<button
 									onclick={() => openCreateModal(selectedDay)}
-									class="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
+									class="btn-pill btn-pill-link btn-pill-xs mt-2"
 								>
 									+ Add event
 								</button>
@@ -1105,7 +1105,7 @@
 									{@const colors = getEventColors(event)}
 									<button
 										onclick={() => openEventModal(event)}
-										class="w-full text-left p-2.5 rounded-lg border transition-all hover:shadow-sm {colors.bg} {colors.border}"
+										class="btn-pill btn-pill-soft btn-pill-sm w-full text-left border transition-all hover:shadow-sm {colors.bg} {colors.border}"
 									>
 										<p class="text-xs font-medium {colors.text}">
 											{#if event.all_day}
@@ -1222,7 +1222,7 @@
 									{@const colors = getEventColors(event)}
 									<button
 										onclick={() => openEventModal(event)}
-										class="w-full text-left px-2 py-1.5 text-sm rounded {colors.bg} {colors.border} {colors.text} border hover:shadow-sm transition-shadow"
+										class="btn-pill btn-pill-soft btn-pill-sm w-full text-left border {colors.bg} {colors.border} {colors.text} hover:shadow-sm transition-shadow"
 									>
 										{event.title || 'Untitled'}
 									</button>
@@ -1314,7 +1314,7 @@
 									</p>
 									<button
 										onclick={(e) => { e.stopPropagation(); openCreateModal(date); }}
-										class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+										class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-xs opacity-0 group-hover:opacity-100 transition-opacity"
 										title="Add event"
 									>
 										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1338,7 +1338,7 @@
 									{#if getEventsForDate(date).length > 3}
 										<button
 											onclick={(e) => { e.stopPropagation(); goToDayView(date); }}
-											class="text-xs text-blue-600 hover:text-blue-800 pl-2"
+											class="btn-pill btn-pill-link btn-pill-xs pl-2"
 										>
 											+{getEventsForDate(date).length - 3} more
 										</button>
@@ -1360,7 +1360,7 @@
 							<p class="mt-1 text-sm text-gray-500">
 								{#if syncStats && syncStats.totalEvents > 0}
 									You have {syncStats.totalEvents} events synced from {syncStats.dateRange?.from ? new Date(syncStats.dateRange.from).toLocaleDateString() : 'N/A'} to {syncStats.dateRange?.to ? new Date(syncStats.dateRange.to).toLocaleDateString() : 'N/A'}.
-									<button onclick={jumpToFirstEvent} class="text-blue-600 hover:underline ml-1">Jump to events</button>
+									<button onclick={jumpToFirstEvent} class="btn-pill btn-pill-info ml-1 !text-xs !px-2 !py-1">Jump to events</button>
 								{:else}
 									No events found. Create one or sync from Google Calendar.
 								{/if}
@@ -1372,7 +1372,7 @@
 								<button
 									type="button"
 									onclick={() => openEventModal(event)}
-									class="w-full text-left bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+									class="btn-pill btn-pill-secondary w-full text-left hover:shadow-md transition-shadow"
 								>
 									<div class="flex items-start gap-4">
 										<!-- Date/Time -->
@@ -1468,7 +1468,7 @@
 					</div>
 					<button
 						onclick={closeEventModal}
-						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -1579,7 +1579,7 @@
 					<div class="pt-4 border-t border-gray-200">
 						<button
 							onclick={() => showNotesSection = !showNotesSection}
-							class="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 mb-3"
+							class="btn-pill btn-pill-ghost btn-pill-sm flex items-center gap-2 mb-3"
 						>
 							<svg class="w-4 h-4 transition-transform {showNotesSection ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -1609,7 +1609,7 @@
 									<button
 										onclick={generateSummary}
 										disabled={isGeneratingSummary || !meetingNotes.trim()}
-										class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										class="btn-pill btn-pill-soft btn-pill-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
 									>
 										{#if isGeneratingSummary}
 											<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1628,7 +1628,7 @@
 									<button
 										onclick={extractActionItems}
 										disabled={isExtractingActions || !meetingNotes.trim()}
-										class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										class="btn-pill btn-pill-soft btn-pill-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
 									>
 										{#if isExtractingActions}
 											<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1674,7 +1674,7 @@
 													<span class="flex-1">{item.text}</span>
 													<button
 														onclick={() => createTaskFromActionItem(item)}
-														class="flex-shrink-0 text-xs text-blue-600 hover:text-blue-800 font-medium"
+														class="btn-pill btn-pill-link btn-pill-xs flex-shrink-0"
 														title="Create task"
 													>
 														+ Task
@@ -1692,7 +1692,7 @@
 					<div class="pt-4 border-t border-gray-200 flex items-center justify-end gap-2">
 						<button
 							onclick={() => { if (selectedEvent) { closeEventModal(); openEditModal(selectedEvent); } }}
-							class="btn btn-secondary text-sm"
+							class="btn-pill btn-pill-secondary btn-pill-sm"
 						>
 							<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1701,7 +1701,7 @@
 						</button>
 						<button
 							onclick={() => { if (selectedEvent) deleteEvent(selectedEvent); }}
-							class="btn text-sm bg-red-50 text-red-600 hover:bg-red-100"
+							class="btn-pill btn-pill-danger btn-pill-sm"
 						>
 							<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1726,7 +1726,7 @@
 					</h2>
 					<button
 						onclick={() => showCreateModal = false}
-						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -1894,14 +1894,14 @@
 						<button
 							type="button"
 							onclick={() => showCreateModal = false}
-							class="btn btn-secondary"
+							class="btn-pill btn-pill-secondary"
 						>
 							Cancel
 						</button>
 						<button
 							type="submit"
 							disabled={isSaving}
-							class="btn btn-primary disabled:opacity-50"
+							class="btn-pill btn-pill-primary disabled:opacity-50"
 						>
 							{#if isSaving}
 								<svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">

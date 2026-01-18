@@ -570,11 +570,11 @@
 				/>
 			</div>
 			<div class="modal-footer">
-				<button class="btn btn-secondary" onclick={() => { showSaveLayoutModal = false; layoutNameInput = ''; }}>
+				<button class="btn-pill btn-pill-ghost" onclick={() => { showSaveLayoutModal = false; layoutNameInput = ''; }}>
 					Cancel
 				</button>
 				<button
-					class="btn btn-primary"
+					class="btn-pill btn-pill-primary"
 					disabled={!layoutNameInput.trim()}
 					onclick={() => {
 						if (layoutNameInput.trim()) {

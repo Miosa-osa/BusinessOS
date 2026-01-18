@@ -63,7 +63,7 @@
 		{#if projects.length > 0}
 			<button
 				onclick={() => onViewAll?.()}
-				class="text-xs text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100"
+				class="btn-pill-sm text-xs"
 			>
 				View All
 				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,7 +88,7 @@
 			<p class="text-sm text-gray-500 mb-2">No active projects</p>
 			<button
 				onclick={() => goto('/projects')}
-				class="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+				class="btn-pill-sm"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -101,7 +101,7 @@
 			{#each projects.slice(0, 5) as project, index (project.id)}
 				<button
 					onclick={() => handleProjectClick(project.id)}
-					class="flex-shrink-0 w-52 p-4 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all text-left group"
+					class="btn-pill flex-shrink-0 w-52 text-left group"
 					in:fly={{ y: 20, duration: 400, delay: index * 100 }}
 				>
 					<!-- Health indicator and name -->

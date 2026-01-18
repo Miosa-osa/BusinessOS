@@ -532,7 +532,7 @@
                 type="button"
                 onclick={addSuggestedPrompt}
                 disabled={suggestedPrompts.length >= VALIDATION_LIMITS.SUGGESTED_PROMPTS_MAX || !newPrompt.trim()}
-                class="px-4 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded text-sm text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                class="btn-pill btn-pill-soft btn-pill-sm"
               >
                 Add
               </button>
@@ -749,7 +749,7 @@
               <button
                 type="button"
                 onclick={addCapability}
-                class="px-4 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded text-sm text-gray-900 dark:text-white"
+                class="btn-pill btn-pill-soft btn-pill-sm"
               >
                 Add
               </button>
@@ -803,7 +803,7 @@
             <button
               type="button"
               onclick={addCustomContextSource}
-              class="px-4 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded text-sm text-gray-900 dark:text-white"
+              class="btn-pill btn-pill-soft btn-pill-sm"
             >
               Add
             </button>
@@ -949,7 +949,7 @@
       <button
         type="button"
         onclick={onCancel}
-        class="px-6 py-2.5 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-medium"
+        class="btn-pill btn-pill-ghost"
       >
         Cancel
       </button>
@@ -957,7 +957,7 @@
         type="button"
         onclick={handleSubmit}
         disabled={isSubmitting}
-        class="px-6 py-2.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+        class="btn-pill btn-pill-primary"
       >
         {#if isSubmitting}
           Saving...

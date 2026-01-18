@@ -387,10 +387,9 @@
 			{#each categories as category}
 				<button
 					type="button"
-					class="rounded-full px-3 py-1.5 text-sm font-medium transition-colors {selectedCategory ===
-					category.id
-						? 'bg-blue-600 text-white'
-						: 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+					class="btn-pill btn-pill-sm {selectedCategory === category.id
+						? 'btn-pill-primary'
+						: 'btn-pill-secondary'}"
 					onclick={() => (selectedCategory = category.id)}
 				>
 					{category.label}
@@ -404,7 +403,7 @@
 		<!-- Blank Table Option -->
 		<button
 			type="button"
-			class="mb-6 flex w-full items-center gap-4 rounded-xl border-2 border-dashed border-gray-300 p-4 text-left transition-colors hover:border-blue-400 hover:bg-blue-50"
+			class="mb-6 flex w-full items-center gap-4 rounded-xl border-2 border-dashed border-gray-300 p-4 text-left transition-all hover:border-blue-400 hover:bg-blue-50/50 hover:shadow-sm"
 			onclick={onStartBlank}
 		>
 			<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100">
@@ -428,7 +427,7 @@
 				{#each filteredTemplates as template (template.id)}
 					<button
 						type="button"
-						class="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-gray-300 hover:shadow-md"
+						class="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:border-gray-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
 						onclick={() => onSelectTemplate(template)}
 					>
 						<!-- Icon and Title -->

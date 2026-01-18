@@ -49,12 +49,12 @@
 				onmouseenter={() => showTooltip && (showTooltipPopup = true)}
 				onmouseleave={() => showTooltipPopup = false}
 				onclick={() => showTooltipPopup = !showTooltipPopup}
-				class="inline-flex items-center gap-1.5 rounded-full font-medium {config.bg} {sizeClasses} transition-all hover:ring-2 hover:ring-offset-1 hover:ring-{config.color.replace('bg-', '')}"
+				class="btn-pill btn-pill-soft {sizeClasses} {config.bg} gap-1.5"
 			>
 				<span class="w-1.5 h-1.5 rounded-full {config.color}"></span>
-				<span class="font-semibold">{$currentUserRoleContext.role_display_name}</span>
+				<span class="font-medium">{$currentUserRoleContext.role_display_name}</span>
 				{#if $currentWorkspace}
-					<span class="text-[10px] opacity-60">in {$currentWorkspace.name}</span>
+					<span class="text-[10px] opacity-50 font-normal ml-0.5">in {$currentWorkspace.name}</span>
 				{/if}
 			</button>
 

@@ -146,13 +146,13 @@
 				{/if}
 				<button
 					onclick={() => (showStatusModal = true)}
-					class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+					class="btn-pill btn-pill-secondary btn-pill-sm"
 				>
 					Update Status
 				</button>
 				<button
 					onclick={() => (showAddActivityModal = true)}
-					class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+					class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
@@ -188,7 +188,7 @@
 			<p class="text-sm text-red-700">{error}</p>
 			<button
 				onclick={handleBack}
-				class="mt-2 text-sm text-red-600 underline hover:text-red-800"
+				class="btn-pill btn-pill-danger btn-pill-sm mt-2"
 			>
 				Go back
 			</button>
@@ -255,7 +255,7 @@
 							<h2 class="text-lg font-medium text-gray-900">Activity Timeline</h2>
 							<button
 								onclick={() => (showAddActivityModal = true)}
-								class="text-sm text-blue-600 hover:text-blue-800"
+								class="btn-pill btn-pill-primary btn-pill-xs"
 							>
 								+ Add Activity
 							</button>
@@ -266,7 +266,7 @@
 								<p>No activities yet.</p>
 								<button
 									onclick={() => (showAddActivityModal = true)}
-									class="mt-2 text-blue-600 hover:text-blue-800"
+									class="btn-pill btn-pill-primary btn-pill-sm mt-2"
 								>
 									Log your first activity
 								</button>
@@ -341,7 +341,7 @@
 												{:else}
 													<button
 														onclick={() => handleCompleteActivity(activity.id)}
-														class="text-xs text-blue-600 hover:text-blue-800"
+														class="btn-pill btn-pill-primary btn-pill-xs"
 													>
 														Mark Complete
 													</button>
@@ -390,7 +390,7 @@
 							<h3 class="text-sm font-medium text-gray-500 mb-2">Company</h3>
 							<a
 								href="/crm/companies/{deal.company_id}{embedSuffix}"
-								class="text-blue-600 hover:text-blue-800 font-medium"
+								class="btn-pill btn-pill-link btn-pill-sm"
 							>
 								{deal.company_name || 'View Company'}
 							</a>
@@ -447,7 +447,7 @@
 			</div>
 			<button
 				onclick={() => (showStatusModal = false)}
-				class="w-full mt-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+				class="btn-pill btn-pill-secondary w-full mt-4"
 			>
 				Cancel
 			</button>
@@ -534,13 +534,13 @@
 					<button
 						type="button"
 						onclick={() => (showAddActivityModal = false)}
-						class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+						class="btn-pill btn-pill-secondary"
 					>
 						Cancel
 					</button>
 					<button
 						type="submit"
-						class="px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+						class="btn-pill btn-pill-primary"
 					>
 						Log Activity
 					</button>

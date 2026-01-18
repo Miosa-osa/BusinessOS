@@ -259,7 +259,7 @@
 				{/if}
 				<button
 					onclick={handleRequestAccess}
-					class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+					class="inline-flex items-center gap-2 btn-pill btn-pill-primary text-white font-medium"
 				>
 					<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
 						<path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
@@ -275,7 +275,7 @@
 			<div class="p-4">
 				<button
 					onclick={() => showComposeModal = true}
-					class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+					class="flex items-center justify-center gap-2 btn-pill btn-pill-primary btn-pill-block text-white font-medium"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -289,10 +289,7 @@
 				{#each folders as folder}
 					<button
 						onclick={() => { currentFolder = folder.id; selectedEmail = null; }}
-						class="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors
-							{currentFolder === folder.id
-								? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-								: 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
+						class="flex items-center gap-3 text-sm btn-pill btn-pill-sm btn-pill-block {currentFolder === folder.id ? 'btn-pill-secondary' : 'btn-pill-ghost'}"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={folder.icon} />
@@ -324,7 +321,7 @@
 					<button
 						onclick={handleSync}
 						disabled={isSyncing}
-						class="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+						class="btn-pill btn-pill-secondary btn-pill-icon btn-pill-sm disabled:opacity-50"
 						title="Sync emails"
 					>
 						<svg class="w-5 h-5 {isSyncing ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -358,7 +355,7 @@
 				{:else if error}
 					<div class="p-4 text-center">
 						<p class="text-red-500 dark:text-red-400 text-sm">{error}</p>
-						<button onclick={loadEmails} class="mt-2 text-blue-600 dark:text-blue-400 text-sm hover:underline">
+						<button onclick={loadEmails} class="mt-2 btn-pill btn-pill-secondary btn-pill-sm">
 							Try again
 						</button>
 					</div>
@@ -449,7 +446,7 @@
 				<div class="px-6 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2">
 					<button
 						onclick={() => selectedEmail && openReply(selectedEmail)}
-						class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+						class="flex items-center gap-2 btn-pill btn-pill-secondary btn-pill-sm"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
@@ -458,14 +455,14 @@
 					</button>
 					<button
 						onclick={() => selectedEmail && openForward(selectedEmail)}
-						class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+						class="flex items-center gap-2 btn-pill btn-pill-secondary btn-pill-sm"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
 						</svg>
 						Forward
 					</button>
-					<button class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors">
+					<button class="btn-pill btn-pill-secondary btn-pill-sm flex items-center gap-2">
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" />
 						</svg>
@@ -497,7 +494,7 @@
 				</h3>
 				<button
 					onclick={() => { resetComposeForm(); showComposeModal = false; }}
-					class="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+					class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -552,7 +549,7 @@
 			<div class="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
 				<div class="flex items-center gap-2">
 					<button
-						class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+						class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm"
 						title="Attach file"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -563,14 +560,14 @@
 				<div class="flex items-center gap-3">
 					<button
 						onclick={() => { resetComposeForm(); showComposeModal = false; }}
-						class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+						class="btn-pill btn-pill-ghost btn-pill-sm"
 					>
 						Discard
 					</button>
 					<button
 						onclick={handleSendEmail}
 						disabled={isSending || !composeTo.trim()}
-						class="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+						class="flex items-center gap-2 btn-pill btn-pill-primary disabled:bg-blue-400 disabled:cursor-not-allowed text-white"
 					>
 						{#if isSending}
 							<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">

@@ -136,13 +136,13 @@
         <div class="flex gap-3">
           <button
             onclick={handleBrowsePresets}
-            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            class="btn-pill btn-pill-secondary btn-pill-sm"
           >
             Browse Presets
           </button>
           <button
             onclick={handleCreateAgent}
-            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
+            class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -204,20 +204,14 @@
         <div class="flex flex-wrap gap-2 mt-4">
           <button
             onclick={() => handleCategoryFilter(null)}
-            class="px-3 py-1.5 text-sm font-medium rounded-full transition-colors {selectedCategory ===
-            null
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
+            class="btn-pill btn-pill-sm {selectedCategory === null ? 'btn-pill-primary' : 'btn-pill-ghost'}"
           >
             All
           </button>
           {#each categories as category}
             <button
               onclick={() => handleCategoryFilter(category)}
-              class="px-3 py-1.5 text-sm font-medium rounded-full transition-colors {selectedCategory ===
-              category
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
+              class="btn-pill btn-pill-sm {selectedCategory === category ? 'btn-pill-primary' : 'btn-pill-ghost'}"
             >
               {categoryLabels[category] || category}
             </button>
@@ -229,10 +223,7 @@
           {#each statusOptions as option}
             <button
               onclick={() => handleStatusFilter(option.value)}
-              class="px-3 py-1.5 text-sm font-medium rounded-full transition-colors {selectedStatus ===
-              option.value
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
+              class="btn-pill btn-pill-sm {selectedStatus === option.value ? 'btn-pill-success' : 'btn-pill-ghost'}"
             >
               {option.label}
             </button>
@@ -272,7 +263,7 @@
         <p class="text-red-700 dark:text-red-300 mb-4">{$agents.error}</p>
         <button
           onclick={() => agents.loadAgents()}
-          class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+          class="btn-pill btn-pill-danger btn-pill-sm"
         >
           Retry
         </button>
@@ -295,7 +286,7 @@
         {#if searchQuery || selectedCategory || selectedStatus !== null}
           <button
             onclick={clearFilters}
-            class="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            class="btn-pill btn-pill-link btn-pill-sm"
           >
             Clear filters
           </button>
@@ -303,13 +294,13 @@
           <div class="flex gap-3 justify-center">
             <button
               onclick={handleCreateAgent}
-              class="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              class="btn-pill btn-pill-primary"
             >
               Create Agent
             </button>
             <button
               onclick={handleBrowsePresets}
-              class="px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              class="btn-pill btn-pill-secondary"
             >
               Browse Presets
             </button>
@@ -361,13 +352,13 @@
       <div class="flex gap-3 justify-end">
         <button
           onclick={cancelDelete}
-          class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors"
+          class="btn-pill btn-pill-secondary btn-pill-sm"
         >
           Cancel
         </button>
         <button
           onclick={confirmDelete}
-          class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+          class="btn-pill btn-pill-danger btn-pill-sm"
         >
           Delete
         </button>

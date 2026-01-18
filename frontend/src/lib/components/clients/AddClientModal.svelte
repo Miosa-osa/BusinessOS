@@ -136,24 +136,22 @@
 			<form onsubmit={handleSubmit} class="flex-1 overflow-auto">
 				<div class="px-6 py-4 space-y-4">
 					<!-- Type Toggle -->
-					<div class="flex gap-2">
+					<div class="btn-pill-group w-full">
 						<button
 							type="button"
 							onclick={() => (type = 'company')}
-							class="flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-colors {type ===
-							'company'
-								? 'bg-gray-900 text-white'
-								: 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+							class="btn-pill btn-pill-sm flex-1 {type === 'company'
+								? 'btn-pill-primary'
+								: 'btn-pill-ghost'}"
 						>
 							Company
 						</button>
 						<button
 							type="button"
 							onclick={() => (type = 'individual')}
-							class="flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-colors {type ===
-							'individual'
-								? 'bg-gray-900 text-white'
-								: 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+							class="btn-pill btn-pill-sm flex-1 {type === 'individual'
+								? 'btn-pill-primary'
+								: 'btn-pill-ghost'}"
 						>
 							Individual
 						</button>
@@ -363,14 +361,14 @@
 					<button
 						type="button"
 						onclick={handleClose}
-						class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+						class="btn-pill btn-pill-ghost"
 					>
 						Cancel
 					</button>
 					<button
 						type="submit"
 						disabled={submitting || !name.trim()}
-						class="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+						class="btn-pill btn-pill-primary {submitting ? 'btn-pill-loading' : ''} disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						{submitting ? 'Creating...' : 'Create Client'}
 					</button>

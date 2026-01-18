@@ -889,7 +889,7 @@
 											readonly
 											class="flex-1 px-3 py-1.5 text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200"
 										/>
-										<button onclick={copyShareLink} class="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg">Copy</button>
+										<button onclick={copyShareLink} class="btn-pill btn-pill-primary btn-pill-xs">Copy</button>
 									</div>
 								</div>
 							{:else}
@@ -907,20 +907,20 @@
 						</svg>
 					</button>
 					<div class="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#2c2c2e] rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-						<button onclick={duplicateDoc} class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2">
+						<button onclick={duplicateDoc} class="btn-pill btn-pill-ghost w-full justify-start">
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
 							</svg>
 							Duplicate
 						</button>
-						<button onclick={archiveDoc} class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2">
+						<button onclick={archiveDoc} class="btn-pill btn-pill-ghost w-full justify-start">
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
 							</svg>
 							Archive
 						</button>
 						<hr class="my-1 border-gray-100 dark:border-gray-700/50" />
-						<button onclick={deleteDoc} class="w-full px-4 py-2 text-left text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center gap-2">
+						<button onclick={deleteDoc} class="btn-pill btn-pill-danger btn-pill-ghost w-full justify-start">
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
 							</svg>
@@ -1286,7 +1286,7 @@
 						<div class="flex items-center gap-4">
 							<button
 								onclick={stopRecording}
-								class="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-lg transition-all animate-pulse"
+								class="w-14 h-14 rounded-full btn-pill btn-pill-danger flex items-center justify-center text-white shadow-lg transition-all animate-pulse"
 							>
 								<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
 									<rect x="6" y="6" width="12" height="12" rx="2" />
@@ -1319,7 +1319,7 @@
 						<div class="flex items-center gap-4">
 							<button
 								onclick={startRecording}
-								class="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-lg transition-all hover:scale-105"
+								class="w-14 h-14 rounded-full btn-pill btn-pill-danger flex items-center justify-center text-white shadow-lg transition-all hover:scale-105"
 							>
 								<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />

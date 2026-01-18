@@ -334,13 +334,13 @@
 					<button
 						type="button"
 						onclick={onClose}
-						class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+						class="btn-pill btn-pill-ghost btn-pill-sm"
 					>
 						Cancel
 					</button>
 					<button
 						type="submit"
-						class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+						class="btn-pill btn-pill-primary btn-pill-sm"
 					>
 						{editFilter ? 'Update Filter' : 'Add Filter'}
 					</button>

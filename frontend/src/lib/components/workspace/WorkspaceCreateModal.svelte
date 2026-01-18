@@ -261,12 +261,11 @@
 			</div>
 
 			<div class="modal-footer">
-				<button class="btn btn-secondary" onclick={handleCancel} disabled={loading}>
+				<button class="btn-pill btn-pill-secondary flex-1" onclick={handleCancel} disabled={loading}>
 					Cancel
 				</button>
-				<button class="btn btn-primary" onclick={handleSubmit} disabled={loading}>
+				<button class="btn-pill btn-pill-primary flex-1 {loading ? 'btn-pill-loading' : ''}" onclick={handleSubmit} disabled={loading}>
 					{#if loading}
-						<span class="btn-spinner"></span>
 						Creating...
 					{:else}
 						Create Workspace

@@ -67,7 +67,7 @@
 
 			<a
 				href="/forgot-password"
-				class="btn btn-primary w-full h-12 text-base flex items-center justify-center"
+				class="btn-pill btn-pill-primary w-full h-12 text-base"
 			>
 				Request new link
 			</a>
@@ -98,7 +98,7 @@
 
 			<a
 				href="/login"
-				class="btn btn-primary w-full h-12 text-base flex items-center justify-center"
+				class="btn-pill btn-pill-primary w-full h-12 text-base"
 			>
 				Sign in now
 			</a>
@@ -143,7 +143,7 @@
 
 				<button
 					type="submit"
-					class="btn btn-primary w-full h-12 text-base flex items-center justify-center gap-2"
+					class="btn-pill btn-pill-primary w-full h-12 text-base"
 					disabled={loading}
 				>
 					{#if loading}

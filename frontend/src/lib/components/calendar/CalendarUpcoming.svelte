@@ -121,7 +121,7 @@
 					<div class="space-y-2">
 						{#each dateEvents as event (event.id)}
 							<button
-								class="w-full text-left p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border-l-4 {getMeetingTypeColor(event.meeting_type)}"
+								class="btn-pill w-full text-left bg-gray-50 hover:bg-gray-100 border-l-4 {getMeetingTypeColor(event.meeting_type)}"
 								onclick={() => onEventClick?.(event)}
 							>
 								<div class="flex items-start justify-between gap-2">

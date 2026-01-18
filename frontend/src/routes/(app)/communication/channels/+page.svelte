@@ -86,7 +86,7 @@
 				</p>
 				<button
 					onclick={handleConnectSlack}
-					class="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
+					class="inline-flex items-center gap-2 btn-pill btn-pill-primary text-white font-medium transition-colors"
 				>
 					<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
 						<path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"/>
@@ -125,10 +125,10 @@
 				{#each (slackChannels.length > 0 ? slackChannels : mockChannels) as channel}
 					<button
 						onclick={() => selectedChannel = channel}
-						class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors
+						class="flex items-center gap-2 justify-start btn-pill btn-pill-sm btn-pill-block
 							{selectedChannel?.id === channel.id
-								? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-								: 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
+								? 'btn-pill-secondary'
+								: 'btn-pill-ghost'}"
 					>
 						<span class="text-gray-400 dark:text-gray-500">
 							{channel.is_private ? '🔒' : '#'}
@@ -156,12 +156,12 @@
 						</p>
 					</div>
 					<div class="flex items-center gap-2">
-						<button class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+						<button class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm">
 							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
 							</svg>
 						</button>
-						<button class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+						<button class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm">
 							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
 							</svg>
@@ -204,12 +204,12 @@
 							placeholder="Message #{selectedChannel.name}"
 							class="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
 						/>
-						<button class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+						<button class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm">
 							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
 							</svg>
 						</button>
-						<button class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors">
+						<button class="btn-pill btn-pill-primary">
 							Send
 						</button>
 					</div>

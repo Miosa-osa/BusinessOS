@@ -105,7 +105,7 @@
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 			</svg>
 			<p class="text-sm text-gray-500 mb-3">Connect your Google Calendar to see your schedule</p>
-			<a href="/settings?tab=integrations" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+			<a href="/settings?tab=integrations" class="btn-pill-sm btn-pill-primary">
 				Connect Calendar
 			</a>
 		</div>

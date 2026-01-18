@@ -542,7 +542,7 @@
 		<!-- Reset View -->
 		<button
 			onclick={() => { if (camera && controls) { camera.position.set(0, 0, 150); controls.reset(); }}}
-			class="w-9 h-9 flex items-center justify-center bg-gray-900/90 hover:bg-gray-800 border border-gray-700 rounded-lg text-gray-400 hover:text-white transition-colors"
+			class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm"
 			title="Reset view"
 		>
 			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -552,7 +552,7 @@
 		<!-- Zoom In -->
 		<button
 			onclick={() => { if (camera) { camera.position.z = Math.max(50, camera.position.z - 20); }}}
-			class="w-9 h-9 flex items-center justify-center bg-gray-900/90 hover:bg-gray-800 border border-gray-700 rounded-lg text-gray-400 hover:text-white transition-colors"
+			class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm"
 			title="Zoom in"
 		>
 			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -562,7 +562,7 @@
 		<!-- Zoom Out -->
 		<button
 			onclick={() => { if (camera) { camera.position.z = Math.min(300, camera.position.z + 20); }}}
-			class="w-9 h-9 flex items-center justify-center bg-gray-900/90 hover:bg-gray-800 border border-gray-700 rounded-lg text-gray-400 hover:text-white transition-colors"
+			class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm"
 			title="Zoom out"
 		>
 			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

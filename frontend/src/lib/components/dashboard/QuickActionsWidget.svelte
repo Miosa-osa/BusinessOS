@@ -73,7 +73,7 @@
 				onclick={() => onAction?.(action.id)}
 				onmouseenter={() => (hoveredId = action.id)}
 				onmouseleave={() => (hoveredId = null)}
-				class="group flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100/50 hover:from-gray-100 hover:to-gray-50 border border-gray-100 hover:border-gray-200 transition-all duration-200 {hoveredId ===
+				class="btn-pill group flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-gray-50 to-gray-100/50 hover:from-gray-100 hover:to-gray-50 {hoveredId ===
 				action.id
 					? 'scale-[1.02] shadow-md border-gray-300'
 					: 'shadow-sm'}"

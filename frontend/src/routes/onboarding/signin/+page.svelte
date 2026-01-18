@@ -6,30 +6,26 @@
 	import { goto } from '$app/navigation';
 	import { PillButton } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
-	import { signIn } from '$lib/auth-client';
 
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 
-	async function handleGoogleSignIn() {
+	function handleGoogleSignIn() {
 		isLoading = true;
 		error = null;
 
 		try {
-			// Store onboarding context so callback knows where to route after OAuth
-			localStorage.setItem('oauth_context', 'onboarding-signin');
-			localStorage.setItem('oauth_next_route', '/onboarding/gmail');
+			// Call backend OAuth directly with FULL frontend URL redirect
+			// This requests full Gmail scopes for AI analysis
+			const backendUrl = 'http://localhost:8001';
+			const frontendUrl = window.location.origin; // http://localhost:5174
+			const redirectAfter = `${frontendUrl}/onboarding/username`;
 
-			await signIn.social({
-				provider: 'google',
-				callbackURL: '/onboarding/gmail'
-			});
+			console.log('[Signin] Redirecting to Google OAuth with redirect:', redirectAfter);
+			window.location.href = `${backendUrl}/api/auth/google?redirect=${encodeURIComponent(redirectAfter)}`;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to sign in';
 			console.error('Sign in error:', err);
-			localStorage.removeItem('oauth_context');
-			localStorage.removeItem('oauth_next_route');
-		} finally {
 			isLoading = false;
 		}
 	}

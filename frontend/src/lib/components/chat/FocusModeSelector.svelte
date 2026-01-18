@@ -578,13 +578,13 @@
 				</div>
 
 				<button
-					class="submit-btn"
+					class="btn-pill btn-pill-primary"
 					onclick={handleSubmit}
 					disabled={!canSubmit}
 					title={!selectedProjectId ? 'Select a project first' : ''}
 				>
 					<span>{!selectedProjectId && (inputValue.trim() || attachedFiles.length > 0) ? 'Select project' : 'Let\'s go'}</span>
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
+					<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
 					</svg>
 				</button>
@@ -605,7 +605,7 @@
 		{#if onModeChange}
 			<div class="mode-toggle-container">
 				<button
-					class="mode-toggle-btn"
+					class="btn-pill btn-pill-secondary btn-pill-sm"
 					onclick={() => onModeChange?.(false)}
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -909,40 +909,6 @@
 		color: #6e6e73;
 	}
 
-	.submit-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 8px;
-		align-self: flex-end;
-		padding: 10px 20px;
-		background: var(--color-primary);
-		color: white;
-		border: none;
-		border-radius: 24px;
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-
-	.submit-btn:hover:not(:disabled) {
-		background: var(--color-primary-hover);
-		transform: translateY(-1px);
-	}
-
-	.submit-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	:global(.dark) .submit-btn {
-		background: #0A84FF;
-	}
-
-	:global(.dark) .submit-btn:hover:not(:disabled) {
-		background: #0070E0;
-	}
 
 	/* Command dropdown styles - Chat mode style */
 	.command-dropdown {
@@ -1524,37 +1490,6 @@
 		display: flex;
 		justify-content: center;
 		margin-top: 16px;
-	}
-
-	.mode-toggle-btn {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 8px 16px;
-		font-size: 13px;
-		color: var(--color-text-muted, #6b7280);
-		background: transparent;
-		border: 1px solid var(--color-border, #e5e7eb);
-		border-radius: 20px;
-		cursor: pointer;
-		transition: all 0.15s ease;
-	}
-
-	.mode-toggle-btn:hover {
-		color: var(--color-text, #1f2937);
-		background: var(--color-bg-secondary, #f3f4f6);
-		border-color: var(--color-border-hover, #d1d5db);
-	}
-
-	:global(.dark) .mode-toggle-btn {
-		color: #a1a1a6;
-		border-color: rgba(255, 255, 255, 0.12);
-	}
-
-	:global(.dark) .mode-toggle-btn:hover {
-		color: #f5f5f7;
-		background: #3a3a3c;
-		border-color: rgba(255, 255, 255, 0.2);
 	}
 
 	/* Responsive adjustments */

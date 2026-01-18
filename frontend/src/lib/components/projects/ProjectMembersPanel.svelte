@@ -130,7 +130,7 @@
 		{#if canInvite}
 			<button
 				onclick={() => (addModalOpen = true)}
-				class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+				class="btn-pill btn-pill-primary flex items-center gap-2"
 			>
 				<UserPlus class="w-4 h-4" />
 				Add Member
@@ -217,7 +217,7 @@
 			{#if canInvite}
 				<button
 					onclick={() => (addModalOpen = true)}
-					class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+					class="btn-pill btn-pill-primary flex items-center gap-2"
 				>
 					<UserPlus class="w-4 h-4" />
 					Add First Member

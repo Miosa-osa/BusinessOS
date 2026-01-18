@@ -202,7 +202,7 @@
 				<p class="text-gray-500 mb-4">Create your first task to start tracking work</p>
 				<button
 					onclick={() => showInlineAdd = 'all'}
-					class="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+					class="btn-pill btn-pill-primary btn-pill-sm"
 				>
 					+ Create your first task
 				</button>

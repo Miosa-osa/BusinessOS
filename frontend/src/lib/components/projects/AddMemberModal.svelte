@@ -180,7 +180,7 @@
 				<button
 					onclick={handleSubmit}
 					disabled={!userId.trim() && !userEmail.trim()}
-					class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+					class="btn-pill btn-pill-primary flex items-center gap-2"
 				>
 					<UserPlus class="w-4 h-4" />
 					Add Member

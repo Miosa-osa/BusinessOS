@@ -239,14 +239,14 @@
 			<div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
 				<button
 					onclick={handleClose}
-					class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+					class="btn-pill btn-pill-ghost"
 				>
 					Cancel
 				</button>
 				<button
 					onclick={handleSubmit}
 					disabled={!name.trim() || !email.trim() || !role.trim()}
-					class="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+					class="btn-pill btn-pill-primary disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					Add Member
 				</button>

@@ -634,8 +634,8 @@
 	function getWidgetGridClass(size: WidgetSize): string {
 		switch (size) {
 			case 'small': return 'col-span-1';
-			case 'medium': return 'col-span-1 lg:col-span-1';
-			case 'large': return 'col-span-1 lg:col-span-2';
+			case 'medium': return 'col-span-1 md:col-span-1 lg:col-span-2';
+			case 'large': return 'col-span-1 md:col-span-2 lg:col-span-3';
 		}
 	}
 	
@@ -675,7 +675,7 @@
 					</svg>
 				</div>
 				<p class="text-gray-600 mb-4">{error}</p>
-				<button onclick={() => loadDashboard()} class="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
+				<button onclick={() => loadDashboard()} class="btn-pill btn-pill-primary">
 					Try Again
 				</button>
 			</div>
@@ -753,7 +753,7 @@
 						</div>
 						<button
 							onclick={() => showWidgetPicker = true}
-							class="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+							class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2"
 						>
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -979,7 +979,7 @@
 											
 											<button
 												onclick={() => showAnalyticsSidepanel = true}
-												class="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black text-white rounded-lg text-xs font-medium transition-all shadow-sm hover:shadow-md"
+												class="btn-pill btn-pill-primary btn-pill-block btn-pill-sm mt-4 flex items-center justify-center gap-2"
 											>
 												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -1164,7 +1164,7 @@
 			<span class="text-sm">Widget removed</span>
 			<button
 				onclick={undoRemove}
-				class="px-3 py-1 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-lg transition-colors"
+				class="btn-pill btn-pill-sm bg-white/20 hover:bg-white/30 text-white border-white/30"
 			>
 				Undo
 			</button>

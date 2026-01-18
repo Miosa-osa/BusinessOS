@@ -128,7 +128,7 @@
 		{#if activities.length > 0}
 			<button
 				onclick={() => onViewAll?.()}
-				class="text-xs text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100"
+				class="btn-pill-sm text-xs"
 			>
 				View All
 				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,7 +158,7 @@
 			{#each activities.slice(0, 10) as activity, index (activity.id)}
 				<button
 					onclick={() => handleActivityClick(activity)}
-					class="w-full flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors text-left"
+					class="btn-pill w-full flex items-start gap-3 text-left"
 					in:fly={{ x: -10, duration: 300, delay: index * 30 }}
 				>
 					<!-- Avatar or Icon -->

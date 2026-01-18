@@ -88,7 +88,7 @@
 							</p>
 							<button
 								onclick={() => goto(loginUrl)}
-								class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors"
+								class="btn-pill btn-pill-primary btn-pill-block"
 							>
 								Sign In to Accept
 							</button>
@@ -110,7 +110,7 @@
 							</p>
 							<button
 								onclick={handleAccept}
-								class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+								class="btn-pill btn-pill-primary btn-pill-block"
 							>
 								<Check class="w-5 h-5" />
 								Accept Invitation
@@ -155,13 +155,13 @@
 					<div class="flex flex-col gap-3">
 						<button
 							onclick={() => status = 'idle'}
-							class="w-full py-3 px-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-xl transition-colors"
+							class="btn-pill btn-pill-inactive btn-pill-block"
 						>
 							Try Again
 						</button>
 						<a
 							href="/login"
-							class="w-full py-3 px-4 text-blue-600 dark:text-blue-400 font-medium text-center hover:underline"
+							class="btn-pill btn-pill-outline btn-pill-block text-center"
 						>
 							Go to Login
 						</a>

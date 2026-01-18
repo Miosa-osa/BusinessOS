@@ -154,7 +154,7 @@
 				<div class="flex gap-2">
 					<button
 						onclick={copyContent}
-						class="px-4 py-2 text-sm border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+						class="btn-pill btn-pill-secondary btn-pill-sm"
 					>
 						{#if copied}
 							<Check class="w-4 h-4 text-green-500" />
@@ -166,7 +166,7 @@
 					</button>
 					<button
 						onclick={handleAddToContext}
-						class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
+						class="btn-pill btn-pill-primary btn-pill-sm"
 					>
 						<Plus class="w-4 h-4" />
 						Add to Context

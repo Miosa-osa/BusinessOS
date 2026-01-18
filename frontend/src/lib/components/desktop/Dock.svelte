@@ -1112,7 +1112,7 @@
 			{#if collapsedVoiceActive}
 				<!-- Voice recording active - matches example design -->
 				<div class="collapsed-voice-recording">
-					<button class="collapsed-cancel-btn" onclick={handleCollapsedVoiceCancel} title="Cancel recording">
+					<button class="btn-pill btn-pill-danger btn-pill-icon btn-pill-sm" onclick={handleCollapsedVoiceCancel} title="Cancel recording">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
 							<line x1="18" y1="6" x2="6" y2="18"/>
 							<line x1="6" y1="6" x2="18" y2="18"/>
@@ -1126,7 +1126,7 @@
 						</div>
 						<span class="collapsed-timer">{formatDuration(recordingDuration)}</span>
 					</div>
-					<button class="collapsed-stop-btn" onclick={handleCollapsedVoiceDone} title="Stop and send to chat">
+					<button class="btn-pill btn-pill-primary btn-pill-icon btn-pill-sm" onclick={handleCollapsedVoiceDone} title="Stop and send to chat">
 						<svg viewBox="0 0 24 24" fill="currentColor">
 							<rect x="6" y="6" width="12" height="12" rx="2"/>
 						</svg>
@@ -1141,7 +1141,7 @@
 						<span>to start dictating</span>
 					</div>
 					<button
-						class="collapsed-input-pill"
+						class="btn-pill btn-pill-secondary btn-pill-sm"
 						onclick={handleCollapsedBubbleClick}
 						title="Start dictating"
 					>
@@ -1151,7 +1151,7 @@
 			{:else}
 				<!-- Default collapsed state - dots pill -->
 				<button
-					class="collapsed-pill collapsed-dots-pill"
+					class="btn-pill btn-pill-ghost btn-pill-sm"
 					onclick={handleCollapsedBubbleClick}
 					title="Click to start voice input"
 				>
@@ -1183,14 +1183,14 @@
 						<span>AI</span>
 					</div>
 					<div class="response-actions">
-						<button class="action-btn" onclick={openFullChat} title="Open full chat (⌘+Enter)">
+						<button class="btn-pill btn-pill-secondary btn-pill-icon btn-pill-sm" onclick={openFullChat} title="Open full chat (⌘+Enter)">
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 								<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
 								<polyline points="15 3 21 3 21 9"/>
 								<line x1="10" y1="14" x2="21" y2="3"/>
 							</svg>
 						</button>
-						<button class="action-btn" onclick={() => { showResponse = false; isExpanded = false; }} title="Close (Esc)">
+						<button class="btn-pill btn-pill-ghost btn-pill-icon btn-pill-sm" onclick={() => { showResponse = false; isExpanded = false; }} title="Close (Esc)">
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 								<line x1="18" y1="6" x2="6" y2="18"/>
 								<line x1="6" y1="6" x2="18" y2="18"/>
@@ -1213,7 +1213,7 @@
 		<!-- Recording indicator - matches popup-chat style -->
 		{#if isRecording}
 			<div class="recording-waveform-bar">
-				<button class="recording-cancel-btn" onclick={stopRecording} title="Cancel">
+				<button class="btn-pill btn-pill-danger btn-pill-icon btn-pill-sm" onclick={stopRecording} title="Cancel">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 						<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
 					</svg>
@@ -1224,7 +1224,7 @@
 					{/each}
 				</div>
 				<span class="recording-duration">{formatDuration(recordingDuration)}</span>
-				<button class="recording-confirm-btn" onclick={stopRecording} title="Done">
+				<button class="btn-pill btn-pill-primary btn-pill-icon btn-pill-sm" onclick={stopRecording} title="Done">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 						<polyline points="20 6 9 17 4 12"/>
 					</svg>
@@ -1255,7 +1255,7 @@
 							<polyline points="14 2 14 8 20 8"/>
 						</svg>
 						<span class="file-name">{file.name}</span>
-						<button class="file-remove" onclick={() => removeFile(index)}>
+						<button class="btn-pill btn-pill-danger btn-pill-icon btn-pill-sm" onclick={() => removeFile(index)}>
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 								<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
 							</svg>
@@ -1270,7 +1270,7 @@
 			<!-- Left side - context and options -->
 			<div class="toolbar-left">
 				<!-- Attachment button -->
-				<button class="attach-btn" onclick={openFileDialog} title="Attach files">
+				<button class="btn-pill btn-pill-ghost btn-pill-icon btn-pill-sm" onclick={openFileDialog} title="Attach files">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 						<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
 					</svg>
@@ -1279,8 +1279,7 @@
 				<!-- Project selector (required) -->
 				<div class="context-selector">
 					<button
-						class="context-btn"
-						class:has-context={selectedProject}
+						class="btn-pill btn-pill-sm {selectedProject ? 'btn-pill-secondary' : 'btn-pill-ghost'}"
 						class:required={!selectedProject}
 						onclick={() => { showProjectSelector = !showProjectSelector; highlightedProjectIndex = showProjectSelector ? 0 : -1; }}
 						title="Select project (required)"
@@ -1311,23 +1310,28 @@
 							{:else}
 								{#each projects as proj, index}
 									<button
-										class="context-option"
+										class="btn-pill btn-pill-ghost btn-pill-sm btn-pill-block justify-start"
 										class:selected={selectedProject?.id === proj.id}
 										class:highlighted={highlightedProjectIndex === index}
 										onclick={() => { selectedProject = proj; showProjectSelector = false; highlightedProjectIndex = -1; }}
 										onmouseenter={() => highlightedProjectIndex = index}
 									>
-										<span class="option-icon">📁</span>
+										<svg class="option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+										</svg>
 										<span>{proj.name}</span>
 									</button>
 								{/each}
 							{/if}
 							<div class="dropdown-divider"></div>
 							<button
-								class="context-option create-new"
+								class="btn-pill btn-pill-ghost btn-pill-sm btn-pill-block justify-start"
 								onclick={() => { showProjectSelector = false; windowStore.openWindow('projects'); }}
 							>
-								<span class="option-icon">➕</span>
+								<svg class="option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<line x1="12" y1="5" x2="12" y2="19"/>
+									<line x1="5" y1="12" x2="19" y2="12"/>
+								</svg>
 								<span>Create New Project</span>
 							</button>
 						</div>
@@ -1337,7 +1341,7 @@
 				<!-- Model selector -->
 				<div class="context-selector">
 					<button
-						class="model-btn"
+						class="btn-pill btn-pill-sm {selectedModel ? 'btn-pill-secondary' : 'btn-pill-ghost'}"
 						onclick={() => showModelSelector = !showModelSelector}
 						title="Select AI model"
 					>
@@ -1500,8 +1504,7 @@
 
 				<!-- Send button -->
 				<button
-					class="send-btn"
-					class:has-content={chatInput.trim()}
+					class="btn-pill btn-pill-icon {chatInput.trim() ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 					onclick={chatInput.trim() ? handleChatSubmit : openFullChat}
 					disabled={isLoading}
 					title={chatInput.trim() ? 'Send (Enter)' : 'Open full chat'}
@@ -1561,11 +1564,12 @@
 						{:else if icon.isFinder}
 							<!-- Finder happy face icon -->
 							<svg class="dock-icon-svg finder-face" viewBox="0 0 24 24" fill="none">
-								<!-- Left eye -->
-								<rect x="6" y="7" width="4" height="6" rx="2" fill="white"/>
-								<!-- Right eye -->
-								<rect x="14" y="7" width="4" height="6" rx="2" fill="white"/>
-								<!-- Smile -->
+								<!-- Left eye with outline for visibility -->
+								<rect x="6" y="7" width="4" height="6" rx="2" stroke="rgba(0, 0, 0, 0.5)" stroke-width="1" fill="white"/>
+								<!-- Right eye with outline for visibility -->
+								<rect x="14" y="7" width="4" height="6" rx="2" stroke="rgba(0, 0, 0, 0.5)" stroke-width="1" fill="white"/>
+								<!-- Smile with dark outline for visibility on any background -->
+								<path d="M6 17 C8 20, 16 20, 18 17" stroke="rgba(0, 0, 0, 0.6)" stroke-width="4" stroke-linecap="round" fill="none"/>
 								<path d="M6 17 C8 20, 16 20, 18 17" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"/>
 							</svg>
 						{:else if icon.isFolder}
@@ -1731,117 +1735,14 @@
 		background: rgba(0, 0, 0, 0.08);
 	}
 
-	.collapsed-input-pill {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: rgba(255, 255, 255, 0.12);
-		border: none;
-		border-radius: 18px;
-		padding: 8px 24px;
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-
-	:global(html:not(.dark)) .collapsed-input-pill {
-		background: rgba(0, 0, 0, 0.06);
-	}
-
-	.collapsed-input-pill:hover {
-		background: rgba(255, 255, 255, 0.18);
-	}
-
-	:global(html:not(.dark)) .collapsed-input-pill:hover {
-		background: rgba(0, 0, 0, 0.1);
-	}
-
-	.collapsed-input-pill .collapsed-dots {
+	.collapsed-dots {
 		color: rgba(255, 255, 255, 0.5);
 		font-size: 11px;
 		letter-spacing: 2px;
 	}
 
-	:global(html:not(.dark)) .collapsed-input-pill .collapsed-dots {
+	:global(html:not(.dark)) .collapsed-dots {
 		color: rgba(0, 0, 0, 0.4);
-	}
-
-	/* Default pill - click to start dictation */
-	.collapsed-pill {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 36px;
-		height: 36px;
-		background: rgba(255, 255, 255, 0.1);
-		border: none;
-		border-radius: 50%;
-		cursor: pointer;
-		padding: 0;
-		margin: 0;
-		color: rgba(255, 255, 255, 0.7);
-		transition: all 0.2s;
-	}
-
-	:global(html:not(.dark)) .collapsed-pill {
-		background: rgba(0, 0, 0, 0.06);
-		color: rgba(0, 0, 0, 0.5);
-	}
-
-	.collapsed-pill:hover {
-		background: rgba(255, 255, 255, 0.2);
-		color: rgba(255, 255, 255, 1);
-		transform: scale(1.05);
-	}
-
-	:global(html:not(.dark)) .collapsed-pill:hover {
-		background: rgba(0, 0, 0, 0.12);
-		color: rgba(0, 0, 0, 0.8);
-	}
-
-	.collapsed-mic {
-		width: 18px;
-		height: 18px;
-		opacity: 0.9;
-		flex-shrink: 0;
-	}
-
-	.collapsed-pill:hover .collapsed-mic {
-		opacity: 1;
-	}
-
-	.collapsed-dots {
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-		text-align: center;
-		/* Compensate for letter-spacing trailing space */
-		margin-right: -2px;
-	}
-
-	/* Dots pill variant - matches recording interface style */
-	.collapsed-dots-pill {
-		width: auto;
-		height: 40px;
-		padding: 0 20px;
-		border-radius: 20px;
-		gap: 2px;
-		background: rgba(30, 30, 32, 0.95);
-		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
-		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
-	}
-
-	:global(html:not(.dark)) .collapsed-dots-pill {
-		background: rgba(255, 255, 255, 0.95);
-		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-		border: 1px solid rgba(0, 0, 0, 0.08);
-	}
-
-	.collapsed-dots-pill:hover {
-		transform: scale(1.02);
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-	}
-
-	:global(html:not(.dark)) .collapsed-dots-pill:hover {
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 	}
 
 	.collapsed-dots-default {
@@ -1853,14 +1754,6 @@
 
 	:global(html:not(.dark)) .collapsed-dots-default {
 		color: rgba(0, 0, 0, 0.35);
-	}
-
-	.collapsed-pill:hover .collapsed-dots-default {
-		color: rgba(255, 255, 255, 0.7);
-	}
-
-	:global(html:not(.dark)) .collapsed-pill:hover .collapsed-dots-default {
-		color: rgba(0, 0, 0, 0.5);
 	}
 
 	/* Voice recording in collapsed mode - matches example design */
@@ -1879,40 +1772,6 @@
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 	}
 
-	.collapsed-cancel-btn {
-		width: 28px;
-		height: 28px;
-		border-radius: 50%;
-		border: none;
-		background: rgba(255, 255, 255, 0.15);
-		color: rgba(255, 255, 255, 0.7);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.15s;
-		flex-shrink: 0;
-	}
-
-	:global(html:not(.dark)) .collapsed-cancel-btn {
-		background: rgba(0, 0, 0, 0.08);
-		color: rgba(0, 0, 0, 0.5);
-	}
-
-	.collapsed-cancel-btn:hover {
-		background: rgba(255, 255, 255, 0.25);
-		color: rgba(255, 255, 255, 0.9);
-	}
-
-	:global(html:not(.dark)) .collapsed-cancel-btn:hover {
-		background: rgba(0, 0, 0, 0.15);
-		color: rgba(0, 0, 0, 0.8);
-	}
-
-	.collapsed-cancel-btn svg {
-		width: 14px;
-		height: 14px;
-	}
 
 	.collapsed-waveform-container {
 		display: flex;
@@ -1979,30 +1838,6 @@
 		color: rgba(0, 0, 0, 0.8);
 	}
 
-	.collapsed-stop-btn {
-		width: 28px;
-		height: 28px;
-		border-radius: 50%;
-		border: none;
-		background: #ff3b30;
-		color: white;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.15s;
-		flex-shrink: 0;
-	}
-
-	.collapsed-stop-btn:hover {
-		background: #e8342a;
-		transform: scale(1.05);
-	}
-
-	.collapsed-stop-btn svg {
-		width: 12px;
-		height: 12px;
-	}
 
 	.quick-chat.expanded {
 		min-width: 460px;
@@ -2179,37 +2014,6 @@
 		50% { transform: scale(1.05); }
 	}
 
-	/* Send button - circular */
-	.quick-chat .send-btn {
-		width: 32px;
-		height: 32px;
-		border: none;
-		border-radius: 50%;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.2s;
-		flex-shrink: 0;
-		background: #3B82F6;
-		color: white;
-	}
-
-	.quick-chat .send-btn:hover:not(:disabled) {
-		background: #2563EB;
-	}
-
-	.quick-chat .send-btn:disabled {
-		background: #E5E7EB;
-		color: #9CA3AF;
-		cursor: not-allowed;
-	}
-
-	.quick-chat .send-btn svg {
-		width: 16px;
-		height: 16px;
-	}
-
 	/* Hidden file input */
 	.hidden-file-input {
 		display: none;
@@ -2247,55 +2051,7 @@
 		white-space: nowrap;
 	}
 
-	.attached-file .file-remove {
-		width: 16px;
-		height: 16px;
-		border: none;
-		background: transparent;
-		border-radius: 50%;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: #9CA3AF;
-		transition: all 0.15s;
-		padding: 0;
-	}
 
-	.attached-file .file-remove:hover {
-		background: #E5E7EB;
-		color: #374151;
-	}
-
-	.attached-file .file-remove svg {
-		width: 12px;
-		height: 12px;
-	}
-
-	/* Attachment button */
-	.attach-btn {
-		width: 32px;
-		height: 32px;
-		border: none;
-		background: transparent;
-		border-radius: 8px;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: #9CA3AF;
-		transition: all 0.15s;
-	}
-
-	.attach-btn:hover {
-		background: #F3F4F6;
-		color: #374151;
-	}
-
-	.attach-btn svg {
-		width: 18px;
-		height: 18px;
-	}
 
 	/* Context selector */
 	.context-selector {
@@ -2303,34 +2059,7 @@
 		z-index: 10000;
 	}
 
-	.context-btn {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		padding: 6px 10px;
-		border: 1px solid #E5E7EB;
-		background: white;
-		border-radius: 8px;
-		cursor: pointer;
-		font-size: 12px;
-		color: #666;
-		transition: all 0.15s;
-		white-space: nowrap;
-	}
-
-	.context-btn:hover {
-		border-color: #D1D5DB;
-		background: #F9FAFB;
-	}
-
-	.context-btn.has-context {
-		background: #EEF2FF;
-		border-color: #C7D2FE;
-		color: #4F46E5;
-	}
-
-	.context-btn.required {
-		border-color: #FCA5A5;
+	.required {
 		animation: pulse-required 2s infinite;
 	}
 
@@ -2339,60 +2068,34 @@
 		50% { border-color: #EF4444; }
 	}
 
-	.context-btn svg {
-		width: 14px;
-		height: 14px;
-	}
-
-	.context-btn .project-icon {
+	.project-icon {
 		color: #8B5CF6;
 	}
 
-	.context-btn .placeholder-text {
+	.placeholder-text {
 		color: #9CA3AF;
 	}
 
-	/* Model button */
-	.model-btn {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		padding: 6px 10px;
-		border: 1px solid #E5E7EB;
-		background: white;
-		border-radius: 8px;
-		cursor: pointer;
-		font-size: 12px;
-		color: #666;
-		transition: all 0.15s;
-		white-space: nowrap;
-	}
-
-	.model-btn:hover {
-		border-color: #D1D5DB;
-		background: #F9FAFB;
-	}
-
-	.model-btn .model-icon {
+	.model-icon {
 		width: 14px;
 		height: 14px;
 	}
 
-	.model-btn .model-icon.local {
+	.model-icon.local {
 		color: #10B981;
 	}
 
-	.model-btn .model-icon.cloud {
+	.model-icon.cloud {
 		color: #3B82F6;
 	}
 
-	.model-btn .model-name {
+	.model-name {
 		max-width: 80px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
-	.model-btn .chevron {
+	.chevron {
 		width: 12px;
 		height: 12px;
 		opacity: 0.5;
@@ -2414,19 +2117,6 @@
 		margin: 4px 0;
 	}
 
-	.context-option.empty {
-		color: #9CA3AF;
-		font-style: italic;
-		cursor: default;
-	}
-
-	.context-option.create-new {
-		color: #3B82F6;
-	}
-
-	.context-option.create-new:hover {
-		background: #EFF6FF;
-	}
 
 	.option-model-icon {
 		width: 14px;
@@ -2489,16 +2179,6 @@
 		background: #F3F4F6;
 	}
 
-	.context-option:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.context-btn .chevron {
-		width: 12px;
-		height: 12px;
-		opacity: 0.5;
-	}
 
 	.context-name {
 		max-width: 80px;
@@ -2535,48 +2215,27 @@
 		}
 	}
 
-	.context-option {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		width: 100%;
-		padding: 10px 12px;
-		border: none;
-		background: none;
-		cursor: pointer;
-		font-size: 13px;
-		color: #333;
-		text-align: left;
-		transition: background 0.1s;
+	.option-icon {
+		width: 14px;
+		height: 14px;
+		flex-shrink: 0;
 	}
 
-	.context-option:hover {
-		background: #F3F4F6;
-	}
-
-	.context-option.selected {
+	.selected {
 		background: #EEF2FF;
 		color: #4F46E5;
 	}
 
-	.context-option.highlighted {
+	.highlighted {
 		background: #E5E7EB;
 	}
 
-	.context-option.highlighted.selected {
+	.highlighted.selected {
 		background: #DDD6FE;
 	}
 
-	.context-option:first-child {
-		border-radius: 9px 9px 0 0;
-	}
-
-	.context-option:last-child {
-		border-radius: 0 0 9px 9px;
-	}
-
-	.context-option:only-child {
-		border-radius: 9px;
+	.justify-start {
+		justify-content: flex-start;
 	}
 
 	.option-icon {
@@ -2619,43 +2278,6 @@
 		text-align: right;
 	}
 
-	.recording-cancel-btn,
-	.recording-confirm-btn {
-		width: 28px;
-		height: 28px;
-		border: none;
-		border-radius: 50%;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.15s;
-		flex-shrink: 0;
-	}
-
-	.recording-cancel-btn {
-		background: transparent;
-		color: #9ca3af;
-	}
-
-	.recording-cancel-btn:hover {
-		color: white;
-	}
-
-	.recording-confirm-btn {
-		background: white;
-		color: #1f2937;
-	}
-
-	.recording-confirm-btn:hover {
-		background: #e5e7eb;
-	}
-
-	.recording-cancel-btn svg,
-	.recording-confirm-btn svg {
-		width: 16px;
-		height: 16px;
-	}
 
 	/* Response display */
 	.quick-chat-response {
@@ -2695,29 +2317,6 @@
 		gap: 4px;
 	}
 
-	.action-btn {
-		width: 26px;
-		height: 26px;
-		border: none;
-		background: rgba(0, 0, 0, 0.05);
-		border-radius: 6px;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: #666;
-		transition: all 0.15s;
-	}
-
-	.action-btn:hover {
-		background: rgba(0, 0, 0, 0.1);
-		color: #333;
-	}
-
-	.action-btn svg {
-		width: 14px;
-		height: 14px;
-	}
 
 	.response-content {
 		font-size: 13px;
@@ -3255,42 +2854,6 @@
 		color: #f5f5f7;
 	}
 
-	:global(.dark) .quick-chat .send-btn {
-		background: #0A84FF;
-	}
-
-	:global(.dark) .quick-chat .send-btn:disabled {
-		background: #3a3a3c;
-		color: #6e6e73;
-	}
-
-	:global(.dark) .context-btn {
-		background: #2c2c2e;
-		border-color: rgba(255, 255, 255, 0.12);
-		color: #a1a1a6;
-	}
-
-	:global(.dark) .context-btn:hover {
-		border-color: rgba(255, 255, 255, 0.2);
-		background: #3a3a3c;
-	}
-
-	:global(.dark) .context-btn.has-context {
-		background: rgba(79, 70, 229, 0.2);
-		border-color: rgba(79, 70, 229, 0.4);
-		color: #a5b4fc;
-	}
-
-	:global(.dark) .model-btn {
-		background: #2c2c2e;
-		border-color: rgba(255, 255, 255, 0.12);
-		color: #a1a1a6;
-	}
-
-	:global(.dark) .model-btn:hover {
-		border-color: rgba(255, 255, 255, 0.2);
-		background: #3a3a3c;
-	}
 
 	:global(.dark) .context-dropdown {
 		background: #2c2c2e;
@@ -3298,22 +2861,6 @@
 		box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 	}
 
-	:global(.dark) .context-option {
-		color: #f5f5f7;
-	}
-
-	:global(.dark) .context-option:hover {
-		background: #3a3a3c;
-	}
-
-	:global(.dark) .context-option.selected {
-		background: rgba(79, 70, 229, 0.25);
-		color: #a5b4fc;
-	}
-
-	:global(.dark) .context-option.highlighted {
-		background: #48484a;
-	}
 
 	:global(.dark) .dropdown-header {
 		color: #6e6e73;
@@ -3332,19 +2879,6 @@
 		color: #a1a1a6;
 	}
 
-	:global(.dark) .attached-file .file-remove:hover {
-		background: #48484a;
-		color: #f5f5f7;
-	}
-
-	:global(.dark) .attach-btn {
-		color: #6e6e73;
-	}
-
-	:global(.dark) .attach-btn:hover {
-		background: #3a3a3c;
-		color: #f5f5f7;
-	}
 
 	:global(.dark) .toolbar-hints .hint {
 		background: rgba(255, 255, 255, 0.1);
@@ -3377,15 +2911,6 @@
 		color: #a1a1a6;
 	}
 
-	:global(.dark) .action-btn {
-		background: rgba(255, 255, 255, 0.08);
-		color: #a1a1a6;
-	}
-
-	:global(.dark) .action-btn:hover {
-		background: rgba(255, 255, 255, 0.12);
-		color: #f5f5f7;
-	}
 
 	:global(.dark) .model-status.ready {
 		background: rgba(16, 185, 129, 0.2);

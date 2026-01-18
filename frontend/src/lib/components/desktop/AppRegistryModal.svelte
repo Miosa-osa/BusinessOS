@@ -1867,18 +1867,16 @@
 		{/if}
 
 		<!-- Main Tabs -->
-		<div class="main-tabs">
+		<div class="btn-pill-group main-tabs">
 			<button
-				class="main-tab"
-				class:active={activeTab === 'browse'}
+				class="btn-pill btn-pill-sm {activeTab === 'browse' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 				onclick={() => (activeTab = 'browse')}
 			>
 				<Globe size={16} />
 				Browse Apps
 			</button>
 			<button
-				class="main-tab"
-				class:active={activeTab === 'myapps'}
+				class="btn-pill btn-pill-sm {activeTab === 'myapps' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 				onclick={() => (activeTab = 'myapps')}
 			>
 				<Layers size={16} />
@@ -1888,8 +1886,7 @@
 				{/if}
 			</button>
 			<button
-				class="main-tab"
-				class:active={activeTab === 'custom'}
+				class="btn-pill btn-pill-sm {activeTab === 'custom' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 				onclick={() => (activeTab = 'custom')}
 			>
 				<Plus size={16} />
@@ -2040,7 +2037,7 @@
 									<div class="empty-state">
 										<Search size={40} strokeWidth={1.5} />
 										<p>No apps found matching "{searchQuery}"</p>
-										<button class="clear-search" onclick={() => (searchQuery = '')}>
+										<button class="btn-pill btn-pill-secondary btn-pill-sm clear-search" onclick={() => (searchQuery = '')}>
 											Clear search
 										</button>
 									</div>
@@ -2057,7 +2054,7 @@
 							<Layers size={48} strokeWidth={1.5} />
 							<h3>No apps installed yet</h3>
 							<p>Browse the App Store and add apps to your desktop</p>
-							<button class="browse-btn" onclick={() => (activeTab = 'browse')}>
+							<button class="btn-pill btn-pill-primary browse-btn" onclick={() => (activeTab = 'browse')}>
 								<Globe size={18} />
 								Browse Apps
 							</button>

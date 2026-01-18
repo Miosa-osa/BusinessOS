@@ -204,7 +204,7 @@
 					<div class="flex gap-2 pt-4 border-t dark:border-gray-700">
 						{#if selectedImage.context_id}
 							<button
-								class="flex items-center gap-2 px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+								class="btn-pill btn-pill-primary flex items-center gap-2"
 							>
 								<ExternalLink class="w-4 h-4" />
 								View Context
@@ -212,7 +212,7 @@
 						{/if}
 						<button
 							onclick={closePreview}
-							class="flex items-center gap-2 px-4 py-2 text-sm border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+							class="btn-pill btn-pill-secondary flex items-center gap-2"
 						>
 							Close
 						</button>

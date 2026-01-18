@@ -38,7 +38,7 @@
 				{#if onEdit}
 					<button
 						onclick={onEdit}
-						class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+						class="btn-pill btn-pill-ghost btn-pill-xs btn-pill-icon"
 						title="Edit"
 					>
 						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -48,7 +48,7 @@
 				{/if}
 				<button
 					onclick={handleCopy}
-					class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+					class="btn-pill btn-pill-ghost btn-pill-xs btn-pill-icon"
 					title="Copy"
 				>
 					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +58,7 @@
 				{#if onDelete}
 					<button
 						onclick={onDelete}
-						class="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+						class="btn-pill btn-pill-ghost btn-pill-xs btn-pill-icon hover:!bg-red-50 hover:!text-red-600"
 						title="Delete"
 					>
 						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -83,7 +83,7 @@
   <!-- Use Template Button -->
   <button
     onclick={() => onUse(preset)}
-    class="mt-auto w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-all font-medium shadow-sm hover:shadow group-hover:scale-[1.02] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+    class="btn-pill btn-pill-primary btn-pill-block"
   >
     Use Template
   </button>

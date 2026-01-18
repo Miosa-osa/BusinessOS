@@ -120,7 +120,7 @@
 		<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 			<button
 				onclick={() => dispatch('preview', { result })}
-				class="px-2 py-1 text-xs rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-1"
+				class="btn-pill btn-pill-ghost btn-pill-xs"
 				title="Preview full document"
 			>
 				<Eye class="w-3 h-3" />
@@ -128,7 +128,7 @@
 			</button>
 			<button
 				onclick={() => dispatch('addToContext', { result })}
-				class="px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 flex items-center gap-1"
+				class="btn-pill btn-pill-primary btn-pill-xs"
 				title="Add to chat context"
 			>
 				<Plus class="w-3 h-3" />

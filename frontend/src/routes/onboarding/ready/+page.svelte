@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { GradientBackground, PillButton } from '$lib/components/osa';
+	import { PillButton } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
 	import { get } from 'svelte/store';
 	import { cloudServerUrl } from '$lib/auth-client';
@@ -30,7 +30,7 @@
 	<title>Your OS is Ready - OSA Build</title>
 </svelte:head>
 
-<GradientBackground>
+<div class="onboarding-background">
 	<div class="ready-screen">
 		<div class="content">
 			<!-- Main Message -->
@@ -50,9 +50,18 @@
 			</div>
 		</div>
 	</div>
-</GradientBackground>
+</div>
 
 <style>
+	.onboarding-background {
+		min-height: 100vh;
+		width: 100%;
+		background-image: url('/logos/integrations/MIOSABRANDBackround.png');
+		background-size: cover;
+		background-position: center;
+		background-repeat: no-repeat;
+	}
+
 	.ready-screen {
 		min-height: 100vh;
 		display: flex;

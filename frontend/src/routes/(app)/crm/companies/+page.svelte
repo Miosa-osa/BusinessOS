@@ -72,13 +72,13 @@
 		<div class="flex items-center gap-3">
 			<a
 				href="/crm{embedSuffix}"
-				class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+				class="btn-pill btn-pill-secondary btn-pill-sm"
 			>
 				Back to Pipeline
 			</a>
 			<button
 				onclick={() => (showAddModal = true)}
-				class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+				class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"
@@ -120,7 +120,7 @@
 			<p class="text-sm text-red-700">{error}</p>
 			<button
 				onclick={() => crm.loadCompanies()}
-				class="mt-2 text-sm text-red-600 underline hover:text-red-800"
+				class="btn-pill btn-pill-danger btn-pill-sm mt-2"
 			>
 				Try again
 			</button>
@@ -158,7 +158,7 @@
 				<p class="text-sm">Add your first company to get started</p>
 				<button
 					onclick={() => (showAddModal = true)}
-					class="mt-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+					class="btn-pill btn-pill-primary mt-2"
 				>
 					Add Company
 				</button>
@@ -345,13 +345,13 @@
 					<button
 						type="button"
 						onclick={() => (showAddModal = false)}
-						class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+						class="btn-pill btn-pill-secondary"
 					>
 						Cancel
 					</button>
 					<button
 						type="submit"
-						class="px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+						class="btn-pill btn-pill-primary"
 					>
 						Create Company
 					</button>

@@ -186,20 +186,16 @@
 			{/if}
 
 			<!-- View Switcher -->
-			<div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+			<div class="btn-pill-group">
 				<button
 					onclick={() => handleViewChange('kanban')}
-					class="px-3 py-1.5 text-sm {viewMode === 'kanban'
-						? 'bg-gray-900 text-white'
-						: 'bg-white text-gray-600 hover:bg-gray-50'}"
+					class="btn-pill {viewMode === 'kanban' ? 'btn-pill-primary' : 'btn-pill-secondary'} btn-pill-sm"
 				>
 					Kanban
 				</button>
 				<button
 					onclick={() => handleViewChange('list')}
-					class="px-3 py-1.5 text-sm {viewMode === 'list'
-						? 'bg-gray-900 text-white'
-						: 'bg-white text-gray-600 hover:bg-gray-50'}"
+					class="btn-pill {viewMode === 'list' ? 'btn-pill-primary' : 'btn-pill-secondary'} btn-pill-sm"
 				>
 					List
 				</button>
@@ -208,7 +204,7 @@
 			<!-- Add Deal Button -->
 			<button
 				onclick={() => handleAddDeal(stages[0]?.id)}
-				class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+				class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"
@@ -225,7 +221,7 @@
 			<p class="text-sm text-red-700">{error}</p>
 			<button
 				onclick={() => crm.loadPipelines()}
-				class="mt-2 text-sm text-red-600 underline hover:text-red-800"
+				class="btn-pill btn-pill-danger btn-pill-sm mt-2"
 			>
 				Try again
 			</button>
@@ -332,7 +328,7 @@
 							<!-- Add Deal to Stage -->
 							<button
 								onclick={() => handleAddDeal(stage.id)}
-								class="w-full p-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded transition-colors flex items-center justify-center gap-1"
+								class="btn-pill btn-pill-ghost btn-pill-sm w-full flex items-center justify-center gap-1"
 							>
 								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path
@@ -419,7 +415,7 @@
 						<p>No deals in this pipeline yet.</p>
 						<button
 							onclick={() => handleAddDeal(stages[0]?.id)}
-							class="mt-2 text-blue-600 hover:text-blue-800"
+							class="btn-pill btn-pill-primary btn-pill-sm mt-2"
 						>
 							Add your first deal
 						</button>
@@ -502,13 +498,13 @@
 					<button
 						type="button"
 						onclick={() => (showAddDealModal = false)}
-						class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+						class="btn-pill btn-pill-secondary"
 					>
 						Cancel
 					</button>
 					<button
 						type="submit"
-						class="px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+						class="btn-pill btn-pill-primary"
 					>
 						Create Deal
 					</button>

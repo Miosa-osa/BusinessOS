@@ -746,7 +746,7 @@
 						<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
 							Model configuration, providers, and agent settings
 						</p>
-						<a href="/settings/ai" class="inline-flex items-center gap-2 btn btn-secondary text-sm">
+						<a href="/settings/ai" class="btn-pill btn-pill-secondary">
 							Configure
 							<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -763,7 +763,7 @@
 						<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
 							Chain-of-thought, reasoning display, and thinking preferences
 						</p>
-						<a href="/settings/ai/thinking" class="inline-flex items-center gap-2 btn btn-secondary text-sm">
+						<a href="/settings/ai/thinking" class="btn-pill btn-pill-secondary">
 							Configure
 							<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -780,7 +780,7 @@
 						<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
 							Create and manage reasoning templates for AI thinking
 						</p>
-						<a href="/settings/ai/templates" class="inline-flex items-center gap-2 btn btn-secondary text-sm">
+						<a href="/settings/ai/templates" class="btn-pill btn-pill-secondary">
 							Manage
 							<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -1125,7 +1125,7 @@
 									<button
 										onclick={disconnectGoogle}
 										disabled={isDisconnectingGoogle}
-										class="btn btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-white dark:border-gray-600"
+										class="btn-pill btn-pill-secondary btn-pill-sm disabled:opacity-50 disabled:cursor-not-allowed"
 									>
 										{#if isDisconnectingGoogle}
 											<svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -1157,7 +1157,7 @@
 									<button
 										onclick={connectGoogle}
 										disabled={isConnectingGoogle}
-										class="btn btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+										class="btn-pill btn-pill-primary btn-pill-sm disabled:opacity-50 disabled:cursor-not-allowed"
 									>
 										{#if isConnectingGoogle}
 											<svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -1264,17 +1264,17 @@
 											/>
 											<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Email cannot be changed</p>
 										</div>
-										<div class="flex items-center gap-2">
+										<div class="btn-pill-group">
 											<button
 												onclick={saveProfileChanges}
 												disabled={isSaving}
-												class="btn btn-primary text-sm disabled:opacity-50"
+												class="btn-pill btn-pill-primary disabled:opacity-50 disabled:cursor-not-allowed"
 											>
 												{isSaving ? 'Saving...' : 'Save Changes'}
 											</button>
 											<button
 												onclick={() => { isEditingProfile = false; editName = $session.data?.user?.name || ''; }}
-												class="btn btn-secondary text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+												class="btn-pill btn-pill-ghost"
 											>
 												Cancel
 											</button>
@@ -1290,7 +1290,7 @@
 										</div>
 										<button
 											onclick={() => { isEditingProfile = true; editName = $session.data?.user?.name || ''; }}
-											class="btn btn-secondary text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+											class="btn-pill btn-pill-secondary"
 										>
 											Edit Profile
 										</button>
@@ -1336,17 +1336,17 @@
 											placeholder="Confirm new password"
 										/>
 									</div>
-									<div class="flex items-center gap-2">
+									<div class="btn-pill-group">
 										<button
 											onclick={handlePasswordChange}
 											disabled={isChangingPassword}
-											class="btn btn-primary text-sm disabled:opacity-50"
+											class="btn-pill btn-pill-primary disabled:opacity-50 disabled:cursor-not-allowed"
 										>
 											{isChangingPassword ? 'Changing...' : 'Change Password'}
 										</button>
 										<button
 											onclick={() => { showPasswordChange = false; currentPassword = ''; newPassword = ''; confirmPassword = ''; passwordError = ''; }}
-											class="btn btn-secondary text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+											class="btn-pill btn-pill-ghost"
 										>
 											Cancel
 										</button>
@@ -1360,7 +1360,7 @@
 									</div>
 									<button
 										onclick={() => (showPasswordChange = true)}
-										class="btn btn-secondary text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+										class="btn-pill btn-pill-secondary"
 									>
 										Change Password
 									</button>
@@ -1380,7 +1380,7 @@
 								</div>
 								<button
 									onclick={() => (twoFactorEnabled = !twoFactorEnabled)}
-									class="btn {twoFactorEnabled ? 'btn-secondary dark:bg-gray-700 dark:text-white dark:border-gray-600' : 'btn-primary'} text-sm"
+									class="btn-pill {twoFactorEnabled ? 'btn-pill-secondary' : 'btn-pill-primary'}"
 								>
 									{twoFactorEnabled ? 'Disable 2FA' : 'Enable 2FA'}
 								</button>
@@ -1427,7 +1427,7 @@
 											{:else}
 												<button
 													onclick={handleLogout}
-													class="btn btn-secondary text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+													class="btn-pill btn-pill-secondary"
 												>
 													Sign Out
 												</button>
@@ -1449,7 +1449,7 @@
 								<button
 									onclick={exportUserData}
 									disabled={isExportingData}
-									class="btn btn-secondary text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600 disabled:opacity-50"
+									class="btn-pill btn-pill-secondary disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{#if isExportingData}
 										<svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -1474,7 +1474,7 @@
 								</div>
 								<button
 									onclick={handleDeleteAccount}
-									class="btn text-sm bg-red-600 text-white hover:bg-red-700"
+									class="btn-pill btn-pill-danger btn-pill-sm"
 								>
 									Delete Account
 								</button>
@@ -2435,7 +2435,7 @@
 								<button
 									onclick={savePersonalizationProfile}
 									disabled={isSavingPersonalization || !personalizationProfile}
-									class="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+									class="btn-pill btn-pill-primary disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{#if isSavingPersonalization}
 										<svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -2489,14 +2489,14 @@
 										{:else}
 											<button
 												onclick={requestAccessibility}
-												class="btn btn-primary text-sm"
+												class="btn-pill btn-pill-primary"
 											>
 												Enable
 											</button>
 										{/if}
 										<button
 											onclick={() => openSystemPreferences('accessibility')}
-											class="btn btn-secondary text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+											class="btn-pill btn-pill-secondary"
 										>
 											Open Settings
 										</button>
@@ -2518,7 +2518,7 @@
 									</div>
 									<button
 										onclick={() => openSystemPreferences('screenRecording')}
-										class="btn btn-secondary text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+										class="btn-pill btn-pill-secondary"
 									>
 										Open Settings
 									</button>
@@ -2539,7 +2539,7 @@
 									</div>
 									<button
 										onclick={() => openSystemPreferences('microphone')}
-										class="btn btn-secondary text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+										class="btn-pill btn-pill-secondary"
 									>
 										Open Settings
 									</button>
@@ -2604,17 +2604,9 @@
 						<button
 							onclick={handleSave}
 							disabled={isSaving}
-							class="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+							class="btn-pill btn-pill-primary {isSaving ? 'btn-pill-loading' : ''} disabled:opacity-50 disabled:cursor-not-allowed"
 						>
-							{#if isSaving}
-								<svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-								</svg>
-								Saving...
-							{:else}
-								Save Changes
-							{/if}
+							Save Changes
 						</button>
 					</div>
 				{/if}

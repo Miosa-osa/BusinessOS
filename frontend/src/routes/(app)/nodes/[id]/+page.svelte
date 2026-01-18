@@ -412,7 +412,7 @@
 					{#if node.is_active}
 						<button
 							onclick={handleDeactivate}
-							class="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+							class="btn-pill btn-pill-primary"
 						>
 							<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
 								<path d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -422,7 +422,7 @@
 					{:else}
 						<button
 							onclick={handleActivate}
-							class="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+							class="btn-pill btn-pill-secondary"
 						>
 							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -444,7 +444,7 @@
 						{#if !editingPurpose}
 							<button
 								onclick={() => editingPurpose = true}
-								class="text-sm text-blue-600 hover:text-blue-700"
+								class="btn-pill btn-pill-link btn-pill-xs"
 							>
 								Edit
 							</button>
@@ -462,14 +462,14 @@
 							<div class="flex justify-end gap-2 mt-3">
 								<button
 									onclick={() => { editingPurpose = false; purposeValue = node?.purpose || ''; }}
-									class="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+									class="btn-pill btn-pill-secondary btn-pill-sm"
 								>
 									Cancel
 								</button>
 								<button
 									onclick={savePurpose}
 									disabled={isSaving}
-									class="px-3 py-1.5 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+									class="btn-pill btn-pill-primary btn-pill-sm"
 								>
 									{isSaving ? 'Saving...' : 'Save'}
 								</button>
@@ -503,7 +503,7 @@
 							{#if !editingStatus}
 								<button
 									onclick={() => editingStatus = true}
-									class="text-sm text-blue-600 hover:text-blue-700"
+									class="btn-pill btn-pill-link btn-pill-xs"
 								>
 									Update
 								</button>
@@ -521,14 +521,14 @@
 								<div class="flex justify-end gap-2 mt-3">
 									<button
 										onclick={() => { editingStatus = false; statusValue = node?.current_status || ''; }}
-										class="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+										class="btn-pill btn-pill-secondary btn-pill-sm"
 									>
 										Cancel
 									</button>
 									<button
 										onclick={saveStatus}
 										disabled={isSaving}
-										class="px-3 py-1.5 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+										class="btn-pill btn-pill-primary btn-pill-sm"
 									>
 										{isSaving ? 'Saving...' : 'Save'}
 									</button>
@@ -553,7 +553,7 @@
 							{#if !editingFocus}
 								<button
 									onclick={() => { editingFocus = true; focusValue = node?.this_week_focus || []; }}
-									class="text-sm text-blue-600 hover:text-blue-700"
+									class="btn-pill btn-pill-link btn-pill-xs"
 								>
 									Edit
 								</button>
@@ -598,14 +598,14 @@
 								<div class="flex justify-end gap-2 mt-3">
 									<button
 										onclick={() => { editingFocus = false; focusValue = node?.this_week_focus || []; }}
-										class="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+										class="btn-pill btn-pill-secondary btn-pill-sm"
 									>
 										Cancel
 									</button>
 									<button
 										onclick={saveFocus}
 										disabled={isSaving}
-										class="px-3 py-1.5 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+										class="btn-pill btn-pill-primary btn-pill-sm"
 									>
 										{isSaving ? 'Saving...' : 'Save'}
 									</button>
@@ -636,7 +636,7 @@
 							<h2 class="text-lg font-semibold text-gray-900">Decision Queue</h2>
 							<button
 								onclick={() => showAddDecision = true}
-								class="text-sm text-blue-600 hover:text-blue-700"
+								class="btn-pill btn-pill-link btn-pill-xs"
 							>
 								+ Add
 							</button>
@@ -655,14 +655,14 @@
 								<div class="flex justify-end gap-2 mt-2">
 									<button
 										onclick={() => { showAddDecision = false; newDecisionQuestion = ''; }}
-										class="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+										class="btn-pill btn-pill-secondary btn-pill-sm"
 									>
 										Cancel
 									</button>
 									<button
 										onclick={addDecision}
 										disabled={!newDecisionQuestion.trim() || isSaving}
-										class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+										class="btn-pill btn-pill-primary btn-pill-sm"
 									>
 										{isSaving ? 'Adding...' : 'Add Question'}
 									</button>
@@ -688,7 +688,7 @@
 											<div class="flex items-center gap-1">
 												<button
 													onclick={() => { decidingDecisionId = decision.id; decisionAnswer = ''; }}
-													class="text-sm text-blue-600 hover:text-blue-700"
+													class="btn-pill btn-pill-link btn-pill-xs"
 												>
 													Decide
 												</button>
@@ -716,14 +716,14 @@
 												<div class="flex justify-end gap-2 mt-2">
 													<button
 														onclick={() => { decidingDecisionId = null; decisionAnswer = ''; }}
-														class="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+														class="btn-pill btn-pill-secondary btn-pill-sm"
 													>
 														Cancel
 													</button>
 													<button
 														onclick={() => makeDecision(decision.id)}
 														disabled={!decisionAnswer.trim() || isSaving}
-														class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+														class="btn-pill btn-pill-primary btn-pill-sm"
 													>
 														{isSaving ? 'Saving...' : 'Confirm Decision'}
 													</button>
@@ -775,7 +775,7 @@
 							<h2 class="text-lg font-semibold text-gray-900">Delegation Ready</h2>
 							<button
 								onclick={() => showAddDelegation = true}
-								class="text-sm text-blue-600 hover:text-blue-700"
+								class="btn-pill btn-pill-link btn-pill-xs"
 							>
 								+ Add
 							</button>
@@ -810,14 +810,14 @@
 								<div class="flex justify-end gap-2 mt-3">
 									<button
 										onclick={() => { showAddDelegation = false; newDelegationTask = ''; newDelegationAssigneeId = null; }}
-										class="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+										class="btn-pill btn-pill-secondary btn-pill-sm"
 									>
 										Cancel
 									</button>
 									<button
 										onclick={addDelegation}
 										disabled={!newDelegationTask.trim() || isSaving}
-										class="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+										class="btn-pill btn-pill-primary btn-pill-sm"
 									>
 										{isSaving ? 'Adding...' : 'Add Task'}
 									</button>
@@ -884,7 +884,7 @@
 											{:else}
 												<button
 													onclick={() => editingDelegationId = item.id}
-													class="text-xs text-gray-500 hover:text-purple-600 flex items-center gap-1"
+													class="btn-pill btn-pill-link btn-pill-xs"
 												>
 													<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -934,7 +934,7 @@
 					<div class="bg-white border border-gray-200 rounded-xl p-5">
 						<div class="flex items-center justify-between mb-4">
 							<h2 class="text-lg font-semibold text-gray-900">Child Nodes ({children.length})</h2>
-							<a href="/nodes?parent={node.id}" class="text-sm text-blue-600 hover:text-blue-700">
+							<a href="/nodes?parent={node.id}" class="btn-pill btn-pill-link btn-pill-xs">
 								+ Add Child
 							</a>
 						</div>
@@ -969,7 +969,7 @@
 						<h2 class="text-lg font-semibold text-gray-900">Linked Items</h2>
 						<button
 							onclick={() => showLinkingModal = true}
-							class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+							class="btn-pill btn-pill-link btn-pill-xs"
 						>
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />

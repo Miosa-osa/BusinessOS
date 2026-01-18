@@ -245,7 +245,7 @@
 			</div>
 			<button
 				onclick={() => showNewNodeModal = true}
-				class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+				class="btn-pill btn-pill-primary"
 			>
 				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -262,7 +262,7 @@
 			<div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
 				<button
 					onclick={() => viewMode = 'tree'}
-					class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'tree' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}"
+					class="btn-pill btn-pill-sm {viewMode === 'tree' ? 'btn-pill-active' : ''}"
 				>
 					<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -271,7 +271,7 @@
 				</button>
 				<button
 					onclick={() => viewMode = 'list'}
-					class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}"
+					class="btn-pill btn-pill-sm {viewMode === 'list' ? 'btn-pill-active' : ''}"
 				>
 					<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -280,7 +280,7 @@
 				</button>
 				<button
 					onclick={() => viewMode = 'grid'}
-					class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'grid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}"
+					class="btn-pill btn-pill-sm {viewMode === 'grid' ? 'btn-pill-active' : ''}"
 				>
 					<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -289,7 +289,7 @@
 				</button>
 				<button
 					onclick={() => viewMode = 'graph'}
-					class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'graph' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}"
+					class="btn-pill btn-pill-sm {viewMode === 'graph' ? 'btn-pill-active' : ''}"
 				>
 					<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
@@ -298,7 +298,7 @@
 				</button>
 				<button
 					onclick={() => viewMode = 'building'}
-					class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'building' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}"
+					class="btn-pill btn-pill-sm {viewMode === 'building' ? 'btn-pill-active' : ''}"
 				>
 					<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -307,7 +307,7 @@
 				</button>
 				<button
 					onclick={() => viewMode = 'building3d'}
-					class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {viewMode === 'building3d' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}"
+					class="btn-pill btn-pill-sm {viewMode === 'building3d' ? 'btn-pill-active' : ''}"
 				>
 					<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -321,7 +321,7 @@
 				<div class="relative">
 					<button
 						onclick={() => showFilterDropdown = !showFilterDropdown}
-						class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+						class="btn-pill btn-pill-secondary btn-pill-sm"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -428,13 +428,13 @@
 			<div class="flex items-center gap-2">
 				<a
 					href="/nodes/{$nodes.activeNode.id}"
-					class="px-3 py-1 text-sm text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
+					class="btn-pill btn-pill-link btn-pill-xs"
 				>
 					View
 				</a>
 				<button
 					onclick={handleDeactivate}
-					class="px-3 py-1 text-sm text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
+					class="btn-pill btn-pill-link btn-pill-xs"
 				>
 					Deactivate
 				</button>
@@ -451,7 +451,7 @@
 		{:else if error}
 			<div class="flex flex-col items-center justify-center h-64">
 				<p class="text-red-500 mb-4">{error}</p>
-				<button onclick={loadData} class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800">
+				<button onclick={loadData} class="btn-pill btn-pill-primary">
 					Retry
 				</button>
 			</div>
@@ -466,7 +466,7 @@
 				<p class="text-gray-500 mb-4">Create your first node to organize your business into manageable focus areas.</p>
 				<button
 					onclick={() => showNewNodeModal = true}
-					class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+					class="btn-pill btn-pill-primary"
 				>
 					Create your first node
 				</button>

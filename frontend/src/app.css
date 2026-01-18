@@ -855,6 +855,33 @@ body {
 	display: none;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   NAV PILL STYLES - Modern Sidebar Navigation
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.nav-pill {
+	position: relative;
+	overflow: hidden;
+}
+
+.nav-pill::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+	opacity: 0;
+	transition: opacity 0.2s ease;
+	pointer-events: none;
+	border-radius: inherit;
+}
+
+.nav-pill:hover::before {
+	opacity: 1;
+}
+
 /* ═════════════════════════════════════════════════════════════════════════════
    OSA BUILD - iOS INSPIRED COMPONENT STYLES
    ═════════════════════════════════════════════════════════════════════════════ */
@@ -1042,6 +1069,12 @@ body {
 }
 
 /* Button sizes */
+.btn-pill-xs {
+	padding: 0.375rem 0.875rem;
+	font-size: var(--text-xs);
+	gap: 0.25rem;
+}
+
 .btn-pill-sm {
 	padding: 0.5rem 1.25rem;
 	font-size: var(--text-sm);
@@ -1050,6 +1083,365 @@ body {
 .btn-pill-lg {
 	padding: 1rem 2rem;
 	font-size: var(--text-lg);
+}
+
+.btn-pill-xl {
+	padding: 1.125rem 2.5rem;
+	font-size: var(--text-xl);
+}
+
+/* Icon-only buttons */
+.btn-pill-icon {
+	padding: 0.625rem;
+	min-width: 2.5rem;
+	min-height: 2.5rem;
+}
+
+.btn-pill-icon.btn-pill-sm {
+	padding: 0.5rem;
+	min-width: 2rem;
+	min-height: 2rem;
+}
+
+.btn-pill-icon.btn-pill-lg {
+	padding: 0.75rem;
+	min-width: 3rem;
+	min-height: 3rem;
+}
+
+/* Dark mode for primary */
+.dark .btn-pill-primary {
+	background: linear-gradient(180deg, #3a3a3c 0%, #1c1c1e 100%);
+	border-color: rgba(255, 255, 255, 0.15);
+	box-shadow:
+		0 1px 0 0 rgba(255, 255, 255, 0.12) inset,
+		0 4px 16px 0 rgba(0, 0, 0, 0.5),
+		0 8px 24px 0 rgba(0, 0, 0, 0.3);
+}
+
+.dark .btn-pill-primary:hover:not(:disabled) {
+	background: linear-gradient(180deg, #4a4a4c 0%, #2c2c2e 100%);
+	box-shadow:
+		0 1px 0 0 rgba(255, 255, 255, 0.18) inset,
+		0 6px 24px 0 rgba(0, 0, 0, 0.6),
+		0 12px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* ===== DANGER BUTTON ===== */
+.btn-pill-danger {
+	background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+	color: white;
+	box-shadow:
+		0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
+		0 4px 16px 0 rgba(220, 38, 38, 0.3),
+		0 8px 24px 0 rgba(220, 38, 38, 0.15);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	position: relative;
+	overflow: hidden;
+}
+
+.btn-pill-danger::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 50%;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+	border-radius: inherit;
+	pointer-events: none;
+}
+
+.btn-pill-danger:hover:not(:disabled) {
+	transform: translateY(-2px);
+	background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+	box-shadow:
+		0 1px 0 0 rgba(255, 255, 255, 0.2) inset,
+		0 6px 24px 0 rgba(220, 38, 38, 0.4),
+		0 12px 32px 0 rgba(220, 38, 38, 0.2);
+}
+
+.btn-pill-danger:active:not(:disabled) {
+	transform: translateY(-1px);
+}
+
+.btn-pill-danger:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* ===== SUCCESS BUTTON ===== */
+.btn-pill-success {
+	background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+	color: white;
+	box-shadow:
+		0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
+		0 4px 16px 0 rgba(22, 163, 74, 0.3),
+		0 8px 24px 0 rgba(22, 163, 74, 0.15);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	position: relative;
+	overflow: hidden;
+}
+
+.btn-pill-success::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 50%;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+	border-radius: inherit;
+	pointer-events: none;
+}
+
+.btn-pill-success:hover:not(:disabled) {
+	transform: translateY(-2px);
+	background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+	box-shadow:
+		0 1px 0 0 rgba(255, 255, 255, 0.2) inset,
+		0 6px 24px 0 rgba(22, 163, 74, 0.4),
+		0 12px 32px 0 rgba(22, 163, 74, 0.2);
+}
+
+.btn-pill-success:active:not(:disabled) {
+	transform: translateY(-1px);
+}
+
+.btn-pill-success:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* ===== OUTLINE BUTTON ===== */
+.btn-pill-outline {
+	background: transparent;
+	border: 2px solid #1a1a1a;
+	color: #1a1a1a;
+	box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.06);
+	position: relative;
+	overflow: hidden;
+}
+
+.btn-pill-outline:hover:not(:disabled) {
+	background: #1a1a1a;
+	color: white;
+	transform: translateY(-2px);
+	box-shadow:
+		0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
+		0 4px 16px 0 rgba(0, 0, 0, 0.3);
+}
+
+.btn-pill-outline:active:not(:disabled) {
+	transform: translateY(-1px);
+}
+
+.btn-pill-outline:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.dark .btn-pill-outline {
+	border-color: #e5e5e5;
+	color: #e5e5e5;
+}
+
+.dark .btn-pill-outline:hover:not(:disabled) {
+	background: #e5e5e5;
+	color: #1a1a1a;
+}
+
+/* ===== SOFT/SUBTLE VARIANTS ===== */
+.btn-pill-soft {
+	background: rgba(0, 0, 0, 0.05);
+	border: 1px solid rgba(0, 0, 0, 0.08);
+	color: #1a1a1a;
+	box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+
+.btn-pill-soft:hover:not(:disabled) {
+	background: rgba(0, 0, 0, 0.08);
+	border-color: rgba(0, 0, 0, 0.12);
+	transform: translateY(-1px);
+	box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.08);
+}
+
+.dark .btn-pill-soft {
+	background: rgba(255, 255, 255, 0.08);
+	border-color: rgba(255, 255, 255, 0.1);
+	color: #f5f5f7;
+}
+
+.dark .btn-pill-soft:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.12);
+	border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ===== WARNING BUTTON ===== */
+.btn-pill-warning {
+	background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+	color: #78350f;
+	box-shadow:
+		0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
+		0 4px 16px 0 rgba(251, 191, 36, 0.3),
+		0 8px 24px 0 rgba(251, 191, 36, 0.2);
+	position: relative;
+	overflow: hidden;
+}
+
+.btn-pill-warning::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+	opacity: 1;
+	transition: opacity 0.2s ease;
+}
+
+.btn-pill-warning:hover:not(:disabled) {
+	transform: translateY(-2px);
+	background: linear-gradient(180deg, #fcd34d 0%, #fbbf24 100%);
+	box-shadow:
+		0 1px 0 0 rgba(255, 255, 255, 0.2) inset,
+		0 6px 24px 0 rgba(251, 191, 36, 0.4),
+		0 12px 32px 0 rgba(251, 191, 36, 0.3);
+}
+
+.btn-pill-warning:active:not(:disabled) {
+	transform: translateY(-1px);
+}
+
+.btn-pill-warning:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.dark .btn-pill-warning {
+	background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+	color: #451a03;
+}
+
+.dark .btn-pill-warning:hover:not(:disabled) {
+	background: linear-gradient(180deg, #fcd34d 0%, #fbbf24 100%);
+}
+
+/* ===== LINK-STYLE BUTTON ===== */
+.btn-pill-link {
+	background: transparent;
+	border: none;
+	color: #1a1a1a;
+	padding: 0.5rem 0.75rem;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	box-shadow: none;
+}
+
+.btn-pill-link:hover:not(:disabled) {
+	color: #666666;
+	text-decoration-color: currentColor;
+}
+
+.dark .btn-pill-link {
+	color: #f5f5f7;
+}
+
+.dark .btn-pill-link:hover:not(:disabled) {
+	color: #a1a1a6;
+}
+
+/* ===== LOADING STATE ===== */
+.btn-pill-loading {
+	position: relative;
+	pointer-events: none;
+	color: transparent !important;
+}
+
+.btn-pill-loading::after {
+	content: '';
+	position: absolute;
+	width: 1rem;
+	height: 1rem;
+	top: 50%;
+	left: 50%;
+	margin-left: -0.5rem;
+	margin-top: -0.5rem;
+	border: 2px solid currentColor;
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: btn-spin 0.6s linear infinite;
+}
+
+.btn-pill-primary.btn-pill-loading::after,
+.btn-pill-danger.btn-pill-loading::after,
+.btn-pill-success.btn-pill-loading::after {
+	border-color: rgba(255, 255, 255, 0.3);
+	border-top-color: white;
+}
+
+@keyframes btn-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* ===== BUTTON GROUP ===== */
+.btn-pill-group {
+	display: inline-flex;
+	border-radius: var(--radius-full);
+	background: rgba(0, 0, 0, 0.02);
+	padding: 2px;
+	gap: 2px;
+	border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dark .btn-pill-group {
+	background: rgba(255, 255, 255, 0.03);
+	border-color: rgba(255, 255, 255, 0.06);
+}
+
+.btn-pill-group .btn-pill {
+	border-radius: var(--radius-full) !important;
+	margin: 0;
+	box-shadow: none !important;
+	border: none !important;
+	padding: 0.5rem 1rem;
+	font-size: 0.875rem;
+}
+
+.btn-pill-group .btn-pill-ghost {
+	background: transparent;
+	color: #666666;
+}
+
+.btn-pill-group .btn-pill-ghost:hover {
+	background: rgba(0, 0, 0, 0.04);
+}
+
+.dark .btn-pill-group .btn-pill-ghost {
+	color: #a1a1a6;
+}
+
+.dark .btn-pill-group .btn-pill-ghost:hover {
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-pill-group .btn-pill-primary {
+	background: linear-gradient(180deg, #1a1a1a 0%, #000000 100%);
+	color: white;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.dark .btn-pill-group .btn-pill-primary {
+	background: linear-gradient(180deg, #3a3a3c 0%, #1c1c1e 100%);
+}
+
+/* ===== FULL WIDTH VARIANT ===== */
+.btn-pill-block {
+	width: 100%;
+	display: flex;
 }
 
 /* ===== ROUNDED INPUTS (iOS STYLE) ===== */

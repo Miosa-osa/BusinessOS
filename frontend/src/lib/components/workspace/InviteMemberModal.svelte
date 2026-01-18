@@ -73,7 +73,7 @@
         <h2>Invite Member</h2>
         <p>Send an invitation to join this workspace</p>
       </div>
-      <button class="close-button" onclick={handleCancel} type="button">
+      <button class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm" onclick={handleCancel} type="button">
         <X class="w-5 h-5" />
       </button>
     </div>
@@ -124,22 +124,20 @@
       </div>
 
       <div class="modal-footer">
-        <button class="cancel-button" onclick={handleCancel} type="button" disabled={isSending}>
+        <button class="btn-pill btn-pill-secondary flex-1 disabled:opacity-50" onclick={handleCancel} type="button" disabled={isSending}>
           Cancel
         </button>
         <button
-          class="send-button"
+          class="btn-pill btn-pill-primary flex-1 flex items-center justify-center gap-2 {isSending ? 'btn-pill-loading' : ''} disabled:opacity-50"
           onclick={handleSend}
           disabled={!email.trim() || !selectedRole || isSending}
           type="button"
         >
-          {#if isSending}
-          <Loader2 class="w-4 h-4 animate-spin" />
-        {:else}
-          <Send class="w-4 h-4" />
-        {/if}
-        Send Invitation
-      </button>
+          {#if !isSending}
+            <Send class="w-4 h-4" />
+          {/if}
+          Send Invitation
+        </button>
     </div>
     {/if}
   </div>

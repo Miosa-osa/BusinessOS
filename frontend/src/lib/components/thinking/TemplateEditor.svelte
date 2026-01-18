@@ -321,7 +321,7 @@
             <button
               type="button"
               onclick={addStep}
-              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              class="btn-pill btn-pill-primary"
             >
               Add First Step
             </button>
@@ -375,7 +375,7 @@
     <button
       type="submit"
       disabled={isSubmitting || steps.length === 0 || !name.trim()}
-      class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      class="btn-pill btn-pill-primary"
     >
       {#if isSubmitting}
         <span class="flex items-center space-x-2">

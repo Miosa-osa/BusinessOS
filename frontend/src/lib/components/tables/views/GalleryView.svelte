@@ -210,7 +210,7 @@
 			<p class="mb-4 text-sm text-gray-500">Create your first item to get started</p>
 			<button
 				type="button"
-				class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+				class="btn-pill btn-pill-primary btn-pill-sm"
 				onclick={onAddCard}
 			>
 				<Plus class="h-4 w-4" />

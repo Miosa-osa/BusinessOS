@@ -189,7 +189,7 @@
 						<label class="block text-xs font-medium text-gray-500 uppercase mb-1.5">Status</label>
 						<DropdownMenu.Root>
 							<DropdownMenu.Trigger
-								class="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+								class="btn-pill btn-pill-secondary btn-pill-sm btn-pill-block justify-between"
 							>
 								<span class="flex items-center gap-2">
 									<span class="w-2 h-2 rounded-full" style="background-color: {statusOptions.find(s => s.value === task.status)?.color}"></span>
@@ -206,7 +206,7 @@
 								>
 									{#each statusOptions as option}
 										<DropdownMenu.Item
-											class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer"
+											class="btn-pill btn-pill-ghost btn-pill-sm justify-start"
 											onclick={() => onStatusChange?.(option.value)}
 										>
 											<span class="w-2 h-2 rounded-full" style="background-color: {option.color}"></span>
@@ -222,7 +222,7 @@
 						<label class="block text-xs font-medium text-gray-500 uppercase mb-1.5">Priority</label>
 						<DropdownMenu.Root>
 							<DropdownMenu.Trigger
-								class="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+								class="btn-pill btn-pill-secondary btn-pill-sm btn-pill-block justify-between"
 							>
 								<span class="flex items-center gap-2">
 									<span class="w-2 h-2 rounded-full" style="background-color: {priorityOptions.find(p => p.value === task.priority)?.color}"></span>
@@ -239,7 +239,7 @@
 								>
 									{#each priorityOptions as option}
 										<DropdownMenu.Item
-											class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer"
+											class="btn-pill btn-pill-ghost btn-pill-sm justify-start"
 											onclick={() => onPriorityChange?.(option.value)}
 										>
 											<span class="w-2 h-2 rounded-full" style="background-color: {option.color}"></span>
@@ -256,7 +256,7 @@
 				<div class="grid grid-cols-2 gap-3">
 					<div>
 						<label class="block text-xs font-medium text-gray-500 uppercase mb-1.5">Assignee</label>
-						<button class="w-full flex items-center gap-2 px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
+						<button class="btn-pill btn-pill-secondary btn-pill-sm btn-pill-block justify-start">
 							{#if task.assignee}
 								<div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium">
 									{task.assignee.name.charAt(0)}
@@ -311,10 +311,10 @@
 								placeholder="Add a description..."
 							></textarea>
 							<div class="flex justify-end gap-2 mt-2">
-								<button onclick={() => editingDescription = false} class="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg">
+								<button onclick={() => editingDescription = false} class="btn-pill btn-pill-ghost btn-pill-xs">
 									Cancel
 								</button>
-								<button onclick={saveDescription} class="px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800">
+								<button onclick={saveDescription} class="btn-pill btn-pill-primary btn-pill-xs">
 									Save
 								</button>
 							</div>
@@ -393,7 +393,7 @@
 							<button
 								onclick={handleAddComment}
 								disabled={!newComment.trim()}
-								class="px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+								class="btn-pill btn-pill-primary btn-pill-sm"
 							>
 								Post
 							</button>

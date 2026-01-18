@@ -75,12 +75,11 @@
 				<p class="page-subtitle">Track your AI usage, tokens, and estimated costs</p>
 			</div>
 		</div>
-		<div class="period-selector">
+		<div class="btn-pill-group">
 			{#each ['today', 'week', 'month', 'all'] as period}
 				<button
 					onclick={() => changePeriod(period as typeof usagePeriod)}
-					class="period-btn"
-					class:active={usagePeriod === period}
+					class="btn-pill {usagePeriod === period ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 				>
 					{period === 'all' ? 'All Time' : period.charAt(0).toUpperCase() + period.slice(1)}
 				</button>
@@ -103,7 +102,7 @@
 			</div>
 			<h3>No Usage Data Yet</h3>
 			<p>Start chatting with the AI to see your usage analytics here.</p>
-			<a href="/chat" class="start-chatting-btn">
+			<a href="/chat" class="btn-pill btn-pill-primary">
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
 				</svg>
@@ -416,54 +415,6 @@
 		color: #9ca3af;
 	}
 
-	/* Period Selector */
-	.period-selector {
-		display: flex;
-		background: var(--color-bg-secondary, #f3f4f6);
-		border-radius: 12px;
-		padding: 4px;
-		gap: 4px;
-	}
-
-	:global(.dark) .period-selector {
-		background: #1f1f1f;
-	}
-
-	.period-btn {
-		padding: 10px 20px;
-		border: none;
-		background: transparent;
-		border-radius: 8px;
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: var(--color-text-secondary, #6b7280);
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-
-	:global(.dark) .period-btn {
-		color: #9ca3af;
-	}
-
-	.period-btn:hover {
-		color: var(--color-text, #111827);
-	}
-
-	:global(.dark) .period-btn:hover {
-		color: #f9fafb;
-	}
-
-	.period-btn.active {
-		background: white;
-		color: var(--color-text, #111827);
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-	}
-
-	:global(.dark) .period-btn.active {
-		background: #2c2c2e;
-		color: #f9fafb;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-	}
 
 	/* Loading State */
 	.loading-state {
@@ -554,28 +505,6 @@
 		color: #9ca3af;
 	}
 
-	.start-chatting-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		padding: 12px 24px;
-		background: linear-gradient(135deg, #6366f1, #8b5cf6);
-		color: white;
-		border-radius: 10px;
-		font-weight: 500;
-		text-decoration: none;
-		transition: transform 0.15s, box-shadow 0.15s;
-	}
-
-	.start-chatting-btn:hover {
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-	}
-
-	.start-chatting-btn svg {
-		width: 20px;
-		height: 20px;
-	}
 
 	/* Stats Grid */
 	.stats-grid {

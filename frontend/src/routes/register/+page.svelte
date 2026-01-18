@@ -112,7 +112,7 @@
 
 			<button
 				type="submit"
-				class="w-full h-12 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-all flex items-center justify-center gap-2 font-mono"
+				class="btn-pill btn-pill-primary w-full h-12 text-sm font-mono"
 				disabled={loading}
 			>
 				{#if loading}

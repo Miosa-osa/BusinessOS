@@ -152,7 +152,7 @@
         <button
           type="button"
           onclick={() => goto('/agents')}
-          class="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors"
+          class="btn-pill btn-pill-ghost btn-pill-sm flex items-center gap-2"
           aria-label="Back to agents"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,7 +220,7 @@
         <button
           type="button"
           onclick={() => showTemplates = true}
-          class="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          class="btn-pill btn-pill-link btn-pill-sm"
         >
           Or start with a template →
         </button>

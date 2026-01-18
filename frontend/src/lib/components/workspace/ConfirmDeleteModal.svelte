@@ -46,7 +46,7 @@
       <div class="modal-icon">
         <AlertTriangle class="w-6 h-6" />
       </div>
-      <button class="close-button" onclick={handleCancel} type="button">
+      <button class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm" onclick={handleCancel} type="button">
         <X class="w-5 h-5" />
       </button>
     </div>
@@ -70,11 +70,11 @@
     </div>
 
     <div class="modal-footer">
-      <button class="cancel-button" onclick={handleCancel} type="button">
+      <button class="btn-pill btn-pill-secondary flex-1" onclick={handleCancel} type="button">
         {cancelText}
       </button>
       <button
-        class="confirm-button"
+        class="btn-pill btn-pill-danger flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
         onclick={handleConfirm}
         disabled={confirmInput !== requiredText}
         type="button"

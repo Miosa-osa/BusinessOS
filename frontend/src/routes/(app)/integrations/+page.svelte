@@ -305,7 +305,7 @@
 				{#if pendingDecisions.length > 0}
 					<button
 						onclick={() => (activeTab = 'decisions')}
-						class="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
+						class="btn-pill btn-pill-warning"
 					>
 						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -392,7 +392,7 @@
 					</p>
 					<button
 						onclick={() => (activeTab = 'available')}
-						class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+						class="btn-pill btn-pill-primary mt-4"
 					>
 						Browse Available Integrations
 					</button>
@@ -439,16 +439,16 @@
 									</p>
 								</div>
 							</div>
-							<div class="mt-4 flex gap-2">
+							<div class="mt-4 btn-pill-group">
 								<button
 									onclick={() => handleDisconnect(integration.id)}
-									class="flex-1 px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+									class="btn-pill btn-pill-ghost btn-pill-sm"
 								>
 									Disconnect
 								</button>
 								<a
 									href="/integrations/{integration.id}"
-									class="flex-1 px-3 py-1.5 text-sm text-center text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+									class="btn-pill btn-pill-ghost btn-pill-sm text-center"
 								>
 									Settings
 								</a>
@@ -473,10 +473,7 @@
 				{#each categories as category}
 					<button
 						onclick={() => (selectedCategory = category.id)}
-						class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors {selectedCategory ===
-						category.id
-							? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-							: 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}"
+						class="btn-pill {selectedCategory === category.id ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 					>
 						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={category.icon} />
@@ -564,7 +561,7 @@
 							{:else}
 								<button
 									onclick={() => handleConnect(provider)}
-									class="px-4 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-medium rounded-full hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
+									class="btn-pill btn-pill-primary btn-pill-sm"
 								>
 									{fileImportProviders.includes(provider.id) ? 'Import' : 'Connect'}
 								</button>
@@ -763,7 +760,7 @@
 									{#each decision.options as option}
 										<button
 											onclick={() => handleDecision(decision.id, option)}
-											class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+											class="btn-pill btn-pill-primary btn-pill-sm"
 										>
 											{option}
 										</button>
@@ -960,7 +957,7 @@
 							{/if}
 							<a
 								href="/integrations/{getConnectedIntegration(selectedProvider.id)?.id}"
-								class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+								class="btn-pill btn-pill-secondary btn-pill-sm"
 							>
 								Settings
 							</a>
@@ -969,14 +966,14 @@
 				{:else if selectedProvider.status === 'coming_soon'}
 					<button
 						disabled
-						class="w-full px-4 py-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-not-allowed"
+						class="btn-pill btn-pill-ghost btn-pill-sm w-full cursor-not-allowed opacity-50"
 					>
 						Coming Soon
 					</button>
 				{:else}
 					<button
 						onclick={() => { if (selectedProvider) { closeDetailModal(); handleConnect(selectedProvider); } }}
-						class="w-full px-4 py-2.5 text-sm font-medium text-white bg-gray-900 dark:bg-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
+						class="btn-pill btn-pill-primary btn-pill-sm w-full"
 					>
 						{selectedProvider && fileImportProviders.includes(selectedProvider.id) ? 'Import Data' : 'Connect'}
 					</button>

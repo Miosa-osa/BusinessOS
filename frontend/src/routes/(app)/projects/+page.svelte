@@ -207,7 +207,7 @@
 				<h1 class="text-xl font-semibold text-gray-900">Projects</h1>
 				<p class="text-sm text-gray-500 mt-0.5">Manage your work and track progress</p>
 			</div>
-			<button onclick={() => showNewProject = true} class="btn btn-primary flex items-center gap-2">
+			<button onclick={() => showNewProject = true} class="btn-pill btn-pill-primary flex items-center gap-2">
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 				</svg>
@@ -255,28 +255,28 @@
 		</div>
 
 		<!-- Status Filter Pills -->
-		<div class="flex items-center gap-1 border-l border-gray-200 pl-3">
+		<div class="btn-pill-group border-l border-gray-200 pl-3">
 			<button
 				onclick={() => { statusFilter = ''; projects.loadProjects(); }}
-				class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors {statusFilter === '' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}"
+				class="btn-pill btn-pill-sm {statusFilter === '' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 			>
 				All
 			</button>
 			<button
 				onclick={() => { statusFilter = 'active'; projects.loadProjects('active'); }}
-				class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors {statusFilter === 'active' ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-100'}"
+				class="btn-pill btn-pill-sm {statusFilter === 'active' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 			>
 				Active
 			</button>
 			<button
 				onclick={() => { statusFilter = 'paused'; projects.loadProjects('paused'); }}
-				class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors {statusFilter === 'paused' ? 'bg-amber-600 text-white' : 'text-gray-600 hover:bg-gray-100'}"
+				class="btn-pill btn-pill-sm {statusFilter === 'paused' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 			>
 				Paused
 			</button>
 			<button
 				onclick={() => { statusFilter = 'completed'; projects.loadProjects('completed'); }}
-				class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors {statusFilter === 'completed' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}"
+				class="btn-pill btn-pill-sm {statusFilter === 'completed' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 			>
 				Completed
 			</button>
@@ -285,7 +285,7 @@
 		<!-- Type Filter -->
 		<select
 			bind:value={typeFilter}
-			class="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 {typeFilter ? 'bg-purple-50 border-purple-200' : ''}"
+			class="btn-pill btn-pill-secondary btn-pill-sm"
 		>
 			<option value="">All Types</option>
 			<option value="internal">Internal</option>
@@ -296,7 +296,7 @@
 		<!-- Priority Filter -->
 		<select
 			bind:value={priorityFilter}
-			class="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 {priorityFilter ? 'bg-orange-50 border-orange-200' : ''}"
+			class="btn-pill btn-pill-secondary btn-pill-sm"
 		>
 			<option value="">All Priorities</option>
 			<option value="critical">Critical</option>
@@ -326,10 +326,10 @@
 		</label>
 
 		<!-- View Mode Toggle -->
-		<div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+		<div class="btn-pill-group">
 			<button
 				onclick={() => viewMode = 'grid'}
-				class="p-1.5 transition-colors {viewMode === 'grid' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}"
+				class="btn-pill btn-pill-icon btn-pill-sm {viewMode === 'grid' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 				title="Grid view"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -338,7 +338,7 @@
 			</button>
 			<button
 				onclick={() => viewMode = 'list'}
-				class="p-1.5 transition-colors {viewMode === 'list' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}"
+				class="btn-pill btn-pill-icon btn-pill-sm {viewMode === 'list' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 				title="List view"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -347,7 +347,7 @@
 			</button>
 			<button
 				onclick={() => viewMode = 'kanban'}
-				class="p-1.5 transition-colors {viewMode === 'kanban' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'}"
+				class="btn-pill btn-pill-icon btn-pill-sm {viewMode === 'kanban' ? 'btn-pill-primary' : 'btn-pill-ghost'}"
 				title="Kanban view"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -372,7 +372,7 @@
 				</div>
 				<h3 class="text-lg font-medium text-gray-900 mb-1">No projects yet</h3>
 				<p class="text-sm text-gray-500 mb-4">Get started by creating your first project</p>
-				<button onclick={() => showNewProject = true} class="btn btn-primary">
+				<button onclick={() => showNewProject = true} class="btn-pill btn-pill-primary">
 					Create Project
 				</button>
 			</div>
@@ -783,10 +783,10 @@
 				{/if}
 
 				<div class="flex gap-3 pt-2">
-					<button type="button" onclick={() => { showNewProject = false; showAdvancedOptions = false; }} class="btn btn-secondary flex-1">
+					<button type="button" onclick={() => { showNewProject = false; showAdvancedOptions = false; }} class="btn-pill btn-pill-secondary flex-1">
 						Cancel
 					</button>
-					<button type="submit" class="btn btn-primary flex-1">
+					<button type="submit" class="btn-pill btn-pill-primary flex-1">
 						Create Project
 					</button>
 				</div>

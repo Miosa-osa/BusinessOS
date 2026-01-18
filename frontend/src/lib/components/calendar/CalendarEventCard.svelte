@@ -42,14 +42,14 @@
 
 {#if compact}
 	<button
-		class="w-full text-left px-2 py-1 rounded text-xs truncate {colors.bg} {colors.text} hover:opacity-80 transition-opacity"
+		class="btn-pill-sm w-full text-left {colors.bg} {colors.text}"
 		onclick={onClick}
 	>
 		{event.all_day ? '' : formatTime(event.start_time) + ' '}{event.title || 'Untitled'}
 	</button>
 {:else}
 	<button
-		class="w-full text-left p-3 rounded-lg border {colors.border} {colors.bg} hover:shadow-sm transition-shadow"
+		class="btn-pill w-full text-left border {colors.border} {colors.bg}"
 		onclick={onClick}
 	>
 		<div class="flex items-start justify-between gap-2">

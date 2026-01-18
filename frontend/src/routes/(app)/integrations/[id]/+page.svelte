@@ -259,7 +259,7 @@
 				</p>
 				<a
 					href="/integrations"
-					class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+					class="btn-pill btn-pill-primary btn-pill-sm mt-4 inline-block"
 				>
 					Back to Integrations
 				</a>
@@ -287,7 +287,7 @@
 							<button
 								onclick={triggerSync}
 								disabled={isSyncing}
-								class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+								class="btn-pill btn-pill-primary btn-pill-sm"
 							>
 								{#if isSyncing}
 									<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -542,14 +542,14 @@
 				<div class="flex items-center justify-between pt-4">
 					<button
 						onclick={handleDisconnect}
-						class="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+						class="btn-pill btn-pill-ghost btn-pill-sm"
 					>
 						Disconnect Integration
 					</button>
 					<button
 						onclick={saveSettings}
 						disabled={isSaving}
-						class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+						class="btn-pill btn-pill-primary btn-pill-sm"
 					>
 						{isSaving ? 'Saving...' : 'Save Settings'}
 					</button>

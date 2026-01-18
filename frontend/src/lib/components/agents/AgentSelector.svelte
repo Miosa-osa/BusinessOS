@@ -195,7 +195,7 @@
   <button
     bind:this={buttonRef}
     type="button"
-    class="selector-button"
+    class="btn-pill btn-pill-secondary btn-pill-sm"
     onclick={toggleDropdown}
     onkeydown={handleKeyDown}
     aria-haspopup="listbox"
@@ -389,41 +389,6 @@
   .agent-selector {
     position: relative;
     width: 100%;
-  }
-
-  .selector-button {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 10px 14px;
-    background: var(--color-bg, white);
-    border: 1px solid var(--color-border, #e5e7eb);
-    border-radius: 8px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .selector-button:hover {
-    border-color: var(--color-border-hover, #d1d5db);
-    background: var(--color-bg-secondary, #f9fafb);
-  }
-
-  .selector-button:focus {
-    outline: none;
-    border-color: var(--color-primary, #3b82f6);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-
-  :global(.dark) .selector-button {
-    background: #2c2c2e;
-    border-color: rgba(255, 255, 255, 0.12);
-  }
-
-  :global(.dark) .selector-button:hover {
-    background: #3a3a3c;
-    border-color: rgba(255, 255, 255, 0.2);
   }
 
   .button-content {

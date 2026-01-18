@@ -199,7 +199,7 @@
 				{/if}
 				<button
 					onclick={toggleSidebar}
-					class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400 no-drag"
+					class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm no-drag"
 					style="-webkit-app-region: no-drag;"
 					title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 				>
@@ -225,7 +225,7 @@
 			<div class="px-2 pb-2">
 				<a
 					href="/window"
-					class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200
+					class="flex items-center gap-3 px-3 py-2.5 rounded-full text-sm transition-all duration-200
 						bg-gradient-to-r from-gray-100 to-gray-50 hover:from-gray-200 hover:to-gray-100
 						dark:from-gray-700 dark:to-gray-800 dark:hover:from-gray-600 dark:hover:to-gray-700
 						border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white
@@ -253,8 +253,10 @@
 							<div class="flex items-center">
 								<a
 									href={item.href}
-									class="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200
-										{$page.url.pathname.startsWith(item.href) ? 'bg-blue-600 text-white dark:bg-blue-600 dark:text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}
+									class="flex-1 nav-pill flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-medium transition-all duration-200
+										{$page.url.pathname.startsWith(item.href)
+											? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30'
+											: 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:shadow-md'}
 										{isCollapsed ? 'justify-center' : ''}"
 									title={isCollapsed ? item.label : ''}
 								>
@@ -268,7 +270,7 @@
 								{#if !isCollapsed && projects.length > 0}
 									<button
 										onclick={() => showProjectsDropdown = !showProjectsDropdown}
-										class="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors mr-1 opacity-0 group-hover:opacity-100 {showProjectsDropdown ? 'opacity-100' : ''} transition-opacity duration-200"
+										class="btn-pill btn-pill-icon btn-pill-xs btn-pill-ghost mr-1 opacity-0 group-hover:opacity-100 {showProjectsDropdown ? 'opacity-100' : ''} transition-opacity duration-200"
 										title="Show recent projects"
 									>
 										<svg class="w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform {showProjectsDropdown ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -295,8 +297,10 @@
 					{:else}
 						<a
 							href={item.href}
-							class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200
-								{$page.url.pathname.startsWith(item.href) ? 'bg-blue-600 text-white dark:bg-blue-600 dark:text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}
+							class="nav-pill flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-medium transition-all duration-200
+								{$page.url.pathname.startsWith(item.href)
+									? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30'
+									: 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:shadow-md'}
 								{isCollapsed ? 'justify-center' : ''}"
 							title={isCollapsed ? item.label : ''}
 						>
@@ -317,7 +321,7 @@
 			<div class="p-3">
 				<a
 					href="/profile"
-					class="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {$page.url.pathname === '/profile' ? 'bg-gray-100 dark:bg-gray-700' : ''}"
+					class="flex items-center gap-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors {$page.url.pathname === '/profile' ? 'bg-gray-100 dark:bg-gray-700' : ''}"
 					title={isCollapsed ? 'Profile' : ''}
 				>
 					{#if $session.data.user?.image}

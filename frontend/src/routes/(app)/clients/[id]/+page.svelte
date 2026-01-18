@@ -205,7 +205,7 @@
 			<div class="px-6 py-4">
 				<div class="flex items-start justify-between">
 					<div class="flex items-start gap-4">
-						<button onclick={() => goto('/clients' + embedSuffix)} class="mt-1 p-1 hover:bg-gray-100 rounded-lg transition-colors">
+						<button onclick={() => goto('/clients' + embedSuffix)} class="btn-pill btn-pill-icon btn-pill-ghost btn-pill-sm mt-1">
 							<svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 							</svg>
@@ -616,8 +616,8 @@
 						</div>
 					</div>
 					<div class="flex justify-end gap-3 mt-6">
-						<button type="button" onclick={() => (showAddContactModal = false)} class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
-						<button type="submit" class="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800">Add Contact</button>
+						<button type="button" onclick={() => (showAddContactModal = false)} class="btn-pill btn-pill-secondary">Cancel</button>
+						<button type="submit" class="btn-pill btn-pill-primary">Add Contact</button>
 					</div>
 				</form>
 			</div>
@@ -655,8 +655,8 @@
 						</div>
 					</div>
 					<div class="flex justify-end gap-3 mt-6">
-						<button type="button" onclick={() => (showAddInteractionModal = false)} class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
-						<button type="submit" class="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800">Log Interaction</button>
+						<button type="button" onclick={() => (showAddInteractionModal = false)} class="btn-pill btn-pill-secondary">Cancel</button>
+						<button type="submit" class="btn-pill btn-pill-primary">Log Interaction</button>
 					</div>
 				</form>
 			</div>
@@ -707,8 +707,8 @@
 						</div>
 					</div>
 					<div class="flex justify-end gap-3 mt-6">
-						<button type="button" onclick={() => (showAddDealModal = false)} class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
-						<button type="submit" class="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800">Add Deal</button>
+						<button type="button" onclick={() => (showAddDealModal = false)} class="btn-pill btn-pill-secondary">Cancel</button>
+						<button type="submit" class="btn-pill btn-pill-primary">Add Deal</button>
 					</div>
 				</form>
 			</div>

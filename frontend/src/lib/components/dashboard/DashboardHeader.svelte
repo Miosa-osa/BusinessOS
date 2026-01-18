@@ -143,7 +143,7 @@
 						</div>
 						<button
 							onclick={handleEnergySubmit}
-							class="px-3 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+							class="btn-pill btn-pill-primary btn-pill-xs"
 						>
 							Log Energy
 						</button>

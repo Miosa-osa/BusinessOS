@@ -218,7 +218,7 @@
 					{#if streaming}
 						<button
 							onclick={onStop}
-							class="w-8 h-8 rounded-full flex items-center justify-center bg-red-500 text-white hover:bg-red-600 transition-all"
+							class="btn-pill btn-pill-icon btn-pill-danger"
 						>
 							<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
 								<rect x="6" y="6" width="12" height="12" rx="2" />
@@ -228,7 +228,7 @@
 						<button
 							onclick={handleSend}
 							disabled={!inputValue.trim()}
-							class="w-8 h-8 rounded-full flex items-center justify-center transition-all {inputValue.trim() ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-gray-300 text-white'}"
+							class="btn-pill btn-pill-icon {inputValue.trim() ? 'btn-pill-primary' : 'bg-gray-300 text-white cursor-not-allowed'}"
 						>
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />

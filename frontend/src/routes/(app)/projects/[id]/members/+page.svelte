@@ -59,7 +59,7 @@
 			<div class="flex items-center gap-4">
 				<button
 					onclick={handleBack}
-					class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+					class="btn-icon"
 					aria-label="Back to project"
 				>
 					<ArrowLeft class="w-5 h-5 text-gray-600" />
@@ -89,7 +89,7 @@
 					<p class="text-sm text-red-800">{error}</p>
 					<button
 						onclick={handleBack}
-						class="mt-4 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+						class="btn-pill btn-pill-danger mt-4"
 					>
 						Go Back
 					</button>

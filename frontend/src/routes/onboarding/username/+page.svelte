@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { GradientBackground, PillButton } from '$lib/components/osa';
+	import { PillButton } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
 	import { checkUsernameAvailability, setUsername } from '$lib/api/users';
 	import { Check, X } from 'lucide-svelte';
@@ -43,16 +43,22 @@
 		error = '';
 
 		try {
+			console.log('[Username] Checking availability for:', username);
 			const response = await checkUsernameAvailability(username);
+			console.log('[Username] Response:', response);
 			isAvailable = response.available;
 
 			if (!response.available) {
 				error = response.reason || 'Username is already taken';
 			}
 		} catch (err) {
+			console.error('[Username] Error checking availability:', err);
+			console.error('[Username] Error details:', {
+				message: err instanceof Error ? err.message : String(err),
+				username: username
+			});
 			error = 'Unable to check availability. Please try again.';
 			isAvailable = null;
-			console.error('Error checking username availability:', err);
 		} finally {
 			isChecking = false;
 		}
@@ -119,7 +125,7 @@
 	<title>Claim Username - OSA Build</title>
 </svelte:head>
 
-<GradientBackground>
+<div class="onboarding-background">
 	<div class="username-screen">
 		<div class="content">
 			<!-- Main Message -->
@@ -134,7 +140,7 @@
 						id="username"
 						type="text"
 						bind:value={username}
-						placeholder="bekorains"
+						placeholder="yourname"
 						class="input-field"
 						class:input-error={error && username}
 						class:input-success={isAvailable === true}
@@ -180,9 +186,18 @@
 			</div>
 		</div>
 	</div>
-</GradientBackground>
+</div>
 
 <style>
+	.onboarding-background {
+		min-height: 100vh;
+		width: 100%;
+		background-image: url('/logos/integrations/MIOSABRANDBackround.png');
+		background-size: cover;
+		background-position: center;
+		background-repeat: no-repeat;
+	}
+
 	.username-screen {
 		min-height: 100vh;
 		display: flex;
@@ -235,11 +250,21 @@
 		border-radius: 0.75rem;
 		font-family: inherit;
 		transition: all 0.2s ease;
+		/* DEEPER inset shadow to create more pronounced recessed/embedded effect */
+		box-shadow:
+			inset 0 3px 8px 0 rgba(0, 0, 0, 0.12),
+			inset 0 1px 3px 0 rgba(0, 0, 0, 0.08),
+			0 1px 2px 0 rgba(0, 0, 0, 0.05);
 	}
 
 	.input-field:focus {
 		outline: none;
 		border-color: #1A1A1A;
+		/* Enhanced deeper shadow on focus with ring effect */
+		box-shadow:
+			inset 0 3px 8px 0 rgba(0, 0, 0, 0.15),
+			inset 0 1px 3px 0 rgba(0, 0, 0, 0.1),
+			0 0 0 3px rgba(26, 26, 26, 0.1);
 	}
 
 	.input-field::placeholder {
