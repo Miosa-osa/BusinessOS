@@ -171,13 +171,13 @@
 		});
 
 		simpleVoice.setUserCallback((text: string) => {
-			console.log('[Desktop3D] User said:', text);
+			// Don't log here - simpleVoice.ts already logs
 			userMessage = text;
 			currentTranscript = text;
 		});
 
 		simpleVoice.setAgentCallback((text: string) => {
-			console.log('[Desktop3D] Agent said:', text);
+			// Don't log here - simpleVoice.ts already logs
 			osaMessage = text;
 		});
 

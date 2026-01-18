@@ -83,40 +83,17 @@
 </script>
 
 <div class="live-captions-container">
-	<!-- Listening indicator -->
-	{#if isListening}
-		<div class="listening-indicator" transition:fade={{ duration: 200 }}>
-			<div class="pulse"></div>
-			<span>Listening...</span>
-		</div>
-	{/if}
-
-	<!-- OSA Speaking indicator -->
-	{#if isSpeaking}
-		<div class="speaking-indicator" transition:fade={{ duration: 200 }}>
-			<div class="sound-wave">
-				<div class="bar"></div>
-				<div class="bar"></div>
-				<div class="bar"></div>
-				<div class="bar"></div>
-			</div>
-			<span>OSA Speaking...</span>
-		</div>
-	{/if}
-
-	<!-- User message -->
+	<!-- User message - inline label -->
 	{#if userMessage}
 		<div class="user-message" transition:fly={{ y: 20, duration: 300 }}>
-			<div class="message-label">You:</div>
-			<div class="message-text">{userMessage}</div>
+			<span class="message-label">You:</span> {userMessage}
 		</div>
 	{/if}
 
-	<!-- OSA message -->
+	<!-- OSA message - inline label -->
 	{#if osaMessage}
 		<div class="osa-message" transition:fly={{ y: 20, duration: 300 }}>
-			<div class="message-label">OSA:</div>
-			<div class="message-text">{osaMessage}</div>
+			<span class="message-label">OSA:</span> {osaMessage}
 		</div>
 	{/if}
 
@@ -142,106 +119,18 @@
 		pointer-events: none; /* Don't interfere with clicks */
 	}
 
-	/* ===== LISTENING INDICATOR ===== */
-	.listening-indicator {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 8px 16px;
-		background: rgba(59, 130, 246, 0.9); /* Blue */
-		backdrop-filter: blur(12px);
-		border-radius: 20px;
-		color: white;
-		font-size: 14px;
-		font-weight: 500;
-		box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-	}
-
-	.pulse {
-		width: 8px;
-		height: 8px;
-		background: white;
-		border-radius: 50%;
-		animation: pulse 1.5s ease-in-out infinite;
-	}
-
-	@keyframes pulse {
-		0%,
-		100% {
-			opacity: 1;
-			transform: scale(1);
-		}
-		50% {
-			opacity: 0.5;
-			transform: scale(1.2);
-		}
-	}
-
-	/* ===== OSA SPEAKING INDICATOR ===== */
-	.speaking-indicator {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 8px 16px;
-		background: rgba(168, 85, 247, 0.9); /* Purple for OSA */
-		backdrop-filter: blur(12px);
-		border-radius: 20px;
-		color: white;
-		font-size: 14px;
-		font-weight: 500;
-		box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
-	}
-
-	.sound-wave {
-		display: flex;
-		align-items: center;
-		gap: 3px;
-		height: 16px;
-	}
-
-	.sound-wave .bar {
-		width: 3px;
-		background: white;
-		border-radius: 2px;
-		animation: soundWave 0.8s ease-in-out infinite;
-	}
-
-	.sound-wave .bar:nth-child(1) {
-		animation-delay: 0s;
-	}
-
-	.sound-wave .bar:nth-child(2) {
-		animation-delay: 0.2s;
-	}
-
-	.sound-wave .bar:nth-child(3) {
-		animation-delay: 0.4s;
-	}
-
-	.sound-wave .bar:nth-child(4) {
-		animation-delay: 0.6s;
-	}
-
-	@keyframes soundWave {
-		0%,
-		100% {
-			height: 4px;
-		}
-		50% {
-			height: 16px;
-		}
-	}
-
 	/* ===== USER MESSAGE ===== */
 	.user-message {
 		max-width: 900px; /* Wider for better readability */
 		max-height: calc(100vh - 200px); /* INCREASED: Use most of viewport height (was 400px) */
 		overflow-y: auto; /* Enable scrolling for very long messages */
-		padding: 12px 20px;
-		background: rgba(59, 130, 246, 0.9); /* Blue */
-		backdrop-filter: blur(12px);
-		border-radius: 12px;
-		box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+		padding: 16px 28px; /* More padding for pill shape */
+		background: rgba(255, 255, 255, 0.15); /* Glassy transparent */
+		backdrop-filter: blur(20px) saturate(180%);
+		-webkit-backdrop-filter: blur(20px) saturate(180%);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 50px; /* Pill-shaped */
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 	}
 
 	/* ===== OSA MESSAGE ===== */
@@ -249,29 +138,33 @@
 		max-width: 900px; /* Wider for better readability */
 		max-height: calc(100vh - 200px); /* INCREASED: Use most of viewport height (was 400px) */
 		overflow-y: auto; /* Enable scrolling for very long messages */
-		padding: 12px 20px;
-		background: rgba(168, 85, 247, 0.9); /* Purple */
-		backdrop-filter: blur(12px);
-		border-radius: 12px;
-		box-shadow: 0 8px 24px rgba(168, 85, 247, 0.3);
+		padding: 16px 28px; /* More padding for pill shape */
+		background: rgba(255, 255, 255, 0.15); /* Glassy transparent */
+		backdrop-filter: blur(20px) saturate(180%);
+		-webkit-backdrop-filter: blur(20px) saturate(180%);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 50px; /* Pill-shaped */
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 	}
 
+	/* Inline label styles */
 	.message-label {
-		color: rgba(255, 255, 255, 0.8);
-		font-size: 12px;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-		margin-bottom: 4px;
+		color: rgba(0, 0, 0, 0.6); /* Dark semi-transparent for glass */
+		font-size: 15px;
+		font-weight: 700;
+		margin-right: 6px;
 	}
 
-	.message-text {
-		color: white;
+	/* Message container text */
+	.user-message,
+	.osa-message {
+		color: rgba(0, 0, 0, 0.9); /* Black text on glass */
 		font-size: 15px;
 		line-height: 1.5;
-		word-wrap: break-word; /* Break long words if needed */
-		white-space: pre-wrap; /* Preserve line breaks */
-		overflow-wrap: break-word; /* Modern browsers */
+		font-weight: 500;
+		word-wrap: break-word;
+		white-space: pre-wrap;
+		overflow-wrap: break-word;
 	}
 
 	/* ===== COMMAND FEEDBACK ===== */
@@ -308,15 +201,13 @@
 	}
 
 	/* ===== DARK MODE STYLES ===== */
-	:global(.dark) .captions {
-		background: rgba(30, 30, 30, 0.95);
+	:global(.dark) .user-message,
+	:global(.dark) .osa-message {
+		background: rgba(30, 30, 30, 0.3);
+		color: rgba(255, 255, 255, 0.9);
 	}
 
-	:global(.dark) .listening-indicator {
-		background: rgba(59, 130, 246, 0.85);
-	}
-
-	:global(.dark) .speaking-indicator {
-		background: rgba(168, 85, 247, 0.85);
+	:global(.dark) .message-label {
+		color: rgba(255, 255, 255, 0.6);
 	}
 </style>

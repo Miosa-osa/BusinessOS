@@ -115,14 +115,18 @@ func (h *Handlers) HandleLiveKitToken(c *gin.Context) {
 
 	// Dispatch agent explicitly via LiveKit API
 	go func() {
+		slog.Info("[LiveKit] 🔵 DISPATCH GOROUTINE STARTED", "room", roomName)
+
 		// Use mutex to prevent race condition when multiple requests come in simultaneously
 		dispatchMutex.Lock()
+		slog.Info("[LiveKit] 🔒 Mutex acquired", "room", roomName)
 		if dispatchedRooms[roomName] {
 			dispatchMutex.Unlock()
-			slog.Info("[LiveKit] Agent already dispatched for room, skipping", "room", roomName)
+			slog.Info("[LiveKit] ⚠️ Agent already dispatched for room, skipping", "room", roomName)
 			return
 		}
 		dispatchedRooms[roomName] = true
+		slog.Info("[LiveKit] ✅ Room marked as dispatched", "room", roomName, "map_size", len(dispatchedRooms))
 		dispatchMutex.Unlock()
 
 		// Ensure cleanup on exit
@@ -133,48 +137,25 @@ func (h *Handlers) HandleLiveKitToken(c *gin.Context) {
 		}()
 
 		ctx := context.Background()
-		roomClient := lksdk.NewRoomServiceClient(livekitURL, apiKey, apiSecret)
 
-		// Create the room first (if it doesn't exist)
-		_, err := roomClient.CreateRoom(ctx, &livekit.CreateRoomRequest{
-			Name:            roomName,
-			EmptyTimeout:    300, // 5 minutes
-			MaxParticipants: 10,
-		})
-		if err != nil {
-			slog.Warn("[LiveKit] Room may already exist", "room", roomName, "error", err)
-		}
+		// NOTE: NOT creating room explicitly - LiveKit will auto-create when user joins
+		// This prevents triggering auto-dispatch rules that might be configured in LiveKit Cloud
 
-		// Check if agent already exists in room before dispatching
-		participants, err := roomClient.ListParticipants(ctx, &livekit.ListParticipantsRequest{
-			Room: roomName,
-		})
-		if err == nil {
-			// Check if any participant is an agent
-			for _, p := range participants.Participants {
-				if p.Identity != "" && len(p.Identity) > 6 && p.Identity[:6] == "agent-" {
-					slog.Info("[LiveKit] Agent already in room, skipping dispatch",
-						"room", roomName,
-						"agent_identity", p.Identity)
-					return
-				}
-			}
-		}
-
-		// Dispatch the voice agent to the room (only if no agent exists)
+		// Dispatch the voice agent to the room
+		slog.Info("[LiveKit] 🚀 About to call CreateDispatch", "room", roomName, "agent_name", "osa-voice-agent")
 		agentClient := lksdk.NewAgentDispatchServiceClient(livekitURL, apiKey, apiSecret)
 		dispatch, err := agentClient.CreateDispatch(ctx, &livekit.CreateAgentDispatchRequest{
 			AgentName: "osa-voice-agent",
 			Room:      roomName,
 		})
 		if err != nil {
-			slog.Error("[LiveKit] Failed to dispatch agent",
+			slog.Error("[LiveKit] ❌ Failed to dispatch agent",
 				"room", roomName,
 				"agent", "osa-voice-agent",
 				"error", err)
 			return
 		}
-		slog.Info("[LiveKit] Agent dispatched successfully",
+		slog.Info("[LiveKit] ✅✅ Agent dispatched successfully",
 			"room", roomName,
 			"dispatch_id", dispatch.Id)
 	}()

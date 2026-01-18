@@ -161,8 +161,11 @@ function createLayoutStore() {
 					throw new Error(`HTTP ${response.status}`);
 				}
 			} catch (err) {
-				const error = err instanceof Error ? err.message : 'Failed to load layouts';
-				console.error('[Layout Store] ❌ Failed to load layouts:', error);
+				// On error (e.g. 404 when endpoint doesn't exist), silently fall back to default layout
+				// Only log if it's NOT a 404
+				if (err instanceof Error && !err.message.includes('404')) {
+					console.warn('[Layout Store] Failed to load layouts, using default:', err.message);
+				}
 
 				// On error, just show default layout
 				const defaultLayout = desktop3dLayoutStore.getDefaultLayout();

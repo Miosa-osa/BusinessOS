@@ -262,10 +262,12 @@ async function initCloudSession() {
 		const result = await getSession();
 		if (result.data?.user) {
 			cloudSession.set({ isPending: false, data: result.data, error: null });
-			console.info('[Auth] Session restored from cookies');
+			// Only log in dev mode to reduce spam
+			if (import.meta.env.DEV) {
+				console.debug('[Auth] Session restored');
+			}
 		} else {
 			cloudSession.set({ isPending: false, data: null, error: result.error || null });
-			console.info('[Auth] No active session found');
 		}
 	} catch (err) {
 		cloudSession.set({ isPending: false, data: null, error: (err as Error).message });
