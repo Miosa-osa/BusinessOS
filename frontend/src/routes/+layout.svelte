@@ -7,6 +7,7 @@
 	import { simpleVoice, type VoiceState } from '$lib/services/simpleVoice';
 	import VoiceOrbPanel from '$lib/components/desktop3d/VoiceOrbPanel.svelte';
 	import LiveCaptions from '$lib/components/desktop3d/LiveCaptions.svelte';
+	import { isOnboardingComplete } from '$lib/stores/onboardingStore';
 
 	let { children } = $props();
 
@@ -79,8 +80,8 @@
 <!-- Page content -->
 {@render children()}
 
-<!-- Voice Orb (only for authenticated users, not on login/register pages) -->
-{#if $session.data}
+<!-- Voice Orb (only for authenticated users who completed onboarding) -->
+{#if $session.data && $isOnboardingComplete}
 	<VoiceOrbPanel {isListening} {isSpeaking} onToggleListening={toggleVoice} />
 	<LiveCaptions {userMessage} {osaMessage} {isListening} {isSpeaking} />
 {/if}

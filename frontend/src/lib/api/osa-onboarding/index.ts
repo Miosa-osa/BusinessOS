@@ -1,86 +1,175 @@
 /**
  * OSA Onboarding API Client
- * Handles communication with the OSA Build onboarding backend
+ * Handles communication with the Groq-powered OSA Build onboarding backend
+ * Backend: Go handlers with ProfileAnalyzerAgent, AppCustomizerAgent, EmailAnalyzerService
  */
 
-import { request } from '../base';
+import { request, getApiBaseUrl } from '../base';
 import type {
-	UserAnalysisResult,
+	AnalyzeUserRequest,
 	AnalyzeUserResponse,
-	GenerateAppsResponse,
-	AppsStatusResponse,
-	GetProfileResponse
+	AnalysisProgressResponse,
+	AnalysisStreamEvent,
+	GenerateAppsRequest,
+	GenerateAppsResponse
 } from './types';
 
 /**
- * Analyze user data and get personalized insights
- * POST /api/osa-onboarding/analyze
+ * Start AI-powered user analysis (Gmail + email metadata)
+ * POST /api/v1/osa-onboarding/analyze
  *
- * @param email - User's email address
- * @param gmailConnected - Whether Gmail is connected for analysis
- * @param calendarConnected - Whether Calendar is connected for analysis
- * @returns Analysis result with insights, interests, and tools
+ * This initiates async analysis:
+ * 1. Extracts 50 recent Gmail emails
+ * 2. Analyzes patterns (tools, topics, sender domains)
+ * 3. Runs Groq AI (llama-3.3-70b-versatile) to generate insights
+ * 4. Returns 3 conversational insight phrases
+ *
+ * @param userId - User ID from session
+ * @param workspaceId - Workspace ID
+ * @param maxEmails - Max emails to analyze (default: 50)
+ * @returns analysis_id for polling/streaming progress
  */
-export async function analyzeUser(
-	email: string,
-	gmailConnected: boolean,
-	calendarConnected = false
+export async function startAnalysis(
+	userId: string,
+	workspaceId: string,
+	maxEmails = 50
 ): Promise<AnalyzeUserResponse> {
-	return request<AnalyzeUserResponse>('/osa-onboarding/analyze', {
+	return request<AnalyzeUserResponse>('/v1/osa-onboarding/analyze', {
 		method: 'POST',
 		body: {
-			email,
-			gmail_connected: gmailConnected,
-			calendar_connected: calendarConnected
-		}
+			user_id: userId,
+			workspace_id: workspaceId,
+			max_emails: maxEmails
+		} as AnalyzeUserRequest
 	});
 }
 
 /**
- * Generate 4 personalized starter apps based on user analysis
- * POST /api/osa-onboarding/generate-apps
+ * Get current analysis progress (polling)
+ * GET /api/v1/osa-onboarding/analyze/:analysis_id
  *
- * @param workspaceId - Workspace identifier
- * @param analysis - User analysis result
- * @returns Array of starter app suggestions
+ * Check status of analysis:
+ * - 'analyzing' - Still processing
+ * - 'completed' - Ready with insights
+ * - 'failed' - Error occurred
+ *
+ * @param analysisId - Analysis ID from startAnalysis()
+ * @returns Current status + insights (if completed)
+ */
+export async function getAnalysisProgress(
+	analysisId: string
+): Promise<AnalysisProgressResponse> {
+	return request<AnalysisProgressResponse>(`/v1/osa-onboarding/analyze/${analysisId}`);
+}
+
+/**
+ * Stream analysis progress via Server-Sent Events (SSE)
+ * GET /api/v1/osa-onboarding/analyze/:analysis_id/stream
+ *
+ * Returns a ReadableStream that emits progress events every second.
+ * Use this for real-time updates instead of polling.
+ *
+ * @param analysisId - Analysis ID from startAnalysis()
+ * @returns ReadableStream<Uint8Array> for chunked progress updates
+ */
+export async function streamAnalysisProgress(
+	analysisId: string
+): Promise<ReadableStream<Uint8Array> | null> {
+	const response = await fetch(
+		`${getApiBaseUrl()}/v1/osa-onboarding/analyze/${analysisId}/stream`,
+		{
+			method: 'GET',
+			headers: { 'Content-Type': 'text/event-stream' },
+			credentials: 'include'
+		}
+	);
+
+	if (!response.ok) {
+		const error = await response.json().catch(() => ({ detail: 'Stream failed' }));
+		throw new Error(error.detail || 'Failed to stream analysis progress');
+	}
+
+	return response.body;
+}
+
+/**
+ * Parse SSE stream events from analysis progress
+ * Helper function to decode SSE events into AnalysisStreamEvent objects
+ *
+ * Usage:
+ * ```typescript
+ * const stream = await streamAnalysisProgress(analysisId);
+ * const reader = stream.getReader();
+ * const decoder = new TextDecoder();
+ *
+ * while (true) {
+ *   const { done, value } = await reader.read();
+ *   if (done) break;
+ *   const chunk = decoder.decode(value);
+ *   const event = parseSSEEvent(chunk);
+ *   if (event) {
+ *     console.log('Progress:', event);
+ *   }
+ * }
+ * ```
+ */
+export function parseSSEEvent(chunk: string): AnalysisStreamEvent | null {
+	try {
+		// SSE format: event: type\ndata: json\n\n
+		const lines = chunk.split('\n');
+		let eventType: string | null = null;
+		let eventData: string | null = null;
+
+		for (const line of lines) {
+			if (line.startsWith('event:')) {
+				eventType = line.substring(6).trim();
+			} else if (line.startsWith('data:')) {
+				eventData = line.substring(5).trim();
+			}
+		}
+
+		if (!eventType || !eventData) return null;
+
+		const data = JSON.parse(eventData);
+
+		return {
+			type: eventType as 'progress' | 'done' | 'error',
+			data: data.data,
+			content: data.content
+		};
+	} catch (err) {
+		console.warn('Failed to parse SSE event:', err);
+		return null;
+	}
+}
+
+/**
+ * Generate personalized starter apps based on analysis
+ * POST /api/v1/osa-onboarding/generate-apps
+ *
+ * Uses Groq AI (llama-3.3-70b-versatile) to recommend 3-4 apps:
+ * - Based on user's interests, tools, and patterns
+ * - Can customize existing core modules OR create new apps
+ * - Returns apps with reasoning and customization prompts
+ *
+ * @param userId - User ID
+ * @param workspaceId - Workspace ID
+ * @param analysisId - Completed analysis ID
+ * @returns Array of recommended starter apps
  */
 export async function generateStarterApps(
+	userId: string,
 	workspaceId: string,
-	analysis: UserAnalysisResult
+	analysisId: string
 ): Promise<GenerateAppsResponse> {
-	return request<GenerateAppsResponse>('/osa-onboarding/generate-apps', {
+	return request<GenerateAppsResponse>('/v1/osa-onboarding/generate-apps', {
 		method: 'POST',
 		body: {
+			user_id: userId,
 			workspace_id: workspaceId,
-			analysis
-		}
+			analysis_id: analysisId
+		} as GenerateAppsRequest
 	});
-}
-
-/**
- * Check the status of app generation
- * GET /api/osa-onboarding/apps-status?workspace_id=xxx
- *
- * @param workspaceId - Workspace identifier
- * @returns Current status of all apps and analysis
- */
-export async function checkAppsStatus(workspaceId: string): Promise<AppsStatusResponse> {
-	return request<AppsStatusResponse>(
-		`/osa-onboarding/apps-status?workspace_id=${encodeURIComponent(workspaceId)}`
-	);
-}
-
-/**
- * Get saved onboarding profile for a workspace
- * GET /api/osa-onboarding/profile?workspace_id=xxx
- *
- * @param workspaceId - Workspace identifier
- * @returns Complete onboarding profile with analysis and apps
- */
-export async function getProfile(workspaceId: string): Promise<GetProfileResponse> {
-	return request<GetProfileResponse>(
-		`/osa-onboarding/profile?workspace_id=${encodeURIComponent(workspaceId)}`
-	);
 }
 
 // Re-export types for convenience

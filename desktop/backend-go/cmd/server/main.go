@@ -580,7 +580,6 @@ func main() {
 	var osaStreamingHandler *handlers.OSAStreamingHandler
 	var osaDeploymentService *services.AppDeploymentService
 	var osaDeploymentHandler *handlers.OSADeploymentHandler
-	var osaOnboardingService *services.OSAOnboardingService
 	var osaOnboardingHandler *handlers.OSAOnboardingHandler
 
 	if cfg.OSAEnabled {
@@ -659,15 +658,9 @@ func main() {
 				}
 			}
 
-			// Initialize onboarding service with non-resilient client (for simpler API)
-			osaSimpleClient, err := osa.NewClient(cfg.OSA)
-			if err != nil {
-				log.Printf("Failed to create OSA simple client: %v", err)
-			} else {
-				osaOnboardingService = services.NewOSAOnboardingService(pool, osaSimpleClient, googleProvider, cfg.AIProvider)
-				osaOnboardingHandler = handlers.NewOSAOnboardingHandler(osaOnboardingService)
-				log.Printf("✅ OSA onboarding service initialized (Build Your OS flow)")
-			}
+			// Initialize OSA onboarding handler with Google provider (uses Groq for AI analysis)
+			osaOnboardingHandler = handlers.NewOSAOnboardingHandler(pool, cfg, googleProvider)
+			log.Printf("✅ OSA onboarding handler initialized (Build Your OS flow with Groq AI)")
 		}
 	}
 
@@ -972,6 +965,15 @@ func main() {
 	api.POST("/user-apps/:id/open", userAppsHandler.RecordAppOpened)
 	api.DELETE("/user-apps/:id", userAppsHandler.DeleteUserApp)
 	log.Printf("✅ User external apps routes registered (/api/user-apps/*)")
+
+	// OSA Onboarding Analysis routes (Feature: AI-powered onboarding with Groq)
+	if osaOnboardingHandler != nil {
+		api.POST("/osa-onboarding/analyze", osaOnboardingHandler.StartAnalysis)
+		api.GET("/osa-onboarding/analyze/:analysis_id", osaOnboardingHandler.GetAnalysisProgress)
+		api.GET("/osa-onboarding/analyze/:analysis_id/stream", osaOnboardingHandler.StreamAnalysisProgress)
+		api.POST("/osa-onboarding/generate-apps", osaOnboardingHandler.GenerateStarterApps)
+		log.Printf("✅ OSA onboarding analysis routes registered (Groq-powered AI analysis)")
+	}
 
 	// NOTE: System Apps Detection routes (macOS native app scanning) moved to feature/native-app-capture branch
 	// For now, we only support web apps via iframe embedding

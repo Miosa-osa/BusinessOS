@@ -1,6 +1,6 @@
 <!--
 	GlassCard.svelte
-	Reusable glassmorphism card component
+	Reusable glassmorphism card component with grayscale styling
 
 	Usage:
 	<GlassCard padding="lg" hoverable>

@@ -1,50 +1,46 @@
 <!--
 	GradientBackground.svelte
-	iOS-inspired gradient background for onboarding screens
+	Full-screen background that fills viewport edge-to-edge
+	Uses solid light gray background like Wabi iOS app
 
 	Usage:
-	<GradientBackground variant="welcome">
+	<GradientBackground>
 		<YourContent />
 	</GradientBackground>
 -->
 <script lang="ts">
-	type GradientVariant =
-		| 'welcome'
-		| 'signin'
-		| 'personalization'
-		| 'apps-showcase'
-		| 'ready'
-		| 'builder';
-
 	interface Props {
-		variant: GradientVariant;
+		variant?: string;
 		fullScreen?: boolean;
 		children?: import('svelte').Snippet;
 	}
 
 	let {
-		variant = 'welcome',
+		variant = 'default',
 		fullScreen = true,
 		children
 	}: Props = $props();
-
-	const gradientClass = `gradient-${variant}`;
 </script>
 
-<div
-	class="{gradientClass} {fullScreen ? 'min-h-screen' : ''} transition-all duration-500"
-	role="presentation"
->
+<div class="gradient-background" role="presentation">
 	{#if children}
 		{@render children()}
 	{/if}
 </div>
 
 <style>
-	/* Ensure smooth gradient transitions */
-	div {
-		background-attachment: fixed;
-		background-size: cover;
+	.gradient-background {
+		/* Full viewport coverage - edge to edge */
+		min-height: 100vh;
+		width: 100vw;
+
+		/* Solid light gray background like Wabi */
+		background: #EFEFEF;
+
+		/* Ensure no overflow */
+		overflow-x: hidden;
+
+		/* Positioning */
+		position: relative;
 	}
 </style>
-

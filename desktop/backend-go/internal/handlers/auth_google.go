@@ -53,6 +53,9 @@ func NewGoogleAuthHandler(pool *pgxpool.Pool, cfg *config.Config, sessionCache *
 		Endpoint: google.Endpoint,
 	}
 
+	// Debug: Log the redirect URI being used
+	log.Printf("🔧 [DEBUG] Google OAuth RedirectURL configured as: %s", cfg.GoogleRedirectURI)
+
 	return &GoogleAuthHandler{
 		sessionCache: sessionCache,
 		pool:         pool,
@@ -80,6 +83,9 @@ func (h *GoogleAuthHandler) InitiateGoogleLogin(c *gin.Context) {
 	authURL := h.oauthConfig.AuthCodeURL(state,
 		oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("prompt", "select_account"))
+
+	// Debug: Log the OAuth URL being generated
+	log.Printf("🔧 [DEBUG] Generated OAuth URL with redirect_uri: %s", h.oauthConfig.RedirectURL)
 
 	// Redirect to Google OAuth
 	c.Redirect(http.StatusTemporaryRedirect, authURL)

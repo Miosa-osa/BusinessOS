@@ -1,6 +1,6 @@
 <!--
 	PillButton.svelte
-	iOS-style pill button with gradient and hover effects
+	Desktop-style pill button with grayscale colors
 
 	Usage:
 	<PillButton variant="primary" onclick={handleClick}>

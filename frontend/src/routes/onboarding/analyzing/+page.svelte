@@ -1,70 +1,84 @@
 <!--
 	Onboarding Screen 6: AI Analysis (First Insight)
-	Shows OSA analyzing user data with first insight message
+	Streams AI-generated insights in real-time using Groq AI
+	Displays the first of 3 personalized insights
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { GradientBackground, GlassCard } from '$lib/components/osa';
+	import { GradientBackground } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
-	import { analyzeUser } from '$lib/api/osa-onboarding';
+	import { onboardingAnalysis, analyzingInsights, analysisFailed } from '$lib/stores/onboardingAnalysis';
 
 	let analyzing = true;
 	let error: string | null = null;
 	let insightMessage = '';
 
-	onMount(async () => {
-		try {
-			// Get user data from store
-			const state = $onboardingStore;
-			const email = state.userData.email || '';
-			const gmailConnected = state.userData.gmailConnected || false;
+	onMount(() => {
+		// Subscribe to streaming analysis store
+		const unsubscribe = analyzingInsights.subscribe(($insights) => {
+			insightMessage = $insights.message1;
 
-			// Call analyze API
-			const response = await analyzeUser(email, gmailConnected);
-
-			// Store analysis results
+			// Update legacy onboarding store for backward compatibility
 			onboardingStore.setAnalysis({
-				message1: response.analysis.insights[0] || 'No-code builder energy ✨',
-				message2: response.analysis.insights[1] || 'Design tools are your playground',
-				message3: response.analysis.insights[2] || 'AI-curious, testing new platforms'
+				message1: $insights.message1,
+				message2: $insights.message2,
+				message3: $insights.message3
 			});
+		});
 
-			// Store interests and tools for later use
-			onboardingStore.setUserData({
-				interests: response.analysis.interests
-			});
+		// Subscribe to analysis state
+		const unsubscribeAnalysis = onboardingAnalysis.subscribe(($analysis) => {
+			// Update analyzing state based on stream status
+			analyzing = $analysis.isStreaming || $analysis.isLoading;
+			error = $analysis.error;
 
-			// Show the first insight
-			insightMessage = response.analysis.insights[0] || 'No-code builder energy ✨';
+			// Store additional data
+			if ($analysis.interests.length > 0) {
+				onboardingStore.setUserData({
+					interests: $analysis.interests
+				});
+			}
+
+			// When analysis completes (or fails but has fallback data)
+			if ($analysis.status === 'completed' || $analysis.status === 'failed') {
+				analyzing = false;
+
+				// Auto-advance to next screen after 2s
+				setTimeout(() => {
+					onboardingStore.nextStep();
+					goto('/onboarding/analyzing-2');
+				}, 2000);
+			}
+		});
+
+		// Check if analysis is already running
+		const currentAnalysis = $onboardingAnalysis;
+		if (!currentAnalysis.analysisId && !currentAnalysis.isLoading) {
+			// Analysis not started yet - use fallback insights
+			console.warn('Analysis not started - using fallback insights. Analysis should be triggered in OAuth callback.');
+
+			// Set fallback insights
+			insightMessage = 'No-code builder energy';
 			analyzing = false;
 
-			// Auto-advance to next screen after 2 seconds
-			setTimeout(() => {
-				onboardingStore.nextStep();
-				goto('/onboarding/analyzing-2');
-			}, 2000);
-		} catch (err) {
-			console.error('Error analyzing user:', err);
-			error = err instanceof Error ? err.message : 'Failed to analyze user data';
-			analyzing = false;
-
-			// Use fallback insights on error
-			insightMessage = 'No-code builder energy ✨';
-
-			// Store fallback analysis
 			onboardingStore.setAnalysis({
-				message1: 'No-code builder energy ✨',
+				message1: 'No-code builder energy',
 				message2: 'Design tools are your playground',
 				message3: 'AI-curious, testing new platforms'
 			});
 
-			// Still advance after delay
+			// Still auto-advance
 			setTimeout(() => {
 				onboardingStore.nextStep();
 				goto('/onboarding/analyzing-2');
 			}, 2000);
 		}
+
+		return () => {
+			unsubscribe();
+			unsubscribeAnalysis();
+		};
 	});
 </script>
 
@@ -72,75 +86,138 @@
 	<title>Analyzing - OSA Build</title>
 </svelte:head>
 
-<GradientBackground variant="personalization" fullScreen>
-	<div class="analyzing-screen text-center space-y-12 animate-slide-up">
-		<!-- OSA Orb Animation -->
-		<div class="orb-container">
-			<div class="relative w-48 h-48 mx-auto">
-				<!-- Main pulsing orb -->
-				<div class="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600 animate-pulse-glow"></div>
-				<div class="absolute inset-4 rounded-full bg-gradient-to-br from-violet-300 via-purple-400 to-indigo-500 opacity-60 animate-pulse"></div>
-				<div class="absolute inset-8 rounded-full bg-gradient-to-br from-white via-purple-200 to-indigo-200 opacity-40"></div>
-			</div>
-		</div>
-
-		<!-- Status Text -->
-		<div class="status-section space-y-6">
+<GradientBackground>
+	<div class="analyzing-screen">
+		<div class="content">
 			{#if analyzing}
-				<h1 class="text-4xl font-bold text-gray-800 dark:text-gray-200">
-					OSA is analyzing your data...
+				<h1 class="title">
+					Analyzing your workspace...
 				</h1>
-				<p class="text-lg text-gray-600 dark:text-gray-400">
-					Discovering patterns and preferences
-				</p>
-			{:else if error}
-				<h1 class="text-4xl font-bold text-gray-800 dark:text-gray-200">
-					Analysis Complete
-				</h1>
-				<p class="text-lg text-red-500">
-					{error}
-				</p>
-			{:else}
-				<!-- First Insight Message -->
-				<GlassCard padding="xl" class="max-w-2xl mx-auto animate-fade-in">
-					<div class="space-y-4">
-						<div class="text-5xl">💡</div>
-						<p class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
-							{insightMessage}
-						</p>
-					</div>
-				</GlassCard>
-			{/if}
-		</div>
 
-		<!-- Progress Indicator -->
-		<div class="progress-dots flex justify-center gap-3">
-			<div class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
-			<div class="w-2 h-2 rounded-full bg-purple-400 animate-pulse" style="animation-delay: 0.2s;"></div>
-			<div class="w-2 h-2 rounded-full bg-purple-300 animate-pulse" style="animation-delay: 0.4s;"></div>
+				<!-- Loading Spinner -->
+				<div class="spinner-wrapper">
+					<div class="spinner"></div>
+				</div>
+
+				<!-- Streaming indicator -->
+				{#if $onboardingAnalysis.isStreaming}
+					<p class="streaming-text">Reading your emails with AI...</p>
+				{/if}
+			{:else if error}
+				<h1 class="title">
+					Analysis complete
+				</h1>
+				<p class="error-text">{error}</p>
+				<p class="fallback-text">Using default insights</p>
+			{:else}
+				<h1 class="title">
+					{insightMessage}
+				</h1>
+
+				{#if $analyzingInsights.hasRealData}
+					<p class="ai-badge">✨ AI-Generated</p>
+				{/if}
+			{/if}
 		</div>
 	</div>
 </GradientBackground>
 
 <style>
 	.analyzing-screen {
-		padding: 4rem 2rem;
-		max-width: 1200px;
-		margin: 0 auto;
 		min-height: 100vh;
 		display: flex;
-		flex-direction: column;
+		align-items: center;
 		justify-content: center;
+		padding: 2rem;
 	}
 
-	.orb-container {
-		animation: fade-in 0.8s ease-out;
-	}
-
-	.status-section {
-		min-height: 200px;
+	.content {
+		width: 100%;
+		max-width: 600px;
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
+		align-items: center;
+		gap: 3rem;
+		text-align: center;
+	}
+
+	.title {
+		font-size: 2.75rem;
+		font-weight: 700;
+		color: #1A1A1A;
+		line-height: 1.2;
+		letter-spacing: -0.02em;
+		margin: 0;
+		animation: fadeIn 0.8s ease-out 0.2s both;
+	}
+
+	.spinner-wrapper {
+		animation: fadeIn 0.8s ease-out 0.3s both;
+	}
+
+	.spinner {
+		width: 64px;
+		height: 64px;
+		border: 3px solid #E5E5E5;
+		border-top-color: #1A1A1A;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
+	.streaming-text {
+		font-size: 0.875rem;
+		color: #666;
+		margin: 0;
+		animation: fadeIn 0.8s ease-out 0.5s both;
+	}
+
+	.error-text {
+		font-size: 1rem;
+		color: #DC2626;
+		margin: 0;
+		animation: fadeIn 0.8s ease-out 0.3s both;
+	}
+
+	.fallback-text {
+		font-size: 0.875rem;
+		color: #999;
+		margin: 0;
+	}
+
+	.ai-badge {
+		font-size: 0.75rem;
+		color: #666;
+		background: #F5F5F5;
+		padding: 0.375rem 0.75rem;
+		border-radius: 1rem;
+		margin: 0;
+		animation: fadeIn 0.8s ease-out 0.5s both;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (max-width: 768px) {
+		.title {
+			font-size: 2rem;
+		}
+
+		.content {
+			gap: 2.5rem;
+		}
 	}
 </style>

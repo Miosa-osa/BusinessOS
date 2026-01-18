@@ -1359,11 +1359,5 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	}
 	log.Printf("✅ Proxy routes registered at /api/proxy/*")
 
-	// OSA Onboarding routes - /api/osa-onboarding (Build Your OS flow)
-	if h.osaOnboardingHandler != nil {
-		osaOnboarding := api.Group("/osa-onboarding")
-		osaOnboarding.Use(auth)
-		RegisterOSAOnboardingRoutes(osaOnboarding, h.osaOnboardingHandler)
-		log.Printf("✅ OSA onboarding routes registered at /api/osa-onboarding/*")
-	}
+	// Note: OSA Onboarding routes are registered in cmd/server/main.go
 }

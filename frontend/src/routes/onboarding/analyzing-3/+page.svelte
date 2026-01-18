@@ -1,21 +1,19 @@
 <!--
 	Onboarding Screen 8: AI Analysis (Third Insight)
-	Shows third and final insight message from analysis
+	Simplified analyzing screen matching Wabi design
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { GradientBackground, GlassCard } from '$lib/components/osa';
+	import { GradientBackground } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
+	import { analyzingInsights } from '$lib/stores/onboardingAnalysis';
 
 	let insightMessage = '';
 
-	onMount(() => {
-		// Get the third insight from store
-		const state = $onboardingStore;
-		insightMessage = state.analysis.message3 || 'AI-curious, testing new platforms';
+	$: insightMessage = $analyzingInsights.message3;
 
-		// Auto-advance to starter apps screen after 2 seconds
+	onMount(() => {
 		setTimeout(() => {
 			onboardingStore.nextStep();
 			goto('/onboarding/starter-apps');
@@ -27,58 +25,87 @@
 	<title>Analyzing - OSA Build</title>
 </svelte:head>
 
-<GradientBackground variant="personalization" fullScreen>
-	<div class="analyzing-screen text-center space-y-12 animate-slide-up">
-		<!-- OSA Orb Animation -->
-		<div class="orb-container">
-			<div class="relative w-48 h-48 mx-auto">
-				<!-- Main pulsing orb -->
-				<div class="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600 animate-pulse-glow"></div>
-				<div class="absolute inset-4 rounded-full bg-gradient-to-br from-violet-300 via-purple-400 to-indigo-500 opacity-60 animate-pulse"></div>
-				<div class="absolute inset-8 rounded-full bg-gradient-to-br from-white via-purple-200 to-indigo-200 opacity-40"></div>
+<GradientBackground>
+	<div class="analyzing-screen">
+		<div class="content">
+			<h1 class="title">
+				{insightMessage}
+			</h1>
+
+			<!-- Loading Spinner -->
+			<div class="spinner-wrapper">
+				<div class="spinner"></div>
 			</div>
-		</div>
-
-		<!-- Third Insight Message -->
-		<div class="status-section space-y-6">
-			<GlassCard padding="xl" class="max-w-2xl mx-auto animate-fade-in">
-				<div class="space-y-4">
-					<div class="text-5xl">💡</div>
-					<p class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
-						{insightMessage}
-					</p>
-				</div>
-			</GlassCard>
-		</div>
-
-		<!-- Progress Indicator -->
-		<div class="progress-dots flex justify-center gap-3">
-			<div class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
-			<div class="w-2 h-2 rounded-full bg-purple-400 animate-pulse" style="animation-delay: 0.2s;"></div>
-			<div class="w-2 h-2 rounded-full bg-purple-300 animate-pulse" style="animation-delay: 0.4s;"></div>
 		</div>
 	</div>
 </GradientBackground>
 
 <style>
 	.analyzing-screen {
-		padding: 4rem 2rem;
-		max-width: 1200px;
-		margin: 0 auto;
 		min-height: 100vh;
 		display: flex;
-		flex-direction: column;
+		align-items: center;
 		justify-content: center;
+		padding: 2rem;
 	}
 
-	.orb-container {
-		animation: fade-in 0.8s ease-out;
-	}
-
-	.status-section {
-		min-height: 200px;
+	.content {
+		width: 100%;
+		max-width: 600px;
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
+		align-items: center;
+		gap: 3rem;
+		text-align: center;
+	}
+
+	.title {
+		font-size: 2.75rem;
+		font-weight: 700;
+		color: #1A1A1A;
+		line-height: 1.2;
+		letter-spacing: -0.02em;
+		margin: 0;
+		animation: fadeIn 0.8s ease-out 0.2s both;
+	}
+
+	.spinner-wrapper {
+		animation: fadeIn 0.8s ease-out 0.3s both;
+	}
+
+	.spinner {
+		width: 64px;
+		height: 64px;
+		border: 3px solid #E5E5E5;
+		border-top-color: #1A1A1A;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (max-width: 768px) {
+		.title {
+			font-size: 2rem;
+		}
+
+		.content {
+			gap: 2.5rem;
+		}
 	}
 </style>

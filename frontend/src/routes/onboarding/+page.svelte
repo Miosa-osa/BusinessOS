@@ -1,10 +1,10 @@
 <!--
 	Onboarding Screen 1: Welcome to OSA Build
-	First screen - introduces the platform
+	Full-screen layout matching Wabi iOS design
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { GradientBackground, PillButton } from '$lib/components/osa';
+	import { PillButton } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
 
 	function handleGetStarted() {
@@ -17,72 +17,121 @@
 	<title>Welcome to OSA Build</title>
 </svelte:head>
 
-<GradientBackground variant="welcome" fullScreen>
-	<div class="welcome-screen text-center space-y-12 animate-slide-up">
-		<!-- Logo / Hero -->
-		<div class="space-y-6">
-			<div class="hero-icon mx-auto">
-				<!-- Placeholder for OSA logo/icon - using gradient circle for now -->
-				<div class="w-32 h-32 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 mx-auto pulse-glow"></div>
+<div class="onboarding-background">
+	<div class="welcome-screen">
+		<div class="content">
+			<!-- Cloud Icon -->
+			<div class="cloud-wrapper">
+				<img src="/Cloudpngosa.png" alt="OSA Cloud" class="cloud-image" />
 			</div>
 
-			<div class="space-y-4">
-				<h1 class="text-6xl font-bold text-gradient">
-					Welcome to OSA Build
-				</h1>
-				<p class="text-2xl text-gray-700 dark:text-gray-300 max-w-xl mx-auto">
-					Build your personalized operating system in minutes, not months
-				</p>
-			</div>
-		</div>
+			<!-- Main Message -->
+			<h1 class="title">
+				A new era of<br />business software<br />is here.
+			</h1>
 
-		<!-- Key features -->
-		<div class="features-grid grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-			<div class="feature-card glass-card p-6 space-y-3">
-				<div class="text-4xl">✨</div>
-				<h3 class="text-xl font-semibold">AI-Powered</h3>
-				<p class="text-gray-600 dark:text-gray-400">
-					OSA builds apps tailored to your needs
-				</p>
+			<!-- CTA Button -->
+			<div class="cta">
+				<PillButton variant="primary" size="lg" onclick={handleGetStarted}>
+					Get Started
+				</PillButton>
+				<p class="helper-text">Takes less than 2 minutes</p>
 			</div>
-
-			<div class="feature-card glass-card p-6 space-y-3">
-				<div class="text-4xl">🚀</div>
-				<h3 class="text-xl font-semibold">Day 1 Apps</h3>
-				<p class="text-gray-600 dark:text-gray-400">
-					Get 4 personalized apps immediately
-				</p>
-			</div>
-
-			<div class="feature-card glass-card p-6 space-y-3">
-				<div class="text-4xl">🎨</div>
-				<h3 class="text-xl font-semibold">Fully Customizable</h3>
-				<p class="text-gray-600 dark:text-gray-400">
-					Build, remix, and share with ease
-				</p>
-			</div>
-		</div>
-
-		<!-- CTA -->
-		<div class="cta-section space-y-4">
-			<PillButton variant="primary" size="lg" onclick={handleGetStarted}>
-				Get Started
-			</PillButton>
-			<p class="text-sm text-gray-500">Takes less than 2 minutes</p>
 		</div>
 	</div>
-</GradientBackground>
+</div>
 
 <style>
+	.onboarding-background {
+		min-height: 100vh;
+		width: 100%;
+		background-image: url('/logos/integrations/MIOSABRANDBackround.png');
+		background-size: cover;
+		background-position: center;
+		background-repeat: no-repeat;
+	}
+
 	.welcome-screen {
-		padding: 2rem 0;
+		min-height: 100vh;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 2rem;
 	}
 
-	.feature-card {
-		transition: transform 0.2s ease;
+	.content {
+		width: 100%;
+		max-width: 600px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 4rem;
+		text-align: center;
 	}
 
-	.feature-card:hover {
-		transform: translateY(-4px);
+	.cloud-wrapper {
+		animation: fadeIn 0.8s ease-out;
+	}
+
+	.cloud-image {
+		width: 220px;
+		height: auto;
+		display: block;
+		animation: float 6s ease-in-out infinite;
+		filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.2));
+	}
+
+	@keyframes float {
+		0%, 100% {
+			transform: translateY(0px);
+		}
+		50% {
+			transform: translateY(-10px);
+		}
+	}
+
+	.title {
+		font-size: 2.75rem;
+		font-weight: 700;
+		color: #1A1A1A;
+		line-height: 1.2;
+		letter-spacing: -0.02em;
+		margin: 0;
+		animation: fadeIn 0.8s ease-out 0.2s both;
+	}
+
+	.cta {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1rem;
+		animation: fadeIn 0.8s ease-out 0.4s both;
+	}
+
+	.helper-text {
+		font-size: 0.875rem;
+		color: #666666;
+		margin: 0;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (max-width: 768px) {
+		.title {
+			font-size: 2rem;
+		}
+
+		.content {
+			gap: 3rem;
+		}
 	}
 </style>

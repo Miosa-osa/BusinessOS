@@ -3021,6 +3021,77 @@ type NotionPage struct {
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
+type OnboardingEmailMetadatum struct {
+	ID              pgtype.UUID        `json:"id"`
+	UserID          string             `json:"user_id"`
+	AnalysisID      pgtype.UUID        `json:"analysis_id"`
+	EmailID         pgtype.UUID        `json:"email_id"`
+	ExternalID      *string            `json:"external_id"`
+	SenderDomain    *string            `json:"sender_domain"`
+	SenderEmail     *string            `json:"sender_email"`
+	SubjectKeywords []byte             `json:"subject_keywords"`
+	BodyKeywords    []byte             `json:"body_keywords"`
+	DetectedTools   []byte             `json:"detected_tools"`
+	DetectedTopics  []byte             `json:"detected_topics"`
+	Category        *string            `json:"category"`
+	Sentiment       *string            `json:"sentiment"`
+	ImportanceScore pgtype.Numeric     `json:"importance_score"`
+	EmailDate       pgtype.Timestamptz `json:"email_date"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+type OnboardingStarterApp struct {
+	ID                   pgtype.UUID        `json:"id"`
+	UserID               string             `json:"user_id"`
+	WorkspaceID          pgtype.UUID        `json:"workspace_id"`
+	AnalysisID           pgtype.UUID        `json:"analysis_id"`
+	Title                string             `json:"title"`
+	Description          *string            `json:"description"`
+	IconEmoji            *string            `json:"icon_emoji"`
+	IconUrl              *string            `json:"icon_url"`
+	Category             *string            `json:"category"`
+	Reasoning            *string            `json:"reasoning"`
+	CustomizationPrompt  string             `json:"customization_prompt"`
+	BasedOnInterests     []byte             `json:"based_on_interests"`
+	BasedOnTools         []byte             `json:"based_on_tools"`
+	Status               *string            `json:"status"`
+	OsaWorkflowID        *string            `json:"osa_workflow_id"`
+	ErrorMessage         *string            `json:"error_message"`
+	BaseModule           *string            `json:"base_module"`
+	ModuleCustomizations []byte             `json:"module_customizations"`
+	GenerationModel      *string            `json:"generation_model"`
+	AiProvider           *string            `json:"ai_provider"`
+	GenerationTokensUsed *int32             `json:"generation_tokens_used"`
+	GenerationDurationMs *int32             `json:"generation_duration_ms"`
+	DisplayOrder         *int32             `json:"display_order"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	CompletedAt          pgtype.Timestamptz `json:"completed_at"`
+}
+
+type OnboardingUserAnalysis struct {
+	ID                  pgtype.UUID        `json:"id"`
+	UserID              string             `json:"user_id"`
+	WorkspaceID         pgtype.UUID        `json:"workspace_id"`
+	Insights            []byte             `json:"insights"`
+	Interests           []byte             `json:"interests"`
+	ToolsUsed           []byte             `json:"tools_used"`
+	ProfileSummary      *string            `json:"profile_summary"`
+	EmailMetadata       []byte             `json:"email_metadata"`
+	TotalEmailsAnalyzed *int32             `json:"total_emails_analyzed"`
+	SenderDomains       []byte             `json:"sender_domains"`
+	DetectedPatterns    []byte             `json:"detected_patterns"`
+	AnalysisModel       string             `json:"analysis_model"`
+	AiProvider          string             `json:"ai_provider"`
+	AnalysisTokensUsed  *int32             `json:"analysis_tokens_used"`
+	AnalysisDurationMs  *int32             `json:"analysis_duration_ms"`
+	Status              *string            `json:"status"`
+	ErrorMessage        *string            `json:"error_message"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	CompletedAt         pgtype.Timestamptz `json:"completed_at"`
+}
+
 type OsaBuildEvent struct {
 	ID              pgtype.UUID        `json:"id"`
 	AppID           pgtype.UUID        `json:"app_id"`

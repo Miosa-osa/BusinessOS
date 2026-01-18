@@ -4468,3 +4468,101 @@ CREATE INDEX idx_user_external_apps_active ON user_external_apps(workspace_id, i
 ALTER TABLE user_external_apps
 ADD CONSTRAINT user_external_apps_name_workspace_unique
 UNIQUE(workspace_id, name);
+
+-- ============================================================================
+-- ONBOARDING ANALYSIS SYSTEM (Migrations 054-056)
+-- ============================================================================
+
+-- Table for storing user analysis during OSA Build onboarding
+CREATE TABLE IF NOT EXISTS onboarding_user_analysis (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    workspace_id UUID NOT NULL,
+    insights JSONB DEFAULT '[]'::jsonb,
+    interests JSONB DEFAULT '[]'::jsonb,
+    tools_used JSONB DEFAULT '[]'::jsonb,
+    profile_summary TEXT,
+    email_metadata JSONB DEFAULT '{}'::jsonb,
+    total_emails_analyzed INTEGER DEFAULT 0,
+    sender_domains JSONB DEFAULT '[]'::jsonb,
+    detected_patterns JSONB DEFAULT '{}'::jsonb,
+    analysis_model VARCHAR(100) NOT NULL,
+    ai_provider VARCHAR(50) NOT NULL,
+    analysis_tokens_used INTEGER DEFAULT 0,
+    analysis_duration_ms INTEGER,
+    status VARCHAR(50) DEFAULT 'analyzing',
+    error_message TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    UNIQUE(user_id, workspace_id)
+);
+
+CREATE INDEX idx_onboarding_analysis_user ON onboarding_user_analysis(user_id);
+CREATE INDEX idx_onboarding_analysis_workspace ON onboarding_user_analysis(workspace_id);
+CREATE INDEX idx_onboarding_analysis_status ON onboarding_user_analysis(status);
+CREATE INDEX idx_onboarding_analysis_created ON onboarding_user_analysis(created_at DESC);
+
+-- Table for tracking starter app generation during OSA Build onboarding
+CREATE TABLE IF NOT EXISTS onboarding_starter_apps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    workspace_id UUID NOT NULL,
+    analysis_id UUID NOT NULL REFERENCES onboarding_user_analysis(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    icon_emoji VARCHAR(10),
+    icon_url VARCHAR(500),
+    category VARCHAR(100),
+    reasoning TEXT,
+    customization_prompt TEXT NOT NULL,
+    based_on_interests JSONB DEFAULT '[]'::jsonb,
+    based_on_tools JSONB DEFAULT '[]'::jsonb,
+    status VARCHAR(50) DEFAULT 'pending',
+    osa_workflow_id VARCHAR(255),
+    error_message TEXT,
+    base_module VARCHAR(100),
+    module_customizations JSONB DEFAULT '{}'::jsonb,
+    generation_model VARCHAR(100),
+    ai_provider VARCHAR(50),
+    generation_tokens_used INTEGER DEFAULT 0,
+    generation_duration_ms INTEGER,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    UNIQUE(user_id, workspace_id, display_order)
+);
+
+CREATE INDEX idx_starter_apps_user ON onboarding_starter_apps(user_id);
+CREATE INDEX idx_starter_apps_workspace ON onboarding_starter_apps(workspace_id);
+CREATE INDEX idx_starter_apps_analysis ON onboarding_starter_apps(analysis_id);
+CREATE INDEX idx_starter_apps_status ON onboarding_starter_apps(status);
+CREATE INDEX idx_starter_apps_workflow ON onboarding_starter_apps(osa_workflow_id);
+CREATE INDEX idx_starter_apps_display_order ON onboarding_starter_apps(workspace_id, display_order);
+
+-- Table for storing extracted email metadata used in onboarding analysis
+CREATE TABLE IF NOT EXISTS onboarding_email_metadata (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    analysis_id UUID NOT NULL REFERENCES onboarding_user_analysis(id) ON DELETE CASCADE,
+    email_id UUID,
+    external_id VARCHAR(255),
+    sender_domain VARCHAR(255),
+    sender_email VARCHAR(255),
+    subject_keywords JSONB DEFAULT '[]'::jsonb,
+    body_keywords JSONB DEFAULT '[]'::jsonb,
+    detected_tools JSONB DEFAULT '[]'::jsonb,
+    detected_topics JSONB DEFAULT '[]'::jsonb,
+    category VARCHAR(100),
+    sentiment VARCHAR(50),
+    importance_score DECIMAL(3, 2),
+    email_date TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_email_metadata_user ON onboarding_email_metadata(user_id);
+CREATE INDEX idx_email_metadata_analysis ON onboarding_email_metadata(analysis_id);
+CREATE INDEX idx_email_metadata_sender_domain ON onboarding_email_metadata(sender_domain);
+CREATE INDEX idx_email_metadata_category ON onboarding_email_metadata(category);
+CREATE INDEX idx_email_metadata_email_date ON onboarding_email_metadata(email_date DESC);

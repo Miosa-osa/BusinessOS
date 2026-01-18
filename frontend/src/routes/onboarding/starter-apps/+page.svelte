@@ -1,42 +1,33 @@
 <!--
 	Onboarding Screens 9-12: Starter Apps Showcase
-	Carousel showing 4 personalized apps (1 at a time)
+	Simplified carousel showing 4 personalized apps matching Wabi design
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { GradientBackground, ProgressDots, PillButton } from '$lib/components/osa';
+	import { GradientBackground, PillButton } from '$lib/components/osa';
 	import { onboardingStore } from '$lib/stores/onboardingStore';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 
-	// Get onboarding state
 	let store = $state($onboardingStore);
 	let starterApps = $derived(store.userData.starterApps || []);
 
-	// Carousel state
 	let currentAppIndex = $state(0);
 	let isLoading = $state(false);
-	let error = $state<string | null>(null);
 
-	// Current app being displayed
 	const currentApp = $derived(starterApps[currentAppIndex]);
 	const isFirstApp = $derived(currentAppIndex === 0);
 	const isLastApp = $derived(currentAppIndex === starterApps.length - 1);
 
-	// Has user viewed all apps?
 	let hasViewedAll = $state(false);
-
-	// Track which apps have been viewed
 	let viewedApps = $state<Set<number>>(new Set([0]));
 
-	// Navigation functions
 	function goToNextApp() {
 		if (currentAppIndex < starterApps.length - 1) {
 			currentAppIndex++;
 			viewedApps.add(currentAppIndex);
 
-			// Check if all apps have been viewed
 			if (viewedApps.size === starterApps.length) {
 				hasViewedAll = true;
 			}
@@ -55,7 +46,6 @@
 		goto('/onboarding/ready');
 	}
 
-	// Keyboard navigation
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'ArrowLeft') {
 			goToPrevApp();
@@ -64,22 +54,14 @@
 		}
 	}
 
-	// Load apps if not already loaded
 	async function loadApps() {
 		if (starterApps.length > 0) {
-			return; // Apps already loaded
+			return;
 		}
 
 		isLoading = true;
-		error = null;
 
 		try {
-			// Try to get apps from backend
-			// For now, we'll use mock data since analyzing page already sets them
-			// But in a real scenario, this would call the API:
-			// const response = await osaOnboardingApi.generateStarterApps(workspaceId, analysis);
-
-			// If no apps in store, set mock data
 			if (starterApps.length === 0) {
 				onboardingStore.setStarterApps([
 					{
@@ -110,7 +92,6 @@
 			}
 		} catch (err) {
 			console.error('Error loading starter apps:', err);
-			error = err instanceof Error ? err.message : 'Failed to load apps';
 		} finally {
 			isLoading = false;
 		}
@@ -119,7 +100,6 @@
 	onMount(() => {
 		loadApps();
 
-		// Subscribe to store updates
 		const unsubscribe = onboardingStore.subscribe((value) => {
 			store = value;
 		});
@@ -134,200 +114,295 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-<GradientBackground variant="apps-showcase" fullScreen>
-	<div class="starter-apps-screen flex flex-col items-center justify-center min-h-screen px-6 py-8">
-		<!-- Progress dots -->
-		<div class="absolute top-8 left-1/2 -translate-x-1/2">
-			<ProgressDots total={13} current={9 + currentAppIndex} />
-		</div>
+<GradientBackground>
+	<div class="starter-apps-screen">
+		<div class="content">
+			<h1 class="title">
+				Your starter apps.
+			</h1>
 
-		{#if isLoading}
-			<!-- Loading state -->
-			<div class="flex flex-col items-center gap-6 animate-slide-up">
-				<div class="w-16 h-16 border-4 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
-				<p class="text-xl text-gray-700 dark:text-gray-300">Loading your personalized apps...</p>
-			</div>
-		{:else if error}
-			<!-- Error state -->
-			<div class="flex flex-col items-center gap-6 animate-slide-up max-w-md">
-				<div class="text-red-500 text-5xl">⚠️</div>
-				<h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200">Oops! Something went wrong</h2>
-				<p class="text-gray-600 dark:text-gray-400 text-center">{error}</p>
-				<PillButton variant="primary" onclick={loadApps}>
-					Try Again
-				</PillButton>
-			</div>
-		{:else if starterApps.length === 0}
-			<!-- No apps state -->
-			<div class="flex flex-col items-center gap-6 animate-slide-up">
-				<p class="text-xl text-gray-700 dark:text-gray-300">No apps available yet.</p>
-				<PillButton variant="primary" onclick={handleContinue}>
-					Continue
-				</PillButton>
-			</div>
-		{:else}
-			<!-- Apps carousel -->
-			<div class="w-full max-w-2xl space-y-8 animate-slide-up">
-				<!-- Navigation indicator -->
-				<div class="flex items-center justify-center gap-4 text-gray-600 dark:text-gray-400">
-					<button
-						onclick={goToPrevApp}
-						disabled={isFirstApp}
-						class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-						aria-label="Previous app"
-					>
-						<ChevronLeft class="w-6 h-6" />
-					</button>
-
-					<span class="text-lg font-medium min-w-[80px] text-center">
-						{currentAppIndex + 1} of {starterApps.length}
-					</span>
-
-					<button
-						onclick={goToNextApp}
-						disabled={isLastApp}
-						class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-						aria-label="Next app"
-					>
-						<ChevronRight class="w-6 h-6" />
-					</button>
+			{#if isLoading}
+				<div class="spinner-wrapper">
+					<div class="spinner"></div>
 				</div>
-
-				<!-- Title -->
-				<h1 class="text-4xl md:text-5xl font-bold text-gradient text-center">
-					Here are the apps we built for you
-				</h1>
-
-				<!-- App card display -->
-				<div class="relative min-h-[400px] flex items-center justify-center">
-					{#key currentAppIndex}
-						<div
-							class="w-full max-w-md"
-							in:fly={{ x: 100, duration: 400, delay: 100 }}
-							out:fly={{ x: -100, duration: 300 }}
-						>
-							<div class="space-y-6">
-								<!-- App Card -->
-								<div class="app-card-wrapper flex flex-col items-center gap-6 p-8 bg-white/40 dark:bg-gray-800/40 rounded-3xl backdrop-blur-sm border border-white/50 dark:border-gray-700/50 shadow-xl">
-									<!-- Circular icon (80px) -->
-									<div class="w-20 h-20 rounded-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600 flex items-center justify-center shadow-lg">
-										{#if currentApp.iconUrl}
-											<img src={currentApp.iconUrl} alt={currentApp.title} class="w-20 h-20 rounded-full object-cover" />
-										{:else}
-											<span class="text-white text-3xl font-bold">
-												{currentApp.title.charAt(0)}
-											</span>
-										{/if}
-									</div>
-
-									<!-- App title -->
-									<h2 class="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100 text-center">
-										{currentApp.title}
-									</h2>
-
-									<!-- App description -->
-									<p class="text-lg text-gray-700 dark:text-gray-300 text-center">
-										{currentApp.description}
-									</p>
-
-									<!-- Reasoning -->
-									<div class="w-full pt-4 border-t border-gray-300 dark:border-gray-600">
-										<p class="text-base text-gray-600 dark:text-gray-400 italic text-center">
-											{currentApp.reason}
-										</p>
-									</div>
-								</div>
-							</div>
-						</div>
-					{/key}
-				</div>
-
-				<!-- Navigation buttons -->
-				<div class="flex items-center justify-between gap-4 pt-4">
-					<!-- Previous button -->
-					{#if !isFirstApp}
+			{:else if starterApps.length === 0}
+				<p class="subtitle">No apps available yet.</p>
+			{:else}
+				<!-- Carousel -->
+				<div class="carousel">
+					<!-- Navigation indicator -->
+					<div class="nav-indicator">
 						<button
 							onclick={goToPrevApp}
-							class="px-6 py-3 rounded-full bg-white/60 dark:bg-gray-800/60 hover:bg-white/80 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-300 font-medium transition-all shadow-md border border-gray-300 dark:border-gray-600"
+							disabled={isFirstApp}
+							class="nav-button"
+							class:disabled={isFirstApp}
+							aria-label="Previous app"
 						>
-							Previous
+							<ChevronLeft size={24} />
 						</button>
-					{:else}
-						<div></div>
-					{/if}
 
-					<!-- Next/Continue button -->
-					{#if isLastApp && hasViewedAll}
-						<PillButton variant="primary" onclick={handleContinue} class="ml-auto">
-							Continue to Your OS
-						</PillButton>
-					{:else if !isLastApp}
+						<span class="page-number">
+							{currentAppIndex + 1} of {starterApps.length}
+						</span>
+
 						<button
 							onclick={goToNextApp}
-							class="px-6 py-3 rounded-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-medium transition-all shadow-lg ml-auto"
+							disabled={isLastApp}
+							class="nav-button"
+							class:disabled={isLastApp}
+							aria-label="Next app"
 						>
-							Next
+							<ChevronRight size={24} />
 						</button>
+					</div>
+
+					<!-- App card -->
+					<div class="app-display">
+						{#key currentAppIndex}
+							<div
+								class="app-card"
+								in:fly={{ x: 100, duration: 400, delay: 100 }}
+								out:fly={{ x: -100, duration: 300 }}
+							>
+								<div class="app-icon">
+									{currentApp.title.charAt(0)}
+								</div>
+
+								<h2 class="app-title">
+									{currentApp.title}
+								</h2>
+
+								<p class="app-description">
+									{currentApp.description}
+								</p>
+
+								<p class="app-reason">
+									{currentApp.reason}
+								</p>
+							</div>
+						{/key}
+					</div>
+
+					<!-- Continue button -->
+					{#if hasViewedAll}
+						<div class="cta">
+							<PillButton variant="primary" size="lg" onclick={handleContinue}>
+								Continue
+							</PillButton>
+						</div>
+					{:else}
+						<p class="hint">View all apps to continue</p>
 					{/if}
 				</div>
-
-				<!-- Hint text -->
-				{#if !hasViewedAll}
-					<p class="text-sm text-gray-500 dark:text-gray-400 text-center italic">
-						View all apps to continue
-					</p>
-				{/if}
-			</div>
-		{/if}
+			{/if}
+		</div>
 	</div>
 </GradientBackground>
 
 <style>
 	.starter-apps-screen {
-		animation: fade-in 0.6s ease-out;
+		min-height: 100vh;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 2rem;
 	}
 
-	.app-card-wrapper {
-		animation: float 3s ease-in-out infinite;
+	.content {
+		width: 100%;
+		max-width: 600px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 3rem;
+		text-align: center;
 	}
 
-	@keyframes float {
-		0%, 100% {
-			transform: translateY(0px);
-		}
-		50% {
-			transform: translateY(-5px);
-		}
+	.title {
+		font-size: 2.75rem;
+		font-weight: 700;
+		color: #1A1A1A;
+		line-height: 1.2;
+		letter-spacing: -0.02em;
+		margin: 0;
+		animation: fadeIn 0.8s ease-out 0.2s both;
 	}
 
-	@keyframes fade-in {
-		from {
-			opacity: 0;
-		}
+	.subtitle {
+		font-size: 1.125rem;
+		color: #666666;
+		margin: 0;
+	}
+
+	.spinner-wrapper {
+		animation: fadeIn 0.8s ease-out 0.3s both;
+	}
+
+	.spinner {
+		width: 64px;
+		height: 64px;
+		border: 3px solid #E5E5E5;
+		border-top-color: #1A1A1A;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
+	.carousel {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 2rem;
+		animation: fadeIn 0.8s ease-out 0.3s both;
+	}
+
+	.nav-indicator {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1.5rem;
+	}
+
+	.nav-button {
+		background: white;
+		border: 2px solid #E5E5E5;
+		border-radius: 50%;
+		width: 40px;
+		height: 40px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		color: #1A1A1A;
+	}
+
+	.nav-button:hover:not(.disabled) {
+		border-color: #1A1A1A;
+		background: #F5F5F5;
+	}
+
+	.nav-button.disabled {
+		opacity: 0.3;
+		cursor: not-allowed;
+	}
+
+	.page-number {
+		font-size: 1rem;
+		font-weight: 500;
+		color: #1A1A1A;
+		min-width: 80px;
+	}
+
+	.app-display {
+		position: relative;
+		min-height: 400px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.app-card {
+		width: 100%;
+		padding: 2rem;
+		background: white;
+		border-radius: 1.5rem;
+		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1.5rem;
+	}
+
+	.app-icon {
+		width: 80px;
+		height: 80px;
+		border-radius: 50%;
+		background: linear-gradient(135deg, #E5E5E5, #D1D1D1);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 2rem;
+		font-weight: 700;
+		color: #666666;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	}
+
+	.app-title {
+		font-size: 1.75rem;
+		font-weight: 700;
+		color: #1A1A1A;
+		margin: 0;
+	}
+
+	.app-description {
+		font-size: 1.125rem;
+		color: #666666;
+		margin: 0;
+	}
+
+	.app-reason {
+		font-size: 0.9375rem;
+		color: #999999;
+		font-style: italic;
+		margin: 0;
+		padding-top: 0.75rem;
+		border-top: 1px solid #E5E5E5;
+	}
+
+	.cta {
+		animation: fadeIn 0.8s ease-out 0.4s both;
+	}
+
+	.hint {
+		font-size: 0.875rem;
+		color: #999999;
+		margin: 0;
+		font-style: italic;
+	}
+
+	@keyframes spin {
 		to {
-			opacity: 1;
+			transform: rotate(360deg);
 		}
 	}
 
-	:global(.text-gradient) {
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
-	}
-
-	:global(.animate-slide-up) {
-		animation: slide-up 0.8s ease-out;
-	}
-
-	@keyframes slide-up {
+	@keyframes fadeIn {
 		from {
 			opacity: 0;
-			transform: translateY(30px);
+			transform: translateY(20px);
 		}
 		to {
 			opacity: 1;
 			transform: translateY(0);
+		}
+	}
+
+	@media (max-width: 768px) {
+		.title {
+			font-size: 2rem;
+		}
+
+		.content {
+			gap: 2.5rem;
+		}
+
+		.app-card {
+			padding: 1.5rem;
+		}
+
+		.app-icon {
+			width: 64px;
+			height: 64px;
+			font-size: 1.5rem;
+		}
+
+		.app-title {
+			font-size: 1.5rem;
+		}
+
+		.app-description {
+			font-size: 1rem;
 		}
 	}
 </style>

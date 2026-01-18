@@ -12,9 +12,10 @@
 ```
 • HTTP Server:    http://localhost:8001
 • gRPC Server:    localhost:50051
-• Status:         ✅ Running (PID: 46381)
+• Status:         ✅ Running (PID: 46398)
 • Health:         {"status":"healthy"}
 • Logs:           tail -f /tmp/go-backend.log
+• Agent Dispatch: ✅ ENABLED (osa-voice-grpc)
 ```
 
 **What it does:**
@@ -235,6 +236,21 @@ curl http://localhost:8001/health
 curl http://localhost:5173
 grpcurl -plaintext localhost:50051 list
 ```
+
+---
+
+## 🔧 Recent Fixes (2026-01-18 18:10)
+
+### ✅ Agent Dispatch Re-Enabled
+**Issue:** Python agent wasn't joining LiveKit rooms when users connected
+**Cause:** Agent dispatch was disabled in livekit.go (lines 109-111), expecting dev mode auto-connect which doesn't work
+**Fix:** Re-enabled programmatic agent dispatch using LiveKit's CreateDispatch API
+**Files Changed:**
+- `internal/handlers/livekit.go` - Added agent dispatch goroutine
+- `internal/services/user_service.go` - Added missing uuid import
+- `internal/handlers/username_handler.go` - Fixed uuid import and service field name
+
+**Status:** ✅ FIXED - Agent now dispatches automatically when user gets token
 
 ---
 

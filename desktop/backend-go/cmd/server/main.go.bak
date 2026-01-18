@@ -1,0 +1,1105 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
+	"github.com/rhl/businessos-backend/internal/config"
+	"github.com/rhl/businessos-backend/internal/container"
+	"github.com/rhl/businessos-backend/internal/database"
+	"github.com/rhl/businessos-backend/internal/database/sqlc"
+	grpcserver "github.com/rhl/businessos-backend/internal/grpc"
+	"github.com/rhl/businessos-backend/internal/handlers"
+	"github.com/rhl/businessos-backend/internal/integrations"
+	"github.com/rhl/businessos-backend/internal/integrations/google"
+	"github.com/rhl/businessos-backend/internal/integrations/osa"
+	"github.com/rhl/businessos-backend/internal/livekit"
+	"github.com/rhl/businessos-backend/internal/middleware"
+	redisClient "github.com/rhl/businessos-backend/internal/redis"
+	"github.com/rhl/businessos-backend/internal/security"
+	"github.com/rhl/businessos-backend/internal/services"
+	"github.com/rhl/businessos-backend/internal/terminal"
+	"github.com/rhl/businessos-backend/internal/workers"
+)
+
+// Note: middleware package now provides SessionCache for Redis-backed session validation
+
+func main() {
+	// Load .env file first (before config.Load) so os.Getenv works for all services
+	// This is optional - in production, env vars are set directly
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Note: No .env file found (this is fine in production)")
+	}
+
+	// Create background context for the application
+	ctx := context.Background()
+
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// ===== SECURITY INITIALIZATION =====
+	// Validate production security configuration
+	if err := security.ValidateAndFail(
+		cfg.Environment,
+		cfg.SecretKey,
+		cfg.TokenEncryptionKey,
+		cfg.RedisKeyHMACSecret,
+	); err != nil {
+		log.Fatalf("SECURITY ERROR: %v", err)
+	}
+
+	// Initialize token encryption (for OAuth tokens in database)
+	if cfg.TokenEncryptionKey != "" {
+		if err := security.InitGlobalEncryption(cfg.TokenEncryptionKey); err != nil {
+			log.Fatalf("Failed to initialize token encryption: %v", err)
+		}
+		log.Printf("Token encryption initialized (AES-256-GCM)")
+	} else {
+		// In development, warn about plaintext storage
+		warnings := security.WarnDevelopmentInsecure(cfg.TokenEncryptionKey, cfg.RedisKeyHMACSecret)
+		for _, w := range warnings {
+			log.Printf("WARNING: %s", w)
+		}
+	}
+
+	// Generate unique instance ID for pub/sub (avoid message echo)
+	instanceID := uuid.New().String()[:8]
+	log.Printf("Server instance ID: %s", instanceID)
+
+	// Connect to database (optional in dev)
+	var pool *pgxpool.Pool
+	dbConnected := false
+	var dbErr error
+	if cfg.DatabaseRequired {
+		pool, err = database.Connect(cfg)
+		if err != nil {
+			log.Fatalf("Failed to connect to database: %v", err)
+		}
+		dbConnected = true
+		defer database.Close()
+	} else {
+		log.Printf("DATABASE_REQUIRED=false: starting without database (degraded mode)")
+		p, err := database.Connect(cfg)
+		if err != nil {
+			dbErr = err
+			log.Printf("Database unavailable (continuing): %v", err)
+		} else {
+			pool = p
+			dbConnected = true
+			defer database.Close()
+		}
+	}
+
+	// Create a database/sql wrapper for services that use stdlib APIs.
+	var sqlDB *sql.DB
+	if dbConnected && pool != nil {
+		sqlDB = stdlib.OpenDBFromPool(pool)
+		defer sqlDB.Close()
+	}
+
+	// Connect to Redis (optional - for session storage and horizontal scaling)
+	redisConnected := false
+	var sessionCache *middleware.SessionCache
+	var terminalPubSub *terminal.TerminalPubSub
+	if cfg.RedisURL != "" {
+		// Configure Redis with security settings
+		redisCfg := redisClient.DefaultConfig()
+		redisCfg.URL = cfg.RedisURL
+		redisCfg.Password = cfg.RedisPassword
+		redisCfg.TLSEnabled = cfg.RedisTLSEnabled
+
+		// In development, allow insecure TLS for self-signed certs
+		// NEVER do this in production
+		if !cfg.IsProduction() && cfg.RedisTLSEnabled {
+			redisCfg.TLSInsecure = true
+		}
+
+		if err := redisClient.Connect(ctx, redisCfg); err != nil {
+			log.Printf("Warning: Redis unavailable: %v", err)
+			log.Printf("Sessions will use direct DB auth (not optimal for horizontal scaling)")
+		} else {
+			redisConnected = true
+			log.Printf("Redis connected successfully")
+			defer redisClient.Close()
+
+			// Create session cache for auth middleware with secure HMAC key
+			sessionCacheConfig := &middleware.SessionCacheConfig{
+				KeyPrefix:  "auth_session:",
+				TTL:        15 * time.Minute,
+				HMACSecret: cfg.RedisKeyHMACSecret, // Load from environment (CRITICAL for production)
+			}
+			sessionCache = middleware.NewSessionCache(redisClient.Client(), sessionCacheConfig)
+			log.Printf("Session cache enabled (TTL=15m, HMAC-secured keys)")
+
+			// Create terminal pub/sub for horizontal scaling
+			terminalPubSub = terminal.NewTerminalPubSub(redisClient.Client(), instanceID)
+			log.Printf("Terminal pub/sub enabled (instance=%s)", instanceID)
+		}
+	}
+
+	// Initialize container manager (optional - for Docker-based terminal isolation)
+	var containerMonitor *container.ContainerMonitor
+	containerMgr, err := container.NewContainerManager(ctx, "businessos-workspace:latest")
+	if err != nil {
+		log.Printf("Warning: Container manager unavailable: %v", err)
+		log.Printf("Terminal will use local PTY mode")
+		containerMgr = nil
+	} else {
+		log.Printf("Container manager initialized successfully")
+
+		// Initialize and start container monitor for cleanup and health checks
+		containerMonitor = container.NewContainerMonitor(containerMgr, nil)
+		if err := containerMonitor.StartMonitoring(ctx); err != nil {
+			log.Printf("Warning: Container monitor failed to start: %v", err)
+		} else {
+			log.Printf("Container monitor started (cleanup=%v, idle_timeout=%v)",
+				container.DefaultMonitorConfig().CleanupInterval,
+				container.DefaultMonitorConfig().IdleTimeout)
+		}
+	}
+
+	// OSA client initialization moved to line ~550 (uses ResilientClient)
+
+	// Create gin router
+	router := gin.Default()
+
+	// Apply middleware
+	router.Use(middleware.CORSMiddleware(cfg))
+
+	// Apply global rate limiting (100 req/sec per IP, 200 req/sec per authenticated user)
+	globalRateLimiter := middleware.GetGlobalHTTPRateLimiter()
+	router.Use(middleware.RateLimitMiddleware(globalRateLimiter))
+	log.Printf("Rate limiting enabled (100 req/s per IP, 200 req/s per user)")
+
+	// Health check (no auth required)
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "Business OS API", "version": "1.0.0", "instance_id": instanceID})
+	})
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "healthy"})
+	})
+
+	// Readiness check (includes dependencies)
+	router.GET("/ready", func(c *gin.Context) {
+		dbStatus := "disconnected"
+		if dbConnected {
+			dbStatus = "connected"
+		} else if !cfg.DatabaseRequired {
+			dbStatus = "disabled"
+		}
+		status := gin.H{
+			"status":      "ready",
+			"instance_id": instanceID,
+			"database":    dbStatus,
+			"redis":       "disconnected",
+			"containers":  "unavailable",
+		}
+
+		// Check Redis
+		if redisConnected && redisClient.IsConnected(c.Request.Context()) {
+			status["redis"] = "connected"
+		}
+
+		// Check container manager
+		if containerMgr != nil {
+			status["containers"] = "available"
+		}
+
+		c.JSON(200, status)
+	})
+
+	// Detailed health check for monitoring
+	router.GET("/health/detailed", func(c *gin.Context) {
+		health := gin.H{
+			"status":      "healthy",
+			"instance_id": instanceID,
+			"components":  gin.H{},
+		}
+
+		components := health["components"].(gin.H)
+
+		// Database health
+		dbComponent := gin.H{}
+		if dbConnected {
+			dbComponent["status"] = "connected"
+		} else if !cfg.DatabaseRequired {
+			dbComponent["status"] = "disabled"
+			if dbErr != nil {
+				dbComponent["error"] = dbErr.Error()
+			}
+		} else {
+			dbComponent["status"] = "disconnected"
+			if dbErr != nil {
+				dbComponent["error"] = dbErr.Error()
+			}
+		}
+		components["database"] = dbComponent
+
+		// Redis health
+		if redisConnected {
+			redisHealth, err := redisClient.HealthCheck(c.Request.Context())
+			if err != nil {
+				components["redis"] = gin.H{"status": "error", "error": err.Error()}
+			} else {
+				components["redis"] = gin.H{
+					"status":     "connected",
+					"latency_ms": redisHealth.Latency.Milliseconds(),
+					"pool_stats": redisHealth.PoolStats,
+				}
+			}
+		} else {
+			components["redis"] = gin.H{"status": "not_configured"}
+		}
+
+		// Container manager health
+		if containerMgr != nil {
+			components["containers"] = gin.H{"status": "available"}
+		} else {
+			components["containers"] = gin.H{"status": "unavailable"}
+		}
+
+		c.JSON(200, health)
+	})
+
+	// Serve uploaded files (profile photos, backgrounds) - no auth needed
+	router.Static("/uploads", "./uploads")
+
+	// API routes group
+	api := router.Group("/api")
+
+	// If DB isn't available, only expose basic health endpoints.
+	if !dbConnected || pool == nil {
+		api.GET("/status", func(c *gin.Context) {
+			c.JSON(200, gin.H{
+				"status":            "degraded",
+				"database":          "unavailable",
+				"database_required": cfg.DatabaseRequired,
+			})
+		})
+
+		log.Printf("Backend running in degraded mode (no database): only /, /health, /ready, /health/detailed, /api/status, and /uploads are available")
+		// Start server
+		go func() {
+			log.Printf("Server starting on port %s", cfg.ServerPort)
+			if err := router.Run(":" + cfg.ServerPort); err != nil {
+				log.Fatalf("Failed to start server: %v", err)
+			}
+		}()
+
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		<-quit
+		log.Println("Shutting down server...")
+		if containerMonitor != nil {
+			log.Println("Stopping container monitor...")
+			if err := containerMonitor.StopMonitoring(); err != nil {
+				log.Printf("Warning: Error stopping container monitor: %v", err)
+			}
+		}
+		if containerMgr != nil {
+			log.Println("Shutting down container manager...")
+			containerMgr.Shutdown()
+		}
+		database.Close()
+		log.Println("Server stopped")
+		return
+	}
+
+	// Initialize embedding service for RAG (semantic search)
+	var embeddingService *services.EmbeddingService
+	var contextBuilder *services.ContextBuilder
+	var tieredContextService *services.TieredContextService
+	embeddingService = services.NewEmbeddingService(pool, cfg.OllamaLocalURL)
+	if embeddingService.HealthCheck(ctx) {
+		contextBuilder = services.NewContextBuilder(pool, embeddingService)
+		summarizer := services.NewSummarizerService(pool, cfg)
+		tieredContextService = services.NewTieredContextService(pool, embeddingService, summarizer)
+		log.Printf("Embedding service initialized (model=nomic-embed-text, dimensions=768)")
+		log.Printf("Tiered context service enabled (scoped RAG, Level 1/2/3 context)")
+	} else {
+		log.Printf("Warning: Embedding service unavailable (Ollama not running or nomic-embed-text model not pulled)")
+		log.Printf("RAG features will be disabled. Run: ollama pull nomic-embed-text")
+		embeddingService = nil
+	}
+
+	// Initialize notification service with SSE broadcaster
+	sseBroadcaster := services.NewSSEBroadcaster()
+	notificationService := services.NewNotificationService(pool, sseBroadcaster)
+	log.Printf("Notification service initialized (SSE real-time enabled)")
+
+	// Start notification batch worker
+	batchWorker := workers.NewBatchWorker(pool, notificationService.Dispatcher())
+	go batchWorker.Start(ctx)
+	log.Printf("Notification batch worker started (interval: 10s)")
+
+	// Initialize Web Push service (optional - requires VAPID keys)
+	var webPushService *services.WebPushService
+	if cfg.VAPIDPublicKey != "" && cfg.VAPIDPrivateKey != "" {
+		webPushService = services.NewWebPushService(pool, &services.WebPushConfig{
+			VAPIDPublicKey:  cfg.VAPIDPublicKey,
+			VAPIDPrivateKey: cfg.VAPIDPrivateKey,
+			VAPIDContact:    cfg.VAPIDContact,
+		})
+		log.Printf("Web Push service initialized (VAPID keys configured)")
+	} else {
+		log.Printf("Web Push service disabled (VAPID keys not configured)")
+		log.Printf("To enable: Generate keys with `npx web-push generate-vapid-keys` and set VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY")
+	}
+
+	// Initialize Pedro Tasks services (Memory, Context & Intelligence System)
+	var documentProcessor *services.DocumentProcessor
+	var learningService *services.LearningService
+	var memoryService *services.MemoryService
+	var autoLearningTriggers *services.AutoLearningTriggers
+	var appProfilerService *services.AppProfilerService
+	var conversationIntelligence *services.ConversationIntelligenceService
+	var memoryExtractor *services.MemoryExtractorService
+	var blockMapper *services.BlockMapperService
+
+	// Document Processor - requires embedding service for semantic search
+	if embeddingService != nil {
+		documentProcessor = services.NewDocumentProcessor(pool, embeddingService, "./uploads/documents")
+		log.Printf("Document processor initialized (chunking + semantic search)")
+	}
+
+	// Learning Service - always available
+	learningService = services.NewLearningService(pool)
+	log.Printf("Learning service initialized (feedback + personalization)")
+
+	// Memory Service - requires embedding service
+	if embeddingService != nil {
+		memoryService = services.NewMemoryService(pool, embeddingService)
+		log.Printf("Memory service initialized (memory persistence)")
+	}
+
+	// Auto-Learning Triggers - requires learning, memory, and embedding services
+	if learningService != nil && memoryService != nil && embeddingService != nil {
+		autoLearningTriggers = services.NewAutoLearningTriggers(learningService, memoryService, embeddingService)
+		log.Printf("Auto-learning triggers initialized (automatic pattern extraction)")
+	}
+
+	// Prompt Personalizer - requires pool, learning, memory, and embedding services
+	var promptPersonalizer *services.PromptPersonalizer
+	if pool != nil && learningService != nil && memoryService != nil && embeddingService != nil {
+		promptPersonalizer = services.NewPromptPersonalizer(pool, learningService, memoryService, embeddingService)
+		log.Printf("Prompt personalizer initialized (user-specific context injection)")
+	}
+
+	// ============================================================
+	// Day 2: Advanced RAG Services (SORX 2.0)
+	// ============================================================
+
+	// Hybrid Search Service - requires pool and embedding service
+	var hybridSearchService *services.HybridSearchService
+	if pool != nil && embeddingService != nil {
+		hybridSearchService = services.NewHybridSearchService(pool, embeddingService)
+		log.Printf("Hybrid search service initialized (semantic + keyword with RRF)")
+	}
+
+	// Re-Ranker Service - requires pool and embedding service
+	var rerankerService *services.ReRankerService
+	if pool != nil && embeddingService != nil {
+		rerankerService = services.NewReRankerService(pool, embeddingService)
+		log.Printf("Re-ranker service initialized (multi-signal relevance scoring)")
+	}
+
+	// Agentic RAG Service - requires all RAG components
+	var agenticRAGService *services.AgenticRAGService
+	if pool != nil && hybridSearchService != nil && rerankerService != nil && embeddingService != nil && learningService != nil {
+		agenticRAGService = services.NewAgenticRAGService(pool, hybridSearchService, rerankerService, embeddingService, learningService)
+		log.Printf("Agentic RAG service initialized (intelligent adaptive retrieval)")
+	}
+
+	// ============================================================
+	// Day 3: Performance Optimization (Caching + Query Expansion)
+	// ============================================================
+
+	// Embedding Cache Service - dedicated Redis cache for embeddings (new)
+	var embeddingCache *services.EmbeddingCacheService
+	var embeddingCacheAdapter *services.EmbeddingCacheAdapter
+	if redisConnected && redisClient.Client() != nil {
+		embeddingCacheConfig := services.DefaultEmbeddingCacheConfig()
+		embeddingCache = services.NewEmbeddingCacheService(redisClient.Client(), pool, embeddingCacheConfig)
+		embeddingCacheAdapter = services.NewEmbeddingCacheAdapter(embeddingCache)
+
+		if embeddingCache.IsEnabled() {
+			log.Printf("Embedding cache service initialized (24h text, 48h images)")
+
+			// Connect embedding cache to embedding service
+			if embeddingService != nil {
+				embeddingService.SetEmbeddingCache(embeddingCacheAdapter)
+				log.Printf("Embedding service now using dedicated embedding cache")
+			}
+		} else {
+			log.Printf("Embedding cache disabled (Redis unavailable)")
+		}
+	}
+
+	// RAG Cache Service - requires Redis for caching queries and embeddings (legacy)
+	var ragCache *services.RAGCacheService
+	if redisConnected && redisClient.Client() != nil {
+		cacheConfig := services.DefaultRAGCacheConfig()
+		ragCache = services.NewRAGCacheService(redisClient.Client(), cacheConfig)
+		log.Printf("RAG cache service initialized (15min queries, 24hr embeddings - legacy)")
+
+		// Connect legacy cache to embedding service as fallback
+		if embeddingService != nil {
+			embeddingService.SetCache(ragCache)
+			log.Printf("Embedding service legacy cache enabled (fallback)")
+		}
+
+		// Connect cache to agentic RAG service for query result caching
+		if agenticRAGService != nil {
+			agenticRAGService.SetCache(ragCache)
+			log.Printf("Agentic RAG cache enabled")
+		}
+	} else {
+		log.Printf("RAG cache disabled (Redis not available)")
+	}
+
+	// Query Expansion Service - requires no dependencies, optional LLM integration
+	var queryExpansion *services.QueryExpansionService
+	queryExpansion = services.NewQueryExpansionService(nil) // nil = no LLM rewriting (can add later)
+	log.Printf("Query expansion service initialized (60+ synonym mappings)")
+
+	// Connect query expansion to agentic RAG for enhanced retrieval
+	if queryExpansion != nil && agenticRAGService != nil {
+		agenticRAGService.SetQueryExpansion(queryExpansion)
+		log.Printf("Agentic RAG query expansion enabled")
+	}
+
+	// Image Embedding Service for Multi-modal Search (CLIP integration)
+	var imageEmbeddingService *services.ImageEmbeddingService
+	var multiModalSearchService *services.MultiModalSearchService
+
+	// Check for CLIP provider configuration
+	clipProvider := os.Getenv("CLIP_PROVIDER") // "openai", "replicate", "local"
+	if clipProvider == "" {
+		clipProvider = "local" // Default to local if not specified
+	}
+
+	imageEmbedConfig := services.ImageEmbeddingConfig{
+		Provider:     clipProvider,
+		APIKey:       os.Getenv("CLIP_API_KEY"),
+		ModelName:    "clip-vit-base-patch32",
+		Dimensions:   512,
+		LocalBaseURL: os.Getenv("CLIP_LOCAL_URL"), // e.g., "http://localhost:8000"
+	}
+
+	// Only initialize if provider is configured or local server is available
+	if clipProvider == "local" && imageEmbedConfig.LocalBaseURL == "" {
+		log.Printf("Image embedding service disabled (CLIP_LOCAL_URL not set)")
+		log.Printf("To enable: Set CLIP_LOCAL_URL=http://localhost:8000 and run CLIP server")
+	} else if (clipProvider == "openai" || clipProvider == "replicate") && imageEmbedConfig.APIKey == "" {
+		log.Printf("Image embedding service disabled (CLIP_API_KEY not set for %s)", clipProvider)
+	} else {
+		imageEmbeddingService = services.NewImageEmbeddingService(pool, imageEmbedConfig)
+		log.Printf("Image embedding service initialized (provider=%s, model=%s)", clipProvider, imageEmbedConfig.ModelName)
+
+		// Connect embedding cache to image embedding service
+		if embeddingCacheAdapter != nil {
+			imageEmbeddingService.SetEmbeddingCache(embeddingCacheAdapter)
+			log.Printf("Image embedding service cache enabled (48h TTL)")
+		}
+
+		// Multi-modal Search Service - combines text + image search
+		if hybridSearchService != nil && rerankerService != nil && embeddingService != nil {
+			multiModalSearchService = services.NewMultiModalSearchService(
+				pool,
+				hybridSearchService,
+				rerankerService,
+				imageEmbeddingService,
+				embeddingService,
+			)
+			log.Printf("Multi-modal search service initialized (text + image + cross-modal)")
+			log.Printf("Feature 7 (Multi-modal Embeddings) complete: SearchWithImage ready!")
+		}
+	}
+
+	// ============================================================
+
+	// App Profiler Service - always available
+	appProfilerService = services.NewAppProfilerService(pool)
+	log.Printf("App profiler service initialized (codebase analysis)")
+
+	// Conversation Intelligence - requires embedding service
+	if embeddingService != nil {
+		conversationIntelligence = services.NewConversationIntelligenceService(pool, embeddingService)
+		log.Printf("Conversation intelligence initialized (analysis + summarization)")
+	}
+
+	// Memory Extractor - requires embedding service
+	if embeddingService != nil {
+		memoryExtractor = services.NewMemoryExtractorService(pool, embeddingService)
+
+		// Wire LLM service for enhanced memory extraction (using Groq for speed/cost)
+		if cfg.GroqAPIKey != "" {
+			groqLLM := services.NewGroqService(cfg, "llama-3.1-8b-instant") // Fast model for extraction
+			if groqLLM.HealthCheck(ctx) {
+				memoryExtractor.SetLLMService(groqLLM)
+				log.Printf("Memory extractor initialized with LLM-enhanced extraction (Groq llama-3.1-8b-instant)")
+			} else {
+				log.Printf("Memory extractor initialized (regex-only, Groq unavailable)")
+			}
+		} else {
+			log.Printf("Memory extractor initialized (regex-only, no Groq API key)")
+		}
+	}
+
+	// Block Mapper - requires sqlDB wrapper
+	if sqlDB != nil {
+		blockMapper = services.NewBlockMapperService(sqlDB, slog.Default())
+		log.Printf("Block mapper initialized (markdown to structured blocks)")
+	}
+
+	// ============================================================
+	// OSA Integration - AI Agent Orchestration System
+	// ============================================================
+	var osaClient *osa.ResilientClient
+	var osaSyncService *services.OSASyncService
+	var osaFileSyncService *services.OSAFileSyncService
+	var osaWorkspaceInitService *services.OSAWorkspaceInitService
+	var osaWorkflowsHandler *handlers.OSAWorkflowsHandler
+	var osaWebhooksHandler *handlers.OSAWebhooksHandler
+	var osaBuildEventBus *services.BuildEventBus
+	var osaStreamingHandler *handlers.OSAStreamingHandler
+	var osaDeploymentService *services.AppDeploymentService
+	var osaDeploymentHandler *handlers.OSADeploymentHandler
+	var osaOnboardingService *services.OSAOnboardingService
+	var osaOnboardingHandler *handlers.OSAOnboardingHandler
+
+	if cfg.OSAEnabled {
+		// Create resilient OSA client with circuit breaker and fallback
+		osaConfig := &osa.ResilientClientConfig{
+			OSAConfig:            cfg.OSA, // cfg.OSA is already properly configured in config.Load()
+			CircuitBreakerConfig: osa.DefaultCircuitBreakerConfig(),
+			FallbackStrategy:     osa.FallbackStale,
+			CacheTTL:             5 * time.Minute,
+			HealthCheckCacheTTL:  30 * time.Second,
+			QueueSize:            1000,
+			EnableAutoRecovery:   true,
+		}
+
+		client, err := osa.NewResilientClient(osaConfig)
+		if err != nil {
+			log.Printf("Failed to create OSA client: %v", err)
+		} else {
+			osaClient = client
+			log.Printf("✅ OSA client initialized (base_url=%s)", cfg.OSA.BaseURL)
+
+			// Initialize OSA sync service for bidirectional sync
+			syncService, err := services.NewOSASyncService(pool, cfg)
+			if err != nil {
+				log.Printf("Failed to create OSA sync service: %v", err)
+			} else {
+				osaSyncService = syncService
+				log.Printf("✅ OSA sync service initialized (transactional outbox pattern)")
+			}
+
+			// Initialize OSA file sync service for polling generated files
+			osaWorkspacePath := os.Getenv("OSA_WORKSPACE_PATH")
+			if osaWorkspacePath == "" {
+				osaWorkspacePath = "/Users/ososerious/OSA-5/miosa-backend/generated"
+			}
+			osaFileSyncService = services.NewOSAFileSyncService(pool, slog.Default(), osaWorkspacePath)
+
+			// Initialize OSA workspace initialization service for auto-creating user workspaces
+			osaWorkspaceInitService = services.NewOSAWorkspaceInitService(pool, slog.Default())
+
+			// Initialize OSA build event bus for real-time SSE streaming
+			osaBuildEventBus = services.NewBuildEventBus(slog.Default())
+			log.Printf("✅ OSA build event bus initialized")
+
+			// Initialize OSA workflow and webhook handlers
+			osaWorkflowsHandler = handlers.NewOSAWorkflowsHandler(pool, osaFileSyncService)
+			osaWebhooksHandler = handlers.NewOSAWebhooksHandler(pool, cfg.OSA.SharedSecret, osaBuildEventBus)
+			osaStreamingHandler = handlers.NewOSAStreamingHandler(osaBuildEventBus, slog.Default())
+
+			// Note: handlers are set via h.SetOSAFileServices() after h is created
+			log.Printf("✅ OSA file sync service initialized (workspace=%s)", osaWorkspacePath)
+
+			// Start file sync service in background
+			go osaFileSyncService.Start(ctx)
+			log.Printf("✅ OSA file sync service started (polling every 30s)")
+
+			// Initialize OSA deployment service for running apps locally
+			osaWorkspaceRoot := os.Getenv("OSA_DEPLOYMENT_ROOT")
+			if osaWorkspaceRoot == "" {
+				osaWorkspaceRoot = "/tmp/businessos-apps"
+			}
+			osaDeploymentService = services.NewAppDeploymentService(pool, slog.Default(), osaWorkspaceRoot)
+			osaDeploymentHandler = handlers.NewOSADeploymentHandler(osaDeploymentService)
+			log.Printf("✅ OSA deployment service initialized (workspace=%s)", osaWorkspaceRoot)
+
+			// Wire deployment service to file sync for auto-deployment
+			osaFileSyncService.SetDeploymentService(osaDeploymentService)
+			log.Printf("✅ Auto-deployment enabled - new workflows will deploy automatically")
+
+			// Initialize OSA onboarding service (Build Your OS flow)
+			// Get Google provider from integrations registry for Gmail/Calendar analysis
+			var googleProvider *google.Provider
+			if googleIntegration, ok := integrations.Get("google"); ok {
+				if gp, ok := googleIntegration.(*google.Provider); ok {
+					googleProvider = gp
+				}
+			}
+
+			// Initialize onboarding service with non-resilient client (for simpler API)
+			osaSimpleClient, err := osa.NewClient(cfg.OSA)
+			if err != nil {
+				log.Printf("Failed to create OSA simple client: %v", err)
+			} else {
+				osaOnboardingService = services.NewOSAOnboardingService(pool, osaSimpleClient, googleProvider, cfg.AIProvider)
+				osaOnboardingHandler = handlers.NewOSAOnboardingHandler(osaOnboardingService)
+				log.Printf("✅ OSA onboarding service initialized (Build Your OS flow)")
+			}
+		}
+	}
+
+	// Initialize handlers with container manager, session cache, terminal pub/sub, embedding services, OSA, and notification service
+	h := handlers.NewHandlers(pool, cfg, containerMgr, sessionCache, terminalPubSub, embeddingService, contextBuilder, tieredContextService, notificationService, osaClient, osaSyncService)
+
+	// Set optional services
+	if webPushService != nil {
+		h.SetWebPushService(webPushService)
+	}
+
+	// Initialize Email service (Resend)
+	emailService := services.NewEmailService()
+	if emailService.IsEnabled() {
+		h.SetEmailService(emailService)
+		log.Printf("Email service initialized (Resend configured)")
+	} else {
+		log.Printf("Email service disabled (RESEND_API_KEY not set)")
+	}
+
+	// Initialize Comment service
+	queries := sqlc.New(pool)
+	commentService := services.NewCommentService(pool, queries, notificationService)
+	h.SetCommentService(commentService)
+	log.Printf("Comment service initialized (mentions & notifications enabled)")
+
+	// Set Pedro Tasks services (Day 1 + Day 2)
+	h.SetPedroServices(documentProcessor, learningService, autoLearningTriggers, promptPersonalizer, appProfilerService, conversationIntelligence, memoryExtractor, blockMapper)
+	log.Printf("Pedro Tasks services registered (documents, learning, auto-learning, personalizer, profiles, intelligence, blocks)")
+
+	// Set RAG services (Day 2)
+	h.SetRAGServices(hybridSearchService, rerankerService, agenticRAGService, memoryService)
+	log.Printf("RAG services registered (hybrid search, re-ranker, agentic RAG, memory)")
+
+	// Set Multi-modal Search services (Feature 7 - Multi-modal Embeddings)
+	if multiModalSearchService != nil && imageEmbeddingService != nil {
+		h.SetMultiModalServices(multiModalSearchService, imageEmbeddingService)
+		log.Printf("Multi-modal services registered (image embeddings, text+image search)")
+	}
+
+	// Initialize Voice services (3D Desktop - Whisper + ElevenLabs)
+	whisperService := services.NewWhisperService()
+	elevenLabsService := services.NewElevenLabsService()
+	h.SetVoiceServices(whisperService, elevenLabsService)
+	if whisperService.IsAvailable() {
+		log.Printf("Whisper service initialized (local speech-to-text)")
+	} else {
+		log.Printf("Whisper service not fully configured (model/binary not found)")
+	}
+	if elevenLabsService.IsConfigured() {
+		log.Printf("ElevenLabs service initialized (OSA voice enabled)")
+	} else {
+		log.Printf("ElevenLabs service not configured (API key/voice ID not set)")
+	}
+
+	// NOTE: Voice processing moved to Python LiveKit agents (see python-voice-agent/)
+	// LiveKit token generation handled by handlers.HandleLiveKitToken
+	// User context provided by handlers.HandleVoiceUserContext
+	log.Printf("Voice system: Python LiveKit agents (tokens via /api/livekit/token, context via /api/voice/user-context)")
+
+	// Set Workspace service (Feature 1 - Team/Collaboration)
+	workspaceService := services.NewWorkspaceService(pool)
+	h.SetWorkspaceService(workspaceService)
+	log.Printf("Workspace service registered (workspaces, members, roles)")
+
+	// OSA services already set via NewHandlers above
+	if osaClient != nil {
+		log.Printf("✅ OSA integration enabled (API endpoints at /api/osa/*)")
+
+		// Set OSA file sync and workflow services
+		if osaFileSyncService != nil && osaWorkflowsHandler != nil && osaWebhooksHandler != nil {
+			// Note: osaWorkspaceInitService is created earlier in the OSA initialization block
+			h.SetOSAFileServices(osaFileSyncService, osaWorkspaceInitService, osaWorkflowsHandler, osaWebhooksHandler, osaBuildEventBus, osaStreamingHandler)
+			log.Printf("✅ OSA file sync, workflow, and streaming services registered")
+		}
+
+		// Set OSA onboarding handler
+		if osaOnboardingHandler != nil {
+			h.SetOSAOnboardingHandler(osaOnboardingHandler)
+			log.Printf("✅ OSA onboarding handler registered")
+		}
+	}
+
+	// Set Role Context service (Feature 1 - Permission system)
+	roleContextService := services.NewRoleContextService(pool)
+	h.SetRoleContextService(roleContextService)
+	log.Printf("Role context service registered (permission checks, hierarchy)")
+
+	// Set Memory Hierarchy service (Q1 - Workspace Memory Management)
+	memoryHierarchyService := services.NewMemoryHierarchyService(pool)
+	h.SetMemoryHierarchyService(memoryHierarchyService)
+	log.Printf("Memory hierarchy service registered (workspace memories)")
+
+	// Set Workspace Invite service (Feature 1 - Email Invitations)
+	inviteService := services.NewWorkspaceInviteService(pool)
+	h.SetInviteService(inviteService)
+	log.Printf("Workspace invite service registered (email invitations)")
+
+	// Set Workspace Audit service (Feature 1 - Audit Logging)
+	auditService := services.NewWorkspaceAuditService(pool)
+	h.SetAuditService(auditService)
+	log.Printf("Workspace audit service registered (audit logging)")
+
+	// Set Project Access service (Feature 1 - Project-level Access Control)
+	projectAccessService := services.NewProjectAccessService(pool)
+	h.SetProjectAccessService(projectAccessService)
+	log.Printf("Project access service registered (project member management)")
+
+	// Initialize Skills Loader (Agent Skills System)
+	var skillsHandler *handlers.SkillsHandler
+	skillsConfigPath := "./skills/skills.yaml"
+	skillsLoader := services.NewSkillsLoader(skillsConfigPath)
+	if err := skillsLoader.LoadConfig(); err != nil {
+		log.Printf("Warning: Skills loader failed to initialize: %v", err)
+		log.Printf("Agent skills system will be disabled")
+	} else {
+		skillsHandler = handlers.NewSkillsHandler(skillsLoader)
+		h.SetSkillsLoader(skillsLoader)
+		log.Printf("Skills loader initialized (%d skills loaded)", len(skillsLoader.GetEnabledSkills()))
+	}
+
+	// Optional background job: keep conversation_summaries fresh for context + semantic search.
+	if conversationIntelligence != nil && cfg.ConversationSummaryJobEnabled {
+		interval := time.Duration(cfg.ConversationSummaryJobIntervalMinutes) * time.Minute
+		if interval <= 0 {
+			interval = 30 * time.Minute
+		}
+		batchSize := cfg.ConversationSummaryJobBatchSize
+		if batchSize <= 0 {
+			batchSize = 25
+		}
+		maxMessages := cfg.ConversationSummaryJobMaxMessages
+		if maxMessages <= 0 {
+			maxMessages = 200
+		}
+
+		go func() {
+			t := time.NewTicker(interval)
+			defer t.Stop()
+			log.Printf("Conversation summary job enabled (interval=%s batch=%d maxMessages=%d)", interval, batchSize, maxMessages)
+			for {
+				select {
+				case <-t.C:
+					count, err := conversationIntelligence.BackfillStaleSummaries(ctx, batchSize, maxMessages, false)
+					if err != nil {
+						log.Printf("Conversation summary job error: %v", err)
+						continue
+					}
+					if count > 0 {
+						log.Printf("Conversation summary job updated %d conversations", count)
+					}
+				}
+			}
+		}()
+	}
+
+	// Optional background job: detect behavior patterns and store them as user_facts for explicit confirmation.
+	if learningService != nil && cfg.BehaviorPatternsJobEnabled {
+		interval := time.Duration(cfg.BehaviorPatternsJobIntervalMinutes) * time.Minute
+		if interval <= 0 {
+			interval = 60 * time.Minute
+		}
+		batchSize := cfg.BehaviorPatternsJobUserBatchSize
+		if batchSize <= 0 {
+			batchSize = 50
+		}
+
+		go func() {
+			t := time.NewTicker(interval)
+			defer t.Stop()
+			log.Printf("Behavior patterns job enabled (interval=%s userBatch=%d)", interval, batchSize)
+			for {
+				select {
+				case <-t.C:
+					usersProcessed, factsUpserted, err := learningService.BackfillRecentUsersBehaviorPatterns(ctx, batchSize)
+					if err != nil {
+						log.Printf("Behavior patterns job error: %v", err)
+						continue
+					}
+					if usersProcessed > 0 || factsUpserted > 0 {
+						log.Printf("Behavior patterns job processed %d users, upserted %d pattern facts", usersProcessed, factsUpserted)
+					}
+				}
+			}
+		}()
+	}
+
+	// Optional background job: auto-sync application profiles based on git HEAD or filesystem changes.
+	if appProfilerService != nil && cfg.AppProfilerSyncJobEnabled {
+		interval := time.Duration(cfg.AppProfilerSyncJobIntervalMinutes) * time.Minute
+		if interval <= 0 {
+			interval = 10 * time.Minute
+		}
+		batchSize := cfg.AppProfilerSyncJobBatchSize
+		if batchSize <= 0 {
+			batchSize = 5
+		}
+
+		go func() {
+			t := time.NewTicker(interval)
+			defer t.Stop()
+			log.Printf("App profiler auto-sync job enabled (interval=%s batch=%d)", interval, batchSize)
+			for {
+				select {
+				case <-t.C:
+					checked, refreshed, err := appProfilerService.SyncAutoProfiles(ctx, batchSize)
+					if err != nil {
+						log.Printf("App profiler auto-sync job error: %v", err)
+						continue
+					}
+					if checked > 0 || refreshed > 0 {
+						log.Printf("App profiler auto-sync checked %d profiles, refreshed %d", checked, refreshed)
+					}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
+
+	// Initialize Background Jobs System
+	var jobsHandler *handlers.BackgroundJobsHandler
+	var jobWorkers []*services.JobWorker
+	var jobScheduler *services.JobScheduler
+
+	if dbConnected && pool != nil {
+		slog.Info("Initializing background jobs system...")
+
+		// Create handler (includes service and scheduler)
+		jobsHandler = handlers.NewBackgroundJobsHandler(pool)
+
+		// Get service and scheduler instances
+		jobsService := jobsHandler.GetService()
+		jobScheduler = jobsHandler.GetScheduler()
+
+		// Create and configure workers (3 workers)
+		for i := 1; i <= 3; i++ {
+			workerID := fmt.Sprintf("worker-%d", i)
+			worker := services.NewJobWorker(jobsService, workerID, 5*time.Second)
+
+			// Register example job handlers
+			worker.RegisterHandler("email_send", services.ExampleEmailSendHandler)
+			worker.RegisterHandler("report_generate", services.ExampleReportGenerateHandler)
+			worker.RegisterHandler("sync_calendar", services.ExampleSyncCalendarHandler)
+
+			// Register all custom production handlers
+			worker.RegisterHandler("user_onboarding", handlers.UserOnboardingHandler)
+			worker.RegisterHandler("workspace_export", handlers.WorkspaceExportHandler)
+			worker.RegisterHandler("analytics_aggregation", handlers.AnalyticsAggregationHandler)
+			worker.RegisterHandler("notification_batch", handlers.NotificationBatchHandler)
+			worker.RegisterHandler("data_cleanup", handlers.DataCleanupHandler)
+			worker.RegisterHandler("integration_sync", handlers.IntegrationSyncHandler)
+			worker.RegisterHandler("backup", handlers.BackupHandler)
+
+			jobWorkers = append(jobWorkers, worker)
+
+			// Start worker
+			if err := worker.Start(ctx); err != nil {
+				slog.Error("Failed to start worker", "worker_id", workerID, "error", err)
+			} else {
+				slog.Info("Worker started", "worker_id", workerID)
+			}
+		}
+
+		// Start scheduler
+		if err := jobScheduler.Start(ctx); err != nil {
+			slog.Error("Failed to start scheduler", "error", err)
+		} else {
+			slog.Info("Job scheduler started")
+		}
+	}
+
+	// Register routes
+	h.RegisterRoutes(api)
+
+	// Register skills routes (if handler available)
+	if skillsHandler != nil {
+		skillsHandler.RegisterRoutes(api)
+		log.Printf("Skills routes registered (/api/skills)")
+	}
+
+	// Register background jobs routes (if handler available)
+	if jobsHandler != nil {
+		jobsHandler.RegisterRoutes(api)
+		slog.Info("Background jobs routes registered")
+	}
+
+	// Register OSA deployment routes
+	if osaDeploymentHandler != nil {
+		osaDeploymentHandler.RegisterRoutes(api)
+		log.Printf("✅ OSA deployment routes registered (/api/osa/apps/:id/deploy, /stop, /status)")
+	}
+
+	// Register User External Apps routes (Feature 2: Web App Integration)
+	userAppsHandler := handlers.NewUserAppsHandler(queries)
+	api.GET("/user-apps", userAppsHandler.ListUserApps)
+	api.GET("/user-apps/startup", userAppsHandler.GetStartupApps)
+	api.GET("/user-apps/:id", userAppsHandler.GetUserApp)
+	api.POST("/user-apps", userAppsHandler.CreateUserApp)
+	api.PUT("/user-apps/:id", userAppsHandler.UpdateUserApp)
+	api.PUT("/user-apps/:id/position", userAppsHandler.UpdateAppPosition)
+	api.POST("/user-apps/:id/open", userAppsHandler.RecordAppOpened)
+	api.DELETE("/user-apps/:id", userAppsHandler.DeleteUserApp)
+	log.Printf("✅ User external apps routes registered (/api/user-apps/*)")
+
+	// NOTE: System Apps Detection routes (macOS native app scanning) moved to feature/native-app-capture branch
+	// For now, we only support web apps via iframe embedding
+
+	// ============================================================
+	// Voice Agent Routes (LiveKit Python Agent Integration)
+	// ============================================================
+
+	// Voice agent minimal context endpoint
+	log.Printf("✅ Voice agent minimal routes registered")
+	log.Printf("   - User Context: GET /api/voice/user-context/:user_id (already registered)")
+	log.Printf("   - LiveKit Token: POST /api/livekit/token (already registered)")
+
+	// Public OSA health endpoint (no auth required)
+	if osaClient != nil {
+		router.GET("/api/osa/health", h.HandleOSAHealth)
+		log.Printf("✅ Public OSA health endpoint registered at GET /api/osa/health")
+	}
+
+	// Start HTTP server
+	go func() {
+		log.Printf("HTTP server starting on port %s", cfg.ServerPort)
+		if err := router.Run(":" + cfg.ServerPort); err != nil {
+			log.Fatalf("Failed to start HTTP server: %v", err)
+		}
+	}()
+
+	// ============================================================
+	// Start gRPC Voice Server (Go Voice Controller)
+	// ============================================================
+	var voiceServer *grpcserver.VoiceServer
+	grpcPort := 50051 // Default gRPC port for voice service
+	if envPort := os.Getenv("GRPC_VOICE_PORT"); envPort != "" {
+		if port, err := fmt.Sscanf(envPort, "%d", &grpcPort); err == nil && port == 1 {
+			// Successfully parsed custom port
+		}
+	}
+
+	voiceServer = grpcserver.NewVoiceServer(grpcPort, pool, cfg)
+	go func() {
+		log.Printf("🎤 gRPC Voice Server starting on port %d", grpcPort)
+		if err := voiceServer.Start(ctx); err != nil {
+			log.Printf("gRPC Voice Server error: %v", err)
+		}
+	}()
+	log.Printf("✅ gRPC Voice Server initialized (Hybrid Go-First Architecture)")
+
+	// ============================================================
+	// Start Pure Go LiveKit Voice Agent (Direct WebRTC, no Python)
+	// ============================================================
+	pureGoVoiceAgent := livekit.NewPureGoVoiceAgent(
+		pool,
+		cfg,
+		voiceServer.GetVoiceController(),
+	)
+
+	// Start the Pure Go agent
+	go func() {
+		log.Printf("🎙️ Pure Go LiveKit Voice Agent starting")
+		log.Printf("   LiveKit URL: %s", os.Getenv("LIVEKIT_URL"))
+		log.Printf("   Architecture: Direct WebRTC (no Python/gRPC)")
+
+		// The agent runs continuously, listening for LiveKit room events
+		if err := pureGoVoiceAgent.Start(ctx); err != nil {
+			log.Printf("Pure Go Voice Agent error: %v", err)
+		}
+	}()
+	log.Printf("✅ Pure Go Voice Agent initialized")
+	log.Printf("   Benefits: <7ms latency, 40MB/session, 200+ concurrent sessions")
+
+	// Graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down server...")
+
+	// Stop gRPC Voice Server
+	if voiceServer != nil {
+		log.Println("Shutting down gRPC Voice Server...")
+		voiceServer.Shutdown()
+	}
+
+	// Stop batch worker
+	log.Println("Stopping notification batch worker...")
+	batchWorker.Stop()
+
+	// Stop container monitor first (if available)
+	if containerMonitor != nil {
+		log.Println("Stopping container monitor...")
+		if err := containerMonitor.StopMonitoring(); err != nil {
+			log.Printf("Warning: Error stopping container monitor: %v", err)
+		}
+	}
+
+	// Shutdown container manager (if available)
+	if containerMgr != nil {
+		log.Println("Shutting down container manager...")
+		containerMgr.Shutdown()
+	}
+
+	// Stop background jobs system
+	if jobScheduler != nil {
+		log.Println("Stopping job scheduler...")
+		if err := jobScheduler.Stop(); err != nil {
+			log.Printf("Warning: Error stopping scheduler: %v", err)
+		}
+	}
+
+	for i, worker := range jobWorkers {
+		if worker != nil && worker.IsRunning() {
+			log.Printf("Stopping worker %d...", i+1)
+			if err := worker.Stop(); err != nil {
+				log.Printf("Warning: Error stopping worker %d: %v", i+1, err)
+			}
+		}
+	}
+
+	// Release stuck jobs (cleanup)
+	if jobsHandler != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if count, err := jobsHandler.GetService().ReleaseStuckJobs(cleanupCtx); err == nil && count > 0 {
+			log.Printf("Released %d stuck jobs", count)
+		}
+	}
+
+	// Close database connection
+	database.Close()
+	log.Println("Server stopped")
+}
