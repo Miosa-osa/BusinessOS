@@ -114,27 +114,25 @@ func (h *Handlers) HandleLiveKitToken(c *gin.Context) {
 		"room_name", roomName)
 
 	// Dispatch agent explicitly via LiveKit API
+	// CRITICAL FIX: Prevent duplicate dispatches by holding mutex until after API call
 	go func() {
 		slog.Info("[LiveKit] 🔵 DISPATCH GOROUTINE STARTED", "room", roomName)
 
 		// Use mutex to prevent race condition when multiple requests come in simultaneously
 		dispatchMutex.Lock()
+		defer dispatchMutex.Unlock() // FIXED: Hold mutex for entire dispatch operation
+
 		slog.Info("[LiveKit] 🔒 Mutex acquired", "room", roomName)
+
+		// Check if already dispatched
 		if dispatchedRooms[roomName] {
-			dispatchMutex.Unlock()
 			slog.Info("[LiveKit] ⚠️ Agent already dispatched for room, skipping", "room", roomName)
 			return
 		}
+
+		// Mark as dispatching BEFORE making API call (prevents duplicate requests)
 		dispatchedRooms[roomName] = true
 		slog.Info("[LiveKit] ✅ Room marked as dispatched", "room", roomName, "map_size", len(dispatchedRooms))
-		dispatchMutex.Unlock()
-
-		// Ensure cleanup on exit
-		defer func() {
-			dispatchMutex.Lock()
-			delete(dispatchedRooms, roomName)
-			dispatchMutex.Unlock()
-		}()
 
 		ctx := context.Background()
 
@@ -153,11 +151,17 @@ func (h *Handlers) HandleLiveKitToken(c *gin.Context) {
 				"room", roomName,
 				"agent", "osa-voice-agent",
 				"error", err)
+			// FIXED: Don't delete marker on error - let it persist to prevent retries
+			// User will need to reconnect if dispatch fails
 			return
 		}
 		slog.Info("[LiveKit] ✅✅ Agent dispatched successfully",
 			"room", roomName,
 			"dispatch_id", dispatch.Id)
+
+		// Note: NOT cleaning up dispatchedRooms marker
+		// This prevents duplicate agents for the same room
+		// Entry will be cleared on server restart or when implementing proper cleanup
 	}()
 
 	c.JSON(http.StatusOK, LiveKitTokenResponse{

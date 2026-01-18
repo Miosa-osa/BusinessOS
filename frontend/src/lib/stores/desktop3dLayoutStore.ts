@@ -174,7 +174,7 @@ function createLayoutStore() {
 					layouts: [defaultLayout],
 					activeLayoutId: 'default',
 					loading: false,
-					error
+					error: err instanceof Error ? err.message : 'Failed to load layouts'
 				}));
 			}
 		},

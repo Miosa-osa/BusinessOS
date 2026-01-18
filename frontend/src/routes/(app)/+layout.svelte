@@ -6,26 +6,16 @@
 	import { browser } from '$app/environment';
 	import { isElectron as checkElectron, isMacOS } from '$lib/utils/platform';
 	import { desktopSettings } from '$lib/stores/desktopStore';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
 	import { WorkspaceSwitcher } from '$lib/components/workspace';
 	import { loadSavedWorkspace } from '$lib/stores/workspaces';
 	import { notificationStore } from '$lib/stores/notifications';
 	import { initializePush } from '$lib/services/pushService';
-	import { simpleVoice, type VoiceState } from '$lib/services/simpleVoice';
-	import VoiceOrbPanel from '$lib/components/desktop3d/VoiceOrbPanel.svelte';
-	import LiveCaptions from '$lib/components/desktop3d/LiveCaptions.svelte';
 
 	// Projects state for dropdown
 	let projects = $state<Array<{id: string, name: string, status: string}>>([]);
 	let showProjectsDropdown = $state(false);
-
-	// Voice state (only inside BusinessOS app)
-	let voiceState = $state<VoiceState>('disconnected');
-	let isListening = $state(false);
-	let isSpeaking = $state(false);
-	let userMessage = $state('');
-	let osaMessage = $state('');
 
 	// Load projects for sidebar dropdown
 	async function loadProjects() {
@@ -49,46 +39,7 @@
 		// Initialize notifications (SSE + Push)
 		notificationStore.initialize();
 		initializePush();
-
-		// Initialize voice (only in BusinessOS app, not on loading/login screens)
-		simpleVoice.setStateCallback((state: VoiceState) => {
-			voiceState = state;
-			isListening = state === 'connected' || state === 'speaking';
-			isSpeaking = state === 'speaking';
-		});
-
-		simpleVoice.setUserCallback((text: string) => {
-			userMessage = text;
-			setTimeout(() => {
-				if (userMessage === text) userMessage = '';
-			}, 5000);
-		});
-
-		simpleVoice.setAgentCallback((text: string) => {
-			osaMessage = text;
-			setTimeout(() => {
-				if (osaMessage === text) osaMessage = '';
-			}, 8000);
-		});
-
-		console.log('[App Layout] Voice system initialized - works in BusinessOS app only');
 	});
-
-	// Cleanup
-	onDestroy(() => {
-		if (voiceState !== 'disconnected') {
-			simpleVoice.disconnect();
-		}
-	});
-
-	// Toggle voice
-	async function toggleVoice() {
-		if (voiceState === 'disconnected') {
-			await simpleVoice.connect();
-		} else {
-			await simpleVoice.disconnect();
-		}
-	}
 
 	const APP_VERSION = '0.0.1';
 
@@ -413,11 +364,5 @@
 			{/if}
 		</main>
 	</div>
-
-	<!-- Voice Orb (only in BusinessOS app, not on loading/login screens) -->
-	<VoiceOrbPanel {isListening} {isSpeaking} onToggleListening={toggleVoice} />
-
-	<!-- Live Captions (only in BusinessOS app, not on loading/login screens) -->
-	<LiveCaptions {userMessage} {osaMessage} {isListening} {isSpeaking} />
 	{/if}
 {/if}
