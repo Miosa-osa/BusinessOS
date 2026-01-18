@@ -60,14 +60,15 @@ type Handlers struct {
 	// Agent Skills System
 	skillsLoader *services.SkillsLoader // Skills loader for agent prompts
 	// OSA Integration - AI Agent Orchestration
-	osaClient           *osa.ResilientClient              // OSA resilient client with circuit breaker
-	osaSyncService      *services.OSASyncService          // OSA sync service for bidirectional sync
-	osaFileSyncService  *services.OSAFileSyncService      // OSA file polling service
-	osaWorkspaceInit    *services.OSAWorkspaceInitService // OSA workspace initialization service
-	osaWorkflowsHandler *OSAWorkflowsHandler              // OSA workflows handler
-	osaWebhooksHandler  *OSAWebhooksHandler               // OSA webhooks handler
-	osaBuildEventBus    *services.BuildEventBus           // OSA build event bus for real-time streaming
-	osaStreamingHandler *OSAStreamingHandler              // OSA SSE streaming handler
+	osaClient            *osa.ResilientClient              // OSA resilient client with circuit breaker
+	osaSyncService       *services.OSASyncService          // OSA sync service for bidirectional sync
+	osaFileSyncService   *services.OSAFileSyncService      // OSA file polling service
+	osaWorkspaceInit     *services.OSAWorkspaceInitService // OSA workspace initialization service
+	osaWorkflowsHandler  *OSAWorkflowsHandler              // OSA workflows handler
+	osaWebhooksHandler   *OSAWebhooksHandler               // OSA webhooks handler
+	osaBuildEventBus     *services.BuildEventBus           // OSA build event bus for real-time streaming
+	osaStreamingHandler  *OSAStreamingHandler              // OSA SSE streaming handler
+	osaOnboardingHandler *OSAOnboardingHandler             // OSA onboarding handler (Build Your OS flow)
 }
 
 // NewHandlers creates a new Handlers instance

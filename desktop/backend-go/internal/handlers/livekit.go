@@ -1,23 +1,16 @@
 package handlers
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/livekit/protocol/auth"
-	"github.com/livekit/protocol/livekit"
-	lksdk "github.com/livekit/server-sdk-go/v2"
 )
 
-var (
-	dispatchMutex   sync.Mutex
-	dispatchedRooms = make(map[string]bool)
-)
+// Removed: Agent dispatch logic (handled by Python agent in dev mode)
 
 // LiveKitTokenRequest represents a request for a LiveKit room token
 type LiveKitTokenRequest struct {
@@ -113,56 +106,9 @@ func (h *Handlers) HandleLiveKitToken(c *gin.Context) {
 		"user_id", user.ID,
 		"room_name", roomName)
 
-	// Dispatch agent explicitly via LiveKit API
-	// CRITICAL FIX: Prevent duplicate dispatches by holding mutex until after API call
-	go func() {
-		slog.Info("[LiveKit] 🔵 DISPATCH GOROUTINE STARTED", "room", roomName)
-
-		// Use mutex to prevent race condition when multiple requests come in simultaneously
-		dispatchMutex.Lock()
-		defer dispatchMutex.Unlock() // FIXED: Hold mutex for entire dispatch operation
-
-		slog.Info("[LiveKit] 🔒 Mutex acquired", "room", roomName)
-
-		// Check if already dispatched
-		if dispatchedRooms[roomName] {
-			slog.Info("[LiveKit] ⚠️ Agent already dispatched for room, skipping", "room", roomName)
-			return
-		}
-
-		// Mark as dispatching BEFORE making API call (prevents duplicate requests)
-		dispatchedRooms[roomName] = true
-		slog.Info("[LiveKit] ✅ Room marked as dispatched", "room", roomName, "map_size", len(dispatchedRooms))
-
-		ctx := context.Background()
-
-		// NOTE: NOT creating room explicitly - LiveKit will auto-create when user joins
-		// This prevents triggering auto-dispatch rules that might be configured in LiveKit Cloud
-
-		// Dispatch the voice agent to the room
-		slog.Info("[LiveKit] 🚀 About to call CreateDispatch", "room", roomName, "agent_name", "osa-voice-agent")
-		agentClient := lksdk.NewAgentDispatchServiceClient(livekitURL, apiKey, apiSecret)
-		dispatch, err := agentClient.CreateDispatch(ctx, &livekit.CreateAgentDispatchRequest{
-			AgentName: "osa-voice-agent",
-			Room:      roomName,
-		})
-		if err != nil {
-			slog.Error("[LiveKit] ❌ Failed to dispatch agent",
-				"room", roomName,
-				"agent", "osa-voice-agent",
-				"error", err)
-			// FIXED: Don't delete marker on error - let it persist to prevent retries
-			// User will need to reconnect if dispatch fails
-			return
-		}
-		slog.Info("[LiveKit] ✅✅ Agent dispatched successfully",
-			"room", roomName,
-			"dispatch_id", dispatch.Id)
-
-		// Note: NOT cleaning up dispatchedRooms marker
-		// This prevents duplicate agents for the same room
-		// Entry will be cleared on server restart or when implementing proper cleanup
-	}()
+	// DISABLED: Agent dispatch (Python agent handles this via dev mode)
+	// The Python agent running in dev mode will automatically connect when room is created
+	slog.Info("[LiveKit] 🔵 Skipping explicit agent dispatch - Python agent will auto-connect", "room", roomName)
 
 	c.JSON(http.StatusOK, LiveKitTokenResponse{
 		Token:    token,

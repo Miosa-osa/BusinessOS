@@ -21,6 +21,8 @@ import (
 	"github.com/rhl/businessos-backend/internal/database"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/handlers"
+	"github.com/rhl/businessos-backend/internal/integrations"
+	"github.com/rhl/businessos-backend/internal/integrations/google"
 	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	redisClient "github.com/rhl/businessos-backend/internal/redis"
@@ -576,6 +578,8 @@ func main() {
 	var osaStreamingHandler *handlers.OSAStreamingHandler
 	var osaDeploymentService *services.AppDeploymentService
 	var osaDeploymentHandler *handlers.OSADeploymentHandler
+	var osaOnboardingService *services.OSAOnboardingService
+	var osaOnboardingHandler *handlers.OSAOnboardingHandler
 
 	if cfg.OSAEnabled {
 		// Create resilient OSA client with circuit breaker and fallback
@@ -643,6 +647,24 @@ func main() {
 			// Wire deployment service to file sync for auto-deployment
 			osaFileSyncService.SetDeploymentService(osaDeploymentService)
 			log.Printf("✅ Auto-deployment enabled - new workflows will deploy automatically")
+
+			// Initialize OSA onboarding service (Build Your OS flow)
+			// Get Google provider from integrations registry for Gmail/Calendar analysis
+			var googleProvider *google.Provider
+			if googleIntegration, ok := integrations.Get("google"); ok {
+				if gp, ok := googleIntegration.(*google.Provider); ok {
+					googleProvider = gp
+				}
+			}
+
+			// Initialize onboarding service with non-resilient client (for simpler API)
+			osaSimpleClient := &osa.Client{
+				BaseURL:      cfg.OSA.BaseURL,
+				SharedSecret: cfg.OSA.SharedSecret,
+			}
+			osaOnboardingService = services.NewOSAOnboardingService(pool, osaSimpleClient, googleProvider, cfg.AIProvider)
+			osaOnboardingHandler = handlers.NewOSAOnboardingHandler(osaOnboardingService)
+			log.Printf("✅ OSA onboarding service initialized (Build Your OS flow)")
 		}
 	}
 

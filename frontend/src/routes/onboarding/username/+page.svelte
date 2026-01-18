@@ -50,8 +50,7 @@
 
 		onboardingStore.setUserData({ username });
 		onboardingStore.nextStep();
-		// TODO: Next screen will be analysis/generating apps
-		goto('/window'); // Temporary - goes to main app
+		goto('/onboarding/analyzing');
 	}
 
 	function handleBack() {

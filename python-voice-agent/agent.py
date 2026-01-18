@@ -63,9 +63,9 @@ async def entrypoint(ctx: JobContext):
         tts=elevenlabs.TTS(
             api_key=os.getenv("ELEVENLABS_API_KEY"),
             voice_id=os.getenv("ELEVENLABS_VOICE_ID", "KoVIHoyLDrQyd4pGalbs"),
-            model=os.getenv("ELEVENLABS_MODEL", "eleven_flash_v2_5"),
+            model=os.getenv("ELEVENLABS_MODEL", "eleven_turbo_v2_5"),
         ),
-        allow_interruptions=True,
+        allow_interruptions=False,  # Disabled: prevents audio cutoffs
     )
 
     # Helper to send transcripts to frontend
@@ -152,5 +152,6 @@ if __name__ == "__main__":
     cli.run_app(WorkerOptions(
         entrypoint_fnc=entrypoint,
         prewarm_fnc=prewarm_process,
-        num_idle_processes=0  # No pre-spawned processes in dev mode
+        num_idle_processes=0,  # No pre-spawned processes in dev mode
+        agent_name="osa-voice-agent"  # Required: Prevents duplicate agents
     ))
