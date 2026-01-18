@@ -11,14 +11,10 @@
 	import { openAppRegistry } from '$lib/stores/appRegistryStore';
 	// import PermissionPrompt from './PermissionPrompt.svelte'; // DISABLED: Permissions now requested lazily when features enabled
 	import LayoutManager from './LayoutManager.svelte';
-	import LiveCaptions from './LiveCaptions.svelte';
-	// Phase 0: Voice Agent Redesign - Replace cloud with silver orb
-	import VoiceOrbPanel from './VoiceOrbPanel.svelte';
+	// Voice is now GLOBAL - managed in +layout.svelte, not Desktop3D!
 	import { SimpleGestureController } from '$lib/services/simpleGestureController';
 	import * as THREE from 'three';
 	import { desktop3dLayoutStore } from '$lib/stores/desktop3dLayoutStore';
-	// Simple voice service - clean and minimal
-	import { simpleVoice, type VoiceState } from '$lib/services/simpleVoice';
 	import { useSession } from '$lib/auth-client';
 
 	// STUBS: Old voice services removed - LiveKit handles everything now
@@ -51,23 +47,11 @@
 
 	const session = useSession();
 
-	// Voice command state
-	let isListening = $state(false);
+	// Voice is now GLOBAL - no local state needed!
 	let currentTranscript = $state('');
 	let lastCommand = $state<VoiceCommand | null>(null);
-	let isSpeaking = $state(false);
 	let lastRequestTime = 0;
 	const REQUEST_COOLDOWN = 1000; // 1 second cooldown between requests
-
-	// Simple voice state
-	let voiceState = $state<VoiceState>('disconnected');
-
-	// Voice Agent state (alternative: backend AI processing with commands)
-	// REMOVED: voiceAgent system - LiveKit is the only voice system now
-
-	// Conversation display (from LiveKit transcripts)
-	let userMessage = $state('');
-	let osaMessage = $state('');
 
 	// Layout manager state
 	let showLayoutManager = $state(false);
@@ -162,27 +146,8 @@
 			}
 		}, 2000);
 
-		// Setup simple voice callbacks
-		simpleVoice.setStateCallback((state: VoiceState) => {
-			console.log('[Desktop3D] Voice state:', state);
-			voiceState = state;
-			isListening = state === 'connected' || state === 'speaking';
-			isSpeaking = state === 'speaking';
-		});
-
-		simpleVoice.setUserCallback((text: string) => {
-			// Don't log here - simpleVoice.ts already logs
-			userMessage = text;
-			currentTranscript = text;
-		});
-
-		simpleVoice.setAgentCallback((text: string) => {
-			// Don't log here - simpleVoice.ts already logs
-			osaMessage = text;
-		});
-
-		// Voice is handled by LiveKit only
-		console.log('[Desktop3D] Voice system: LiveKit only');
+		// Voice is now GLOBAL - no callbacks needed here
+		console.log('[Desktop3D] Voice managed globally by +layout.svelte');
 
 		// Setup voice command event listeners for SSE integration
 		handleVoiceOpenApp = ((event: CustomEvent) => {
@@ -335,21 +300,7 @@
 	}
 
 	// Voice command functions
-	async function toggleVoiceCommands() {
-		if (voiceState !== 'disconnected') {
-			// Disconnect
-			console.log('[Desktop3D] 🎤 Disconnecting...');
-			await simpleVoice.disconnect();
-			isListening = false;
-			currentTranscript = '';
-			console.log('[Desktop3D] ✅ Disconnected');
-		} else {
-			// Connect
-			console.log('[Desktop3D] 🎤 Connecting...');
-			await simpleVoice.connect();
-			console.log('[Desktop3D] ✅ Connected - speak naturally!');
-		}
-	}
+	// Voice toggle removed - handled globally by +layout.svelte
 
 	/**
 	 * Execute a command from the Voice Agent backend
@@ -1190,13 +1141,7 @@
 		}
 	}
 
-	// Cleanup voice commands on unmount
-	onDestroy(() => {
-		// Cleanup voice if connected
-		if (voiceState !== 'disconnected') {
-			simpleVoice.disconnect();
-		}
-	});
+	// Voice cleanup removed - handled globally by +layout.svelte
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -1288,11 +1233,7 @@
 
 	<!-- App Registry Modal is now rendered by MenuBar using global store -->
 
-	<!-- Live Captions (voice command feedback) -->
-	<LiveCaptions {userMessage} {osaMessage} command={lastCommand} {isListening} {isSpeaking} />
-
-	<!-- Voice Orb Panel (Phase 0: Silver orb branding) -->
-	<VoiceOrbPanel {isListening} {isSpeaking} onToggleListening={toggleVoiceCommands} />
+	<!-- Voice Orb + Captions are now GLOBAL - rendered in +layout.svelte -->
 
 	<!-- Hidden video element for gesture camera (MediaPipe) -->
 	<!-- svelte-ignore a11y-media-has-caption -->

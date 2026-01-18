@@ -24,4 +24,5 @@
 	<meta name="description" content="Your internal command center" />
 </svelte:head>
 
+<!-- Page content -->
 {@render children()}
