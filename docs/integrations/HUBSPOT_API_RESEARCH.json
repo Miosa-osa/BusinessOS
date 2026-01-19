@@ -1,0 +1,1017 @@
+{
+  "document": {
+    "title": "HubSpot API Complete Data Reference for BusinessOS Integration",
+    "date": "2026-01-05",
+    "version": "1.0",
+    "purpose": "Comprehensive research of all HubSpot API data available for business operating system integration"
+  },
+  "api_overview": {
+    "base_url": "https://api.hubapi.com",
+    "current_version": "v3/v4",
+    "documentation": "https://developers.hubspot.com/docs",
+    "python_client": "https://github.com/HubSpot/hubspot-api-python"
+  },
+  "authentication": {
+    "methods": [
+      "Private Apps (OAuth)",
+      "API Keys",
+      "Personal Access Tokens"
+    ],
+    "required_scopes_crm": [
+      "crm.objects.contacts.read",
+      "crm.objects.contacts.write",
+      "crm.objects.companies.read",
+      "crm.objects.companies.write",
+      "crm.objects.deals.read",
+      "crm.objects.deals.write",
+      "crm.objects.tasks.read",
+      "crm.objects.tasks.write",
+      "crm.objects.notes.read",
+      "crm.objects.notes.write",
+      "crm.objects.meetings.read",
+      "crm.objects.meetings.write",
+      "crm.objects.emails.read",
+      "crm.objects.emails.write",
+      "crm.objects.calls.read",
+      "crm.objects.calls.write",
+      "crm.lists.read",
+      "crm.lists.write"
+    ],
+    "authentication_guide": "https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/overview"
+  },
+  "rate_limits": {
+    "description": "Varies by subscription tier and app type",
+    "burst_limit_header": "X-HubSpot-RateLimit-Secondly",
+    "error_on_exceeded": "HTTP 429 Too Many Requests",
+    "limits_by_app_type": {
+      "private_apps": {
+        "free_starter": {
+          "requests_per_10_seconds": 100,
+          "daily_limit": 250000,
+          "reset": "midnight (timezone-based)"
+        },
+        "professional": {
+          "requests_per_10_seconds": 190,
+          "daily_limit": 650000,
+          "reset": "midnight (timezone-based)"
+        },
+        "enterprise": {
+          "requests_per_10_seconds": 190,
+          "daily_limit": 1000000,
+          "reset": "midnight (timezone-based)"
+        },
+        "with_api_limit_increase_pack": {
+          "requests_per_10_seconds": 250,
+          "daily_limit": 1000000,
+          "reset": "midnight (timezone-based)"
+        }
+      },
+      "public_oauth_apps": {
+        "requests_per_10_seconds": 110,
+        "note": "Excluding CRM Search API"
+      },
+      "search_api": {
+        "requests_per_second": 5,
+        "max_records_per_page": 200
+      },
+      "error_rate_requirement": {
+        "max_error_rate_percent": 5,
+        "note": "For HubSpot App Marketplace certification"
+      }
+    },
+    "best_practices": [
+      "Cache frequently accessed data (properties, owners, settings)",
+      "Use batch endpoints to consolidate multiple operations",
+      "Leverage webhooks for reactive updates (don't count toward rate limit in Enterprise)",
+      "Monitor API usage via Development > Monitoring > API call usage dashboard",
+      "Use webhooks triggered via workflows to avoid rate limits"
+    ],
+    "usage_guidelines": "https://developers.hubspot.com/docs/developer-tooling/platform/usage-guidelines"
+  },
+  "objects": {
+    "contacts": {
+      "description": "Individual people in the CRM",
+      "endpoint": "/crm/v3/objects/contacts",
+      "properties_endpoint": "/crm/v3/properties/0-1",
+      "get_all_properties": {
+        "method": "GET",
+        "description": "Make GET request to /crm/v3/properties/0-1 to view all contact properties in your account"
+      },
+      "primary_identifier": "email",
+      "standard_properties": {
+        "identifiers": [
+          {
+            "name": "email",
+            "type": "string",
+            "required_for_creation": true,
+            "description": "Primary unique identifier; recommended to always include to avoid duplicates"
+          },
+          {
+            "name": "firstname",
+            "type": "string"
+          },
+          {
+            "name": "lastname",
+            "type": "string"
+          }
+        ],
+        "contact_info": [
+          {
+            "name": "phone",
+            "type": "phone"
+          },
+          {
+            "name": "mobilephone",
+            "type": "phone"
+          },
+          {
+            "name": "fax",
+            "type": "phone"
+          },
+          {
+            "name": "hs_additional_emails",
+            "type": "string",
+            "description": "Additional email addresses beyond primary"
+          }
+        ],
+        "professional_info": [
+          {
+            "name": "jobtitle",
+            "type": "string"
+          },
+          {
+            "name": "company",
+            "type": "string",
+            "description": "Contact's company name (separate from associated company record)"
+          },
+          {
+            "name": "industry",
+            "type": "string"
+          }
+        ],
+        "location": [
+          {
+            "name": "address",
+            "type": "text"
+          },
+          {
+            "name": "city",
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "type": "string"
+          },
+          {
+            "name": "country",
+            "type": "string"
+          },
+          {
+            "name": "country_code",
+            "type": "string",
+            "description": "Two-letter country code (e.g., US)"
+          },
+          {
+            "name": "zip",
+            "type": "string"
+          }
+        ],
+        "system_properties": [
+          {
+            "name": "lifecyclestage",
+            "type": "enum",
+            "values": [
+              "subscriber",
+              "lead",
+              "marketingqualifiedlead",
+              "salesqualifiedlead",
+              "opportunity",
+              "customer",
+              "evangelist"
+            ]
+          },
+          {
+            "name": "hs_timezone",
+            "type": "enum",
+            "description": "Time zone enumeration"
+          },
+          {
+            "name": "hubspot_owner_id",
+            "type": "string",
+            "description": "ID of the assigned contact owner"
+          },
+          {
+            "name": "createdate",
+            "type": "datetime",
+            "read_only": true
+          },
+          {
+            "name": "hs_object_id",
+            "type": "string",
+            "read_only": true
+          }
+        ]
+      },
+      "custom_properties": {
+        "description": "Unlimited custom properties can be created",
+        "field_types": [
+          "text",
+          "number",
+          "email",
+          "phone",
+          "date",
+          "datetime",
+          "multi-line text",
+          "single select dropdown",
+          "multi-select dropdown",
+          "checkbox",
+          "rich text",
+          "user"
+        ],
+        "character_limits": {
+          "text_via_api": "unlimited (65,536 when via form)",
+          "multi_line_text_via_api": "unlimited (65,536 when via form)"
+        },
+        "create_via_api": true,
+        "properties_endpoint": "/crm/v3/properties/contacts"
+      },
+      "lists_and_segments": {
+        "description": "Contact lists and segmentation",
+        "endpoint": "/crm/v3/lists",
+        "capabilities": [
+          "Create static lists",
+          "Create dynamic lists based on criteria",
+          "Export contact lists"
+        ],
+        "scopes_required": [
+          "crm.lists.read",
+          "crm.lists.write"
+        ]
+      },
+      "associations": {
+        "description": "Contacts can be associated with",
+        "types": [
+          "Companies",
+          "Deals",
+          "Tasks",
+          "Notes",
+          "Meetings",
+          "Emails",
+          "Calls"
+        ],
+        "association_type_ids": {
+          "note": "Use custom association types or default types from associations API"
+        }
+      },
+      "scopes_required": [
+        "crm.objects.contacts.read",
+        "crm.objects.contacts.write"
+      ],
+      "documentation": "https://developers.hubspot.com/docs/api/crm/contacts"
+    },
+    "companies": {
+      "description": "Business entities",
+      "endpoint": "/crm/v3/objects/companies",
+      "properties_endpoint": "/crm/v3/properties/companies",
+      "get_all_properties": {
+        "method": "GET",
+        "description": "Make GET request to /crm/v3/properties/companies to view all company properties"
+      },
+      "standard_properties": {
+        "identifiers": [
+          {
+            "name": "name",
+            "type": "string",
+            "required_for_creation": true,
+            "description": "Company name (at least one of name or domain required)"
+          },
+          {
+            "name": "domain",
+            "type": "string",
+            "required_for_creation": true,
+            "description": "Company website domain (at least one of name or domain required)"
+          },
+          {
+            "name": "hs_additional_domains",
+            "type": "string",
+            "description": "Multiple domain names separated by semicolons"
+          }
+        ],
+        "company_info": [
+          {
+            "name": "industry",
+            "type": "string"
+          },
+          {
+            "name": "phone",
+            "type": "phone"
+          },
+          {
+            "name": "city",
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "type": "string"
+          },
+          {
+            "name": "country",
+            "type": "string"
+          }
+        ],
+        "system_properties": [
+          {
+            "name": "lifecyclestage",
+            "type": "enum",
+            "description": "Company lifecycle stage"
+          },
+          {
+            "name": "hubspot_owner_id",
+            "type": "string"
+          },
+          {
+            "name": "hs_pinned_engagement_id",
+            "type": "string",
+            "description": "Pin activities to company records"
+          },
+          {
+            "name": "createdate",
+            "type": "datetime",
+            "read_only": true
+          }
+        ]
+      },
+      "custom_properties": {
+        "description": "Unlimited custom properties supported",
+        "create_via_api": true
+      },
+      "associations": {
+        "description": "Companies can be associated with",
+        "types": [
+          "Contacts",
+          "Deals",
+          "Activities (meetings, notes, emails)"
+        ],
+        "association_type_ids": {
+          "note": "Use associationTypeId in requests; retrieve custom types via associations API"
+        }
+      },
+      "scopes_required": [
+        "crm.objects.companies.read",
+        "crm.objects.companies.write"
+      ],
+      "documentation": "https://developers.hubspot.com/docs/api/crm/companies"
+    },
+    "deals": {
+      "description": "Sales opportunities and deals",
+      "endpoint": "/crm/v3/objects/deals",
+      "properties_endpoint": "/crm/v3/properties/deals",
+      "standard_properties": {
+        "identifiers": [
+          {
+            "name": "dealname",
+            "type": "string",
+            "required_for_creation": true,
+            "description": "The deal's name"
+          }
+        ],
+        "deal_details": [
+          {
+            "name": "dealstage",
+            "type": "enum",
+            "required_for_creation": true,
+            "description": "Current pipeline stage (must use internal ID, e.g., 'contractsent')"
+          },
+          {
+            "name": "pipeline",
+            "type": "string",
+            "required_for_creation": true,
+            "description": "Which pipeline the deal belongs to"
+          },
+          {
+            "name": "amount",
+            "type": "number",
+            "description": "Deal value"
+          },
+          {
+            "name": "closedate",
+            "type": "datetime",
+            "description": "Expected closing date"
+          }
+        ],
+        "system_properties": [
+          {
+            "name": "hubspot_owner_id",
+            "type": "string",
+            "required_for_creation": true
+          },
+          {
+            "name": "hs_all_collaborator_owner_ids",
+            "type": "array",
+            "description": "Multiple collaborators/owners"
+          },
+          {
+            "name": "hs_pinned_engagement_id",
+            "type": "string",
+            "description": "Pinned activity on the record"
+          },
+          {
+            "name": "createdate",
+            "type": "datetime",
+            "read_only": true
+          }
+        ]
+      },
+      "pipeline_stages": {
+        "description": "Deals use configurable pipelines with stages",
+        "note": "Must use internal ID of stage when creating deals via API",
+        "example": "contractsent",
+        "how_to_find": "Check deal pipeline settings in account"
+      },
+      "custom_properties": {
+        "description": "Unlimited custom properties supported",
+        "create_via_api": true
+      },
+      "associations": {
+        "description": "Deals can be associated with",
+        "types": [
+          {
+            "type": "Contacts",
+            "association_type_id": 5
+          },
+          {
+            "type": "Companies",
+            "association_type_id": 3
+          },
+          {
+            "type": "Activities",
+            "association_type_id": 213
+          }
+        ]
+      },
+      "scopes_required": [
+        "crm.objects.deals.read",
+        "crm.objects.deals.write"
+      ],
+      "documentation": "https://developers.hubspot.com/docs/api/crm/deals"
+    },
+    "tasks": {
+      "description": "Scheduled activities and to-do items",
+      "endpoint": "/crm/v3/objects/tasks",
+      "engagement_type": "ACTIVITY",
+      "standard_properties": {
+        "core_fields": [
+          {
+            "name": "hs_timestamp",
+            "type": "datetime",
+            "required": true,
+            "format": "Unix milliseconds or UTC",
+            "description": "Task's due date/time"
+          },
+          {
+            "name": "hs_task_subject",
+            "type": "string",
+            "description": "Title of the task"
+          },
+          {
+            "name": "hs_task_body",
+            "type": "text",
+            "max_characters": 65536,
+            "description": "Task notes/description"
+          },
+          {
+            "name": "hs_task_status",
+            "type": "enum",
+            "values": [
+              "COMPLETED",
+              "NOT_STARTED"
+            ]
+          },
+          {
+            "name": "hs_task_priority",
+            "type": "enum",
+            "values": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ]
+          },
+          {
+            "name": "hs_task_type",
+            "type": "enum",
+            "values": [
+              "EMAIL",
+              "CALL",
+              "TODO"
+            ]
+          },
+          {
+            "name": "hs_task_reminders",
+            "type": "datetime",
+            "format": "Unix milliseconds",
+            "description": "Reminder notification timestamp"
+          },
+          {
+            "name": "hubspot_owner_id",
+            "type": "string",
+            "description": "User assigned to task"
+          },
+          {
+            "name": "hs_pinned_engagement_id",
+            "type": "string",
+            "description": "Pin task on a record"
+          }
+        ]
+      },
+      "batch_operations": {
+        "description": "Supports batch create, read, and update",
+        "available": true
+      },
+      "associations": {
+        "description": "Tasks can be associated with contacts, companies, deals"
+      },
+      "scopes_required": [
+        "crm.objects.tasks.read",
+        "crm.objects.tasks.write"
+      ],
+      "documentation": "https://developers.hubspot.com/docs/api/crm/tasks"
+    },
+    "notes": {
+      "description": "Text notes/comments on records",
+      "endpoint": "/crm/v3/objects/notes",
+      "engagement_type": "ACTIVITY",
+      "standard_properties": {
+        "core_fields": [
+          {
+            "name": "hs_timestamp",
+            "type": "datetime",
+            "required": true,
+            "format": "Unix milliseconds or UTC",
+            "description": "Note creation time; determines timeline position"
+          },
+          {
+            "name": "hs_note_body",
+            "type": "text",
+            "max_characters": 65536,
+            "description": "Note text content"
+          },
+          {
+            "name": "hubspot_owner_id",
+            "type": "string",
+            "description": "ID of note creator (determines who's listed on timeline)"
+          },
+          {
+            "name": "hs_attachment_ids",
+            "type": "string",
+            "description": "Attachment IDs separated by semicolons"
+          },
+          {
+            "name": "hs_pinned_engagement_id",
+            "type": "string",
+            "description": "Pin note on record timeline (must be associated first)"
+          }
+        ]
+      },
+      "file_attachments": {
+        "description": "Notes can include file attachments",
+        "workflow": "Upload file first to get fileId, then reference in hs_attachment_ids"
+      },
+      "associations": {
+        "description": "Notes can be associated with contacts, companies, deals"
+      },
+      "scopes_required": [
+        "crm.objects.notes.read",
+        "crm.objects.notes.write"
+      ],
+      "documentation": "https://developers.hubspot.com/docs/guides/api/crm/engagements/notes"
+    },
+    "meetings": {
+      "description": "Scheduled meetings and events",
+      "endpoint": "/crm/v3/objects/meetings",
+      "engagement_type": "ACTIVITY",
+      "standard_properties": {
+        "core_fields": [
+          {
+            "name": "hs_timestamp",
+            "type": "datetime",
+            "required": true,
+            "description": "Date/time meeting occurred"
+          },
+          {
+            "name": "hs_meeting_title",
+            "type": "string",
+            "description": "Meeting name"
+          },
+          {
+            "name": "hs_meeting_body",
+            "type": "text",
+            "description": "Meeting description"
+          },
+          {
+            "name": "hs_internal_meeting_notes",
+            "type": "text",
+            "description": "Internal notes (not shared with attendees)"
+          },
+          {
+            "name": "hs_meeting_start_time",
+            "type": "datetime",
+            "description": "Meeting start date/time"
+          },
+          {
+            "name": "hs_meeting_end_time",
+            "type": "datetime",
+            "description": "Meeting end date/time"
+          },
+          {
+            "name": "hs_meeting_location",
+            "type": "text",
+            "description": "Physical address, room, or video conference link"
+          },
+          {
+            "name": "hs_meeting_external_url",
+            "type": "url",
+            "description": "Calendar event link (Google Calendar, Outlook, etc.)"
+          },
+          {
+            "name": "hs_meeting_outcome",
+            "type": "enum",
+            "values": [
+              "scheduled",
+              "completed",
+              "rescheduled",
+              "no_show",
+              "canceled"
+            ]
+          },
+          {
+            "name": "hs_activity_type",
+            "type": "enum",
+            "description": "Meeting classification (account-specific types)"
+          },
+          {
+            "name": "hubspot_owner_id",
+            "type": "string",
+            "description": "Meeting creator/owner"
+          },
+          {
+            "name": "hs_attachment_ids",
+            "type": "string",
+            "description": "Attachment IDs separated by semicolons"
+          }
+        ]
+      },
+      "associations": {
+        "description": "Can be associated with contacts, companies, deals"
+      },
+      "scopes_required": [
+        "crm.objects.meetings.read",
+        "crm.objects.meetings.write"
+      ],
+      "documentation": "https://developers.hubspot.com/docs/guides/api/crm/engagements/meetings"
+    },
+    "emails": {
+      "description": "Email engagements with tracking",
+      "endpoint": "/crm/v3/objects/emails",
+      "engagement_type": "ACTIVITY",
+      "standard_properties": {
+        "core_fields": [
+          {
+            "name": "hs_timestamp",
+            "type": "datetime",
+            "description": "Email timestamp"
+          },
+          {
+            "name": "hs_email_subject",
+            "type": "string",
+            "description": "Email subject line"
+          },
+          {
+            "name": "hs_email_text",
+            "type": "text",
+            "description": "Email body text"
+          },
+          {
+            "name": "hs_email_direction",
+            "type": "enum",
+            "values": [
+              "EMAIL"
+            ],
+            "description": "Direction of email"
+          },
+          {
+            "name": "hs_email_status",
+            "type": "enum",
+            "values": [
+              "SENT",
+              "RECEIVED",
+              "DRAFT"
+            ],
+            "description": "Email delivery status"
+          },
+          {
+            "name": "hs_email_headers",
+            "type": "json",
+            "description": "JSON string with from, sender, to, cc, bcc information"
+          },
+          {
+            "name": "hubspot_owner_id",
+            "type": "string",
+            "description": "Email owner ID"
+          }
+        ]
+      },
+      "read_only_properties": {
+        "description": "Automatically populated from hs_email_headers",
+        "examples": [
+          "from",
+          "to",
+          "cc",
+          "bcc",
+          "sender"
+        ]
+      },
+      "email_events": {
+        "description": "12 event types generated during email lifecycle",
+        "categories": [
+          "Submission",
+          "Delivery",
+          "User Engagement",
+          "User Status"
+        ],
+        "engagement_types": [
+          {
+            "event": "OPEN",
+            "category": "User Engagement",
+            "note": "Can occur multiple times"
+          },
+          {
+            "event": "CLICK",
+            "category": "User Engagement",
+            "note": "Can occur multiple times"
+          },
+          {
+            "event": "PRINT",
+            "category": "User Engagement",
+            "note": "Can occur multiple times"
+          },
+          {
+            "event": "FORWARD",
+            "category": "User Engagement",
+            "note": "Can occur multiple times"
+          }
+        ]
+      },
+      "email_tracking": {
+        "description": "Track email opens and clicks",
+        "mechanism": "HubSpot inserts invisible 1-pixel image in email",
+        "records": "Opens and clicks appear in activity feed and record timeline",
+        "tracking_requires": "Email must be sent through HubSpot system"
+      },
+      "associations": {
+        "description": "Associate emails with contacts and companies",
+        "endpoint": "/crm/v3/objects/emails/{emailId}/associations/{toObjectType}/{toObjectId}/{associationTypeId}",
+        "method": "PUT"
+      },
+      "scopes_required": [
+        "crm.objects.emails.read",
+        "crm.objects.emails.write"
+      ],
+      "documentation": "https://developers.hubspot.com/docs/api-reference/crm-emails-v3/guide"
+    },
+    "calls": {
+      "description": "Phone call records",
+      "endpoint": "/crm/v3/objects/calls",
+      "engagement_type": "ACTIVITY",
+      "properties": {
+        "note": "Similar to other engagement objects; includes duration, direction, disposition"
+      },
+      "scopes_required": [
+        "crm.objects.calls.read",
+        "crm.objects.calls.write"
+      ]
+    }
+  },
+  "engagement_and_activity_tracking": {
+    "overview": "Activities track all customer interactions across email, calls, meetings, notes, tasks, and custom activities",
+    "activity_types": [
+      "Calls",
+      "Emails",
+      "LinkedIn messages",
+      "Meetings",
+      "Notes",
+      "Postal mail",
+      "SMS",
+      "Tasks",
+      "WhatsApp messages",
+      "Custom activities"
+    ],
+    "email_tracking_features": {
+      "open_tracking": {
+        "description": "Track when contacts open emails",
+        "mechanism": "1-pixel invisible image inserted by HubSpot",
+        "visibility": "Appears in activity feed and record timeline"
+      },
+      "click_tracking": {
+        "description": "Track when contacts click links in emails",
+        "visibility": "Appears in activity feed and record timeline"
+      },
+      "event_api": {
+        "description": "Access email event history",
+        "endpoint": "Email Events API"
+      }
+    },
+    "meeting_tracking": {
+      "description": "Track meeting scheduling, attendance, and outcomes",
+      "integrations": [
+        "Google Calendar",
+        "Outlook Calendar",
+        "Other calendar systems via hs_meeting_external_url"
+      ]
+    },
+    "call_tracking": {
+      "description": "Record call details, duration, and disposition",
+      "available_fields": [
+        "Call duration",
+        "Call direction (inbound/outbound)",
+        "Call disposition",
+        "Call notes"
+      ]
+    },
+    "object_activity_api": {
+      "description": "Retrieve all activities associated with an object",
+      "endpoint": "/crm/v3/objects/{objectTypeId}/{objectId}/associations",
+      "capabilities": [
+        "Get all activities on a contact",
+        "Get all activities on a company",
+        "Get all activities on a deal",
+        "Filter by activity type"
+      ]
+    }
+  },
+  "syncing_best_practices": {
+    "data_consistency": [
+      "Use email as primary identifier for contacts (prevents duplicates)",
+      "Implement deduplication logic before creating contacts",
+      "Store HubSpot object IDs for all synced records",
+      "Maintain mapping between BusinessOS IDs and HubSpot IDs"
+    ],
+    "performance_optimization": [
+      "Cache property definitions (contact, company, deal properties) and refresh periodically",
+      "Use batch endpoints for bulk operations (up to 100 records per request)",
+      "Implement exponential backoff for rate limit handling (429 responses)",
+      "Schedule bulk syncs during off-peak hours",
+      "Store pagination cursors to resume interrupted syncs"
+    ],
+    "real_time_updates": [
+      "Use webhooks for real-time event notifications (Enterprise plans)",
+      "Subscribe to: object creation, object deletion, property changes",
+      "Webhooks do NOT count toward rate limits (Enterprise)",
+      "Implement webhook signature verification for security",
+      "Queue webhook events for processing to avoid timeout issues"
+    ],
+    "incremental_sync": [
+      "Store 'lastSyncTime' for each object type",
+      "Use 'updatedAt' or similar timestamp fields to fetch only changed records",
+      "For contacts: hs_lastmodifieddate property (system property)",
+      "Use CRM Search API for complex filtering",
+      "Paginate through results using 'after' cursor"
+    ],
+    "handling_large_datasets": [
+      "Use CRM Search API for filtered queries instead of fetching all records",
+      "Implement pagination with cursor-based navigation (not offset)",
+      "Limit: 200 records per search API page",
+      "Search API rate limit: 5 requests/second per token",
+      "Consider data warehouse approach for historical analysis"
+    ],
+    "error_handling": [
+      "Implement retry logic with exponential backoff",
+      "Handle 429 (rate limit) with jitter in retry delays",
+      "Handle 503 (service unavailable) with extended backoff",
+      "Log all API errors with request/response details",
+      "Implement alerting for sustained error rates > 5%"
+    ],
+    "association_management": [
+      "Store all association type IDs for your account",
+      "When associating: use /crm/v3/objects/{objectType}/{objectId}/associations/{toObjectType}/{toObjectId}/{associationTypeId}",
+      "Batch association updates using batch endpoints",
+      "Be careful with association deletion - verify dependencies"
+    ],
+    "custom_properties_strategy": [
+      "Create custom properties in 'Advanced Settings' or via API",
+      "Name conventions: use snake_case (e.g., 'custom_customer_segment')",
+      "Document all custom properties in internal wiki",
+      "Version custom properties when schema changes",
+      "Archive old properties instead of deleting"
+    ]
+  },
+  "data_model_relationships": {
+    "contact": {
+      "can_own": [
+        "tasks",
+        "notes",
+        "meetings",
+        "emails",
+        "calls"
+      ],
+      "can_be_associated_with": [
+        "companies (many-to-many)",
+        "deals (many-to-many)",
+        "all activities"
+      ]
+    },
+    "company": {
+      "can_have": [
+        "multiple contacts",
+        "multiple deals"
+      ],
+      "can_have_activities": [
+        "tasks",
+        "notes",
+        "meetings",
+        "emails",
+        "calls"
+      ]
+    },
+    "deal": {
+      "must_belong_to": [
+        "1 pipeline",
+        "1 stage within pipeline"
+      ],
+      "must_be_associated_with": [
+        "1+ contact",
+        "1+ company"
+      ],
+      "can_have_activities": [
+        "tasks",
+        "notes",
+        "meetings",
+        "emails",
+        "calls"
+      ]
+    },
+    "activities": {
+      "must_be_associated_with": [
+        "At least 1 object (contact, company, or deal)"
+      ]
+    }
+  },
+  "implementation_considerations": {
+    "authentication_setup": [
+      "For BusinessOS: Use private app with OAuth for security",
+      "Required scopes: All crm.objects.* scopes for full integration",
+      "Store access tokens securely (never in version control)",
+      "Implement token refresh logic (if using OAuth)",
+      "For testing: Use personal access tokens (development only)"
+    ],
+    "sync_strategy": [
+      "Initial sync: Fetch all contacts, companies, deals (may take time)",
+      "Subsequent syncs: Incremental updates based on timestamps",
+      "Activity sync: Can be real-time via webhooks or batch via API",
+      "Consider initial sync in background job (not user-facing)"
+    ],
+    "data_storage": [
+      "Store HubSpot object IDs in BusinessOS database",
+      "Maintain sync audit trail for debugging",
+      "Keep local copy of frequently accessed properties",
+      "Clear local cache and refresh periodically"
+    ],
+    "pipeline_configuration": [
+      "Each HubSpot account has custom pipelines and stages",
+      "Fetch pipeline and stage definitions via API",
+      "Store pipeline definitions locally for form generation",
+      "Update local cache when pipelines change"
+    ]
+  },
+  "api_endpoints_summary": {
+    "contacts": "GET/POST /crm/v3/objects/contacts | GET/PUT /crm/v3/objects/contacts/{contactId}",
+    "companies": "GET/POST /crm/v3/objects/companies | GET/PUT /crm/v3/objects/companies/{companyId}",
+    "deals": "GET/POST /crm/v3/objects/deals | GET/PUT /crm/v3/objects/deals/{dealId}",
+    "tasks": "GET/POST /crm/v3/objects/tasks | GET/PUT /crm/v3/objects/tasks/{taskId}",
+    "notes": "GET/POST /crm/v3/objects/notes | GET/PUT /crm/v3/objects/notes/{noteId}",
+    "meetings": "GET/POST /crm/v3/objects/meetings | GET/PUT /crm/v3/objects/meetings/{meetingId}",
+    "emails": "GET/POST /crm/v3/objects/emails | GET/PUT /crm/v3/objects/emails/{emailId}",
+    "calls": "GET/POST /crm/v3/objects/calls | GET/PUT /crm/v3/objects/calls/{callId}",
+    "properties": "GET /crm/v3/properties/{objectTypeId}",
+    "associations": "PUT /crm/v3/objects/{objectType}/{objectId}/associations/{toObjectType}/{toObjectId}/{associationTypeId}",
+    "batch_operations": "POST /crm/v3/objects/{objectType}/batch/create | batch/read | batch/update",
+    "search": "POST /crm/v3/objects/{objectType}/search",
+    "lists": "GET/POST /crm/v3/lists"
+  },
+  "sources": {
+    "official_documentation": [
+      "https://developers.hubspot.com/docs/api/crm/contacts",
+      "https://developers.hubspot.com/docs/api/crm/companies",
+      "https://developers.hubspot.com/docs/api/crm/deals",
+      "https://developers.hubspot.com/docs/api/crm/tasks",
+      "https://developers.hubspot.com/docs/guides/api/crm/engagements/notes",
+      "https://developers.hubspot.com/docs/guides/api/crm/engagements/meetings",
+      "https://developers.hubspot.com/docs/api-reference/crm-emails-v3/guide",
+      "https://developers.hubspot.com/docs/developer-tooling/platform/usage-guidelines"
+    ],
+    "knowledge_base": [
+      "https://knowledge.hubspot.com/properties/hubspots-default-contact-properties",
+      "https://knowledge.hubspot.com/properties/property-field-types-in-hubspot",
+      "https://knowledge.hubspot.com/connected-email/understand-hubspot-sales-email-open-and-click-tracking"
+    ]
+  }
+}
