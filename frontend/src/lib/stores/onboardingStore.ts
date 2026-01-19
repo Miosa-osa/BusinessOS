@@ -117,11 +117,31 @@ function createOnboardingStore() {
 		}),
 
 		// Mark onboarding as completed
-		complete: () => update(state => {
-			const newState = { ...state, completed: true };
-			saveState(newState);
-			return newState;
-		}),
+		complete: async () => {
+			// Call backend to mark onboarding complete
+			try {
+				const response = await fetch('http://localhost:8001/api/users/me/complete-onboarding', {
+					method: 'POST',
+					credentials: 'include'
+				});
+
+				if (!response.ok) {
+					console.error('Failed to mark onboarding complete on backend');
+				} else {
+					console.log('✅ Onboarding marked complete on backend');
+				}
+			} catch (error) {
+				console.error('Error completing onboarding:', error);
+				// Don't block - continue with local state update
+			}
+
+			// Update local state
+			update(state => {
+				const newState = { ...state, completed: true };
+				saveState(newState);
+				return newState;
+			});
+		},
 
 		// Reset onboarding
 		reset: () => {

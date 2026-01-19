@@ -12,24 +12,28 @@ import (
 func SetSessionCookie(c *gin.Context, token string) {
 	isProduction := os.Getenv("ENVIRONMENT") == "production"
 	domain := os.Getenv("COOKIE_DOMAIN")
-	if domain == "" {
-		domain = "" // Current domain
-	}
 
-	sameSite := http.SameSiteLaxMode // Secure default for production
+	sameSite := http.SameSiteLaxMode
 	secure := isProduction
 
-	// Allow cross-origin cookies in development (different ports)
-	// or when explicitly enabled
-	if os.Getenv("ALLOW_CROSS_ORIGIN") == "true" {
-		sameSite = http.SameSiteNoneMode
-	}
-
-	// For development, use SameSite=None to allow cross-origin cookies
-	// Browsers allow SameSite=None without Secure for localhost
+	// For development, explicitly set domain to "localhost" to allow cross-port access
+	// and use SameSite=None with Secure=false (allowed for localhost)
 	if !isProduction {
+		if domain == "" {
+			domain = "localhost" // Explicitly set for cross-port compatibility
+		}
 		sameSite = http.SameSiteNoneMode
-		secure = false // localhost is exempt from Secure requirement for SameSite=None
+		secure = false // Chrome/Safari allow SameSite=None without Secure for localhost
+	} else {
+		// Production: use current domain if not specified
+		if domain == "" {
+			domain = ""
+		}
+		// Allow explicit cross-origin in production if needed
+		if os.Getenv("ALLOW_CROSS_ORIGIN") == "true" {
+			sameSite = http.SameSiteNoneMode
+			secure = true // Required for SameSite=None in production
+		}
 	}
 
 	http.SetCookie(c.Writer, &http.Cookie{
@@ -49,13 +53,22 @@ func SetSessionCookie(c *gin.Context, token string) {
 func ClearSessionCookie(c *gin.Context) {
 	isProduction := os.Getenv("ENVIRONMENT") == "production"
 	domain := os.Getenv("COOKIE_DOMAIN")
-	if domain == "" {
-		domain = "" // Current domain
-	}
 
-	sameSite := http.SameSiteLaxMode // Secure default for production
-	if os.Getenv("ALLOW_CROSS_ORIGIN") == "true" {
+	sameSite := http.SameSiteLaxMode
+
+	// Match the settings used in SetSessionCookie
+	if !isProduction {
+		if domain == "" {
+			domain = "localhost"
+		}
 		sameSite = http.SameSiteNoneMode
+	} else {
+		if domain == "" {
+			domain = ""
+		}
+		if os.Getenv("ALLOW_CROSS_ORIGIN") == "true" {
+			sameSite = http.SameSiteNoneMode
+		}
 	}
 
 	http.SetCookie(c.Writer, &http.Cookie{

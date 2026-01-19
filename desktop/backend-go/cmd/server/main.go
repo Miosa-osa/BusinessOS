@@ -23,6 +23,7 @@ import (
 	"github.com/rhl/businessos-backend/internal/handlers"
 	"github.com/rhl/businessos-backend/internal/integrations"
 	"github.com/rhl/businessos-backend/internal/integrations/google"
+	"github.com/rhl/businessos-backend/internal/integrations/livekit"
 	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	redisClient "github.com/rhl/businessos-backend/internal/redis"
@@ -708,7 +709,32 @@ func main() {
 	} else {
 		log.Printf("Whisper service not fully configured (model/binary not found)")
 	}
-	log.Printf("Voice system: Python LiveKit agents (tokens via /api/livekit/token, context via /api/voice/user-context)")
+
+	// Initialize LiveKit Voice Agent Integration
+	if cfg.LiveKitEnabled {
+		liveKitConfig := &livekit.ResilientClientConfig{
+			LiveKitConfig: &livekit.Config{
+				URL:           cfg.LiveKitURL,
+				APIKey:        cfg.LiveKitAPIKey,
+				APISecret:     cfg.LiveKitAPISecret,
+				AgentIdentity: cfg.LiveKitAgentIdentity,
+				TokenTTL:      time.Duration(cfg.LiveKitTokenTTL) * time.Second,
+				Timeout:       30 * time.Second,
+			},
+			Logger: slog.Default(),
+		}
+
+		liveKitClient, err := livekit.NewResilientClient(liveKitConfig)
+		if err != nil {
+			log.Printf("❌ Failed to create LiveKit client: %v", err)
+		} else {
+			h.SetLiveKitClient(liveKitClient)
+			log.Printf("✅ LiveKit voice agent enabled (url=%s)", cfg.LiveKitURL)
+			log.Printf("   Routes: POST /api/livekit/token, GET /api/livekit/context/:session_id")
+		}
+	} else {
+		log.Printf("LiveKit voice agent disabled (set LIVEKIT_ENABLED=true to enable)")
+	}
 
 	// Set Workspace service (Feature 1 - Team/Collaboration)
 	workspaceService := services.NewWorkspaceService(pool)

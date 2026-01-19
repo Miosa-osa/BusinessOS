@@ -11,17 +11,18 @@
 
 	async function handleEnterOS() {
 		try {
-			const baseUrl = get(cloudServerUrl);
-			await fetch(`${baseUrl}/api/users/me/complete-onboarding`, {
+			// Call backend to mark onboarding complete (use relative URL)
+			await fetch('http://localhost:8001/api/users/me/complete-onboarding', {
 				method: 'POST',
 				credentials: 'include',
 			});
 			console.log('Onboarding marked complete in backend');
 		} catch (err) {
 			console.error('Failed to mark onboarding complete:', err);
+			// Don't block - continue anyway
 		}
 
-		onboardingStore.complete();
+		await onboardingStore.complete();
 		goto('/window');
 	}
 </script>

@@ -8,6 +8,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/config"
 	"github.com/rhl/businessos-backend/internal/container"
+	"github.com/rhl/businessos-backend/internal/database/sqlc"
+	"github.com/rhl/businessos-backend/internal/integrations/livekit"
 	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	"github.com/rhl/businessos-backend/internal/services"
@@ -54,6 +56,9 @@ type Handlers struct {
 	projectAccessService   *services.ProjectAccessService   // Project-level access control
 	// Voice services
 	whisperService *services.WhisperService // Local speech-to-text (for voice notes)
+	// LiveKit Voice Agent Integration
+	liveKitClient  *livekit.ResilientClient // LiveKit client for voice agent rooms
+	liveKitHandler *LiveKitHandler          // LiveKit handler for voice sessions
 	// Agent Skills System
 	skillsLoader *services.SkillsLoader // Skills loader for agent prompts
 	// OSA Integration - AI Agent Orchestration
@@ -119,8 +124,15 @@ func (h *Handlers) SetVoiceServices(whisper *services.WhisperService) {
 	h.whisperService = whisper
 }
 
-// SetLiveKitAgent removed - token generation now handled directly in livekit.go handler
-// No separate service needed for Python voice agents
+// SetLiveKitClient sets the LiveKit client for voice agent integration (optional)
+func (h *Handlers) SetLiveKitClient(client *livekit.ResilientClient) {
+	h.liveKitClient = client
+	if client != nil {
+		// Create LiveKit handler with database queries
+		queries := sqlc.New(h.pool)
+		h.liveKitHandler = NewLiveKitHandler(client, queries, slog.Default())
+	}
+}
 
 // SetPedroServices sets the Pedro task services (optional, to avoid breaking existing code)
 func (h *Handlers) SetPedroServices(
@@ -907,6 +919,24 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 		voiceNotes.GET("/:id", voiceNotesHandler.GetVoiceNote)
 		voiceNotes.DELETE("/:id", voiceNotesHandler.DeleteVoiceNote)
 		voiceNotes.POST("/:id/retranscribe", voiceNotesHandler.RetranscribeVoiceNote)
+	}
+	slog.Info("Voice notes routes registered")
+
+	// LiveKit Voice Agent routes - /api/livekit
+	if h.liveKitClient != nil && h.liveKitHandler != nil {
+		livekit := api.Group("/livekit")
+		livekit.Use(auth) // Authenticated endpoints
+		{
+			livekit.POST("/token", h.liveKitHandler.GenerateToken)
+			livekit.GET("/sessions", h.liveKitHandler.ListActiveSessions)
+			livekit.DELETE("/room/:room_name", h.liveKitHandler.DeleteRoom)
+		}
+
+		// Public endpoints for Python voice agents (no auth required)
+		api.GET("/livekit/context/:session_id", h.liveKitHandler.GetSessionContext)
+		api.POST("/chat", h.VoiceChat) // Voice agent chat endpoint (calls Groq)
+
+		slog.Info("LiveKit voice agent routes registered")
 	}
 
 	// Profile routes - /api/profile

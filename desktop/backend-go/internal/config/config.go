@@ -132,6 +132,14 @@ type Config struct {
 	OSARetryDelay   int         `mapstructure:"OSA_RETRY_DELAY"` // seconds
 	OSA             *osa.Config // Built from above fields in Load()
 
+	// LiveKit Voice Agent Integration
+	LiveKitEnabled       bool   `mapstructure:"LIVEKIT_ENABLED"`
+	LiveKitURL           string `mapstructure:"LIVEKIT_URL"`
+	LiveKitAPIKey        string `mapstructure:"LIVEKIT_API_KEY"`
+	LiveKitAPISecret     string `mapstructure:"LIVEKIT_API_SECRET"`
+	LiveKitAgentIdentity string `mapstructure:"LIVEKIT_AGENT_IDENTITY"`
+	LiveKitTokenTTL      int    `mapstructure:"LIVEKIT_TOKEN_TTL"` // seconds
+
 	// Web Search Providers
 	// Priority: Brave > Serper > Tavily > DuckDuckGo (fallback)
 	BraveSearchAPIKey string `mapstructure:"BRAVE_SEARCH_API_KEY"` // Free: 2000 queries/month
@@ -238,6 +246,14 @@ func Load() (*Config, error) {
 	viper.SetDefault("OSA_TIMEOUT", 30) // seconds
 	viper.SetDefault("OSA_MAX_RETRIES", 3)
 	viper.SetDefault("OSA_RETRY_DELAY", 2) // seconds
+
+	// LiveKit Voice Agent Integration
+	viper.SetDefault("LIVEKIT_ENABLED", false)
+	viper.SetDefault("LIVEKIT_URL", "")
+	viper.SetDefault("LIVEKIT_API_KEY", "")
+	viper.SetDefault("LIVEKIT_API_SECRET", "")
+	viper.SetDefault("LIVEKIT_AGENT_IDENTITY", "businessos-agent")
+	viper.SetDefault("LIVEKIT_TOKEN_TTL", 86400) // 24 hours in seconds
 
 	// Web Search Providers
 	viper.SetDefault("BRAVE_SEARCH_API_KEY", "")

@@ -73,7 +73,7 @@ func (h *GoogleAuthHandler) InitiateGoogleLogin(c *gin.Context) {
 	// Get redirect URL from query (for desktop app flow)
 	redirectAfter := c.Query("redirect")
 	if redirectAfter == "" {
-		redirectAfter = "/dashboard"
+		redirectAfter = "http://localhost:5173/auth/callback"
 	}
 
 	// Store state in cookie with SameSite=Lax for OAuth flow
@@ -106,7 +106,7 @@ func (h *GoogleAuthHandler) HandleGoogleLoginCallback(c *gin.Context) {
 	// Get redirect URL
 	redirectAfter, _ := c.Cookie("oauth_redirect")
 	if redirectAfter == "" {
-		redirectAfter = "/dashboard"
+		redirectAfter = "http://localhost:5173/auth/callback"
 	}
 
 	// Check for error from Google

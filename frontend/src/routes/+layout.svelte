@@ -5,7 +5,7 @@
 	import { page } from '$app/stores';
 	import { themeStore } from '$lib/stores/themeStore';
 	import { useSession } from '$lib/auth-client';
-	import { streamingVoice, type VoiceState } from '$lib/services/streamingVoice';
+	import { streamingVoice, type VoiceState } from '$lib/services/livekitVoice';
 	import VoiceOrbPanel from '$lib/components/desktop3d/VoiceOrbPanel.svelte';
 	import LiveCaptions from '$lib/components/desktop3d/LiveCaptions.svelte';
 	import { isOnboardingComplete } from '$lib/stores/onboardingStore';
@@ -22,6 +22,15 @@
 			$page.url.pathname.startsWith('/(app)')
 		)
 	);
+
+	// Debug: Track showVoiceUI changes
+	$effect(() => {
+		console.log('[Root Layout] showVoiceUI changed to:', showVoiceUI, {
+			hasSession: !!$session.data,
+			isOnboardingComplete: $isOnboardingComplete,
+			pathname: $page.url.pathname
+		});
+	});
 
 	// Voice state (only for authenticated users)
 	let voiceState = $state<VoiceState>('disconnected');
@@ -76,19 +85,34 @@
 		}
 	});
 
-	// Cleanup
+	// Cleanup - ONLY disconnect if user manually navigates away
 	onDestroy(() => {
-		if (voiceState !== 'disconnected') {
-			streamingVoice.disconnect();
-		}
+		console.log('[Root Layout] onDestroy called, voiceState:', voiceState);
+		// Don't auto-disconnect - let user manually toggle off
+		// Otherwise page navigations kill active conversations
 	});
 
 	// Toggle voice
+	let isToggling = false;
 	async function toggleVoice() {
-		if (voiceState === 'disconnected') {
-			await streamingVoice.connect();
-		} else {
-			await streamingVoice.disconnect();
+		if (isToggling) {
+			console.log('[Root Layout] toggleVoice called but already toggling, ignoring');
+			return;
+		}
+
+		isToggling = true;
+		console.log('[Root Layout] toggleVoice called, current state:', voiceState);
+
+		try {
+			if (voiceState === 'disconnected') {
+				console.log('[Root Layout] Connecting voice...');
+				await streamingVoice.connect();
+			} else {
+				console.log('[Root Layout] Disconnecting voice...');
+				await streamingVoice.disconnect();
+			}
+		} finally {
+			isToggling = false;
 		}
 	}
 </script>
