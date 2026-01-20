@@ -27,8 +27,21 @@ type VoiceChatRequest struct {
 
 // VoiceChatResponse is the response to the voice agent
 type VoiceChatResponse struct {
-	Response  string `json:"response"`
-	SessionID string `json:"session_id,omitempty"`
+	Response         string              `json:"response"`
+	SessionID        string              `json:"session_id,omitempty"`
+	NavigationAction *NavigationAction   `json:"navigation_action,omitempty"`
+	ToolResults      []ToolResultSummary `json:"tool_results,omitempty"`
+}
+
+// NavigationAction represents a navigation command executed by tools
+type NavigationAction struct {
+	Module string `json:"module"`
+}
+
+// ToolResultSummary provides summary of executed tools
+type ToolResultSummary struct {
+	Tool   string `json:"tool"`
+	Result string `json:"result"`
 }
 
 // VoiceChat handles simple chat requests from the Python voice agent
@@ -67,6 +80,13 @@ SPEAKING STYLE:
 - Use filler words occasionally like "well", "so", "actually" to sound human
 - Express enthusiasm with words, not emojis
 
+TOOL USAGE - CRITICAL:
+- When you execute tools (like navigate_to_module, create_task, etc), DO NOT just repeat the tool result
+- Instead, respond conversationally as if you actually did the action
+- Example: Tool result "Opened tasks module" → Say "Sure, taking you to tasks!" or "Opening tasks for you"
+- Example: Tool result "Created task X" → Say "Done! I've created that task for you"
+- The user doesn't care about the technical details - just that you did what they asked
+
 Remember: You're having a real conversation, not just answering questions. Be present, be engaged, be OSA.`,
 		}
 		req.Messages = append([]VoiceChatMessage{systemMsg}, req.Messages...)
@@ -74,12 +94,19 @@ Remember: You're having a real conversation, not just answering questions. Be pr
 
 	ctx := c.Request.Context()
 
-	// Get user ID from session if available (for tool execution context)
+	// Get user ID from voice session
 	userID := ""
-	if user, exists := c.Get("user"); exists {
-		if u, ok := user.(*sqlc.User); ok {
-			userID = u.ID
+	if req.SessionID != "" {
+		queries := sqlc.New(h.pool)
+		session, err := queries.GetVoiceSessionBySessionID(ctx, req.SessionID)
+		if err != nil {
+			slog.Error("failed to get voice session", "session_id", req.SessionID, "error", err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid session"})
+			return
 		}
+		userID = session.UserID
+	} else {
+		slog.Warn("voice chat request without session_id")
 	}
 
 	// Call Groq API with tools support

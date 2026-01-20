@@ -3,12 +3,14 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { themeStore } from '$lib/stores/themeStore';
 	import { useSession } from '$lib/auth-client';
 	import { streamingVoice, type VoiceState } from '$lib/services/livekitVoice';
 	import VoiceOrbPanel from '$lib/components/desktop3d/VoiceOrbPanel.svelte';
 	import LiveCaptions from '$lib/components/desktop3d/LiveCaptions.svelte';
 	import { isOnboardingComplete } from '$lib/stores/onboardingStore';
+	import { desktop3dStore } from '$lib/stores/desktop3dStore';
 
 	let { children } = $props();
 
@@ -79,6 +81,55 @@
 				console.error('[Root Layout] Streaming voice error:', error);
 				// Show error to user (optional)
 			});
+
+		// Navigation callback - actually navigate when AI says to!
+		streamingVoice.setNavigationCallback((module: string) => {
+			// Check if we're in 3D desktop mode
+			if ($page.url.pathname === '/window') {
+				// 3D mode - focus the window in 3D space instead of navigating
+				const windowId = `window-${module}`;
+				console.log("[Root Layout] 🧭 3D Voice navigation - focusing:", windowId);
+				desktop3dStore.focusWindow(windowId);
+			} else {
+				// 2D mode - navigate to the route normally
+				const routeMap: Record<string, string> = {
+					"dashboard": "/dashboard",
+					"tasks": "/tasks",
+					"projects": "/projects",
+					"chat": "/chat",
+					"terminal": "/terminal",
+					"window": "/window",
+					"knowledge": "/knowledge",
+					"knowledge-v2": "/knowledge-v2",
+					"clients": "/clients",
+					"settings": "/settings",
+					"agents": "/agents",
+					"crm": "/crm",
+					"team": "/team",
+					"dailylog": "/daily",
+					"daily": "/daily",
+					"integrations": "/integrations",
+					"pages": "/pages",
+					"communication": "/communication",
+					"tables": "/tables",
+					"nodes": "/nodes",
+					"help": "/help",
+					"notifications": "/notifications",
+					"profile": "/profile",
+					"voice-notes": "/voice-notes",
+					"usage": "/usage",
+					"app-store": "/app-store"
+				};
+
+				const route = routeMap[module];
+				if (route) {
+					console.log("[Root Layout] 🧭 2D Voice navigation:", module, "→", route);
+					goto(route);
+				} else {
+					console.warn("[Root Layout] Unknown module:", module);
+				}
+			}
+		});
 
 			voiceInitialized = true;
 			console.log('[Root Layout] Streaming voice system initialized');

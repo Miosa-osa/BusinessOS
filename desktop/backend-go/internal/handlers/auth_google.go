@@ -77,9 +77,9 @@ func (h *GoogleAuthHandler) InitiateGoogleLogin(c *gin.Context) {
 	}
 
 	// Store state in cookie with SameSite=Lax for OAuth flow
-	c.SetCookie("oauth_state", state, 600, "/", "", false, true)
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("oauth_redirect", redirectAfter, 600, "/", "", false, true)
+	c.SetSameSite(http.SameSiteLaxMode) // Set SameSite BEFORE setting cookies
+	c.SetCookie("oauth_state", state, 600, "/", "localhost", false, true)
+	c.SetCookie("oauth_redirect", redirectAfter, 600, "/", "localhost", false, true)
 
 	// Force Google to show account picker every time (don't auto-login)
 	authURL := h.oauthConfig.AuthCodeURL(state,
@@ -151,9 +151,9 @@ func (h *GoogleAuthHandler) HandleGoogleLoginCallback(c *gin.Context) {
 		return
 	}
 
-	// Clear OAuth cookies
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
-	c.SetCookie("oauth_redirect", "", -1, "/", "", false, true)
+	// Clear OAuth cookies (must match domain used when setting)
+	c.SetCookie("oauth_state", "", -1, "/", "localhost", false, true)
+	c.SetCookie("oauth_redirect", "", -1, "/", "localhost", false, true)
 
 	// Set a temporary cookie to indicate if this is a new user
 	// Frontend will check this to decide whether to redirect to onboarding

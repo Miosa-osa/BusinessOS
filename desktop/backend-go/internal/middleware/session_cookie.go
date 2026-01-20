@@ -16,14 +16,14 @@ func SetSessionCookie(c *gin.Context, token string) {
 	sameSite := http.SameSiteLaxMode
 	secure := isProduction
 
-	// For development, explicitly set domain to "localhost" to allow cross-port access
-	// and use SameSite=None with Secure=false (allowed for localhost)
+	// For development, use SameSite=Lax (works for same-site requests)
+	// Modern browsers reject SameSite=None without Secure, even on localhost
 	if !isProduction {
 		if domain == "" {
 			domain = "localhost" // Explicitly set for cross-port compatibility
 		}
-		sameSite = http.SameSiteNoneMode
-		secure = false // Chrome/Safari allow SameSite=None without Secure for localhost
+		sameSite = http.SameSiteLaxMode // Lax allows same-site requests without Secure flag
+		secure = false
 	} else {
 		// Production: use current domain if not specified
 		if domain == "" {
@@ -61,7 +61,7 @@ func ClearSessionCookie(c *gin.Context) {
 		if domain == "" {
 			domain = "localhost"
 		}
-		sameSite = http.SameSiteNoneMode
+		sameSite = http.SameSiteLaxMode // Must match SetSessionCookie
 	} else {
 		if domain == "" {
 			domain = ""

@@ -8,6 +8,9 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"regexp"
+	"strings"
+	"time"
 
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/tools"
@@ -92,7 +95,9 @@ func (h *Handlers) callGroqAPIWithTools(ctx context.Context, messages []VoiceCha
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+groqAPIKey)
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to call Groq API: %w", err)
@@ -122,6 +127,11 @@ func (h *Handlers) callGroqAPIWithTools(ctx context.Context, messages []VoiceCha
 
 	// Check if LLM wants to call tools
 	if len(choice.Message.ToolCalls) > 0 {
+		// Add limit check
+		if len(choice.Message.ToolCalls) > 10 {
+			return "", fmt.Errorf("too many tool calls requested: %d (max 10)", len(choice.Message.ToolCalls))
+		}
+
 		slog.Info("🔧 LLM requested tool calls",
 			"count", len(choice.Message.ToolCalls),
 		)
@@ -182,8 +192,15 @@ func (h *Handlers) callGroqAPIWithTools(ctx context.Context, messages []VoiceCha
 		reqBody["messages"] = groqMessages
 		reqBody["tools"] = toolDefinitions // Still provide tools for potential follow-up
 
-		jsonData, _ = json.Marshal(reqBody)
-		req, _ = http.NewRequestWithContext(ctx, "POST", groqBaseURL, bytes.NewBuffer(jsonData))
+		jsonData, err := json.Marshal(reqBody)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal second request: %w", err)
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "POST", groqBaseURL, bytes.NewBuffer(jsonData))
+		if err != nil {
+			return "", fmt.Errorf("failed to create second request: %w", err)
+		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+groqAPIKey)
 
@@ -193,23 +210,44 @@ func (h *Handlers) callGroqAPIWithTools(ctx context.Context, messages []VoiceCha
 		}
 		defer resp.Body.Close()
 
-		body, _ = io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return "", fmt.Errorf("failed to read second response: %w", err)
+		}
+
 		if resp.StatusCode != http.StatusOK {
 			return "", fmt.Errorf("Groq API error on second call (status %d): %s", resp.StatusCode, string(body))
 		}
 
-		// Parse second response
-		json.Unmarshal(body, &groqResp)
+		// DEBUG: Log raw response
+		slog.Info("🔍 DEBUG: Raw Groq response after tool execution", "body", string(body)[:min(500, len(body))])
+
+		if err := json.Unmarshal(body, &groqResp); err != nil {
+			return "", fmt.Errorf("failed to parse second response: %w", err)
+		}
 		if len(groqResp.Choices) == 0 {
 			return "", fmt.Errorf("no choices in second response")
 		}
 
 		finalResponse := groqResp.Choices[0].Message.Content
+
+		// Strip out any XML function tags that Groq sometimes includes
+		// Pattern: <function=navigate_to_module{"module":"tasks"}></function>
+		functionTagRegex := regexp.MustCompile(`<function=\w+\{[^}]*\}></function>`)
+		cleanResponse := functionTagRegex.ReplaceAllString(finalResponse, "")
+
+		// Also strip any standalone XML-like tags
+		cleanResponse = regexp.MustCompile(`</?function[^>]*>`).ReplaceAllString(cleanResponse, "")
+
+		// Trim whitespace
+		cleanResponse = strings.TrimSpace(cleanResponse)
+
 		slog.Info("✅ Final response after tool execution",
-			"response", finalResponse[:min(100, len(finalResponse))]+"...",
+			"response_length", len(cleanResponse),
+			"response", cleanResponse,
 		)
 
-		return finalResponse, nil
+		return cleanResponse, nil
 	}
 
 	// No tool calls, return direct response

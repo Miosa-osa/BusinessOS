@@ -12,7 +12,15 @@ interface Callbacks {
 	onStateChange?: (state: VoiceState) => void;
 	onUserTranscript?: (text: string) => void;
 	onAgentResponse?: (text: string) => void;
+	onNavigationCommand?: (module: string) => void;
 	onError?: (error: string) => void;
+}
+
+/**
+ * Get API base URL from environment
+ */
+function getApiUrl(): string {
+	return import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8001' : '');
 }
 
 /**
@@ -47,6 +55,13 @@ class LiveKitVoiceService {
 	}
 
 	/**
+	 * Set callback for navigation commands
+	 */
+	setNavigationCallback(cb: (module: string) => void) {
+		this.callbacks.onNavigationCommand = cb;
+	}
+
+	/**
 	 * Set callback for errors
 	 */
 	setErrorCallback(cb: (error: string) => void) {
@@ -61,7 +76,11 @@ class LiveKitVoiceService {
 			this.updateState('connecting');
 
 			// Get LiveKit token from backend
-			const response = await fetch('/api/livekit/token', {
+			const apiUrl = getApiUrl();
+			const tokenUrl = `${apiUrl}/api/livekit/token`;
+			console.log('[LiveKit] Fetching token from:', tokenUrl);
+
+			const response = await fetch(tokenUrl, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				credentials: 'include',
@@ -100,6 +119,33 @@ class LiveKitVoiceService {
 							this.callbacks.onAgentResponse?.(text);
 							this.updateState('speaking');
 						}
+
+					// Parse navigation commands from agent response (multiple patterns)
+					// Matches: "Opened X module", "X is now open", "opening X", "let me open X"
+					const navPatterns = [
+						/Opened (\w+) module/i,                            // "Opened tasks module"
+						/(?:the )?(\w+) module is now open/i,              // "the pages module is now open"
+						/(?:the )?(\w+) module (?:has been|is) opened/i,   // "the pages module has been opened"
+						/taking you to (?:the )?(\w+)/i,                   // "taking you to tasks"
+						/opening (?:the )?(\w+)(?: for you)?/i,            // "opening tasks for you"
+						/let me open (?:the )?(\w+)/i,                     // "let me open tasks"
+						/navigating to (?:the )?(\w+)/i,                   // "navigating to tasks"
+						/showing you (?:the )?(\w+)/i,                     // "showing you tasks"
+						/pulling up (?:the )?(\w+)/i,                      // "pulling up tasks"
+						/(?:the )?(\w+) is now open/i,                     // "tasks is now open"
+						/(?:the )?(\w+) (?:has been|is) opened/i,          // "the terminal has been opened"
+						/opened (?:the )?(\w+)/i                           // "opened tasks"
+					];
+
+					for (const pattern of navPatterns) {
+						const navMatch = text.match(pattern);
+						if (navMatch && navMatch[1]) {
+							const moduleName = navMatch[1].toLowerCase();
+							console.log('[LiveKit] 🧭 Navigation command detected:', moduleName, 'from pattern:', pattern);
+							this.callbacks.onNavigationCommand?.(moduleName);
+							break; // Only trigger once per response
+						}
+					}
 					}
 				} catch (error) {
 					console.error('[LiveKit] Error parsing data:', error);
