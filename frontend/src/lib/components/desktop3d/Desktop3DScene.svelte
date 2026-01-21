@@ -139,9 +139,9 @@
 	<OrbitControls
 		bind:ref={orbitControlsRef}
 		enableDamping={true}
-		dampingFactor={0.08}
+		dampingFactor={0.12}
 		autoRotate={effectiveAutoRotate}
-		autoRotateSpeed={0.3}
+		autoRotateSpeed={0.2}
 		minDistance={150}
 		maxDistance={800}
 		minPolarAngle={0.1}

@@ -30,19 +30,23 @@
 		onHover
 	}: Props = $props();
 
-	// STAGGERED LOADING: Load iframes sequentially to prevent ERR_INSUFFICIENT_RESOURCES
-	// Each window loads after a delay based on its index (300ms apart)
+	// PERFORMANCE OPTIMIZATION: Only load iframes for visible windows
+	// Load focused window + adjacent windows (prev/next) only
+	// This reduces iframe count from 23+ to just 3, dramatically improving performance
+	let shouldLoadIframe = $derived(isFocused || isNextWindow || isPrevWindow);
+
+	// Delay iframe loading slightly to prevent resource spikes
 	let iframeLoaded = $state(false);
 
 	$effect(() => {
-		// Focused window loads immediately
-		if (isFocused) {
-			iframeLoaded = true;
+		if (!shouldLoadIframe) {
+			// Unload iframe when window is no longer visible
+			iframeLoaded = false;
 			return;
 		}
 
-		// Other windows load with staggered delay (300ms per window)
-		const delay = windowIndex * 300;
+		// Load immediately if focused, with small delay for adjacent windows
+		const delay = isFocused ? 0 : 100;
 		const timer = setTimeout(() => {
 			iframeLoaded = true;
 		}, delay);
@@ -55,24 +59,25 @@
 	const DRAG_THRESHOLD = 15; // pixels - increased for better click detection
 
 	// Spring animation for smooth position transitions
+	// PERFORMANCE: Increased stiffness for snappier, less CPU-intensive animations
 	type Vec3 = [number, number, number];
 	let animatedPosition = spring<Vec3>(window.position, {
-		stiffness: 0.08,
-		damping: 0.7
+		stiffness: 0.15,
+		damping: 0.8
 	});
 	// Separate springs for Y rotation (facing) and X rotation (tilt)
 	// This allows proper rotation order: Y first, then X
 	let animatedYRotation = spring(0, {
-		stiffness: 0.08,
-		damping: 0.7
+		stiffness: 0.15,
+		damping: 0.8
 	});
 	let animatedXRotation = spring(0, {
-		stiffness: 0.08,
-		damping: 0.7
+		stiffness: 0.15,
+		damping: 0.8
 	});
 	let animatedScale = spring(1, {
-		stiffness: 0.1,
-		damping: 0.6
+		stiffness: 0.2,
+		damping: 0.7
 	});
 
 	// Handle resize button clicks - call store DIRECTLY to bypass prop chain issues in 3D HTML
