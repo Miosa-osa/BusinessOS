@@ -2,6 +2,7 @@ import { ipcMain, app, shell, dialog, desktopCapturer, screen } from 'electron';
 import { BackendManager } from '../backend/manager';
 import { getMainWindow } from '../window';
 import { setupDatabaseHandlers, initializeDatabaseSystem, startSync, stopSync } from './database';
+import { setupOSAHandlers } from './osa';
 
 // Re-export database functions for use in main process
 export { initializeDatabaseSystem, startSync, stopSync };
@@ -195,6 +196,9 @@ export function setupIpcHandlers(backendManager: BackendManager | null): void {
       };
     }
   });
+
+  // OSA handlers
+  setupOSAHandlers(backendManager);
 
   console.log('IPC handlers registered');
 }

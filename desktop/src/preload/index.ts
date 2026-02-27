@@ -110,6 +110,22 @@ export interface ElectronAPI {
     setState: (state: any) => void;
   };
 
+  // OSA (OptimalSystemAgent) integration
+  osa: {
+    health: () => Promise<{ success: boolean; data?: any; error?: string }>;
+    orchestrate: (req: {
+      input: string;
+      user_id: string;
+      workspace_id?: string;
+      session_id?: string;
+    }) => Promise<{ success: boolean; data?: any; error?: string }>;
+    classify: (message: string, channel?: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+    skills: () => Promise<{ success: boolean; data?: any; error?: string }>;
+    stream: {
+      start: (sessionID: string) => Promise<{ success: boolean; error?: string }>;
+    };
+  };
+
   // Event listeners
   on: (channel: string, callback: (...args: any[]) => void) => () => void;
   once: (channel: string, callback: (...args: any[]) => void) => void;
@@ -173,6 +189,12 @@ const ALLOWED_INVOKE_CHANNELS = [
   'shortcuts:request-accessibility',
   // Screenshot
   'screenshot:capture',
+  // OSA operations
+  'osa:health',
+  'osa:orchestrate',
+  'osa:classify',
+  'osa:skills',
+  'osa:stream:start',
 ];
 
 // Allowed channels for main-to-renderer communication
@@ -198,6 +220,10 @@ const ALLOWED_RECEIVE_CHANNELS = [
   'popup:start-meeting-recording',
   'popup:start-voice-recording',
   'popup:size-changed',
+  // OSA stream events
+  'osa:stream:event',
+  // OSA popup response
+  'popup:osa-response',
 ];
 
 // Expose the API to the renderer
@@ -342,9 +368,25 @@ contextBridge.exposeInMainWorld('electron', {
     capture: () => ipcRenderer.invoke('screenshot:capture'),
   },
 
+  // OSA integration
+  osa: {
+    health: () => ipcRenderer.invoke('osa:health'),
+    orchestrate: (req: {
+      input: string;
+      user_id: string;
+      workspace_id?: string;
+      session_id?: string;
+    }) => ipcRenderer.invoke('osa:orchestrate', req),
+    classify: (message: string, channel?: string) => ipcRenderer.invoke('osa:classify', message, channel),
+    skills: () => ipcRenderer.invoke('osa:skills'),
+    stream: {
+      start: (sessionID: string) => ipcRenderer.invoke('osa:stream:start', sessionID),
+    },
+  },
+
   // Legacy send method (for backwards compatibility)
   send: (channel: string, ...args: any[]) => {
-    const allowedSendChannels = ['popup:hide', 'popup:open-main', 'popup:set-size', 'popup:expand-to-full'];
+    const allowedSendChannels = ['popup:hide', 'popup:open-main', 'popup:set-size', 'popup:expand-to-full', 'popup:send-message-to-osa'];
     if (allowedSendChannels.includes(channel)) {
       ipcRenderer.send(channel, ...args);
     }

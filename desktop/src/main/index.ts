@@ -4,7 +4,7 @@ import { createMainWindow, getMainWindow } from './window';
 import { setupIpcHandlers, initializeDatabaseSystem, startSync, stopSync } from './ipc';
 import { BackendManager } from './backend/manager';
 import { setupAutoUpdater } from './updater/auto-update';
-import { initializePopupSystem, cleanupPopupSystem } from './popup/chat-popup';
+import { initializePopupSystem, cleanupPopupSystem, setupPopupOSAIntegration } from './popup/chat-popup';
 import { initializeMeetingRecorder } from './audio/meeting-recorder';
 import { closeDatabase } from './database/sqlite';
 import { pathToFileURL } from 'url';
@@ -328,6 +328,9 @@ async function initialize(): Promise<void> {
 
   // Initialize popup chat system (includes tray and global shortcuts)
   initializePopupSystem();
+
+  // Connect popup message flow to OSA orchestration
+  setupPopupOSAIntegration(backendManager);
 
   // Initialize meeting recorder
   initializeMeetingRecorder();

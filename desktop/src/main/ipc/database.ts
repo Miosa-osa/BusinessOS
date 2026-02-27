@@ -2,8 +2,8 @@ import { ipcMain } from 'electron';
 import { DatabaseHelper, generateUUID, getDatabase, initDatabase } from '../database/sqlite';
 import { SyncEngine, SYNC_TABLES, SyncTable } from '../sync/engine';
 
-// Cloud Run URL for production sync
-const CLOUD_RUN_URL = 'https://businessos-api-460433387676.us-central1.run.app';
+// Cloud Run URL for production sync (override via BUSINESSOS_API_URL env var)
+const CLOUD_RUN_URL = process.env.BUSINESSOS_API_URL ?? 'https://businessos-api-460433387676.us-central1.run.app';
 
 let syncEngine: SyncEngine | null = null;
 let dbHelper: DatabaseHelper | null = null;

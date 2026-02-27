@@ -1,6 +1,7 @@
 import { BrowserWindow, globalShortcut, screen, app, ipcMain, Tray, Menu, nativeImage, systemPreferences, dialog } from 'electron';
 import path from 'path';
 import { getMainWindow } from '../window';
+import { BackendManager } from '../backend/manager';
 import Store from 'electron-store';
 
 // Popup window instance
@@ -390,6 +391,53 @@ export function createTray(): Tray {
 
   console.log('System tray created');
   return tray;
+}
+
+/** Reference to the BackendManager, set via setupPopupOSAIntegration */
+let _backendManager: BackendManager | null = null;
+
+/**
+ * Connect the popup message flow to OSA orchestration.
+ * Call this after setupPopupIPC to enable OSA responses in the popup.
+ */
+export function setupPopupOSAIntegration(backendManager: BackendManager | null): void {
+  _backendManager = backendManager;
+
+  // popup:send-message-to-osa → calls /api/osa/orchestrate and sends response back to popup
+  ipcMain.on(
+    'popup:send-message-to-osa',
+    async (
+      _event,
+      req: { input: string; user_id: string; workspace_id?: string; session_id?: string }
+    ) => {
+      try {
+        const baseUrl = _backendManager?.getUrl() ?? 'http://localhost:8000';
+        const res = await fetch(`${baseUrl}/api/osa/orchestrate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(req),
+        });
+
+        if (!res.ok) {
+          popupWindow?.webContents.send('popup:osa-response', {
+            success: false,
+            error: `HTTP ${res.status}`,
+          });
+          return;
+        }
+
+        const data = await res.json();
+        popupWindow?.webContents.send('popup:osa-response', { success: true, data });
+      } catch (error) {
+        popupWindow?.webContents.send('popup:osa-response', {
+          success: false,
+          error: String(error),
+        });
+      }
+    }
+  );
+
+  console.log('Popup OSA integration registered');
 }
 
 /**
