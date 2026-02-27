@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+**CRITICAL: NEVER add "Co-Authored-By: Claude" or any AI co-author line to git commits. No exceptions.**
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build & Development Commands

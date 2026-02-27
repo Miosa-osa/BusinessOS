@@ -10,6 +10,8 @@
 # Multi-Agent Orchestration | Persistent Memory | Enforced Quality
 # ═══════════════════════════════════════════════════════════════════════════════
 
+**CRITICAL: NEVER add "Co-Authored-By: Claude" or any AI co-author line to git commits. No exceptions.**
+
 # ╔═══════════════════════════════════════════════════════════════════════════════╗
 # ║                                                                               ║
 # ║   🛑🛑🛑 CRITICAL: READ THIS ENTIRE DOCUMENT BEFORE RESPONDING 🛑🛑🛑         ║

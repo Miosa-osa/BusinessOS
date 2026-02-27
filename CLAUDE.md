@@ -1,5 +1,7 @@
 # BusinessOS - Claude Code Workflow
 
+**CRITICAL: NEVER add "Co-Authored-By: Claude" or any AI co-author line to git commits. No exceptions.**
+
 ## 🎯 Filosofia: Decomposição Automática em Subtasks
 
 **SEMPRE divida trabalho complexo em subtasks paralelas usando subagents nativos do Claude Code.**
