@@ -1,0 +1,228 @@
+/**
+ * BusinessOS Design System Variables
+ * Based on modern design patterns for document-centric applications
+ *
+ * Naming convention: --bos-{category}-{property}
+ */
+
+:root {
+	/* ============================================
+	   FONTS
+	   ============================================ */
+	--bos-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+	--bos-font-code-family: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, monospace;
+	--bos-font-number-family: 'Roboto Mono', 'SF Mono', monospace;
+
+	/* Font Sizes */
+	--bos-font-h1: 28px;
+	--bos-font-h2: 26px;
+	--bos-font-h3: 24px;
+	--bos-font-h4: 22px;
+	--bos-font-h5: 20px;
+	--bos-font-h6: 18px;
+	--bos-font-base: 15px;
+	--bos-font-sm: 14px;
+	--bos-font-xs: 12px;
+	--bos-line-height: 1.6;
+
+	/* ============================================
+	   LIGHT THEME COLORS
+	   ============================================ */
+
+	/* Brand Colors */
+	--bos-brand-color: #1e96eb;
+	--bos-primary-color: #1e96eb;
+	--bos-secondary-color: rgba(30, 150, 235, 0.1);
+
+	/* Text Colors */
+	--bos-text-primary-color: #121212;
+	--bos-text-secondary-color: #8e8d91;
+	--bos-text-tertiary-color: #bfbfc3;
+	--bos-text-disable-color: #c0bfc1;
+	--bos-text-emphasis-color: #1e96eb;
+
+	/* V2 Text Colors */
+	--bos-v2-text-primary: #121212;
+	--bos-v2-text-secondary: #8e8d91;
+	--bos-v2-text-tertiary: #bfbfc3;
+	--bos-v2-text-emphasis: #1e96eb;
+	--bos-v2-text-disable: #c0bfc1;
+	--bos-v2-text-link: #1e96eb;
+
+	/* Icon Colors */
+	--bos-v2-icon-primary: #77757d;
+	--bos-v2-icon-secondary: #a9a9ad;
+	--bos-v2-icon-tertiary: #c9ccd0;
+	--bos-v2-icon-disable: #c9ccd0;
+	--bos-v2-icon-activated: #1e96eb;
+
+	/* Layer/Background Colors */
+	--bos-v2-layer-background-primary: #ffffff;
+	--bos-v2-layer-background-secondary: #f4f4f5;
+	--bos-v2-layer-background-tertiary: #eeeef0;
+	--bos-v2-layer-background-hoverOverlay: rgba(0, 0, 0, 0.04);
+	--bos-v2-layer-background-modal: rgba(0, 0, 0, 0.4);
+	--bos-v2-layer-background-overlayPanel: #fbfbfc;
+	--bos-v2-layer-background-codeBlock: #fafafa;
+
+	/* Layer/Border Colors */
+	--bos-v2-layer-insideBorder-border: rgba(0, 0, 0, 0.1);
+	--bos-v2-layer-insideBorder-blackBorder: rgba(0, 0, 0, 0.1);
+	--bos-v2-layer-insideBorder-primaryBorder: #1e96eb;
+
+	/* Button Colors */
+	--bos-v2-button-primary: #1e96eb;
+	--bos-v2-button-secondary: #f4f4f5;
+	--bos-v2-button-error: #eb4335;
+	--bos-v2-button-success: #10b981;
+	--bos-v2-button-warning: #f59e0b;
+	--bos-v2-button-pureWhiteText: #ffffff;
+	--bos-v2-button-iconButtonSolid: #ffffff;
+
+	/* Status Colors */
+	--bos-success-color: #10b981;
+	--bos-warning-color: #f59e0b;
+	--bos-error-color: #eb4335;
+	--bos-processing-color: #1e96eb;
+
+	/* Background Colors */
+	--bos-background-primary-color: #ffffff;
+	--bos-background-secondary-color: #f4f4f5;
+	--bos-background-tertiary-color: #eeeef0;
+	--bos-background-modal-color: rgba(0, 0, 0, 0.4);
+	--bos-background-code-block: #fafafa;
+	--bos-background-error-color: rgba(235, 67, 53, 0.1);
+	--bos-background-warning-color: rgba(245, 158, 11, 0.1);
+	--bos-background-success-color: rgba(16, 185, 129, 0.1);
+
+	/* Border Colors */
+	--bos-border-color: #e3e2e4;
+	--bos-divider-color: #e3e2e4;
+
+	/* Other Colors */
+	--bos-hover-color: rgba(0, 0, 0, 0.04);
+	--bos-placeholder-color: #c0bfc1;
+	--bos-quote-color: #77757d;
+	--bos-link-color: #1e96eb;
+	--bos-icon-color: #77757d;
+	--bos-icon-secondary: #a9a9ad;
+	--bos-tooltip: #424149;
+
+	/* Grayscale */
+	--bos-black: #000000;
+	--bos-black-10: rgba(0, 0, 0, 0.1);
+	--bos-black-30: rgba(0, 0, 0, 0.3);
+	--bos-black-50: rgba(0, 0, 0, 0.5);
+	--bos-black-60: rgba(0, 0, 0, 0.6);
+	--bos-black-80: rgba(0, 0, 0, 0.8);
+	--bos-black-90: rgba(0, 0, 0, 0.9);
+	--bos-white: #ffffff;
+	--bos-white-10: rgba(255, 255, 255, 0.1);
+	--bos-white-30: rgba(255, 255, 255, 0.3);
+	--bos-white-50: rgba(255, 255, 255, 0.5);
+	--bos-white-60: rgba(255, 255, 255, 0.6);
+	--bos-white-80: rgba(255, 255, 255, 0.8);
+	--bos-white-90: rgba(255, 255, 255, 0.9);
+
+	/* Shadows */
+	--bos-shadow-1: 0px 0px 4px rgba(66, 65, 73, 0.14);
+	--bos-shadow-2: 0px 0px 12px rgba(66, 65, 73, 0.18), inset 0px 0px 0px 0.5px rgba(227, 226, 228, 1);
+	--bos-shadow-3: 0px 0px 20px rgba(66, 65, 73, 0.22);
+	--bos-popover-shadow: 0px 0px 12px rgba(66, 65, 73, 0.14), 0px 0px 0px 0.5px rgba(0, 0, 0, 0.1);
+	--bos-menu-shadow: 0px 0px 12px rgba(66, 65, 73, 0.14);
+	--bos-float-button-shadow: 0px 2px 10px rgba(0, 0, 0, 0.12);
+
+	/* Tags */
+	--bos-tag-blue: #e8f4ff;
+	--bos-tag-green: #e6f6eb;
+	--bos-tag-teal: #e0f5f4;
+	--bos-tag-white: #f5f5f5;
+	--bos-tag-purple: #f3edff;
+	--bos-tag-red: #ffeded;
+	--bos-tag-pink: #fff0f5;
+	--bos-tag-yellow: #fefae8;
+	--bos-tag-orange: #fff4e8;
+	--bos-tag-gray: #f5f5f5;
+
+	/* Z-Index */
+	--bos-z-index-modal: 1000;
+	--bos-z-index-popover: 1001;
+
+	/* Spacing & Sizing */
+	--bos-paragraph-space: 8px;
+	--bos-popover-radius: 12px;
+	--bos-editor-width: 800px;
+
+	/* Theme Mode */
+	--bos-theme-mode: 'light';
+}
+
+/* ============================================
+   DARK THEME
+   ============================================ */
+.dark,
+[data-theme='dark'] {
+	/* Text Colors */
+	--bos-text-primary-color: #e6e6e6;
+	--bos-text-secondary-color: #8e8d91;
+	--bos-text-tertiary-color: #545459;
+	--bos-text-disable-color: #3c3c42;
+
+	/* V2 Text Colors */
+	--bos-v2-text-primary: #e6e6e6;
+	--bos-v2-text-secondary: #8e8d91;
+	--bos-v2-text-tertiary: #545459;
+	--bos-v2-text-disable: #3c3c42;
+
+	/* Icon Colors */
+	--bos-v2-icon-primary: #a6a6ad;
+	--bos-v2-icon-secondary: #707076;
+	--bos-v2-icon-tertiary: #545459;
+	--bos-v2-icon-disable: #3c3c42;
+
+	/* Layer/Background Colors */
+	--bos-v2-layer-background-primary: #1e1e1e;
+	--bos-v2-layer-background-secondary: #2c2c2c;
+	--bos-v2-layer-background-tertiary: #3a3a3a;
+	--bos-v2-layer-background-hoverOverlay: rgba(255, 255, 255, 0.08);
+	--bos-v2-layer-background-modal: rgba(0, 0, 0, 0.75);
+	--bos-v2-layer-background-overlayPanel: #252525;
+	--bos-v2-layer-background-codeBlock: #2c2c2c;
+
+	/* Layer/Border Colors */
+	--bos-v2-layer-insideBorder-border: rgba(255, 255, 255, 0.1);
+	--bos-v2-layer-insideBorder-blackBorder: rgba(255, 255, 255, 0.1);
+
+	/* Button Colors */
+	--bos-v2-button-secondary: #3a3a3a;
+	--bos-v2-button-iconButtonSolid: #3a3a3a;
+
+	/* Background Colors */
+	--bos-background-primary-color: #1e1e1e;
+	--bos-background-secondary-color: #2c2c2c;
+	--bos-background-tertiary-color: #3a3a3a;
+	--bos-background-modal-color: rgba(0, 0, 0, 0.75);
+	--bos-background-code-block: #2c2c2c;
+
+	/* Border Colors */
+	--bos-border-color: #3c3c42;
+	--bos-divider-color: #3c3c42;
+
+	/* Other Colors */
+	--bos-hover-color: rgba(255, 255, 255, 0.08);
+	--bos-placeholder-color: #545459;
+	--bos-quote-color: #a6a6ad;
+	--bos-icon-color: #a6a6ad;
+	--bos-icon-secondary: #707076;
+	--bos-tooltip: #e6e6e6;
+
+	/* Shadows (darker for dark mode) */
+	--bos-shadow-1: 0px 0px 4px rgba(0, 0, 0, 0.35);
+	--bos-shadow-2: 0px 0px 12px rgba(0, 0, 0, 0.45), inset 0px 0px 0px 0.5px rgba(60, 60, 66, 1);
+	--bos-shadow-3: 0px 0px 20px rgba(0, 0, 0, 0.55);
+	--bos-popover-shadow: 0px 0px 12px rgba(0, 0, 0, 0.5), 0px 0px 0px 0.5px rgba(255, 255, 255, 0.1);
+	--bos-menu-shadow: 0px 0px 12px rgba(0, 0, 0, 0.45);
+
+	/* Theme Mode */
+	--bos-theme-mode: 'dark';
+}

@@ -1,0 +1,65 @@
+{{define "content"}}
+<div style="text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 16px;">🤝</div>
+    <h1>You're Invited!</h1>
+</div>
+
+<p>Hi there,</p>
+
+<p><strong class="text-primary">{{.InviterName}}</strong> has invited you to join their team on OSA.</p>
+
+<div class="highlight-box">
+    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">Join workspace</div>
+    <h3 style="margin: 0; font-size: 22px;">{{.WorkspaceName}}</h3>
+</div>
+
+{{if .PersonalMessage}}
+<div class="info-box" style="border-left-color: #8b5cf6;">
+    <table cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+            <td width="44" valign="top">
+                <span class="avatar small">{{slice .InviterName 0 1}}</span>
+            </td>
+            <td style="padding-left: 12px;">
+                <p class="text-small" style="margin: 0 0 4px 0; color: #64748b;">Message from {{.InviterName}}:</p>
+                <p style="margin: 0; font-style: italic; color: #334155;">"{{.PersonalMessage}}"</p>
+            </td>
+        </tr>
+    </table>
+</div>
+{{end}}
+
+<div class="details-list" style="margin: 24px 0;">
+    <table cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+            <td width="50%" style="padding: 12px 0;">
+                <span style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Your Role</span><br>
+                <span class="badge badge-purple" style="margin-top: 6px;">{{.Role}}</span>
+            </td>
+            <td width="50%" style="padding: 12px 0;">
+                <span style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Invited By</span><br>
+                <strong style="color: #1e293b;">{{.InviterEmail}}</strong>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div class="button-wrapper">
+    <a href="{{.InvitationLink}}" class="button button-success">✓ Accept Invitation</a>
+</div>
+
+<div class="info-box purple">
+    <p class="text-small" style="margin: 0; color: #5b21b6;">
+        ⏱️ <strong>Expires in {{.ExpiresIn}}</strong> — Accept soon to join the team!
+    </p>
+</div>
+
+<div class="link-fallback">
+    <p>🔗 Button not working? Copy this link:</p>
+    <a href="{{.InvitationLink}}">{{.InvitationLink}}</a>
+</div>
+{{end}}
+
+{{define "footer"}}
+<p style="color: #64748b;">Don't recognize this invitation? No action needed—just ignore this email.</p>
+{{end}}

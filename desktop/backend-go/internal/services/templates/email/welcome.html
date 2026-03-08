@@ -1,0 +1,116 @@
+{{define "content"}}
+<div style="text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 16px;">🎉</div>
+    <h1>Welcome to OSA!</h1>
+</div>
+
+<p>Hi <strong>{{.UserName}}</strong>,</p>
+
+<p>We're thrilled to have you! Your workspace <strong class="text-primary">{{.WorkspaceName}}</strong> is ready and waiting for you.</p>
+
+{{if .BusinessType}}
+<div class="info-box purple">
+    <p style="margin: 0; color: #5b21b6;">
+        ✨ <strong>Personalized for you</strong> — We've optimized your setup for <strong>{{.BusinessType}}</strong> businesses.
+    </p>
+</div>
+{{end}}
+
+<div class="highlight-box">
+    <h3 style="margin: 0 0 8px 0;">🚀 Get Started in 4 Easy Steps</h3>
+    <p style="margin: 0; font-size: 14px;">Your journey to better productivity starts now</p>
+</div>
+
+<div style="margin: 28px 0;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+            <td style="padding: 14px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                    <tr>
+                        <td width="44" valign="top">
+                            <span class="step-number">1</span>
+                        </td>
+                        <td style="padding-left: 4px;">
+                            <strong style="color: #0f172a; font-size: 15px;">Create your first project</strong>
+                            <p class="text-muted text-small" style="margin: 4px 0 0 0;">Organize your work into focused projects</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 14px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                    <tr>
+                        <td width="44" valign="top">
+                            <span class="step-number">2</span>
+                        </td>
+                        <td style="padding-left: 4px;">
+                            <strong style="color: #0f172a; font-size: 15px;">Invite your team</strong>
+                            <p class="text-muted text-small" style="margin: 4px 0 0 0;">Collaboration is better together</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 14px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                    <tr>
+                        <td width="44" valign="top">
+                            <span class="step-number">3</span>
+                        </td>
+                        <td style="padding-left: 4px;">
+                            <strong style="color: #0f172a; font-size: 15px;">Connect your tools</strong>
+                            <p class="text-muted text-small" style="margin: 4px 0 0 0;">Sync Calendar, Slack, Notion & more</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 14px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                    <tr>
+                        <td width="44" valign="top">
+                            <span class="step-number">4</span>
+                        </td>
+                        <td style="padding-left: 4px;">
+                            <strong style="color: #0f172a; font-size: 15px;">Explore AI features</strong>
+                            <p class="text-muted text-small" style="margin: 4px 0 0 0;">Let AI supercharge your workflow</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div class="button-wrapper">
+    <a href="{{.GettingStartedURL}}" class="button">Get Started →</a>
+</div>
+
+<hr class="divider-gradient">
+
+<p class="text-center" style="margin-bottom: 12px;">Need a hand? We're here to help:</p>
+
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+    <tr>
+        <td align="center">
+            <a href="{{.HelpCenterURL}}" style="display: inline-block; padding: 12px 20px; background: #f8fafc; border-radius: 8px; color: #6366f1; text-decoration: none; font-weight: 500; font-size: 14px; margin: 4px;">
+                📚 Help Center
+            </a>
+            {{if .CommunityURL}}
+            <a href="{{.CommunityURL}}" style="display: inline-block; padding: 12px 20px; background: #f8fafc; border-radius: 8px; color: #6366f1; text-decoration: none; font-weight: 500; font-size: 14px; margin: 4px;">
+                💬 Community
+            </a>
+            {{end}}
+        </td>
+    </tr>
+</table>
+{{end}}
+
+{{define "footer"}}
+<p style="color: #475569; font-size: 14px;">We're here to help you build something great!</p>
+<p style="color: #6366f1; font-weight: 600;">— The OSA Team 💜</p>
+{{end}}

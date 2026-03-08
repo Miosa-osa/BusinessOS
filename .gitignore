@@ -1,0 +1,129 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.svelte-kit/
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+ENV/
+.eggs/
+*.egg-info/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Desktop artifacts
+*.dmg
+desktop/src/renderer/_app/
+**/downloads/
+**/uploads/
+
+# Testing
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+.nyc_output/
+
+# Go binaries (never commit compiled binaries)
+desktop/backend-go/server
+desktop/backend-go/server.exe
+desktop/backend-go/server.exe~
+desktop/backend-go/main
+desktop/backend-go/migrate.exe
+desktop/backend-go/businessos-*
+desktop/backend-go/bin/
+*.exe
+*.exe~
+
+# Go backend logs and temp files
+desktop/backend-go/server_log.txt
+desktop/backend-go/server_err.txt
+desktop/backend-go/env_temp
+desktop/backend-go/env_temp_redis
+desktop/backend-go/fix_*.go
+
+# Go module cache
+.gomodcache/
+
+# Misc
+.local/
+.cache/
+tmp/
+temp/
+.claude/
+.handoffs/
+.playwright/
+.startup-logs/
+.taskmaster/
+.playwright-mcp/
+
+# Temporary analysis and documentation files (root level)
+ANALYSIS_*.txt
+ANALYSIS_*.md
+COMMIT_*.md
+CREATE_PR_*.md
+DELETION_*.md
+PR_BODY.md
+QUICK_REFERENCE.txt
+START_HERE.txt
+UNTRACKED_*.md
+UNTRACKED_*.txt
+cookies.txt
+API_TEMPLATE_*.ts
+.mcp.json
+
+# Project-specific context files (local only, not for git)
+CLAUDE.md
+TASKS.md
+SESSION_*.md
+MERGE_*.txt
+MERGE_*.md
+
+# Temporary test scripts (backend root)
+desktop/backend-go/test_*.go
+desktop/backend-go/test_*.sh
+desktop/backend-go/check_*.go
+
+# Frontend temporary docs
+frontend/src/lib/components/chat/ThinkingPanel.*.md
+frontend/src/lib/components/chat/*.test.svelte
+
+# Batch scripts for development (keep in local only)
+/*.bat
+nul
+
+# Compiled binaries
+bin/
+osa
+
+# Internal/private docs (never commit)
+.internal/

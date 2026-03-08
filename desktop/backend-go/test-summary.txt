@@ -1,0 +1,29 @@
+ok  	github.com/rhl/businessos-backend/examples	(cached)	coverage: 0.0% of statements
+ok  	github.com/rhl/businessos-backend/internal/agents	(cached)	coverage: 11.4% of statements
+ok  	github.com/rhl/businessos-backend/internal/agents/analyst	(cached)	coverage: 80.0% of statements
+ok  	github.com/rhl/businessos-backend/internal/agents/client	(cached)	coverage: 80.0% of statements
+ok  	github.com/rhl/businessos-backend/internal/agents/document	(cached)	coverage: 80.0% of statements
+ok  	github.com/rhl/businessos-backend/internal/agents/project	(cached)	coverage: 80.0% of statements
+ok  	github.com/rhl/businessos-backend/internal/agents/task	(cached)	coverage: 80.0% of statements
+ok  	github.com/rhl/businessos-backend/internal/cache	1.845s	coverage: 32.3% of statements
+ok  	github.com/rhl/businessos-backend/internal/container	(cached)	coverage: 7.8% of statements
+ok  	github.com/rhl/businessos-backend/internal/handlers	(cached)	coverage: 0.5% of statements
+ok  	github.com/rhl/businessos-backend/internal/integrations/osa	(cached)	coverage: 43.6% of statements
+ok  	github.com/rhl/businessos-backend/internal/logging	(cached)	coverage: 72.7% of statements
+ok  	github.com/rhl/businessos-backend/internal/middleware	(cached)	coverage: 28.7% of statements
+ok  	github.com/rhl/businessos-backend/internal/orchestration	(cached)	coverage: 1.0% of statements
+ok  	github.com/rhl/businessos-backend/internal/prompts	(cached)	coverage: 26.7% of statements
+?   	github.com/rhl/businessos-backend/internal/prompts/agents	[no test files]
+?   	github.com/rhl/businessos-backend/internal/prompts/core	[no test files]
+ok  	github.com/rhl/businessos-backend/internal/services	(cached)	coverage: 4.1% of statements
+ok  	github.com/rhl/businessos-backend/internal/streaming	(cached)	coverage: 69.0% of statements
+ok  	github.com/rhl/businessos-backend/internal/sync	(cached)	coverage: 22.4% of statements
+?   	github.com/rhl/businessos-backend/internal/sync/conflicts	[no test files]
+ok  	github.com/rhl/businessos-backend/internal/sync/messaging	(cached)	coverage: 4.0% of statements
+ok  	github.com/rhl/businessos-backend/internal/sync/metrics	(cached)	coverage: 95.4% of statements
+ok  	github.com/rhl/businessos-backend/internal/sync/outbox	(cached)	coverage: 10.3% of statements
+ok  	github.com/rhl/businessos-backend/internal/sync/vectorclock	(cached)	coverage: 97.9% of statements
+ok  	github.com/rhl/businessos-backend/internal/terminal	(cached)	coverage: 27.1% of statements
+ok  	github.com/rhl/businessos-backend/internal/tools	(cached)	coverage: 2.1% of statements
+FAIL	github.com/rhl/businessos-backend/scripts/archive/debug-scripts-2026-01 [build failed]
+FAIL

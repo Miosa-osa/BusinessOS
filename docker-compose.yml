@@ -1,0 +1,216 @@
+# =============================================================================
+# BusinessOS — Full Stack Compose
+# Boots: postgres → redis → backend → frontend in dependency order.
+# Usage:
+#   First time:  make setup
+#   Daily:       docker compose up -d
+#   Logs:        docker compose logs -f
+#   Teardown:    docker compose down -v
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 + pgvector
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: businessos-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password_change_in_prod}
+      POSTGRES_DB: ${POSTGRES_DB:-business_os}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Seed schema on first boot (idempotent — uses CREATE TABLE IF NOT EXISTS)
+      - ./desktop/backend-go/internal/database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-business_os}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - businessos-network
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 (auth sessions, pub/sub, caching)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: businessos-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      sh -c 'redis-server
+        --requirepass "$${REDIS_PASSWORD:-dev_redis_change_in_prod}"
+        --appendonly yes
+        --maxmemory 512mb
+        --maxmemory-policy allkeys-lru'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-dev_redis_change_in_prod}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - businessos-network
+
+  # ---------------------------------------------------------------------------
+  # BusinessOS Backend (Go)
+  # Dockerfile: desktop/backend-go/Dockerfile (multi-stage, alpine final image)
+  # Health probes: GET /healthz (liveness), GET /readyz (readiness)
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./desktop/backend-go
+      dockerfile: Dockerfile
+    image: businessos-backend:local
+    container_name: businessos-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8001}:8001"
+    environment:
+      # ── Server ────────────────────────────────────────────────────────────
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      SERVER_PORT: "8001"
+      ALLOWED_ORIGINS: >-
+        http://localhost:5173,http://localhost:3000,http://frontend:3000
+
+      # ── Database ──────────────────────────────────────────────────────────
+      DATABASE_URL: >-
+        postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-dev_password_change_in_prod}@postgres:5432/${POSTGRES_DB:-business_os}?sslmode=disable
+
+      # ── Redis ─────────────────────────────────────────────────────────────
+      REDIS_URL: redis://redis:6379/0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-dev_redis_change_in_prod}
+      REDIS_TLS_ENABLED: "false"
+
+      # ── Security (REQUIRED — set real values in .env for dev, secrets mgr for prod) ──
+      SECRET_KEY: ${SECRET_KEY:-CHANGE_ME_generate_with_openssl_rand_base64_64}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-CHANGE_ME_generate_with_openssl_rand_base64_32}
+      REDIS_KEY_HMAC_SECRET: ${REDIS_KEY_HMAC_SECRET:-CHANGE_ME_generate_with_openssl_rand_base64_32}
+
+      # ── AI Provider (defaults to local Ollama — no API key needed) ────────
+      AI_PROVIDER: ${AI_PROVIDER:-ollama_local}
+      OLLAMA_LOCAL_URL: ${OLLAMA_LOCAL_URL:-http://host.docker.internal:11434}
+      DEFAULT_MODEL: ${DEFAULT_MODEL:-llama3.2:3b}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-20250514}
+
+      # ── OSA Integration (optional — disabled by default) ──────────────────
+      OSA_ENABLED: ${OSA_ENABLED:-false}
+      OSA_MODE: ${OSA_MODE:-local}
+      MIOSA_API_KEY: ${MIOSA_API_KEY:-}
+
+      # ── OAuth (optional — leave blank to skip) ────────────────────────────
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8001/api/auth/google/callback}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-http://localhost:8001/api/auth/microsoft/callback}
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID:-}
+      SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET:-}
+      SLACK_REDIRECT_URI: ${SLACK_REDIRECT_URI:-http://localhost:8001/api/auth/slack/callback}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
+      NOTION_CLIENT_ID: ${NOTION_CLIENT_ID:-}
+      NOTION_CLIENT_SECRET: ${NOTION_CLIENT_SECRET:-}
+      NOTION_REDIRECT_URI: ${NOTION_REDIRECT_URI:-http://localhost:8001/api/auth/notion/callback}
+      HUBSPOT_CLIENT_ID: ${HUBSPOT_CLIENT_ID:-}
+      HUBSPOT_CLIENT_SECRET: ${HUBSPOT_CLIENT_SECRET:-}
+      HUBSPOT_REDIRECT_URI: ${HUBSPOT_REDIRECT_URI:-http://localhost:8001/api/auth/hubspot/callback}
+      LINEAR_CLIENT_ID: ${LINEAR_CLIENT_ID:-}
+      LINEAR_CLIENT_SECRET: ${LINEAR_CLIENT_SECRET:-}
+      LINEAR_REDIRECT_URI: ${LINEAR_REDIRECT_URI:-http://localhost:8001/api/auth/linear/callback}
+      CLICKUP_CLIENT_ID: ${CLICKUP_CLIENT_ID:-}
+      CLICKUP_CLIENT_SECRET: ${CLICKUP_CLIENT_SECRET:-}
+      CLICKUP_REDIRECT_URI: ${CLICKUP_REDIRECT_URI:-http://localhost:8001/api/auth/clickup/callback}
+      AIRTABLE_CLIENT_ID: ${AIRTABLE_CLIENT_ID:-}
+      AIRTABLE_CLIENT_SECRET: ${AIRTABLE_CLIENT_SECRET:-}
+      AIRTABLE_REDIRECT_URI: ${AIRTABLE_REDIRECT_URI:-http://localhost:8001/api/auth/airtable/callback}
+
+      # ── Web Push (optional) ───────────────────────────────────────────────
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+
+      # ── Feature flags ─────────────────────────────────────────────────────
+      ENABLE_LOCAL_MODELS: ${ENABLE_LOCAL_MODELS:-true}
+      NATS_ENABLED: "false"
+      CARRIER_ENABLED: "false"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # Docker socket — only needed for sandbox/container management features.
+      # Remove this line if you are not using the terminal/sandbox feature.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - businessos-network
+
+  # ---------------------------------------------------------------------------
+  # BusinessOS Frontend (SvelteKit adapter-node, port 3000)
+  # Dockerfile: frontend/Dockerfile (multi-stage, node:20-alpine final image)
+  # PUBLIC_API_URL is baked at build time via ARG; override via env at runtime.
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Baked into the Vite bundle at build time — must point to the host's
+        # externally-reachable backend (not the docker-internal hostname).
+        PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8001}
+        PUBLIC_ENVIRONMENT: ${ENVIRONMENT:-development}
+    image: businessos-frontend:local
+    container_name: businessos-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # SvelteKit CSRF: must match the URL users actually browse to.
+      ORIGIN: ${ORIGIN:-http://localhost:3000}
+      # Runtime env vars (non-PUBLIC_ vars are server-side only in SvelteKit)
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8001/api}
+      VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:8001}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - businessos-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  businessos-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
