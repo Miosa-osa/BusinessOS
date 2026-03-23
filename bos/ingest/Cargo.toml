@@ -1,0 +1,20 @@
+[package]
+name = "bos-ingest"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "BusinessOS data ingestion — file, API, S3, and Kafka data sources"
+
+[dependencies]
+bos-core = { path = "../core" }
+
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }

@@ -123,6 +123,64 @@ test-backend: ## Run Go backend tests
 	@printf '$(BOLD)Running Go tests...$(RESET)\n'
 	@cd desktop/backend-go && go test ./... -count=1
 
+# =============================================================================
+# bos — BusinessOS Data Layer CLI
+# =============================================================================
+
+.PHONY: bos-build
+bos-build: ## Build bos CLI (Rust)
+	@echo ""
+	@printf '$(BOLD)Building bos CLI...$(RESET)\n'
+	@cd bos && cargo build --release
+	@printf '  $(GREEN)Built$(RESET) bos/target/release/bos\n'
+
+.PHONY: bos-test
+bos-test: ## Run bos tests
+	@echo ""
+	@printf '$(BOLD)Running bos tests...$(RESET)\n'
+	@cd bos && cargo test
+	@printf '  $(GREEN)All tests passed$(RESET)\n'
+
+.PHONY: bos-validate
+bos-validate: bos-build ## Validate ontology mappings
+	@echo ""
+	@printf '$(BOLD)Validating ontology mappings...$(RESET)\n'
+	@./bos/target/release/bos ontology construct \
+		--mapping ./ontology-mappings.json \
+		--output /tmp/bos-validate-check/
+	@printf '  $(GREEN)Ontology mappings valid$(RESET)\n'
+
+.PHONY: bos-generate
+bos-generate: bos-build ## Generate SPARQL CONSTRUCT queries from ontology mappings
+	@echo ""
+	@printf '$(BOLD)Generating SPARQL CONSTRUCT queries...$(RESET)\n'
+	@mkdir -p desktop/backend-go/bos/queries
+	@./bos/target/release/bos ontology construct \
+		--mapping ./ontology-mappings.json \
+		--output ./desktop/backend-go/bos/queries/
+	@printf '  $(GREEN)Generated $$(ls desktop/backend-go/bos/queries/*.rq 2>/dev/null | wc -l | tr -d " ") CONSTRUCT queries$(RESET)\n'
+
+.PHONY: bos-export
+bos-export: bos-build ## Export ontology mappings as RDF
+	@echo ""
+	@printf '$(BOLD)Exporting ontology as RDF...$(RESET)\n'
+	@mkdir -p desktop/backend-go/bos/artifacts
+	@./bos/target/release/bos ontology export \
+		--mapping ./ontology-mappings.json \
+		--output ./desktop/backend-go/bos/artifacts/ontology.ttl \
+		--format ttl
+	@printf '  $(GREEN)Exported to desktop/backend-go/bos/artifacts/ontology.ttl$(RESET)\n'
+
+.PHONY: bos-execute
+bos-execute: bos-build ## Execute CONSTRUCT queries against PostgreSQL (requires DATABASE_URL)
+	@test -n "$(DATABASE_URL)" || (echo "ERROR: DATABASE_URL not set" && exit 1)
+	@echo ""
+	@printf '$(BOLD)Executing CONSTRUCT queries against PostgreSQL...$(RESET)\n'
+	@./bos/target/release/bos ontology execute \
+		--mapping ./ontology-mappings.json \
+		--database "$(DATABASE_URL)" \
+		--format ttl
+
 .PHONY: test-frontend
 test-frontend: ## Run SvelteKit frontend tests
 	@echo ""
