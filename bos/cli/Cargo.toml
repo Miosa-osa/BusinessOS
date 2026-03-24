@@ -20,6 +20,9 @@ bos-config = { path = "../config" }
 clap = { workspace = true }
 clap_complete = { workspace = true }
 clap_mangen = { workspace = true }
+clap-noun-verb = { workspace = true, features = ["async"] }
+clap-noun-verb-macros = { workspace = true }
+linkme = { workspace = true }
 miette = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }

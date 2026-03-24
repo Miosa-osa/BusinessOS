@@ -15,6 +15,9 @@ rust-version = "1.75"
 clap = { version = "4.5", features = ["derive", "env"] }
 clap_complete = "4.5"
 clap_mangen = "0.2"
+clap-noun-verb = "5.5"
+clap-noun-verb-macros = "5.5"
+linkme = "0.3"
 
 # Error handling
 anyhow = "1.0"
