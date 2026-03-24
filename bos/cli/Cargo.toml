@@ -34,3 +34,7 @@ tracing-subscriber = { workspace = true }
 owo-colors = { workspace = true }
 console = { workspace = true }
 indicatif = { workspace = true }
+
+[dev-dependencies]
+# For CLI integration testing
+assert_cmd = "2.0"

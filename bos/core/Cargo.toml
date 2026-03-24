@@ -30,5 +30,8 @@ oxrdf = { workspace = true }
 postgres = { workspace = true }
 tokio-postgres = { workspace = true }
 
+# Process Mining (pm4py-rust)
+pm4py = { path = "/Users/sac/chatmangpt/pm4py-rust" }
+
 [dev-dependencies]
 tempfile = "3"

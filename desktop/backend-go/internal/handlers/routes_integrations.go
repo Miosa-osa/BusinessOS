@@ -64,6 +64,20 @@ func (h *Handlers) registerIntegrationRoutes(api *gin.RouterGroup, auth gin.Hand
 	}
 	slog.Info("MCP server routes registered at /api/integrations/mcp/connectors/*")
 
+	// A2A Agent communication - /api/integrations/a2a/agents
+	a2aHandler := NewA2AHandler(services.NewA2AClient())
+	a2aAgents := integrationsModule.Group("/a2a/agents")
+	a2aAgents.Use(auth, middleware.RequireAuth())
+	{
+		a2aAgents.GET("", a2aHandler.ListConnectedAgents)
+		a2aAgents.POST("/discover", a2aHandler.DiscoverAgent)
+		a2aAgents.POST("/call", a2aHandler.CallAgent)
+		a2aAgents.GET("/tools", a2aHandler.GetAgentTools)
+		a2aAgents.POST("/tools/:name", a2aHandler.ExecuteAgentTool)
+		a2aAgents.DELETE("", a2aHandler.DisconnectAgent)
+	}
+	slog.Info("A2A agent routes registered at /api/integrations/a2a/agents/*")
+
 	// Module-specific integration endpoints - /api/modules/:id/integrations
 	modules := api.Group("/modules")
 	modules.Use(optionalAuth) // Optional auth for browsing available integrations

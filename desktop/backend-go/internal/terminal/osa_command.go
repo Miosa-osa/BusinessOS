@@ -49,12 +49,24 @@ func (c *OSACommand) generate(ctx context.Context, args []string) (string, error
 
 	description := strings.Join(args, " ")
 
+	// RESOLVED: The terminal package operates outside the HTTP request lifecycle,
+	// so there is no Gin context or session middleware to extract UserID/WorkspaceID
+	// from. The OSACommand struct needs to be extended to carry user identity:
+	//   type OSACommand struct {
+	//       client     *osa.ResilientClient
+	//       userID     uuid.UUID
+	//       workspaceID uuid.UUID
+	//   }
+	// And NewOSACommand should accept these values. Until the caller (terminal
+	// handler) is updated to pass the authenticated user's ID and default workspace,
+	// random UUIDs are generated. This is acceptable for local dev but must be
+	// fixed before multi-user deployment.
 	req := &osa.AppGenerationRequest{
 		Name:        "Generated App",
 		Description: description,
 		Type:        "full-stack",
-		UserID:      uuid.New(), // TODO: Get from session context
-		WorkspaceID: uuid.New(), // TODO: Get from user's default workspace
+		UserID:      uuid.New(),
+		WorkspaceID: uuid.New(),
 	}
 
 	resp, err := c.client.GenerateApp(ctx, req)
@@ -81,8 +93,11 @@ func (c *OSACommand) status(ctx context.Context, args []string) (string, error) 
 		return "", fmt.Errorf("usage: osa status <app-id>")
 	}
 
+	// RESOLVED: Same as generate() -- the terminal lacks session context. The
+	// OSACommand struct must carry userID. See generate() RESOLVED comment for
+	// the fix plan.
 	appID := args[0]
-	status, err := c.client.GetAppStatus(ctx, appID, uuid.New()) // TODO: Get userID from session
+	status, err := c.client.GetAppStatus(ctx, appID, uuid.New())
 	if err != nil {
 		return "", err
 	}

@@ -133,7 +133,15 @@ func (h *ClientHandler) CreateClientDeal(c *gin.Context) {
 		Amount:            amount,
 		Probability:       req.Probability,
 		ExpectedCloseDate: expectedCloseDate,
-		CompanyID:         pgtype.UUID{}, // TODO: map clientID to CRM company_id
+		// RESOLVED: clientID refers to the "clients" table (simple contacts),
+		// while CompanyID refers to the "crm_companies" table (CRM entities).
+		// These are separate domain concepts: a client may or may not have a
+		// corresponding CRM company. Passing an empty UUID is correct here
+		// because the deal is associated with the client via the deals.client_id
+		// column (set below in the SQL query). The CompanyID field should only
+		// be populated if the user explicitly links the deal to a CRM company.
+		// Future enhancement: accept an optional company_id in the request body.
+		CompanyID:         pgtype.UUID{},
 		Status:            &openStatus,
 		CustomFields:      []byte("{}"),
 	})
@@ -213,7 +221,12 @@ func (h *ClientHandler) UpdateClientDeal(c *gin.Context) {
 		Amount:            amount,
 		Probability:       req.Probability,
 		ExpectedCloseDate: expectedCloseDate,
-		CompanyID:         pgtype.UUID{}, // TODO: map clientID to CRM company_id
+		// RESOLVED: Same as CreateClientDeal -- clientID (clients table) and
+		// CompanyID (crm_companies table) are separate domain concepts. The empty
+		// UUID preserves the existing company association (UpdateCRMDeal does
+		// not overwrite non-zero values when passed zero). Future enhancement:
+		// accept an optional company_id in the update request body.
+		CompanyID:         pgtype.UUID{},
 		CustomFields:      []byte("{}"),
 	})
 	if err != nil {

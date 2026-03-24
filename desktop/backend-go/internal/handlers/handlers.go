@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"log/slog"
+	"os"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/cache"
 	"github.com/rhl/businessos-backend/internal/config"
@@ -111,5 +114,15 @@ func NewHandlers(pool *pgxpool.Pool, cfg *config.Config, containerMgr *container
 		notificationTriggers: notifTriggers,
 		osaClient:            osaClient,
 		osaSyncService:       osaSyncService,
+		complianceService:    initComplianceService(),
 	}
+}
+
+// initComplianceService creates a ComplianceService if OSA_BASE_URL is set.
+func initComplianceService() *services.ComplianceService {
+	osaBaseURL := os.Getenv("OSA_BASE_URL")
+	if osaBaseURL == "" {
+		osaBaseURL = "http://localhost:9089"
+	}
+	return services.NewComplianceService(osaBaseURL, slog.Default())
 }

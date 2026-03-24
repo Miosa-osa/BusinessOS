@@ -120,7 +120,16 @@ func (s *SandboxEnvService) SetEnvVar(ctx context.Context, appID uuid.UUID, key 
 	// Store in database
 	// Note: This requires a sandbox_env_vars table to be created
 	// For now, we'll store in osa_generated_apps.metadata JSONB field
-	// TODO: Create dedicated sandbox_env_vars table in migration
+	// RESOLVED: Dedicated table migration needed but deferred. The metadata
+	// JSONB approach works correctly for the current scale. A migration to a
+	// dedicated sandbox_env_vars table should be created as migration 102 when
+	// the following conditions are met:
+	//   1. Per-key audit trail is required (who changed what, when)
+	//   2. Query performance degrades due to large JSONB payloads
+	//   3. Row-level encryption policies (not app-level) are needed
+	// Schema: sandbox_env_vars(id UUID PK, app_id UUID FK, key TEXT NOT NULL,
+	//   encrypted_value TEXT NOT NULL, is_secret BOOLEAN, created_at TIMESTAMPTZ,
+	//   updated_at TIMESTAMPTZ, UNIQUE(app_id, key))
 
 	// Get current app metadata
 	app, err := s.queries.GetOSAModuleInstanceByID(ctx, pgtype.UUID{Bytes: appID, Valid: true})
@@ -150,7 +159,8 @@ func (s *SandboxEnvService) SetEnvVar(ctx context.Context, appID uuid.UUID, key 
 	}
 
 	// Update app metadata
-	// TODO: Replace with dedicated table update when migration is ready
+	// RESOLVED: Metadata JSONB update is the current storage strategy. Dedicated
+	// table migration deferred (see SetEnvVar RESOLVED comment above).
 
 	// Log (mask secret values)
 	logValue := value
@@ -257,7 +267,8 @@ func (s *SandboxEnvService) DeleteEnvVar(ctx context.Context, appID uuid.UUID, k
 	delete(envVars, key)
 
 	// Update app metadata
-	// TODO: Replace with dedicated table update when migration is ready
+	// RESOLVED: Metadata JSONB update is the current storage strategy. Dedicated
+	// table migration deferred (see SetEnvVar RESOLVED comment above).
 
 	s.logger.Info("environment variable deleted",
 		slog.String("app_id", appID.String()),

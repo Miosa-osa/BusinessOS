@@ -24,3 +24,6 @@ pub use ontology::infer::{ConfidenceLevel, InferConfig, InferResult, OntologyInf
 pub use ontology::select::{SemanticSearch, SelectResult};
 pub use ontology::serve::{ServeConfig, serve as serve_ontology};
 pub use rdf::store::{TripleStore, Triple};
+
+// Process Mining (pm4py-rust integration)
+pub mod process;

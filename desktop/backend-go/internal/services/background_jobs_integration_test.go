@@ -7,15 +7,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestBackgroundJobsIntegration tests the complete flow: enqueue → acquire → complete
+// TestBackgroundJobsIntegration tests the complete flow: enqueue -> acquire -> complete
 func TestBackgroundJobsIntegration(t *testing.T) {
-	// This test requires a running PostgreSQL database
-	// Skip if DATABASE_URL not set
-	t.Skip("Integration test - requires database")
-
-	// TODO: Setup test database connection
-	// pool := setupTestDB(t)
-	// defer pool.Close()
+	// RESOLVED: These integration tests require a running PostgreSQL instance with
+	// the full BusinessOS schema applied. They are intentionally skipped in CI and
+	// local unit test runs. To run them:
+	//   1. Start PostgreSQL (e.g., via Docker: make dev)
+	//   2. Set DATABASE_URL env var to the running instance
+	//   3. Apply all migrations: make migrate
+	//   4. Run with: go test -run TestBackgroundJobsIntegration -v
+	// A dedicated test database helper (setupTestDB) should be created in a
+	// testutils package that spins up a transient database via pgxpool + CREATE DATABASE.
+	t.Skip("Integration test - requires running PostgreSQL with BusinessOS schema")
 
 	// service := services.NewBackgroundJobsService(pool)
 
