@@ -21,4 +21,5 @@ pub use ontology::mapping::{MappingConfig, TableMapping, PropertyMapping};
 pub use ontology::bridge::BusinessOSBridge;
 pub use ontology::execute::{QueryExecutor, ExecutionResult};
 pub use ontology::infer::{ConfidenceLevel, InferConfig, InferResult, OntologyInferrer};
+pub use ontology::select::{SemanticSearch, SelectResult};
 pub use rdf::store::{TripleStore, Triple};
