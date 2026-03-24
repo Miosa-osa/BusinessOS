@@ -4,3 +4,4 @@ pub mod execute;
 pub mod infer;
 pub mod mapping;
 pub mod select;
+pub mod serve;

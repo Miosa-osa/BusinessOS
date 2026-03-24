@@ -313,3 +313,24 @@ fn infer(
         output_path: output,
     })
 }
+
+/// Serve workspace ontology as SPARQL HTTP endpoint
+///
+/// # Arguments
+/// * `workspace` - Workspace directory [default: .]
+/// * `port` - Port to bind [default: 7878]
+/// * `rdf` - RDF data file to preload
+#[verb("serve")]
+fn serve(
+    workspace: Option<String>,
+    port: Option<u16>,
+    rdf: Option<String>,
+) -> Result<()> {
+    let config = bos_core::ServeConfig {
+        host: "127.0.0.1".to_string(),
+        port: port.unwrap_or(7878),
+        rdf_path: rdf,
+    };
+    bos_core::serve_ontology(config)
+        .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))
+}
