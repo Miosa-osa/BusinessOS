@@ -2875,3 +2875,125 @@ func TestProcessMiningReplayFitnessBounded(t *testing.T) {
 		t.Errorf("process.mining.replay_fitness %f is out of [0.0, 1.0] bounds", kv.Value.AsFloat64())
 	}
 }
+
+// ============================================================
+// Wave 9 Iteration 10: Signal Theory — priority, encoding, hop_count
+// ============================================================
+
+func TestSignalPriorityKeyMatchesSchema(t *testing.T) {
+	if string(SignalPriorityKey) != "signal.priority" {
+		t.Errorf("SignalPriorityKey = %q, want %q", string(SignalPriorityKey), "signal.priority")
+	}
+}
+
+func TestSignalPriorityCriticalValueMatchesSchema(t *testing.T) {
+	if SignalPriorityCritical != "critical" {
+		t.Errorf("SignalPriorityCritical = %q, want %q", SignalPriorityCritical, "critical")
+	}
+}
+
+func TestSignalEncodingKeyMatchesSchema(t *testing.T) {
+	if string(SignalEncodingKey) != "signal.encoding" {
+		t.Errorf("SignalEncodingKey = %q, want %q", string(SignalEncodingKey), "signal.encoding")
+	}
+}
+
+func TestSignalHopCountKeyMatchesSchema(t *testing.T) {
+	if string(SignalHopCountKey) != "signal.hop_count" {
+		t.Errorf("SignalHopCountKey = %q, want %q", string(SignalHopCountKey), "signal.hop_count")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 10: Canopy Heartbeat — latency, sequence, missed, session
+// ============================================================
+
+func TestCanopyHeartbeatLatencyMsKeyMatchesSchema(t *testing.T) {
+	if string(CanopyHeartbeatLatencyMsKey) != "canopy.heartbeat.latency_ms" {
+		t.Errorf("CanopyHeartbeatLatencyMsKey = %q, want %q", string(CanopyHeartbeatLatencyMsKey), "canopy.heartbeat.latency_ms")
+	}
+}
+
+func TestCanopyHeartbeatSequenceNumKeyMatchesSchema(t *testing.T) {
+	if string(CanopyHeartbeatSequenceNumKey) != "canopy.heartbeat.sequence_num" {
+		t.Errorf("CanopyHeartbeatSequenceNumKey = %q, want %q", string(CanopyHeartbeatSequenceNumKey), "canopy.heartbeat.sequence_num")
+	}
+}
+
+func TestCanopySessionIdKeyMatchesSchema(t *testing.T) {
+	if string(CanopySessionIDKey) != "canopy.session.id" {
+		t.Errorf("CanopySessionIDKey = %q, want %q", string(CanopySessionIDKey), "canopy.session.id")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 10: MCP Registry — tool_count, server_count, connection, transport
+// ============================================================
+
+func TestMcpRegistryToolCountKeyMatchesSchema(t *testing.T) {
+	if string(McpRegistryToolCountKey) != "mcp.registry.tool_count" {
+		t.Errorf("McpRegistryToolCountKey = %q, want %q", string(McpRegistryToolCountKey), "mcp.registry.tool_count")
+	}
+}
+
+func TestMcpConnectionTransportKeyMatchesSchema(t *testing.T) {
+	if string(McpConnectionTransportKey) != "mcp.connection.transport" {
+		t.Errorf("McpConnectionTransportKey = %q, want %q", string(McpConnectionTransportKey), "mcp.connection.transport")
+	}
+}
+
+func TestMcpConnectionTransportStdioValueMatchesSchema(t *testing.T) {
+	if McpConnectionTransportStdio != "stdio" {
+		t.Errorf("McpConnectionTransportStdio = %q, want %q", McpConnectionTransportStdio, "stdio")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 10: Conversation — id, turn_count, model, phase
+// ============================================================
+
+func TestConversationIdKeyMatchesSchema(t *testing.T) {
+	if string(ConversationIDKey) != "conversation.id" {
+		t.Errorf("ConversationIDKey = %q, want %q", string(ConversationIDKey), "conversation.id")
+	}
+}
+
+func TestConversationTurnCountKeyMatchesSchema(t *testing.T) {
+	if string(ConversationTurnCountKey) != "conversation.turn_count" {
+		t.Errorf("ConversationTurnCountKey = %q, want %q", string(ConversationTurnCountKey), "conversation.turn_count")
+	}
+}
+
+func TestConversationModelKeyMatchesSchema(t *testing.T) {
+	if string(ConversationModelKey) != "conversation.model" {
+		t.Errorf("ConversationModelKey = %q, want %q", string(ConversationModelKey), "conversation.model")
+	}
+}
+
+func TestConversationPhaseActiveValueMatchesSchema(t *testing.T) {
+	if ConversationPhaseActive != "active" {
+		t.Errorf("ConversationPhaseActive = %q, want %q", ConversationPhaseActive, "active")
+	}
+}
+
+func TestConversationPhaseCompleteValueMatchesSchema(t *testing.T) {
+	if ConversationPhaseComplete != "complete" {
+		t.Errorf("ConversationPhaseComplete = %q, want %q", ConversationPhaseComplete, "complete")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 10: YAWL WP-6/7 — active_branches, fired_branches, sync timeout
+// ============================================================
+
+func TestWorkflowActiveBranchesKeyMatchesSchema(t *testing.T) {
+	if string(WorkflowActiveBranchesKey) != "workflow.active_branches" {
+		t.Errorf("WorkflowActiveBranchesKey = %q, want %q", string(WorkflowActiveBranchesKey), "workflow.active_branches")
+	}
+}
+
+func TestWorkflowFiredBranchesKeyMatchesSchema(t *testing.T) {
+	if string(WorkflowFiredBranchesKey) != "workflow.fired_branches" {
+		t.Errorf("WorkflowFiredBranchesKey = %q, want %q", string(WorkflowFiredBranchesKey), "workflow.fired_branches")
+	}
+}

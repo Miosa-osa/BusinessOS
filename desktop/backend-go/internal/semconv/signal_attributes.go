@@ -187,3 +187,39 @@ func SignalQualityThreshold(val float64) attribute.KeyValue {
 	return SignalQualityThresholdKey.Float64(val)
 }
 
+// Wave 9 iteration 10: Signal priority, encoding, hop_count
+
+const (
+	// SignalPriorityKey is the OTel attribute key for signal.priority.
+	// Priority tier of the signal dispatch (critical/high/normal/low).
+	SignalPriorityKey = attribute.Key("signal.priority")
+	// SignalEncodingKey is the OTel attribute key for signal.encoding.
+	// Encoding format applied to the signal payload.
+	SignalEncodingKey = attribute.Key("signal.encoding")
+	// SignalHopCountKey is the OTel attribute key for signal.hop_count.
+	// Number of hops the signal has traversed in the routing graph.
+	SignalHopCountKey = attribute.Key("signal.hop_count")
+)
+
+// SignalPriority returns an attribute KeyValue for signal.priority.
+func SignalPriority(val string) attribute.KeyValue {
+	return SignalPriorityKey.String(val)
+}
+
+// SignalEncoding returns an attribute KeyValue for signal.encoding.
+func SignalEncoding(val string) attribute.KeyValue {
+	return SignalEncodingKey.String(val)
+}
+
+// SignalHopCount returns an attribute KeyValue for signal.hop_count.
+func SignalHopCount(val int) attribute.KeyValue {
+	return SignalHopCountKey.Int(val)
+}
+
+const (
+	SignalPriorityCritical = "critical"
+	SignalPriorityHigh     = "high"
+	SignalPriorityNormal   = "normal"
+	SignalPriorityLow      = "low"
+)
+

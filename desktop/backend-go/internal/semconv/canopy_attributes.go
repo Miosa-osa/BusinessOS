@@ -171,3 +171,40 @@ func CanopyWorkspaceId(val string) attribute.KeyValue {
 	return CanopyWorkspaceIdKey.String(val)
 }
 
+// Wave 9 iteration 10: Canopy heartbeat latency, sequence, missed count, session id
+
+const (
+	// CanopyHeartbeatLatencyMsKey is the OTel attribute key for canopy.heartbeat.latency_ms.
+	// Round-trip latency for a heartbeat probe in milliseconds.
+	CanopyHeartbeatLatencyMsKey = attribute.Key("canopy.heartbeat.latency_ms")
+	// CanopyHeartbeatSequenceNumKey is the OTel attribute key for canopy.heartbeat.sequence_num.
+	// Monotonic sequence number of the heartbeat message.
+	CanopyHeartbeatSequenceNumKey = attribute.Key("canopy.heartbeat.sequence_num")
+	// CanopyHeartbeatMissedCountKey is the OTel attribute key for canopy.heartbeat.missed_count.
+	// Number of consecutive missed heartbeats detected.
+	CanopyHeartbeatMissedCountKey = attribute.Key("canopy.heartbeat.missed_count")
+	// CanopySessionIDKey is the OTel attribute key for canopy.session.id.
+	// Unique identifier for the Canopy session.
+	CanopySessionIDKey = attribute.Key("canopy.session.id")
+)
+
+// CanopyHeartbeatLatencyMs returns an attribute KeyValue for canopy.heartbeat.latency_ms.
+func CanopyHeartbeatLatencyMs(val int) attribute.KeyValue {
+	return CanopyHeartbeatLatencyMsKey.Int(val)
+}
+
+// CanopyHeartbeatSequenceNum returns an attribute KeyValue for canopy.heartbeat.sequence_num.
+func CanopyHeartbeatSequenceNum(val int) attribute.KeyValue {
+	return CanopyHeartbeatSequenceNumKey.Int(val)
+}
+
+// CanopyHeartbeatMissedCount returns an attribute KeyValue for canopy.heartbeat.missed_count.
+func CanopyHeartbeatMissedCount(val int) attribute.KeyValue {
+	return CanopyHeartbeatMissedCountKey.Int(val)
+}
+
+// CanopySessionID returns an attribute KeyValue for canopy.session.id.
+func CanopySessionID(val string) attribute.KeyValue {
+	return CanopySessionIDKey.String(val)
+}
+

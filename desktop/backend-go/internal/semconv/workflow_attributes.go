@@ -271,3 +271,32 @@ const (
 	WorkflowMergePolicyThreshold = "threshold"
 )
 
+// Wave 9 iteration 10: YAWL WP-6/7 parallel split/join tracking
+
+const (
+	// WorkflowActiveBranchesKey is the OTel attribute key for workflow.active_branches.
+	// Number of currently active branches in a parallel split.
+	WorkflowActiveBranchesKey = attribute.Key("workflow.active_branches")
+	// WorkflowFiredBranchesKey is the OTel attribute key for workflow.fired_branches.
+	// Number of branches that have fired (completed) in a parallel split.
+	WorkflowFiredBranchesKey = attribute.Key("workflow.fired_branches")
+	// WorkflowSyncTimeoutMsKey is the OTel attribute key for workflow.sync.timeout_ms.
+	// Maximum time in milliseconds to wait for synchronization at a join gateway (WvdA deadlock freedom).
+	WorkflowSyncTimeoutMsKey = attribute.Key("workflow.sync.timeout_ms")
+)
+
+// WorkflowActiveBranches returns an attribute KeyValue for workflow.active_branches.
+func WorkflowActiveBranches(val int) attribute.KeyValue {
+	return WorkflowActiveBranchesKey.Int(val)
+}
+
+// WorkflowFiredBranches returns an attribute KeyValue for workflow.fired_branches.
+func WorkflowFiredBranches(val int) attribute.KeyValue {
+	return WorkflowFiredBranchesKey.Int(val)
+}
+
+// WorkflowSyncTimeoutMs returns an attribute KeyValue for workflow.sync.timeout_ms.
+func WorkflowSyncTimeoutMs(val int) attribute.KeyValue {
+	return WorkflowSyncTimeoutMsKey.Int(val)
+}
+

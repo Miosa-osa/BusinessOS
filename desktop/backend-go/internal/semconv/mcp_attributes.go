@@ -89,3 +89,54 @@ func McpToolTimeoutMs(val int) attribute.KeyValue {
 	return McpToolTimeoutMsKey.Int(val)
 }
 
+// Wave 9 iteration 10: MCP registry and connection attributes
+
+const (
+	// McpRegistryToolCountKey is the OTel attribute key for mcp.registry.tool_count.
+	// Number of tools registered in the MCP server registry.
+	McpRegistryToolCountKey = attribute.Key("mcp.registry.tool_count")
+	// McpRegistryServerCountKey is the OTel attribute key for mcp.registry.server_count.
+	// Number of servers registered in the MCP registry.
+	McpRegistryServerCountKey = attribute.Key("mcp.registry.server_count")
+	// McpConnectionIDKey is the OTel attribute key for mcp.connection.id.
+	// Unique identifier for the MCP connection.
+	McpConnectionIDKey = attribute.Key("mcp.connection.id")
+	// McpConnectionTransportKey is the OTel attribute key for mcp.connection.transport.
+	// Transport protocol used for the MCP connection.
+	McpConnectionTransportKey = attribute.Key("mcp.connection.transport")
+	// McpProtocolVersionKey is the OTel attribute key for mcp.protocol.version.
+	// Version of the MCP protocol in use.
+	McpProtocolVersionKey = attribute.Key("mcp.protocol.version")
+)
+
+// McpRegistryToolCount returns an attribute KeyValue for mcp.registry.tool_count.
+func McpRegistryToolCount(val int) attribute.KeyValue {
+	return McpRegistryToolCountKey.Int(val)
+}
+
+// McpRegistryServerCount returns an attribute KeyValue for mcp.registry.server_count.
+func McpRegistryServerCount(val int) attribute.KeyValue {
+	return McpRegistryServerCountKey.Int(val)
+}
+
+// McpConnectionID returns an attribute KeyValue for mcp.connection.id.
+func McpConnectionID(val string) attribute.KeyValue {
+	return McpConnectionIDKey.String(val)
+}
+
+// McpConnectionTransport returns an attribute KeyValue for mcp.connection.transport.
+func McpConnectionTransport(val string) attribute.KeyValue {
+	return McpConnectionTransportKey.String(val)
+}
+
+// McpProtocolVersion returns an attribute KeyValue for mcp.protocol.version.
+func McpProtocolVersion(val string) attribute.KeyValue {
+	return McpProtocolVersionKey.String(val)
+}
+
+const (
+	McpConnectionTransportStdio = "stdio"
+	McpConnectionTransportHttp  = "http"
+	McpConnectionTransportSse   = "sse"
+)
+
