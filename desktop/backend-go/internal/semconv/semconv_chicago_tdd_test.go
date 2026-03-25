@@ -2179,3 +2179,266 @@ func TestWorkflowInstanceCountLessThanOrEqualCompleted(t *testing.T) {
 		t.Errorf("instance.completed (%d) > instance.count (%d): invalid state", completed.Value.AsInt64(), total.Value.AsInt64())
 	}
 }
+
+// ============================================================
+// Iteration 7: A2A Negotiation State Machine
+// ============================================================
+
+func TestA2aNegotiationStateKeyIsCorrectOtelName(t *testing.T) {
+	if string(A2aNegotiationStateKey) != "a2a.negotiation.state" {
+		t.Errorf("A2aNegotiationStateKey = %q, want %q", A2aNegotiationStateKey, "a2a.negotiation.state")
+	}
+}
+
+func TestA2aNegotiationStateProposedValueMatchesSchema(t *testing.T) {
+	if A2aNegotiationStateValues.Proposed != "proposed" {
+		t.Errorf("A2aNegotiationStateValues.Proposed = %q, want %q", A2aNegotiationStateValues.Proposed, "proposed")
+	}
+}
+
+func TestA2aNegotiationStateAcceptedValueMatchesSchema(t *testing.T) {
+	if A2aNegotiationStateValues.Accepted != "accepted" {
+		t.Errorf("A2aNegotiationStateValues.Accepted = %q, want %q", A2aNegotiationStateValues.Accepted, "accepted")
+	}
+}
+
+func TestA2aNegotiationStateRejectedValueMatchesSchema(t *testing.T) {
+	if A2aNegotiationStateValues.Rejected != "rejected" {
+		t.Errorf("A2aNegotiationStateValues.Rejected = %q, want %q", A2aNegotiationStateValues.Rejected, "rejected")
+	}
+}
+
+func TestA2aNegotiationTimeoutMsKeyIsCorrectOtelName(t *testing.T) {
+	if string(A2aNegotiationTimeoutMsKey) != "a2a.negotiation.timeout_ms" {
+		t.Errorf("A2aNegotiationTimeoutMsKey = %q, want %q", A2aNegotiationTimeoutMsKey, "a2a.negotiation.timeout_ms")
+	}
+}
+
+func TestA2aNegotiationTimeoutMsKeyValueRoundTrip(t *testing.T) {
+	// WvdA deadlock freedom: every negotiation round has an explicit timeout
+	kv := A2aNegotiationTimeoutMs(5000)
+	if string(kv.Key) != "a2a.negotiation.timeout_ms" {
+		t.Errorf("A2aNegotiationTimeoutMs key = %q, want %q", string(kv.Key), "a2a.negotiation.timeout_ms")
+	}
+	if kv.Value.AsInt64() != 5000 {
+		t.Errorf("A2aNegotiationTimeoutMs value = %d, want %d", kv.Value.AsInt64(), 5000)
+	}
+}
+
+func TestA2aDealValueKeyIsCorrectOtelName(t *testing.T) {
+	if string(A2aDealValueKey) != "a2a.deal.value" {
+		t.Errorf("A2aDealValueKey = %q, want %q", A2aDealValueKey, "a2a.deal.value")
+	}
+}
+
+func TestA2aDealValueKeyValueRoundTrip(t *testing.T) {
+	kv := A2aDealValue(250.5)
+	if string(kv.Key) != "a2a.deal.value" {
+		t.Errorf("A2aDealValue key = %q, want %q", string(kv.Key), "a2a.deal.value")
+	}
+	if kv.Value.AsFloat64() != 250.5 {
+		t.Errorf("A2aDealValue value = %f, want %f", kv.Value.AsFloat64(), 250.5)
+	}
+}
+
+// ============================================================
+// Iteration 7: Healing Soundness (WvdA deadlock freedom + boundedness)
+// ============================================================
+
+func TestHealingTimeoutMsKeyIsCorrectOtelName(t *testing.T) {
+	if string(HealingTimeoutMsKey) != "healing.timeout_ms" {
+		t.Errorf("HealingTimeoutMsKey = %q, want %q", HealingTimeoutMsKey, "healing.timeout_ms")
+	}
+}
+
+func TestHealingTimeoutMsKeyValueRoundTrip(t *testing.T) {
+	// WvdA deadlock freedom: every healing op must have timeout_ms > 0
+	kv := HealingTimeoutMs(30000)
+	if string(kv.Key) != "healing.timeout_ms" {
+		t.Errorf("HealingTimeoutMs key = %q, want %q", string(kv.Key), "healing.timeout_ms")
+	}
+	if kv.Value.AsInt64() != 30000 {
+		t.Errorf("HealingTimeoutMs value = %d, want %d", kv.Value.AsInt64(), 30000)
+	}
+}
+
+func TestHealingMaxIterationsKeyIsCorrectOtelName(t *testing.T) {
+	if string(HealingMaxIterationsKey) != "healing.max_iterations" {
+		t.Errorf("HealingMaxIterationsKey = %q, want %q", HealingMaxIterationsKey, "healing.max_iterations")
+	}
+}
+
+func TestHealingMaxIterationsKeyValueRoundTrip(t *testing.T) {
+	// WvdA boundedness: max_iterations enforces finite loop termination
+	kv := HealingMaxIterations(11)
+	if string(kv.Key) != "healing.max_iterations" {
+		t.Errorf("HealingMaxIterations key = %q, want %q", string(kv.Key), "healing.max_iterations")
+	}
+	if kv.Value.AsInt64() != 11 {
+		t.Errorf("HealingMaxIterations value = %d, want %d", kv.Value.AsInt64(), 11)
+	}
+}
+
+func TestHealingIterationKeyIsCorrectOtelName(t *testing.T) {
+	if string(HealingIterationKey) != "healing.iteration" {
+		t.Errorf("HealingIterationKey = %q, want %q", HealingIterationKey, "healing.iteration")
+	}
+}
+
+func TestHealingIterationKeyValueRoundTrip(t *testing.T) {
+	kv := HealingIteration(3)
+	if string(kv.Key) != "healing.iteration" {
+		t.Errorf("HealingIteration key = %q, want %q", string(kv.Key), "healing.iteration")
+	}
+	if kv.Value.AsInt64() != 3 {
+		t.Errorf("HealingIteration value = %d, want %d", kv.Value.AsInt64(), 3)
+	}
+}
+
+func TestHealingIterationBoundedByMaxIterations(t *testing.T) {
+	// WvdA boundedness: current iteration must not exceed max_iterations
+	maxIter := HealingMaxIterations(11)
+	current := HealingIteration(5)
+	if current.Value.AsInt64() > maxIter.Value.AsInt64() {
+		t.Errorf("healing.iteration (%d) > healing.max_iterations (%d): boundedness violation",
+			current.Value.AsInt64(), maxIter.Value.AsInt64())
+	}
+}
+
+func TestHealingRecoveryCompleteKeyIsCorrectOtelName(t *testing.T) {
+	if string(HealingRecoveryCompleteKey) != "healing.recovery_complete" {
+		t.Errorf("HealingRecoveryCompleteKey = %q, want %q", HealingRecoveryCompleteKey, "healing.recovery_complete")
+	}
+}
+
+func TestHealingRecoveryCompleteKeyValueRoundTripTrue(t *testing.T) {
+	kv := HealingRecoveryComplete(true)
+	if string(kv.Key) != "healing.recovery_complete" {
+		t.Errorf("HealingRecoveryComplete key = %q, want %q", string(kv.Key), "healing.recovery_complete")
+	}
+	if !kv.Value.AsBool() {
+		t.Errorf("HealingRecoveryComplete value = false, want true")
+	}
+}
+
+func TestHealingRecoveryCompleteKeyValueRoundTripFalse(t *testing.T) {
+	kv := HealingRecoveryComplete(false)
+	if kv.Value.AsBool() {
+		t.Errorf("HealingRecoveryComplete value = true, want false")
+	}
+}
+
+// ============================================================
+// Iteration 7: Signal Theory new attributes
+// ============================================================
+
+func TestSignalGenreKeyValueRoundTripIter7(t *testing.T) {
+	// Verify S=(M,G,T,F,W): G=genre round-trip produces correct key
+	kv := SignalGenre(SignalGenreValues.Spec)
+	if string(kv.Key) != "signal.genre" {
+		t.Errorf("SignalGenre key = %q, want %q", string(kv.Key), "signal.genre")
+	}
+	if kv.Value.AsString() != "spec" {
+		t.Errorf("SignalGenre value = %q, want %q", kv.Value.AsString(), "spec")
+	}
+}
+
+func TestSignalGenreBriefKeyValueRoundTrip(t *testing.T) {
+	// S=(M,G,T,F,W): brief is a valid genre for short summaries
+	kv := SignalGenre(SignalGenreValues.Brief)
+	if kv.Value.AsString() != "brief" {
+		t.Errorf("SignalGenre(Brief) value = %q, want %q", kv.Value.AsString(), "brief")
+	}
+}
+
+func TestSignalFormatKeyValueRoundTripIter7(t *testing.T) {
+	// Verify S=(M,G,T,F,W): F=format round-trip
+	kv := SignalFormat(SignalFormatValues.Markdown)
+	if string(kv.Key) != "signal.format" {
+		t.Errorf("SignalFormat key = %q, want %q", string(kv.Key), "signal.format")
+	}
+	if kv.Value.AsString() != "markdown" {
+		t.Errorf("SignalFormat value = %q, want %q", kv.Value.AsString(), "markdown")
+	}
+}
+
+func TestSignalQualityThresholdKeyIsCorrectOtelName(t *testing.T) {
+	if string(SignalQualityThresholdKey) != "signal.quality.threshold" {
+		t.Errorf("SignalQualityThresholdKey = %q, want %q", SignalQualityThresholdKey, "signal.quality.threshold")
+	}
+}
+
+func TestSignalQualityThresholdKeyValueRoundTrip(t *testing.T) {
+	// Default S/N gate threshold is 0.7 per Signal Theory spec
+	kv := SignalQualityThreshold(0.7)
+	if string(kv.Key) != "signal.quality.threshold" {
+		t.Errorf("SignalQualityThreshold key = %q, want %q", string(kv.Key), "signal.quality.threshold")
+	}
+	if kv.Value.AsFloat64() != 0.7 {
+		t.Errorf("SignalQualityThreshold value = %f, want %f", kv.Value.AsFloat64(), 0.7)
+	}
+}
+
+func TestSignalWeightKeyValueRoundTripIter7(t *testing.T) {
+	// S=(M,G,T,F,W): W=weight round-trip produces correct key+value
+	kv := SignalWeight(0.92)
+	if string(kv.Key) != "signal.weight" {
+		t.Errorf("SignalWeight key = %q, want %q", string(kv.Key), "signal.weight")
+	}
+	if kv.Value.AsFloat64() != 0.92 {
+		t.Errorf("SignalWeight value = %f, want %f", kv.Value.AsFloat64(), 0.92)
+	}
+}
+
+func TestSignalWeightAboveThresholdPassesSNGate(t *testing.T) {
+	// Signal Theory: weight >= 0.7 passes the S/N gate
+	threshold := SignalQualityThreshold(0.7)
+	weight := SignalWeight(0.85)
+	if weight.Value.AsFloat64() < threshold.Value.AsFloat64() {
+		t.Errorf("signal.weight %f < threshold %f: signal should pass S/N gate",
+			weight.Value.AsFloat64(), threshold.Value.AsFloat64())
+	}
+}
+
+// ============================================================
+// Iteration 7: YAWL new workflow attributes
+// ============================================================
+
+func TestWorkflowTriggerTypeKeyIsCorrectOtelName(t *testing.T) {
+	if string(WorkflowTriggerTypeKey) != "workflow.trigger_type" {
+		t.Errorf("WorkflowTriggerTypeKey = %q, want %q", WorkflowTriggerTypeKey, "workflow.trigger_type")
+	}
+}
+
+func TestWorkflowTriggerTypeTimerValueMatchesSchema(t *testing.T) {
+	if WorkflowTriggerTypeValues.Timer != "timer" {
+		t.Errorf("WorkflowTriggerTypeValues.Timer = %q, want %q", WorkflowTriggerTypeValues.Timer, "timer")
+	}
+}
+
+func TestWorkflowTriggerTypeKeyValueRoundTrip(t *testing.T) {
+	kv := WorkflowTriggerType(WorkflowTriggerTypeValues.Timer)
+	if string(kv.Key) != "workflow.trigger_type" {
+		t.Errorf("WorkflowTriggerType key = %q, want %q", string(kv.Key), "workflow.trigger_type")
+	}
+	if kv.Value.AsString() != "timer" {
+		t.Errorf("WorkflowTriggerType value = %q, want %q", kv.Value.AsString(), "timer")
+	}
+}
+
+func TestWorkflowBranchCountKeyIsCorrectOtelName(t *testing.T) {
+	if string(WorkflowBranchCountKey) != "workflow.branch_count" {
+		t.Errorf("WorkflowBranchCountKey = %q, want %q", WorkflowBranchCountKey, "workflow.branch_count")
+	}
+}
+
+func TestWorkflowBranchCountKeyValueRoundTrip(t *testing.T) {
+	// YAWL parallel split: branch_count must be >= 2
+	kv := WorkflowBranchCount(3)
+	if string(kv.Key) != "workflow.branch_count" {
+		t.Errorf("WorkflowBranchCount key = %q, want %q", string(kv.Key), "workflow.branch_count")
+	}
+	if kv.Value.AsInt64() != 3 {
+		t.Errorf("WorkflowBranchCount value = %d, want %d", kv.Value.AsInt64(), 3)
+	}
+}
