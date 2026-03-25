@@ -4362,3 +4362,87 @@ func TestIter20LLMCacheTTLMsKey(t *testing.T) {
 func TestIter20LLMCacheKeyHashKey(t *testing.T) {
 	assert.Equal(t, "llm.cache.key_hash", string(LLMCacheKeyHashKey))
 }
+
+// ===== Iter 21: Agent Handoff + A2A Auction + PM Conformance Threshold + Consensus Byzantine + Healing Intervention + LLM Tool Orchestration =====
+
+func TestIter21AgentHandoffTargetIDKey(t *testing.T) {
+	assert.Equal(t, "agent.handoff.target_id", string(AgentHandoffTargetIDKey))
+}
+func TestIter21AgentHandoffReasonKey(t *testing.T) {
+	assert.Equal(t, "agent.handoff.reason", string(AgentHandoffReasonKey))
+}
+func TestIter21AgentHandoffStateTransferMsKey(t *testing.T) {
+	assert.Equal(t, "agent.handoff.state_transfer_ms", string(AgentHandoffStateTransferMsKey))
+}
+func TestIter21AgentHandoffTargetID(t *testing.T) {
+	kv := AgentHandoffTargetID("agent-7")
+	assert.Equal(t, "agent.handoff.target_id", string(kv.Key))
+	assert.Equal(t, "agent-7", kv.Value.AsString())
+}
+func TestIter21A2AAuctionIDKey(t *testing.T) {
+	assert.Equal(t, "a2a.auction.id", string(A2AAuctionIDKey))
+}
+func TestIter21A2AAuctionBidCountKey(t *testing.T) {
+	assert.Equal(t, "a2a.auction.bid_count", string(A2AAuctionBidCountKey))
+}
+func TestIter21A2AAuctionWinnerIDKey(t *testing.T) {
+	assert.Equal(t, "a2a.auction.winner_id", string(A2AAuctionWinnerIDKey))
+}
+func TestIter21A2AAuctionClearingPriceKey(t *testing.T) {
+	assert.Equal(t, "a2a.auction.clearing_price", string(A2AAuctionClearingPriceKey))
+}
+func TestIter21A2AAuctionID(t *testing.T) {
+	kv := A2AAuctionID("auction-001")
+	assert.Equal(t, "a2a.auction.id", string(kv.Key))
+	assert.Equal(t, "auction-001", kv.Value.AsString())
+}
+func TestIter21PMConformanceCaseThresholdKey(t *testing.T) {
+	assert.Equal(t, "process.mining.conformance.case_threshold", string(PMConformanceCaseThresholdKey))
+}
+func TestIter21PMConformanceViolationCountKey(t *testing.T) {
+	assert.Equal(t, "process.mining.conformance.violation_count", string(PMConformanceViolationCountKey))
+}
+func TestIter21PMConformanceRepairStepsKey(t *testing.T) {
+	assert.Equal(t, "process.mining.conformance.repair_steps", string(PMConformanceRepairStepsKey))
+}
+func TestIter21PMConformanceCaseThreshold(t *testing.T) {
+	kv := PMConformanceCaseThreshold(0.85)
+	assert.Equal(t, "process.mining.conformance.case_threshold", string(kv.Key))
+	assert.InDelta(t, 0.85, kv.Value.AsFloat64(), 0.001)
+}
+func TestIter21ConsensusByzantineRecoveryRoundKey(t *testing.T) {
+	assert.Equal(t, "consensus.byzantine.recovery_round", string(ConsensusByzantineRecoveryRoundKey))
+}
+func TestIter21ConsensusByzantineDetectedFaultsKey(t *testing.T) {
+	assert.Equal(t, "consensus.byzantine.detected_faults", string(ConsensusByzantineDetectedFaultsKey))
+}
+func TestIter21ConsensusByzantineDetectedFaults(t *testing.T) {
+	kv := ConsensusByzantineDetectedFaults(2)
+	assert.Equal(t, "consensus.byzantine.detected_faults", string(kv.Key))
+	assert.Equal(t, int64(2), kv.Value.AsInt64())
+}
+func TestIter21HealingInterventionScoreKey(t *testing.T) {
+	assert.Equal(t, "healing.intervention.score", string(HealingInterventionScoreKey))
+}
+func TestIter21HealingInterventionOutcomeKey(t *testing.T) {
+	assert.Equal(t, "healing.intervention.outcome", string(HealingInterventionOutcomeKey))
+}
+func TestIter21HealingInterventionScore(t *testing.T) {
+	kv := HealingInterventionScore(0.92)
+	assert.Equal(t, "healing.intervention.score", string(kv.Key))
+	assert.InDelta(t, 0.92, kv.Value.AsFloat64(), 0.001)
+}
+func TestIter21LLMToolOrchestrationStrategyKey(t *testing.T) {
+	assert.Equal(t, "llm.tool.orchestration.strategy", string(LLMToolOrchestrationStrategyKey))
+}
+func TestIter21LLMToolOrchestrationStepCountKey(t *testing.T) {
+	assert.Equal(t, "llm.tool.orchestration.step_count", string(LLMToolOrchestrationStepCountKey))
+}
+func TestIter21LLMToolOrchestrationStrategy(t *testing.T) {
+	kv := LLMToolOrchestrationStrategy("parallel")
+	assert.Equal(t, "llm.tool.orchestration.strategy", string(kv.Key))
+	assert.Equal(t, "parallel", kv.Value.AsString())
+}
+func TestIter21LLMToolOrchestrationSuccessRateKey(t *testing.T) {
+	assert.Equal(t, "llm.tool.orchestration.success_rate", string(LLMToolOrchestrationSuccessRateKey))
+}
