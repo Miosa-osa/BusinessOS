@@ -11,6 +11,11 @@ import (
 	"github.com/rhl/businessos-backend/internal/config"
 )
 
+// DB is a wrapper around pgxpool.Pool for database access.
+type DB struct {
+	Pool *pgxpool.Pool
+}
+
 var Pool *pgxpool.Pool
 
 func Connect(cfg *config.Config) (*pgxpool.Pool, error) {

@@ -275,7 +275,11 @@ func (s *ModuleExportService) GenerateReadme(module *CustomModule) string {
 	readme := fmt.Sprintf("# %s\n\n", module.Name)
 	readme += fmt.Sprintf("**Version:** %s\n", module.Version)
 	readme += fmt.Sprintf("**Category:** %s\n\n", module.Category)
-	readme += fmt.Sprintf("## Description\n\n%s\n\n", module.Description)
+	desc := ""
+	if module.Description != nil {
+		desc = *module.Description
+	}
+	readme += fmt.Sprintf("## Description\n\n%s\n\n", desc)
 
 	// List actions
 	if module.Manifest != nil {

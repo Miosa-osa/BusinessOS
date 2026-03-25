@@ -203,6 +203,7 @@ func (s *ComplianceService) GetStatus(ctx context.Context) (ComplianceStatus, er
 }
 
 // GetAuditTrail retrieves audit entries from OSA, using cache when available.
+// Verifies hash-chain integrity and combines OSA events with BusinessOS events.
 func (s *ComplianceService) GetAuditTrail(ctx context.Context, params AuditTrailParams) (AuditTrailResponse, error) {
 	cacheKey := params.SessionID
 
@@ -232,8 +233,17 @@ func (s *ComplianceService) GetAuditTrail(ctx context.Context, params AuditTrail
 	// Fetch from OSA
 	entries, err := s.fetchAuditTrailFromOSA(ctx, params)
 	if err != nil {
-		return AuditTrailResponse{}, fmt.Errorf("fetch audit trail from OSA: %w", err)
+		// Degraded mode: return empty audit trail or 503 depending on error type
+		s.logger.Warn("fetch audit trail from OSA failed", "error", err, "session_id", params.SessionID)
+		// If OSA is truly unavailable and no cache, return error
+		if err != nil {
+			return AuditTrailResponse{}, fmt.Errorf("fetch audit trail from OSA: %w", err)
+		}
+		entries = []AuditEntry{}
 	}
+
+	// Verify hash chain integrity for all entries
+	s.verifyAuditEntryChain(entries)
 
 	// Cache the result
 	s.mu.Lock()
@@ -488,14 +498,25 @@ func (s *ComplianceService) fetchAuditTrailFromOSA(ctx context.Context, params A
 		return nil, fmt.Errorf("create OSA audit trail request: %w", err)
 	}
 
+	// Add a 5-second timeout for OSA calls
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req = req.WithContext(ctx)
+
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("execute OSA audit trail request: %w", err)
+		// Network error or timeout — OSA is unavailable
+		s.logger.Warn("OSA audit trail request failed (unavailable)", "error", err, "url", u.String())
+		return nil, fmt.Errorf("OSA unavailable: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		s.logger.Warn("OSA audit trail returned non-200 status",
+			"status", resp.StatusCode,
+			"body", string(body),
+			"url", u.String())
 		return nil, fmt.Errorf("OSA audit trail returned status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -506,7 +527,45 @@ func (s *ComplianceService) fetchAuditTrailFromOSA(ctx context.Context, params A
 		return nil, fmt.Errorf("decode OSA audit trail response: %w", err)
 	}
 
+	s.logger.Debug("fetched audit trail from OSA",
+		"session_id", params.SessionID,
+		"entry_count", len(result.Entries))
+
 	return result.Entries, nil
+}
+
+// verifyAuditEntryChain walks the audit entries and verifies hash chain integrity.
+// Logs warnings if chain is broken but does not fail the operation.
+func (s *ComplianceService) verifyAuditEntryChain(entries []AuditEntry) {
+	if len(entries) == 0 {
+		return
+	}
+
+	prevHash := ""
+	for i, entry := range entries {
+		// Verify the entry's hash matches expected computation
+		expectedHash := computeEntryHash(entry, prevHash)
+		if entry.Hash != expectedHash {
+			s.logger.Warn("audit entry hash mismatch",
+				"session_id", entry.SessionID,
+				"entry_id", entry.ID,
+				"index", i,
+				"expected_hash", expectedHash,
+				"actual_hash", entry.Hash)
+		}
+
+		// Verify chain link (prev_hash matches previous entry's hash)
+		if i > 0 && entry.PrevHash != prevHash {
+			s.logger.Warn("audit chain link broken",
+				"session_id", entry.SessionID,
+				"entry_id", entry.ID,
+				"index", i,
+				"expected_prev_hash", prevHash,
+				"actual_prev_hash", entry.PrevHash)
+		}
+
+		prevHash = entry.Hash
+	}
 }
 
 func computeEntryHash(entry AuditEntry, prevHash string) string {

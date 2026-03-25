@@ -92,6 +92,8 @@ type Handlers struct {
 	bosOntologyService *services.BosOntologyService // bos CLI bridge for RDF operations
 	// Zero-Touch Compliance (Innovation 3)
 	complianceService *services.ComplianceService // Compliance status, audit trail, gap analysis
+	// 2-Phase Commit Transaction Management
+	transactionHandler *BOSTransactionHandler // 2PC transaction coordinator (prepare, commit, abort)
 }
 
 // NewHandlers creates a new Handlers instance
@@ -115,6 +117,7 @@ func NewHandlers(pool *pgxpool.Pool, cfg *config.Config, containerMgr *container
 		osaClient:            osaClient,
 		osaSyncService:       osaSyncService,
 		complianceService:    initComplianceService(),
+		transactionHandler:   NewBOSTransactionHandler(pool, slog.Default()),
 	}
 }
 

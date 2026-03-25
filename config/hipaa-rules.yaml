@@ -1,0 +1,45 @@
+rules:
+  # HIPAA AC-1 - Access Control
+  - id: "hipaa.ac.1"
+    title: "Only authorized users can access PHI"
+    condition: "user.role != admin AND data.classification == phi"
+    action: "escalate"
+    enabled: true
+    severity: "critical"
+    framework: "HIPAA"
+
+  # HIPAA ER-1 - Encryption at Rest
+  - id: "hipaa.er.1"
+    title: "All PHI data must be encrypted at rest"
+    condition: "data.encrypted == false AND data.contains_phi == true"
+    action: "create_gap"
+    enabled: true
+    severity: "critical"
+    framework: "HIPAA"
+
+  # HIPAA ET-1 - Encryption in Transit
+  - id: "hipaa.et.1"
+    title: "HTTPS/TLS required for PHI transmission"
+    condition: "transmission.protocol != https AND message.contains_phi == true"
+    action: "escalate"
+    enabled: true
+    severity: "critical"
+    framework: "HIPAA"
+
+  # HIPAA AL-1 - Audit Logging
+  - id: "hipaa.al.1"
+    title: "All PHI access must be logged with timestamp and user"
+    condition: "audit_log.missing_phi_access_entries == true"
+    action: "create_gap"
+    enabled: true
+    severity: "high"
+    framework: "HIPAA"
+
+  # HIPAA DR-1 - Data Retention
+  - id: "hipaa.dr.1"
+    title: "PHI retained only as long as required (max 7 years)"
+    condition: "data.retention_days > 2555 AND data.contains_phi == true"
+    action: "notify"
+    enabled: true
+    severity: "medium"
+    framework: "HIPAA"

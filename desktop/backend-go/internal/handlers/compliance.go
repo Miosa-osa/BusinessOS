@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -61,6 +62,7 @@ func (h *ComplianceHandler) GetComplianceStatus(c *gin.Context) {
 // GetAuditTrail handles GET /api/compliance/audit-trail.
 // Query params: session_id, from, to, tool_name, limit, offset.
 // Returns hash-chain verified audit entries from OSA.
+// Returns 503 if OSA is unavailable and no cache exists.
 func (h *ComplianceHandler) GetAuditTrail(c *gin.Context) {
 	sessionID := c.Query("session_id")
 	if sessionID == "" {
@@ -107,6 +109,15 @@ func (h *ComplianceHandler) GetAuditTrail(c *gin.Context) {
 
 	result, err := h.complianceService.GetAuditTrail(c.Request.Context(), params)
 	if err != nil {
+		// Check if error indicates OSA unavailability
+		if strings.Contains(err.Error(), "OSA unavailable") {
+			h.logger.Warn("OSA unavailable, returning 503", "session_id", sessionID, "error", err)
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error": "OSA audit trail service unavailable",
+				"details": err.Error(),
+			})
+			return
+		}
 		utils.RespondInternalError(c, h.logger, "get audit trail", err)
 		return
 	}

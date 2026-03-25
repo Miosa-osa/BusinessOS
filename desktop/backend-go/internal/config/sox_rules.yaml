@@ -1,0 +1,86 @@
+# SOX Compliance Rules Configuration
+# Agent 5: SOX Rules + HA Architecture
+# Defines 5 core SOX (Sarbanes-Oxley Act) requirements for IT controls
+
+rules:
+  - id: "ITG-1"
+    name: "IT Governance & Control Environment"
+    description: "Establish and maintain IT governance framework per SOX Section 302 and COSO ERM framework"
+    severity: "critical"
+    sections:
+      - "302"  # Corporate responsibility for financial reports
+      - "302a" # CEO/CFO certification
+      - "302b" # Internal controls assessment
+    patterns:
+      - condition: "system_deployed_to_production"
+        action: "establish_change_control_board"
+      - condition: "financial_data_access_required"
+        action: "implement_segregation_of_duties"
+      - condition: "compliance_audit_initiated"
+        action: "document_control_objectives_and_activities"
+
+  - id: "SA-1"
+    name: "System Access & Authentication"
+    description: "Control user access to financial systems per SOX Section 404 IT controls"
+    severity: "critical"
+    sections:
+      - "404"  # Management assessment of internal controls
+      - "404a" # Internal control framework
+    patterns:
+      - condition: "user_onboarded"
+        action: "create_access_request_with_business_justification"
+      - condition: "access_role_changes"
+        action: "update_access_control_matrix"
+      - condition: "user_offboarded"
+        action: "revoke_all_system_access_within_24_hours"
+      - condition: "privileged_access_used"
+        action: "log_access_with_timestamp_and_user"
+
+  - id: "AL-1"
+    name: "Audit Logging & Monitoring"
+    description: "Maintain comprehensive audit logs for financial data access per SOX Section 404"
+    severity: "critical"
+    sections:
+      - "404"  # Management assessment of internal controls
+    patterns:
+      - condition: "financial_data_accessed"
+        action: "create_immutable_audit_log_entry"
+      - condition: "data_modified"
+        action: "log_before_and_after_values"
+      - condition: "audit_log_retention_period_reached"
+        action: "archive_logs_to_secure_storage_for_7_years"
+      - condition: "suspicious_access_detected"
+        action: "generate_alert_and_notify_security_team"
+
+  - id: "CM-1"
+    name: "Change Management & Configuration"
+    description: "Control changes to financial systems per SOX Section 404(b) IT control principles"
+    severity: "high"
+    sections:
+      - "404b" # Evaluation of IT controls
+    patterns:
+      - condition: "code_change_requested"
+        action: "submit_to_change_control_board"
+      - condition: "change_approved"
+        action: "implement_in_test_environment_first"
+      - condition: "change_tested_successfully"
+        action: "promote_to_production_with_sign_off"
+      - condition: "configuration_baseline_established"
+        action: "maintain_immutable_baseline_for_audit_comparison"
+
+  - id: "FDI-1"
+    name: "Financial Data Integrity"
+    description: "Ensure integrity and completeness of financial data per SOX Section 302 certification"
+    severity: "critical"
+    sections:
+      - "302"  # Corporate responsibility
+      - "404"  # Internal controls assessment
+    patterns:
+      - condition: "financial_report_generated"
+        action: "validate_data_completeness_and_accuracy"
+      - condition: "data_reconciliation_performed"
+        action: "document_reconciliation_differences_and_resolutions"
+      - condition: "discrepancy_detected"
+        action: "investigate_and_document_root_cause"
+      - condition: "controls_fail_to_prevent_error"
+        action: "trigger_management_notification_and_audit_trail"

@@ -60,3 +60,132 @@ rules:
     enabled: true
     severity: "medium"
     framework: "SOC2"
+
+  # GDPR DS-1 - Data Subject Rights
+  - id: "gdpr.ds.1"
+    title: "Data subject access requests must be fulfilled"
+    description: |
+      Verify that data subject requests for access, rectification, or erasure
+      are responded to within 30 days (GDPR Article 12-21). Failure to respond
+      creates a critical compliance gap.
+    condition: "data_subject_request.pending == true AND days_elapsed > 30"
+    action: "escalate"
+    enabled: true
+    severity: "critical"
+    framework: "GDPR"
+
+  # GDPR CM-1 - Consent Management
+  - id: "gdpr.cm.1"
+    title: "Explicit consent required for personal data processing"
+    description: |
+      Verify that consent is obtained BEFORE processing personal data
+      (GDPR Article 7). Consent must be freely given, specific, informed, and
+      unambiguous. Processing without consent creates a gap.
+    condition: "data_processing.requires_consent == true AND user.consent_given != true"
+    action: "create_gap"
+    enabled: true
+    severity: "critical"
+    framework: "GDPR"
+
+  # GDPR DPA-1 - Data Processing Agreement
+  - id: "gdpr.dpa.1"
+    title: "Data Processing Agreement with all sub-processors"
+    description: |
+      Verify that signed Data Processing Agreement (DPA) is in place with all
+      processors and sub-processors handling personal data (GDPR Article 28).
+      Missing DPA with any processor is a critical gap.
+    condition: "processor.dpa_signed != true AND processor.handles_data == true"
+    action: "escalate"
+    enabled: true
+    severity: "critical"
+    framework: "GDPR"
+
+  # GDPR DM-1 - Data Minimization
+  - id: "gdpr.dm.1"
+    title: "Only collect personal data actually needed"
+    description: |
+      Verify that data collection follows the principle of data minimization
+      (GDPR Article 5(1)(c)). Collecting unnecessary data beyond processing needs
+      creates a medium severity gap.
+    condition: "data_collected.field_count > data_needed.field_count"
+    action: "create_gap"
+    enabled: true
+    severity: "medium"
+    framework: "GDPR"
+
+  # GDPR DR-1 - Data Residency for EU Data
+  - id: "gdpr.dr.1"
+    title: "EU personal data must reside in EU (for EU-based organizations)"
+    description: |
+      If organization is EU-based, verify that personal data of EU residents
+      is stored in EU data centers (GDPR Article 44-49 on data transfers).
+      Cross-border transfer without appropriate safeguards is critical.
+    condition: "data.contains_pii == true AND data.location != eu AND org.region == eu"
+    action: "escalate"
+    enabled: true
+    severity: "critical"
+    framework: "GDPR"
+
+  # SOX ITG-1 - IT General Controls (Change Management)
+  - id: "sox.itg.1"
+    title: "Change management enforces segregation of duties"
+    description: |
+      Verify that changes to production systems cannot be both made and approved
+      by the same person (SOX IT General Controls). Self-approved changes are a
+      critical control violation.
+    condition: "change.requires_approval == true AND change.approved_by == change.made_by"
+    action: "escalate"
+    enabled: true
+    severity: "critical"
+    framework: "SOX"
+
+  # SOX SA-1 - System Availability (99.9% Uptime SLA)
+  - id: "sox.sa.1"
+    title: "Financial systems must maintain 99.9% uptime"
+    description: |
+      Verify that systems processing financial data maintain the SOX-required
+      99.9% uptime SLA. Below this threshold is a critical control failure.
+    condition: "system.measured_uptime < 99.9"
+    action: "escalate"
+    enabled: true
+    severity: "critical"
+    framework: "SOX"
+
+  # SOX AL-1 - Access Logging (7-year retention)
+  - id: "sox.al.1"
+    title: "All access to financial data must be logged for 7 years"
+    description: |
+      Verify that access to financial data is logged and retained for minimum
+      7 years (2555 days per SOX record retention rules). Unlogged or insufficiently
+      retained access is a high severity gap.
+    condition: "financial_data.access_logged == false OR audit_log.retention_days < 2555"
+    action: "create_gap"
+    enabled: true
+    severity: "high"
+    framework: "SOX"
+
+  # SOX CM-1 - Configuration Management (Production Changes)
+  - id: "sox.cm.1"
+    title: "All production changes must be documented and approved"
+    description: |
+      Verify that all changes to production systems are documented and approved
+      prior to deployment (SOX IT Controls). Undocumented changes are a high
+      severity gap.
+    condition: "production_change.documented == false"
+    action: "escalate"
+    enabled: true
+    severity: "high"
+    framework: "SOX"
+
+  # SOX FDI-1 - Financial Data Integrity (Checksums)
+  - id: "sox.fdi.1"
+    title: "Financial records must have verified checksums/hashes"
+    description: |
+      Verify that financial records have cryptographic checksums/hashes that
+      are verified to detect unauthorized modification (SOX data integrity).
+      Missing or unverified checksums are critical.
+    condition: "financial_record.has_checksum == false OR checksum.verified == false"
+    action: "escalate"
+    enabled: true
+    severity: "critical"
+    framework: "SOX"

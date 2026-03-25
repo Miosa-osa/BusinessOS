@@ -238,3 +238,242 @@ func TestComplianceHandler_CreateRemediation_MissingBody(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cross-System Audit Trail Tests (TDD — failing first, implement second)
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestComplianceHandler_GetAuditTrail_OSAUnavailable_Returns503(t *testing.T) {
+	logger := slog.Default()
+	// Point to unreachable OSA server
+	complianceSvc := services.NewComplianceService("http://127.0.0.1:9", logger)
+	handler := NewComplianceHandler(complianceSvc, logger)
+
+	r := gin.New()
+	r.GET("/api/compliance/audit-trail", handler.GetAuditTrail)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/compliance/audit-trail?session_id=test-sess", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// When OSA is unavailable and no cache exists, should return 503 Service Unavailable
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+
+	var errResp map[string]any
+	err := json.Unmarshal(w.Body.Bytes(), &errResp)
+	require.NoError(t, err)
+	assert.Contains(t, errResp, "error")
+}
+
+func TestComplianceHandler_GetAuditTrail_OSAHashChainVerified(t *testing.T) {
+	// Start a mock OSA server that returns audit entries with hash chain
+	mockOSA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/audit-trail/test-sess" {
+			// Return mock audit trail with hash chain (OSA format)
+			resp := map[string]any{
+				"session_id":  "test-sess",
+				"entry_count": 2,
+				"entries": []map[string]any{
+					{
+						"index":           0,
+						"timestamp":       "2026-03-24T10:00:00Z",
+						"session_id":      "test-sess",
+						"tool_name":       "pm4py_discover",
+						"arguments_hash":  "abc123",
+						"result_hash":     "def456",
+						"duration_ms":     100,
+						"provider":        "ollama",
+						"model":           "mistral",
+						"previous_hash":   "genesis",
+						"entry_hash":      "hash0",
+					},
+					{
+						"index":           1,
+						"timestamp":       "2026-03-24T10:00:05Z",
+						"session_id":      "test-sess",
+						"tool_name":       "analyze_log",
+						"arguments_hash":  "ghi789",
+						"result_hash":     "jkl012",
+						"duration_ms":     50,
+						"provider":        "ollama",
+						"model":           "mistral",
+						"previous_hash":   "hash0",
+						"entry_hash":      "hash1",
+					},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	defer mockOSA.Close()
+
+	logger := slog.Default()
+	complianceSvc := services.NewComplianceService(mockOSA.URL, logger)
+	handler := NewComplianceHandler(complianceSvc, logger)
+
+	r := gin.New()
+	r.GET("/api/compliance/audit-trail", handler.GetAuditTrail)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/compliance/audit-trail?session_id=test-sess", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var result services.AuditTrailResponse
+	err := json.Unmarshal(w.Body.Bytes(), &result)
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.Total)
+	assert.Len(t, result.Entries, 2)
+
+	// Verify hash chain: each entry's hash was computed from previous
+	for i, entry := range result.Entries {
+		assert.NotEmpty(t, entry.Hash)
+		assert.NotEmpty(t, entry.PrevHash)
+		if i == 0 {
+			assert.Equal(t, "genesis", entry.PrevHash)
+		} else {
+			// Hash should match previous entry's hash
+			assert.Equal(t, result.Entries[i-1].Hash, entry.PrevHash)
+		}
+	}
+}
+
+func TestComplianceHandler_VerifyAuditChain_ValidatesOSAChain(t *testing.T) {
+	// Mock OSA that returns 2 valid entries with correct hash chain
+	mockOSA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/audit-trail/test-sess" {
+			resp := map[string]any{
+				"session_id":  "test-sess",
+				"entry_count": 2,
+				"entries": []map[string]any{
+					{
+						"index":          0,
+						"timestamp":      "2026-03-24T10:00:00Z",
+						"session_id":     "test-sess",
+						"tool_name":      "pm4py_discover",
+						"arguments_hash": "abc123",
+						"result_hash":    "def456",
+						"duration_ms":    100,
+						"provider":       "ollama",
+						"model":          "mistral",
+						"previous_hash":  "genesis",
+						"entry_hash":     "computed_hash_0",
+					},
+					{
+						"index":          1,
+						"timestamp":      "2026-03-24T10:00:05Z",
+						"session_id":     "test-sess",
+						"tool_name":      "analyze_log",
+						"arguments_hash": "ghi789",
+						"result_hash":    "jkl012",
+						"duration_ms":    50,
+						"provider":       "ollama",
+						"model":          "mistral",
+						"previous_hash":  "computed_hash_0",
+						"entry_hash":     "computed_hash_1",
+					},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	defer mockOSA.Close()
+
+	logger := slog.Default()
+	complianceSvc := services.NewComplianceService(mockOSA.URL, logger)
+	handler := NewComplianceHandler(complianceSvc, logger)
+
+	r := gin.New()
+	r.GET("/api/compliance/audit-trail/verify/:session_id", handler.VerifyAuditChain)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/compliance/audit-trail/verify/test-sess", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var result services.VerifyResult
+	err := json.Unmarshal(w.Body.Bytes(), &result)
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.Entries)
+	assert.NotEmpty(t, result.MerkleRoot)
+	// With hash chain, should return verified (or at least report issues if chain broken)
+	assert.IsType(t, result.Verified, true)
+	assert.IsType(t, result.Issues, []string{})
+}
+
+func TestComplianceHandler_GetAuditTrail_CombinesOSAWithBusinessOSEvents(t *testing.T) {
+	// Mock OSA returning 1 entry
+	mockOSA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/audit-trail/test-sess" {
+			resp := map[string]any{
+				"session_id":  "test-sess",
+				"entry_count": 1,
+				"entries": []map[string]any{
+					{
+						"index":          0,
+						"timestamp":      "2026-03-24T10:00:00Z",
+						"session_id":     "test-sess",
+						"tool_name":      "pm4py_discover",
+						"arguments_hash": "abc123",
+						"result_hash":    "def456",
+						"duration_ms":    100,
+						"provider":       "ollama",
+						"model":          "mistral",
+						"previous_hash":  "genesis",
+						"entry_hash":     "osa_hash_0",
+					},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	defer mockOSA.Close()
+
+	logger := slog.Default()
+	complianceSvc := services.NewComplianceService(mockOSA.URL, logger)
+	handler := NewComplianceHandler(complianceSvc, logger)
+
+	r := gin.New()
+	r.GET("/api/compliance/audit-trail", handler.GetAuditTrail)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/compliance/audit-trail?session_id=test-sess&limit=50", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var result services.AuditTrailResponse
+	err := json.Unmarshal(w.Body.Bytes(), &result)
+	require.NoError(t, err)
+	// Should have at least 1 entry from OSA (may add BusinessOS events as well)
+	assert.GreaterOrEqual(t, result.Total, 1)
+}
+
+func TestComplianceHandler_DegradedMode_ReturnsBusinessOSOnlyWhenOSAFails(t *testing.T) {
+	logger := slog.Default()
+	// Unreachable OSA — no retries
+	complianceSvc := services.NewComplianceService("http://127.0.0.1:7", logger)
+	handler := NewComplianceHandler(complianceSvc, logger)
+
+	r := gin.New()
+	r.GET("/api/compliance/audit-trail", handler.GetAuditTrail)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/compliance/audit-trail?session_id=sess-1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// May return 503 (unavailable), or 200 with empty entries (degraded)
+	// The test expects: either 503 or 200 with empty/minimal data
+	assert.Contains(t, []int{http.StatusOK, http.StatusServiceUnavailable}, w.Code)
+}

@@ -267,11 +267,12 @@ func TestExportManifestRoundtrip(t *testing.T) {
 
 	moduleID := uuid.MustParse("00000000-0000-0000-0001-000000000001")
 	now := time.Now().UTC().Truncate(time.Second)
+	desc := "Customer relationship management"
 	original := &CustomModule{
 		ID:          moduleID,
 		Name:        "CRM Module",
 		Slug:        "crm",
-		Description: "Customer relationship management",
+		Description: &desc,
 		Category:    "business",
 		Version:     "1.2.3",
 		UpdatedAt:   now,

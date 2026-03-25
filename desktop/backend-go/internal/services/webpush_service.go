@@ -168,7 +168,7 @@ func (s *WebPushService) SendToUser(ctx context.Context, userID string, payload 
 		}
 	}
 
-	slog.Info("[WebPush] Sent to %d/%d devices for user %s", "value0", successCount, "value1", len(subscriptions), userID)
+	slog.Info("[WebPush] WebPush sent", "successCount", successCount, "totalDevices", len(subscriptions), "userID", userID)
 	return lastErr
 }
 

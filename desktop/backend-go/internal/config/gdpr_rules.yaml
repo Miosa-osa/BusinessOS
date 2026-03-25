@@ -1,0 +1,80 @@
+# GDPR Compliance Rules Configuration
+# Agent 4: GDPR Rules + Reference Docs
+# Defines 5 core GDPR requirements (Article mapping included)
+
+rules:
+  - id: "DS-1"
+    name: "Data Subject Rights"
+    description: "Implement and enforce GDPR Articles 15-22 (right to access, rectification, erasure, restriction, portability, objection)"
+    severity: "critical"
+    articles:
+      - "15"  # Right of access
+      - "16"  # Right to rectification
+      - "17"  # Right to erasure
+      - "18"  # Right to restrict processing
+      - "20"  # Right to data portability
+      - "21"  # Right to object
+    patterns:
+      - condition: "access_request_received"
+        action: "provide_data_copy_within_30_days"
+      - condition: "erasure_request_received"
+        action: "delete_personal_data_within_30_days"
+      - condition: "rectification_request_received"
+        action: "correct_inaccurate_data_within_30_days"
+
+  - id: "CM-1"
+    name: "Consent Management"
+    description: "Manage explicit, informed, freely given consent as per GDPR Article 4(11) and Chapter 3"
+    severity: "critical"
+    articles:
+      - "4"   # Definitions
+      - "6"   # Lawfulness of processing
+      - "7"   # Conditions for consent
+      - "8"   # Conditions applicable to consent of a child
+    patterns:
+      - condition: "data_collection_initiated"
+        action: "obtain_explicit_consent_before_processing"
+      - condition: "consent_purpose_changes"
+        action: "re_obtain_consent"
+      - condition: "user_withdraws_consent"
+        action: "stop_processing_immediately"
+
+  - id: "DPA-1"
+    name: "Data Processing Agreements"
+    description: "Establish and maintain Data Processing Agreements (DPAs) with processors as per GDPR Article 28"
+    severity: "high"
+    articles:
+      - "28"  # Processor
+      - "32"  # Security of processing
+    patterns:
+      - condition: "third_party_processor_engaged"
+        action: "execute_dpa_before_processing_begins"
+      - condition: "processor_subcontracts"
+        action: "maintain_processor_chain_documentation"
+
+  - id: "DM-1"
+    name: "Data Minimization"
+    description: "Collect and retain only necessary personal data as per GDPR Article 5(1)(c)"
+    severity: "high"
+    articles:
+      - "5"   # Principles relating to processing
+    patterns:
+      - condition: "data_collection_planned"
+        action: "ensure_data_minimization_principle"
+      - condition: "data_retention_period_reached"
+        action: "purge_unnecessary_data"
+
+  - id: "DR-1"
+    name: "Breach Notification & Documentation"
+    description: "Notify supervisory authorities and data subjects of breaches within 72 hours as per GDPR Article 33-34"
+    severity: "critical"
+    articles:
+      - "33"  # Notification to supervisory authority
+      - "34"  # Communication to data subject
+    patterns:
+      - condition: "personal_data_breach_detected"
+        action: "notify_authority_within_72_hours"
+      - condition: "breach_poses_high_risk"
+        action: "notify_affected_individuals_without_undue_delay"
+      - condition: "processing_activity_exists"
+        action: "maintain_processing_record_in_rar"
