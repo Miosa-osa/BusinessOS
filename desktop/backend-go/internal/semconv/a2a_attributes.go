@@ -168,3 +168,40 @@ var A2aTaskPriorityValues = struct {
 	Low: "low",
 }
 
+// Wave 9 iteration 9: A2A deal tracking and capability version attributes.
+const (
+	// A2aDealStatusKey is the OTel attribute key for a2a.deal.status.
+	// Lifecycle status of the A2A deal.
+	A2aDealStatusKey = attribute.Key("a2a.deal.status")
+	// A2aDealCurrencyKey is the OTel attribute key for a2a.deal.currency.
+	// Currency code for the deal value (e.g., USD, EUR, tokens).
+	A2aDealCurrencyKey = attribute.Key("a2a.deal.currency")
+	// A2aDealExpiryMsKey is the OTel attribute key for a2a.deal.expiry_ms.
+	// Deal expiry time as milliseconds since epoch.
+	A2aDealExpiryMsKey = attribute.Key("a2a.deal.expiry_ms")
+	// A2aCapabilityVersionKey is the OTel attribute key for a2a.capability.version.
+	// Version string of the advertised capability.
+	A2aCapabilityVersionKey = attribute.Key("a2a.capability.version")
+)
+
+// A2aDealStatus returns an attribute KeyValue for a2a.deal.status.
+func A2aDealStatus(val string) attribute.KeyValue { return A2aDealStatusKey.String(val) }
+
+// A2aDealCurrency returns an attribute KeyValue for a2a.deal.currency.
+func A2aDealCurrency(val string) attribute.KeyValue { return A2aDealCurrencyKey.String(val) }
+
+// A2aDealExpiryMs returns an attribute KeyValue for a2a.deal.expiry_ms.
+func A2aDealExpiryMs(val int64) attribute.KeyValue { return A2aDealExpiryMsKey.Int64(val) }
+
+// A2aCapabilityVersion returns an attribute KeyValue for a2a.capability.version.
+func A2aCapabilityVersion(val string) attribute.KeyValue { return A2aCapabilityVersionKey.String(val) }
+
+// A2aDealStatus enum values.
+const (
+	A2aDealStatusPending   = "pending"
+	A2aDealStatusActive    = "active"
+	A2aDealStatusCompleted = "completed"
+	A2aDealStatusCancelled = "cancelled"
+	A2aDealStatusDisputed  = "disputed"
+)
+

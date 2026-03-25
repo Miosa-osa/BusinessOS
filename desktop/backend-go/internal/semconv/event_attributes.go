@@ -79,3 +79,37 @@ func EventSource(val string) attribute.KeyValue {
 	return EventSourceKey.String(val)
 }
 
+// Wave 9 iteration 9: Event correlation, causation, versioning, routing and replay attributes.
+const (
+	// EventCausationIdKey is the OTel attribute key for event.causation_id.
+	// ID of the event that directly caused this event (causal chain tracing).
+	EventCausationIdKey = attribute.Key("event.causation_id")
+	// EventVersionKey is the OTel attribute key for event.version.
+	// Schema version of the event payload.
+	EventVersionKey = attribute.Key("event.version")
+	// EventSourceServiceKey is the OTel attribute key for event.source.service.
+	// Name of the service that emitted the event.
+	EventSourceServiceKey = attribute.Key("event.source.service")
+	// EventTargetServiceKey is the OTel attribute key for event.target.service.
+	// Name of the service that is the intended consumer of the event.
+	EventTargetServiceKey = attribute.Key("event.target.service")
+	// EventReplayKey is the OTel attribute key for event.replay.
+	// Indicates whether this event is being replayed (true) or is fresh (false).
+	EventReplayKey = attribute.Key("event.replay")
+)
+
+// EventCausationId returns an attribute KeyValue for event.causation_id.
+func EventCausationId(val string) attribute.KeyValue { return EventCausationIdKey.String(val) }
+
+// EventVersion returns an attribute KeyValue for event.version.
+func EventVersion(val string) attribute.KeyValue { return EventVersionKey.String(val) }
+
+// EventSourceService returns an attribute KeyValue for event.source.service.
+func EventSourceService(val string) attribute.KeyValue { return EventSourceServiceKey.String(val) }
+
+// EventTargetService returns an attribute KeyValue for event.target.service.
+func EventTargetService(val string) attribute.KeyValue { return EventTargetServiceKey.String(val) }
+
+// EventReplay returns an attribute KeyValue for event.replay.
+func EventReplay(val bool) attribute.KeyValue { return EventReplayKey.Bool(val) }
+

@@ -170,3 +170,47 @@ func ProcessMiningVariantCount(val int64) attribute.KeyValue {
 	return ProcessMiningVariantCountKey.Int64(val)
 }
 
+// Wave 9 iteration 9: Advanced process mining performance and bottleneck attributes.
+const (
+	// ProcessMiningThroughputTimeMsKey is the OTel attribute key for process.mining.throughput_time_ms.
+	// Average end-to-end throughput time across all cases in the event log, in milliseconds.
+	ProcessMiningThroughputTimeMsKey = attribute.Key("process.mining.throughput_time_ms")
+	// ProcessMiningBottleneckActivityKey is the OTel attribute key for process.mining.bottleneck.activity.
+	// Name of the activity identified as the primary bottleneck in the process.
+	ProcessMiningBottleneckActivityKey = attribute.Key("process.mining.bottleneck.activity")
+	// ProcessMiningBottleneckWaitMsKey is the OTel attribute key for process.mining.bottleneck.wait_ms.
+	// Average waiting time at the bottleneck activity, in milliseconds.
+	ProcessMiningBottleneckWaitMsKey = attribute.Key("process.mining.bottleneck.wait_ms")
+	// ProcessMiningLogSizeKey is the OTel attribute key for process.mining.log.size.
+	// Total number of events in the event log being analyzed.
+	ProcessMiningLogSizeKey = attribute.Key("process.mining.log.size")
+	// ProcessMiningReplayFitnessKey is the OTel attribute key for process.mining.replay_fitness.
+	// Token-based replay fitness score [0.0, 1.0] measuring overall log-model alignment.
+	ProcessMiningReplayFitnessKey = attribute.Key("process.mining.replay_fitness")
+)
+
+// ProcessMiningThroughputTimeMs returns an attribute KeyValue for process.mining.throughput_time_ms.
+func ProcessMiningThroughputTimeMs(val int64) attribute.KeyValue {
+	return ProcessMiningThroughputTimeMsKey.Int64(val)
+}
+
+// ProcessMiningBottleneckActivity returns an attribute KeyValue for process.mining.bottleneck.activity.
+func ProcessMiningBottleneckActivity(val string) attribute.KeyValue {
+	return ProcessMiningBottleneckActivityKey.String(val)
+}
+
+// ProcessMiningBottleneckWaitMs returns an attribute KeyValue for process.mining.bottleneck.wait_ms.
+func ProcessMiningBottleneckWaitMs(val int64) attribute.KeyValue {
+	return ProcessMiningBottleneckWaitMsKey.Int64(val)
+}
+
+// ProcessMiningLogSize returns an attribute KeyValue for process.mining.log.size.
+func ProcessMiningLogSize(val int64) attribute.KeyValue {
+	return ProcessMiningLogSizeKey.Int64(val)
+}
+
+// ProcessMiningReplayFitness returns an attribute KeyValue for process.mining.replay_fitness.
+func ProcessMiningReplayFitness(val float64) attribute.KeyValue {
+	return ProcessMiningReplayFitnessKey.Float64(val)
+}
+

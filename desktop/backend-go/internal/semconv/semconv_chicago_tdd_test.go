@@ -2612,3 +2612,266 @@ func TestWorkflowChoiceConditionKeyMatchesSchema(t *testing.T) {
 		t.Errorf("WorkflowChoiceConditionKey = %q, want %q", WorkflowChoiceConditionKey, "workflow.choice.condition")
 	}
 }
+
+// ============================================================
+// Wave 9 Iteration 9: A2A Deal Tracking
+// ============================================================
+
+func TestA2aDealStatusKeyMatchesSchema(t *testing.T) {
+	if string(A2aDealStatusKey) != "a2a.deal.status" {
+		t.Errorf("A2aDealStatusKey = %q, want %q", A2aDealStatusKey, "a2a.deal.status")
+	}
+}
+
+func TestA2aDealCurrencyKeyMatchesSchema(t *testing.T) {
+	if string(A2aDealCurrencyKey) != "a2a.deal.currency" {
+		t.Errorf("A2aDealCurrencyKey = %q, want %q", A2aDealCurrencyKey, "a2a.deal.currency")
+	}
+}
+
+func TestA2aDealExpiryMsKeyMatchesSchema(t *testing.T) {
+	if string(A2aDealExpiryMsKey) != "a2a.deal.expiry_ms" {
+		t.Errorf("A2aDealExpiryMsKey = %q, want %q", A2aDealExpiryMsKey, "a2a.deal.expiry_ms")
+	}
+}
+
+func TestA2aDealStatusCompletedValueMatchesSchema(t *testing.T) {
+	if A2aDealStatusCompleted != "completed" {
+		t.Errorf("A2aDealStatusCompleted = %q, want %q", A2aDealStatusCompleted, "completed")
+	}
+}
+
+func TestA2aDealStatusPendingValueMatchesSchema(t *testing.T) {
+	if A2aDealStatusPending != "pending" {
+		t.Errorf("A2aDealStatusPending = %q, want %q", A2aDealStatusPending, "pending")
+	}
+}
+
+func TestA2aDealStatusActiveValueMatchesSchema(t *testing.T) {
+	if A2aDealStatusActive != "active" {
+		t.Errorf("A2aDealStatusActive = %q, want %q", A2aDealStatusActive, "active")
+	}
+}
+
+func TestA2aDealStatusCancelledValueMatchesSchema(t *testing.T) {
+	if A2aDealStatusCancelled != "cancelled" {
+		t.Errorf("A2aDealStatusCancelled = %q, want %q", A2aDealStatusCancelled, "cancelled")
+	}
+}
+
+func TestA2aDealStatusDisputedValueMatchesSchema(t *testing.T) {
+	if A2aDealStatusDisputed != "disputed" {
+		t.Errorf("A2aDealStatusDisputed = %q, want %q", A2aDealStatusDisputed, "disputed")
+	}
+}
+
+func TestA2aCapabilityVersionKeyMatchesSchema(t *testing.T) {
+	if string(A2aCapabilityVersionKey) != "a2a.capability.version" {
+		t.Errorf("A2aCapabilityVersionKey = %q, want %q", A2aCapabilityVersionKey, "a2a.capability.version")
+	}
+}
+
+func TestA2aDealStatusKeyValueRoundTrip(t *testing.T) {
+	kv := A2aDealStatus(A2aDealStatusCompleted)
+	if string(kv.Key) != "a2a.deal.status" {
+		t.Errorf("A2aDealStatus key = %q, want %q", string(kv.Key), "a2a.deal.status")
+	}
+	if kv.Value.AsString() != "completed" {
+		t.Errorf("A2aDealStatus value = %q, want %q", kv.Value.AsString(), "completed")
+	}
+}
+
+func TestA2aDealCurrencyKeyValueRoundTrip(t *testing.T) {
+	kv := A2aDealCurrency("USD")
+	if string(kv.Key) != "a2a.deal.currency" {
+		t.Errorf("A2aDealCurrency key = %q, want %q", string(kv.Key), "a2a.deal.currency")
+	}
+	if kv.Value.AsString() != "USD" {
+		t.Errorf("A2aDealCurrency value = %q, want %q", kv.Value.AsString(), "USD")
+	}
+}
+
+func TestA2aDealExpiryMsKeyValueRoundTrip(t *testing.T) {
+	kv := A2aDealExpiryMs(1711929600000)
+	if string(kv.Key) != "a2a.deal.expiry_ms" {
+		t.Errorf("A2aDealExpiryMs key = %q, want %q", string(kv.Key), "a2a.deal.expiry_ms")
+	}
+	if kv.Value.AsInt64() != 1711929600000 {
+		t.Errorf("A2aDealExpiryMs value = %d, want %d", kv.Value.AsInt64(), 1711929600000)
+	}
+}
+
+func TestA2aCapabilityVersionKeyValueRoundTrip(t *testing.T) {
+	kv := A2aCapabilityVersion("v2.1.0")
+	if string(kv.Key) != "a2a.capability.version" {
+		t.Errorf("A2aCapabilityVersion key = %q, want %q", string(kv.Key), "a2a.capability.version")
+	}
+	if kv.Value.AsString() != "v2.1.0" {
+		t.Errorf("A2aCapabilityVersion value = %q, want %q", kv.Value.AsString(), "v2.1.0")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 9: Event Correlation
+// ============================================================
+
+func TestEventCausationIdKeyMatchesSchema(t *testing.T) {
+	if string(EventCausationIdKey) != "event.causation_id" {
+		t.Errorf("EventCausationIdKey = %q, want %q", EventCausationIdKey, "event.causation_id")
+	}
+}
+
+func TestEventVersionKeyMatchesSchema(t *testing.T) {
+	if string(EventVersionKey) != "event.version" {
+		t.Errorf("EventVersionKey = %q, want %q", EventVersionKey, "event.version")
+	}
+}
+
+func TestEventSourceServiceKeyMatchesSchema(t *testing.T) {
+	if string(EventSourceServiceKey) != "event.source.service" {
+		t.Errorf("EventSourceServiceKey = %q, want %q", EventSourceServiceKey, "event.source.service")
+	}
+}
+
+func TestEventTargetServiceKeyMatchesSchema(t *testing.T) {
+	if string(EventTargetServiceKey) != "event.target.service" {
+		t.Errorf("EventTargetServiceKey = %q, want %q", EventTargetServiceKey, "event.target.service")
+	}
+}
+
+func TestEventReplayKeyMatchesSchema(t *testing.T) {
+	if string(EventReplayKey) != "event.replay" {
+		t.Errorf("EventReplayKey = %q, want %q", EventReplayKey, "event.replay")
+	}
+}
+
+func TestEventCausationIdKeyValueRoundTrip(t *testing.T) {
+	kv := EventCausationId("evt-root-001")
+	if string(kv.Key) != "event.causation_id" {
+		t.Errorf("EventCausationId key = %q, want %q", string(kv.Key), "event.causation_id")
+	}
+	if kv.Value.AsString() != "evt-root-001" {
+		t.Errorf("EventCausationId value = %q, want %q", kv.Value.AsString(), "evt-root-001")
+	}
+}
+
+func TestEventVersionKeyValueRoundTrip(t *testing.T) {
+	kv := EventVersion("1.0")
+	if kv.Value.AsString() != "1.0" {
+		t.Errorf("EventVersion value = %q, want %q", kv.Value.AsString(), "1.0")
+	}
+}
+
+func TestEventSourceServiceKeyValueRoundTrip(t *testing.T) {
+	kv := EventSourceService("osa")
+	if kv.Value.AsString() != "osa" {
+		t.Errorf("EventSourceService value = %q, want %q", kv.Value.AsString(), "osa")
+	}
+}
+
+func TestEventTargetServiceKeyValueRoundTrip(t *testing.T) {
+	kv := EventTargetService("canopy")
+	if kv.Value.AsString() != "canopy" {
+		t.Errorf("EventTargetService value = %q, want %q", kv.Value.AsString(), "canopy")
+	}
+}
+
+func TestEventReplayKeyValueRoundTripTrue(t *testing.T) {
+	kv := EventReplay(true)
+	if string(kv.Key) != "event.replay" {
+		t.Errorf("EventReplay key = %q, want %q", string(kv.Key), "event.replay")
+	}
+	if !kv.Value.AsBool() {
+		t.Errorf("EventReplay value = false, want true")
+	}
+}
+
+func TestEventReplayKeyValueRoundTripFalse(t *testing.T) {
+	kv := EventReplay(false)
+	if kv.Value.AsBool() {
+		t.Errorf("EventReplay value = true, want false")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 9: Process Mining Advanced
+// ============================================================
+
+func TestProcessMiningThroughputTimeMsKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningThroughputTimeMsKey) != "process.mining.throughput_time_ms" {
+		t.Errorf("ProcessMiningThroughputTimeMsKey = %q, want %q", ProcessMiningThroughputTimeMsKey, "process.mining.throughput_time_ms")
+	}
+}
+
+func TestProcessMiningBottleneckActivityKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningBottleneckActivityKey) != "process.mining.bottleneck.activity" {
+		t.Errorf("ProcessMiningBottleneckActivityKey = %q, want %q", ProcessMiningBottleneckActivityKey, "process.mining.bottleneck.activity")
+	}
+}
+
+func TestProcessMiningBottleneckWaitMsKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningBottleneckWaitMsKey) != "process.mining.bottleneck.wait_ms" {
+		t.Errorf("ProcessMiningBottleneckWaitMsKey = %q, want %q", ProcessMiningBottleneckWaitMsKey, "process.mining.bottleneck.wait_ms")
+	}
+}
+
+func TestProcessMiningLogSizeKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningLogSizeKey) != "process.mining.log.size" {
+		t.Errorf("ProcessMiningLogSizeKey = %q, want %q", ProcessMiningLogSizeKey, "process.mining.log.size")
+	}
+}
+
+func TestProcessMiningReplayFitnessKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningReplayFitnessKey) != "process.mining.replay_fitness" {
+		t.Errorf("ProcessMiningReplayFitnessKey = %q, want %q", ProcessMiningReplayFitnessKey, "process.mining.replay_fitness")
+	}
+}
+
+func TestProcessMiningThroughputTimeMsKeyValueRoundTrip(t *testing.T) {
+	kv := ProcessMiningThroughputTimeMs(86400000)
+	if string(kv.Key) != "process.mining.throughput_time_ms" {
+		t.Errorf("ProcessMiningThroughputTimeMs key = %q, want %q", string(kv.Key), "process.mining.throughput_time_ms")
+	}
+	if kv.Value.AsInt64() != 86400000 {
+		t.Errorf("ProcessMiningThroughputTimeMs value = %d, want %d", kv.Value.AsInt64(), 86400000)
+	}
+}
+
+func TestProcessMiningBottleneckActivityKeyValueRoundTrip(t *testing.T) {
+	kv := ProcessMiningBottleneckActivity("Approve Purchase Order")
+	if kv.Value.AsString() != "Approve Purchase Order" {
+		t.Errorf("ProcessMiningBottleneckActivity value = %q, want %q", kv.Value.AsString(), "Approve Purchase Order")
+	}
+}
+
+func TestProcessMiningBottleneckWaitMsKeyValueRoundTrip(t *testing.T) {
+	kv := ProcessMiningBottleneckWaitMs(7200000)
+	if kv.Value.AsInt64() != 7200000 {
+		t.Errorf("ProcessMiningBottleneckWaitMs value = %d, want %d", kv.Value.AsInt64(), 7200000)
+	}
+}
+
+func TestProcessMiningLogSizeKeyValueRoundTrip(t *testing.T) {
+	kv := ProcessMiningLogSize(50000)
+	if kv.Value.AsInt64() != 50000 {
+		t.Errorf("ProcessMiningLogSize value = %d, want %d", kv.Value.AsInt64(), 50000)
+	}
+}
+
+func TestProcessMiningReplayFitnessKeyValueRoundTrip(t *testing.T) {
+	kv := ProcessMiningReplayFitness(0.87)
+	if string(kv.Key) != "process.mining.replay_fitness" {
+		t.Errorf("ProcessMiningReplayFitness key = %q, want %q", string(kv.Key), "process.mining.replay_fitness")
+	}
+	if kv.Value.AsFloat64() != 0.87 {
+		t.Errorf("ProcessMiningReplayFitness value = %f, want %f", kv.Value.AsFloat64(), 0.87)
+	}
+}
+
+func TestProcessMiningReplayFitnessBounded(t *testing.T) {
+	// WvdA soundness: replay fitness score must be in [0.0, 1.0]
+	kv := ProcessMiningReplayFitness(0.87)
+	if kv.Value.AsFloat64() < 0.0 || kv.Value.AsFloat64() > 1.0 {
+		t.Errorf("process.mining.replay_fitness %f is out of [0.0, 1.0] bounds", kv.Value.AsFloat64())
+	}
+}
