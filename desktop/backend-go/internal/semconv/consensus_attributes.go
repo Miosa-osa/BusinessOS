@@ -125,3 +125,32 @@ func ConsensusVoteCount(val int64) attribute.KeyValue {
 	return ConsensusVoteCountKey.Int64(val)
 }
 
+// Wave 9 Iteration 8: BFT Liveness attributes
+
+const (
+	// ConsensusLeaderIDKey is the OTel attribute key for consensus.leader_id.
+	// The node ID of the current consensus leader (iter8 flat key).
+	ConsensusLeaderIDKey = attribute.Key("consensus.leader_id")
+	// ConsensusViewTimeoutMsKey is the OTel attribute key for consensus.view_timeout_ms.
+	// Timeout in milliseconds for the current consensus view.
+	ConsensusViewTimeoutMsKey = attribute.Key("consensus.view_timeout_ms")
+	// ConsensusSignatureCountKey is the OTel attribute key for consensus.signature_count.
+	// Number of cryptographic signatures collected in this round.
+	ConsensusSignatureCountKey = attribute.Key("consensus.signature_count")
+)
+
+// ConsensusLeaderID returns an attribute KeyValue for consensus.leader_id.
+func ConsensusLeaderID(val string) attribute.KeyValue {
+	return ConsensusLeaderIDKey.String(val)
+}
+
+// ConsensusViewTimeoutMs returns an attribute KeyValue for consensus.view_timeout_ms.
+func ConsensusViewTimeoutMs(val int) attribute.KeyValue {
+	return ConsensusViewTimeoutMsKey.Int(val)
+}
+
+// ConsensusSignatureCount returns an attribute KeyValue for consensus.signature_count.
+func ConsensusSignatureCount(val int) attribute.KeyValue {
+	return ConsensusSignatureCountKey.Int(val)
+}
+

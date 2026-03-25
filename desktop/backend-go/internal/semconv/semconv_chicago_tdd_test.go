@@ -2442,3 +2442,173 @@ func TestWorkflowBranchCountKeyValueRoundTrip(t *testing.T) {
 		t.Errorf("WorkflowBranchCount value = %d, want %d", kv.Value.AsInt64(), 3)
 	}
 }
+
+// ============================================================
+// Wave 9 Iteration 8: Consensus BFT Liveness
+// ============================================================
+
+func TestConsensusQuorumSizeKeyMatchesSchema(t *testing.T) {
+	if string(ConsensusQuorumSizeKey) != "consensus.quorum_size" {
+		t.Errorf("ConsensusQuorumSizeKey = %q, want %q", ConsensusQuorumSizeKey, "consensus.quorum_size")
+	}
+}
+
+func TestConsensusLeaderIdKeyMatchesSchema(t *testing.T) {
+	if string(ConsensusLeaderIDKey) != "consensus.leader_id" {
+		t.Errorf("ConsensusLeaderIDKey = %q, want %q", ConsensusLeaderIDKey, "consensus.leader_id")
+	}
+}
+
+func TestConsensusViewTimeoutMsKeyMatchesSchema(t *testing.T) {
+	if string(ConsensusViewTimeoutMsKey) != "consensus.view_timeout_ms" {
+		t.Errorf("ConsensusViewTimeoutMsKey = %q, want %q", ConsensusViewTimeoutMsKey, "consensus.view_timeout_ms")
+	}
+}
+
+func TestConsensusSignatureCountKeyMatchesSchema(t *testing.T) {
+	if string(ConsensusSignatureCountKey) != "consensus.signature_count" {
+		t.Errorf("ConsensusSignatureCountKey = %q, want %q", ConsensusSignatureCountKey, "consensus.signature_count")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 8: MCP Tool Schema
+// ============================================================
+
+func TestMcpToolInputSizeKeyMatchesSchema(t *testing.T) {
+	if string(McpToolInputSizeKey) != "mcp.tool.input_size" {
+		t.Errorf("McpToolInputSizeKey = %q, want %q", McpToolInputSizeKey, "mcp.tool.input_size")
+	}
+}
+
+func TestMcpToolOutputSizeKeyMatchesSchema(t *testing.T) {
+	if string(McpToolOutputSizeKey) != "mcp.tool.output_size" {
+		t.Errorf("McpToolOutputSizeKey = %q, want %q", McpToolOutputSizeKey, "mcp.tool.output_size")
+	}
+}
+
+func TestMcpToolRetryCountKeyMatchesSchema(t *testing.T) {
+	if string(McpToolRetryCountKey) != "mcp.tool.retry_count" {
+		t.Errorf("McpToolRetryCountKey = %q, want %q", McpToolRetryCountKey, "mcp.tool.retry_count")
+	}
+}
+
+func TestMcpToolTimeoutMsKeyMatchesSchema(t *testing.T) {
+	if string(McpToolTimeoutMsKey) != "mcp.tool.timeout_ms" {
+		t.Errorf("McpToolTimeoutMsKey = %q, want %q", McpToolTimeoutMsKey, "mcp.tool.timeout_ms")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 8: LLM Observability
+// ============================================================
+
+func TestLlmModelKeyMatchesSchema(t *testing.T) {
+	if string(LlmModelKey) != "llm.model" {
+		t.Errorf("LlmModelKey = %q, want %q", LlmModelKey, "llm.model")
+	}
+}
+
+func TestLlmProviderKeyMatchesSchema(t *testing.T) {
+	if string(LlmProviderKey) != "llm.provider" {
+		t.Errorf("LlmProviderKey = %q, want %q", LlmProviderKey, "llm.provider")
+	}
+}
+
+func TestLlmTokenInputKeyMatchesSchema(t *testing.T) {
+	if string(LlmTokenInputKey) != "llm.token.input" {
+		t.Errorf("LlmTokenInputKey = %q, want %q", LlmTokenInputKey, "llm.token.input")
+	}
+}
+
+func TestLlmTokenOutputKeyMatchesSchema(t *testing.T) {
+	if string(LlmTokenOutputKey) != "llm.token.output" {
+		t.Errorf("LlmTokenOutputKey = %q, want %q", LlmTokenOutputKey, "llm.token.output")
+	}
+}
+
+func TestLlmLatencyMsKeyMatchesSchema(t *testing.T) {
+	if string(LlmLatencyMsKey) != "llm.latency_ms" {
+		t.Errorf("LlmLatencyMsKey = %q, want %q", LlmLatencyMsKey, "llm.latency_ms")
+	}
+}
+
+func TestLlmStopReasonEndTurnValueMatchesSchema(t *testing.T) {
+	if LlmStopReasonEndTurn != "end_turn" {
+		t.Errorf("LlmStopReasonEndTurn = %q, want %q", LlmStopReasonEndTurn, "end_turn")
+	}
+}
+
+func TestLlmStopReasonToolUseValueMatchesSchema(t *testing.T) {
+	if LlmStopReasonToolUse != "tool_use" {
+		t.Errorf("LlmStopReasonToolUse = %q, want %q", LlmStopReasonToolUse, "tool_use")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 8: Workspace Session
+// ============================================================
+
+func TestWorkspaceSessionIdKeyMatchesSchema(t *testing.T) {
+	if string(WorkspaceSessionIDKey) != "workspace.session.id" {
+		t.Errorf("WorkspaceSessionIDKey = %q, want %q", WorkspaceSessionIDKey, "workspace.session.id")
+	}
+}
+
+func TestWorkspaceContextSizeKeyMatchesSchema(t *testing.T) {
+	if string(WorkspaceContextSizeKey) != "workspace.context.size" {
+		t.Errorf("WorkspaceContextSizeKey = %q, want %q", WorkspaceContextSizeKey, "workspace.context.size")
+	}
+}
+
+func TestWorkspaceToolNameKeyMatchesSchema(t *testing.T) {
+	if string(WorkspaceToolNameKey) != "workspace.tool.name" {
+		t.Errorf("WorkspaceToolNameKey = %q, want %q", WorkspaceToolNameKey, "workspace.tool.name")
+	}
+}
+
+func TestWorkspaceAgentRolePlannerValueMatchesSchema(t *testing.T) {
+	if WorkspaceAgentRolePlanner != "planner" {
+		t.Errorf("WorkspaceAgentRolePlanner = %q, want %q", WorkspaceAgentRolePlanner, "planner")
+	}
+}
+
+func TestWorkspaceAgentRoleExecutorValueMatchesSchema(t *testing.T) {
+	if WorkspaceAgentRoleExecutor != "executor" {
+		t.Errorf("WorkspaceAgentRoleExecutor = %q, want %q", WorkspaceAgentRoleExecutor, "executor")
+	}
+}
+
+func TestWorkspacePhaseActiveValueMatchesSchema(t *testing.T) {
+	if WorkspacePhaseActive != "active" {
+		t.Errorf("WorkspacePhaseActive = %q, want %q", WorkspacePhaseActive, "active")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 8: YAWL Basic Patterns
+// ============================================================
+
+func TestWorkflowSplitCountKeyMatchesSchema(t *testing.T) {
+	if string(WorkflowSplitCountKey) != "workflow.split.count" {
+		t.Errorf("WorkflowSplitCountKey = %q, want %q", WorkflowSplitCountKey, "workflow.split.count")
+	}
+}
+
+func TestWorkflowMergePolicyKeyMatchesSchema(t *testing.T) {
+	if string(WorkflowMergePolicyKey) != "workflow.merge.policy" {
+		t.Errorf("WorkflowMergePolicyKey = %q, want %q", WorkflowMergePolicyKey, "workflow.merge.policy")
+	}
+}
+
+func TestWorkflowMergePolicyAllValueMatchesSchema(t *testing.T) {
+	if WorkflowMergePolicyAll != "all" {
+		t.Errorf("WorkflowMergePolicyAll = %q, want %q", WorkflowMergePolicyAll, "all")
+	}
+}
+
+func TestWorkflowChoiceConditionKeyMatchesSchema(t *testing.T) {
+	if string(WorkflowChoiceConditionKey) != "workflow.choice.condition" {
+		t.Errorf("WorkflowChoiceConditionKey = %q, want %q", WorkflowChoiceConditionKey, "workflow.choice.condition")
+	}
+}

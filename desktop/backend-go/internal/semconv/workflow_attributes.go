@@ -235,3 +235,39 @@ var WorkflowTriggerTypeValues = struct {
 	Manual: "manual",
 }
 
+// Wave 9 Iteration 8: YAWL Basic Pattern attributes
+
+const (
+	// WorkflowSplitCountKey is the OTel attribute key for workflow.split.count.
+	// Number of branches created by a split gateway.
+	WorkflowSplitCountKey = attribute.Key("workflow.split.count")
+	// WorkflowMergePolicyKey is the OTel attribute key for workflow.merge.policy.
+	// Policy used to merge concurrent branches at a join gateway.
+	WorkflowMergePolicyKey = attribute.Key("workflow.merge.policy")
+	// WorkflowChoiceConditionKey is the OTel attribute key for workflow.choice.condition.
+	// Condition expression evaluated at an exclusive or deferred choice gateway.
+	WorkflowChoiceConditionKey = attribute.Key("workflow.choice.condition")
+)
+
+// WorkflowSplitCount returns an attribute KeyValue for workflow.split.count.
+func WorkflowSplitCount(val int) attribute.KeyValue {
+	return WorkflowSplitCountKey.Int(val)
+}
+
+// WorkflowMergePolicy returns an attribute KeyValue for workflow.merge.policy.
+func WorkflowMergePolicy(val string) attribute.KeyValue {
+	return WorkflowMergePolicyKey.String(val)
+}
+
+// WorkflowChoiceCondition returns an attribute KeyValue for workflow.choice.condition.
+func WorkflowChoiceCondition(val string) attribute.KeyValue {
+	return WorkflowChoiceConditionKey.String(val)
+}
+
+// WorkflowMergePolicyValues contains the known enum values for workflow.merge.policy.
+const (
+	WorkflowMergePolicyFirst     = "first"
+	WorkflowMergePolicyAll       = "all"
+	WorkflowMergePolicyThreshold = "threshold"
+)
+

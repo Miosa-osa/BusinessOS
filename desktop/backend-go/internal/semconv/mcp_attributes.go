@@ -52,3 +52,40 @@ func McpToolResultCount(val int64) attribute.KeyValue {
 	return McpToolResultCountKey.Int64(val)
 }
 
+// Wave 9 Iteration 8: MCP Tool Schema attributes
+
+const (
+	// McpToolInputSizeKey is the OTel attribute key for mcp.tool.input_size.
+	// Size of the MCP tool input payload in bytes.
+	McpToolInputSizeKey = attribute.Key("mcp.tool.input_size")
+	// McpToolOutputSizeKey is the OTel attribute key for mcp.tool.output_size.
+	// Size of the MCP tool output payload in bytes.
+	McpToolOutputSizeKey = attribute.Key("mcp.tool.output_size")
+	// McpToolRetryCountKey is the OTel attribute key for mcp.tool.retry_count.
+	// Number of retries attempted for this MCP tool invocation.
+	McpToolRetryCountKey = attribute.Key("mcp.tool.retry_count")
+	// McpToolTimeoutMsKey is the OTel attribute key for mcp.tool.timeout_ms.
+	// Timeout in milliseconds for the MCP tool invocation.
+	McpToolTimeoutMsKey = attribute.Key("mcp.tool.timeout_ms")
+)
+
+// McpToolInputSize returns an attribute KeyValue for mcp.tool.input_size.
+func McpToolInputSize(val int) attribute.KeyValue {
+	return McpToolInputSizeKey.Int(val)
+}
+
+// McpToolOutputSize returns an attribute KeyValue for mcp.tool.output_size.
+func McpToolOutputSize(val int) attribute.KeyValue {
+	return McpToolOutputSizeKey.Int(val)
+}
+
+// McpToolRetryCount returns an attribute KeyValue for mcp.tool.retry_count.
+func McpToolRetryCount(val int) attribute.KeyValue {
+	return McpToolRetryCountKey.Int(val)
+}
+
+// McpToolTimeoutMs returns an attribute KeyValue for mcp.tool.timeout_ms.
+func McpToolTimeoutMs(val int) attribute.KeyValue {
+	return McpToolTimeoutMsKey.Int(val)
+}
+
