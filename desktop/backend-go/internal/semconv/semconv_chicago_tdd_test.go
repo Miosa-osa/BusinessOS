@@ -2997,3 +2997,165 @@ func TestWorkflowFiredBranchesKeyMatchesSchema(t *testing.T) {
 		t.Errorf("WorkflowFiredBranchesKey = %q, want %q", string(WorkflowFiredBranchesKey), "workflow.fired_branches")
 	}
 }
+
+// ============================================================
+// Wave 9 Iteration 11: LLM cost tracking
+// ============================================================
+
+func TestLlmCostTotalKeyMatchesSchema(t *testing.T) {
+	if string(LlmCostTotalKey) != "llm.cost.total" {
+		t.Errorf("LlmCostTotalKey = %q, want %q", string(LlmCostTotalKey), "llm.cost.total")
+	}
+}
+
+func TestLlmCostInputKeyMatchesSchema(t *testing.T) {
+	if string(LlmCostInputKey) != "llm.cost.input" {
+		t.Errorf("LlmCostInputKey = %q, want %q", string(LlmCostInputKey), "llm.cost.input")
+	}
+}
+
+func TestLlmCostOutputKeyMatchesSchema(t *testing.T) {
+	if string(LlmCostOutputKey) != "llm.cost.output" {
+		t.Errorf("LlmCostOutputKey = %q, want %q", string(LlmCostOutputKey), "llm.cost.output")
+	}
+}
+
+func TestLlmModelFamilyKeyMatchesSchema(t *testing.T) {
+	if string(LlmModelFamilyKey) != "llm.model_family" {
+		t.Errorf("LlmModelFamilyKey = %q, want %q", string(LlmModelFamilyKey), "llm.model_family")
+	}
+}
+
+func TestLlmRequestIdKeyMatchesSchema(t *testing.T) {
+	if string(LlmRequestIdKey) != "llm.request.id" {
+		t.Errorf("LlmRequestIdKey = %q, want %q", string(LlmRequestIdKey), "llm.request.id")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 11: Process mining replay quality metrics
+// ============================================================
+
+func TestProcessMiningReplayPrecisionKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningReplayPrecisionKey) != "process_mining.replay.precision" {
+		t.Errorf("ProcessMiningReplayPrecisionKey = %q, want %q", string(ProcessMiningReplayPrecisionKey), "process_mining.replay.precision")
+	}
+}
+
+func TestProcessMiningReplayGeneralizationKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningReplayGeneralizationKey) != "process_mining.replay.generalization" {
+		t.Errorf("ProcessMiningReplayGeneralizationKey = %q, want %q", string(ProcessMiningReplayGeneralizationKey), "process_mining.replay.generalization")
+	}
+}
+
+func TestProcessMiningReplaySimplicityKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningReplaySimplicityKey) != "process_mining.replay.simplicity" {
+		t.Errorf("ProcessMiningReplaySimplicityKey = %q, want %q", string(ProcessMiningReplaySimplicityKey), "process_mining.replay.simplicity")
+	}
+}
+
+func TestProcessMiningAlignmentCostKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningAlignmentCostKey) != "process_mining.alignment.cost" {
+		t.Errorf("ProcessMiningAlignmentCostKey = %q, want %q", string(ProcessMiningAlignmentCostKey), "process_mining.alignment.cost")
+	}
+}
+
+func TestProcessMiningModelTypeKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningModelTypeKey) != "process_mining.model.type" {
+		t.Errorf("ProcessMiningModelTypeKey = %q, want %q", string(ProcessMiningModelTypeKey), "process_mining.model.type")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 11: Consensus quorum health and replica counts
+// ============================================================
+
+func TestConsensusQuorumHealthKeyMatchesSchema(t *testing.T) {
+	if string(ConsensusQuorumHealthKey) != "consensus.quorum.health" {
+		t.Errorf("ConsensusQuorumHealthKey = %q, want %q", string(ConsensusQuorumHealthKey), "consensus.quorum.health")
+	}
+}
+
+func TestConsensusBlockHeightKeyMatchesSchema(t *testing.T) {
+	if string(ConsensusBlockHeightKey) != "consensus.block.height" {
+		t.Errorf("ConsensusBlockHeightKey = %q, want %q", string(ConsensusBlockHeightKey), "consensus.block.height")
+	}
+}
+
+func TestConsensusReplicaCountKeyMatchesSchema(t *testing.T) {
+	if string(ConsensusReplicaCountKey) != "consensus.replica.count" {
+		t.Errorf("ConsensusReplicaCountKey = %q, want %q", string(ConsensusReplicaCountKey), "consensus.replica.count")
+	}
+}
+
+func TestConsensusFailureCountKeyMatchesSchema(t *testing.T) {
+	if string(ConsensusFailureCountKey) != "consensus.failure.count" {
+		t.Errorf("ConsensusFailureCountKey = %q, want %q", string(ConsensusFailureCountKey), "consensus.failure.count")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 11: A2A SLA tracking
+// ============================================================
+
+func TestA2ASlaDeadlineMsKeyMatchesSchema(t *testing.T) {
+	if string(A2ASlaDeadlineMsKey) != "a2a.sla.deadline_ms" {
+		t.Errorf("A2ASlaDeadlineMsKey = %q, want %q", string(A2ASlaDeadlineMsKey), "a2a.sla.deadline_ms")
+	}
+}
+
+func TestA2ASlaBreachKeyMatchesSchema(t *testing.T) {
+	if string(A2ASlaBreachKey) != "a2a.sla.breach" {
+		t.Errorf("A2ASlaBreachKey = %q, want %q", string(A2ASlaBreachKey), "a2a.sla.breach")
+	}
+}
+
+func TestA2ASlaLatencyMsKeyMatchesSchema(t *testing.T) {
+	if string(A2ASlaLatencyMsKey) != "a2a.sla.latency_ms" {
+		t.Errorf("A2ASlaLatencyMsKey = %q, want %q", string(A2ASlaLatencyMsKey), "a2a.sla.latency_ms")
+	}
+}
+
+func TestA2ARetryCountKeyMatchesSchema(t *testing.T) {
+	if string(A2ARetryCountKey) != "a2a.retry.count" {
+		t.Errorf("A2ARetryCountKey = %q, want %q", string(A2ARetryCountKey), "a2a.retry.count")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 11: Workspace tool category and context window
+// ============================================================
+
+func TestWorkspaceToolCategoryKeyMatchesSchema(t *testing.T) {
+	if string(WorkspaceToolCategoryKey) != "workspace.tool.category" {
+		t.Errorf("WorkspaceToolCategoryKey = %q, want %q", string(WorkspaceToolCategoryKey), "workspace.tool.category")
+	}
+}
+
+func TestWorkspaceContextWindowSizeKeyMatchesSchema(t *testing.T) {
+	if string(WorkspaceContextWindowSizeKey) != "workspace.context.window_size" {
+		t.Errorf("WorkspaceContextWindowSizeKey = %q, want %q", string(WorkspaceContextWindowSizeKey), "workspace.context.window_size")
+	}
+}
+
+// ============================================================
+// Wave 9 Iteration 11: BusinessOS compliance, audit and integration
+// ============================================================
+
+func TestBusinessOsComplianceFrameworkKeyMatchesSchema(t *testing.T) {
+	if string(BusinessOsComplianceFrameworkKey) != "business_os.compliance.framework" {
+		t.Errorf("BusinessOsComplianceFrameworkKey = %q, want %q", string(BusinessOsComplianceFrameworkKey), "business_os.compliance.framework")
+	}
+}
+
+func TestBusinessOsAuditEventTypeKeyMatchesSchema(t *testing.T) {
+	if string(BusinessOsAuditEventTypeKey) != "business_os.audit.event_type" {
+		t.Errorf("BusinessOsAuditEventTypeKey = %q, want %q", string(BusinessOsAuditEventTypeKey), "business_os.audit.event_type")
+	}
+}
+
+func TestBusinessOsIntegrationTypeKeyMatchesSchema(t *testing.T) {
+	if string(BusinessOsIntegrationTypeKey) != "business_os.integration.type" {
+		t.Errorf("BusinessOsIntegrationTypeKey = %q, want %q", string(BusinessOsIntegrationTypeKey), "business_os.integration.type")
+	}
+}

@@ -60,3 +60,37 @@ const (
 	LlmStopReasonEndTurn    = "end_turn"
 	LlmStopReasonToolUse    = "tool_use"
 )
+
+// Wave 9 iteration 11: LLM cost tracking and request metadata attributes.
+const (
+	// LlmCostTotalKey is the OTel attribute key for llm.cost.total.
+	// Total monetary cost of the LLM request (input + output), in USD.
+	LlmCostTotalKey = attribute.Key("llm.cost.total")
+	// LlmCostInputKey is the OTel attribute key for llm.cost.input.
+	// Cost attributed to input tokens for the LLM request, in USD.
+	LlmCostInputKey = attribute.Key("llm.cost.input")
+	// LlmCostOutputKey is the OTel attribute key for llm.cost.output.
+	// Cost attributed to output tokens for the LLM request, in USD.
+	LlmCostOutputKey = attribute.Key("llm.cost.output")
+	// LlmModelFamilyKey is the OTel attribute key for llm.model_family.
+	// Family or series of the LLM model (e.g., claude-3, gpt-4, gemini-1.5).
+	LlmModelFamilyKey = attribute.Key("llm.model_family")
+	// LlmRequestIdKey is the OTel attribute key for llm.request.id.
+	// Unique identifier assigned to this LLM API request.
+	LlmRequestIdKey = attribute.Key("llm.request.id")
+)
+
+// LlmCostTotal returns an attribute KeyValue for llm.cost.total.
+func LlmCostTotal(val float64) attribute.KeyValue { return LlmCostTotalKey.Float64(val) }
+
+// LlmCostInput returns an attribute KeyValue for llm.cost.input.
+func LlmCostInput(val float64) attribute.KeyValue { return LlmCostInputKey.Float64(val) }
+
+// LlmCostOutput returns an attribute KeyValue for llm.cost.output.
+func LlmCostOutput(val float64) attribute.KeyValue { return LlmCostOutputKey.Float64(val) }
+
+// LlmModelFamily returns an attribute KeyValue for llm.model_family.
+func LlmModelFamily(val string) attribute.KeyValue { return LlmModelFamilyKey.String(val) }
+
+// LlmRequestId returns an attribute KeyValue for llm.request.id.
+func LlmRequestId(val string) attribute.KeyValue { return LlmRequestIdKey.String(val) }
