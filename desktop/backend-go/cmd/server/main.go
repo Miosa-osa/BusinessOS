@@ -13,6 +13,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/rhl/businessos-backend/internal/database"
+	"github.com/rhl/businessos-backend/internal/observability"
 )
 
 func main() {
@@ -60,6 +61,9 @@ func main() {
 		slog.Info("server: shutting down (degraded mode)")
 		shutdownContainers(app)
 		database.Close()
+		if app.tracerProvider != nil {
+			observability.ShutdownTracer(ctx, app.tracerProvider)
+		}
 		slog.Info("server: stopped")
 		return
 	}
@@ -113,6 +117,15 @@ func shutdownContainers(app *AppServices) {
 
 // gracefulShutdown tears down all services in the correct order.
 func gracefulShutdown(app *AppServices) {
+	// Shutdown OpenTelemetry tracer first to ensure all pending spans are flushed
+	if app.tracerProvider != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := observability.ShutdownTracer(ctx, app.tracerProvider); err != nil {
+			slog.Warn("tracer provider shutdown error", "error", err)
+		}
+	}
+
 	if app.osaQueueWorker != nil {
 		slog.Info("server: stopping OSA queue worker")
 		app.osaQueueWorker.Stop()

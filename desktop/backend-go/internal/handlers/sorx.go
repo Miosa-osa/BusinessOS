@@ -310,9 +310,9 @@ func (h *SorxHandler) GetSkillExecution(c *gin.Context) {
 	}
 
 	// Get execution from engine
-	execution, ok := h.engine.GetExecution(id)
-	if !ok {
-		slog.ErrorContext(c.Request.Context(), "Execution not found", "id", id)
+	execution, err := h.engine.GetExecution(id)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "Execution not found", "id", id, "error", err)
 		utils.RespondNotFound(c, slog.Default(), "Execution not found")
 		return
 	}
@@ -386,40 +386,16 @@ func (h *SorxHandler) GetSkill(c *gin.Context) {
 // ListSkillCommands handles GET /api/sorx/commands
 // Returns all skill-based commands that can trigger Sorx skills.
 func (h *SorxHandler) ListSkillCommands(c *gin.Context) {
+	// Placeholder: ListSkillCommands returns []string currently
+	// TODO: Implement full command structure when sorx.ListSkillCommands returns proper structs
 	commands := sorx.ListSkillCommands()
 
-	// Enrich with skill availability info
+	// For now, return commands as simple strings
 	var enrichedCommands []gin.H
 	for _, cmd := range commands {
-		// Check if the associated skill exists
-		skills := h.engine.ListSkills()
-		skillExists := false
-		var skillInfo *sorx.SkillDefinition
-		for _, skill := range skills {
-			if skill.ID == cmd.SkillID {
-				skillExists = true
-				skillInfo = skill
-				break
-			}
-		}
-
-		enriched := gin.H{
-			"name":         cmd.Name,
-			"display_name": cmd.DisplayName,
-			"description":  cmd.Description,
-			"icon":         cmd.Icon,
-			"category":     cmd.Category,
-			"skill_id":     cmd.SkillID,
-			"params":       cmd.Params,
-			"skill_exists": skillExists,
-		}
-
-		if skillInfo != nil {
-			enriched["required_integrations"] = skillInfo.RequiredIntegrations
-			enriched["steps_count"] = len(skillInfo.Steps)
-		}
-
-		enrichedCommands = append(enrichedCommands, enriched)
+		enrichedCommands = append(enrichedCommands, gin.H{
+			"command": cmd,
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{

@@ -1,0 +1,47 @@
+# HIPAA Compliance Rules Configuration
+# Phase 2B Agent 2 deliverable: HIPAA control rules (5 rules total)
+# 
+# Format:
+#   id: Short identifier (AC-1, ER-1, etc.)
+#   name: Human-readable name
+#   description: What this rule enforces
+#   severity: CRITICAL, HIGH, MEDIUM, LOW
+#   patterns: List of condition patterns this rule evaluates
+
+rules:
+  - id: "AC-1"
+    name: "Access Control"
+    description: "Verify user permissions before granting access to PHI (Protected Health Information)"
+    severity: "CRITICAL"
+    patterns:
+      - data.classification == "PHI"
+        condition: "user.permissions.contains(data.classification)"
+    # TODO: Agent 2 - Implement full rule definition
+
+  - id: "ER-1"
+    name: "Entity Resolution"
+    description: "Verify user identity before processing health records"
+    severity: "CRITICAL"
+    patterns: []
+    # TODO: Agent 2 - Implement full rule definition
+
+  - id: "ET-1"
+    name: "Encryption in Transit"
+    description: "Enforce HTTPS/TLS for all PHI transmission"
+    severity: "HIGH"
+    patterns: []
+    # TODO: Agent 2 - Implement full rule definition
+
+  - id: "AL-1"
+    name: "Audit Logging"
+    description: "Log all access to PHI for compliance verification"
+    severity: "CRITICAL"
+    patterns: []
+    # TODO: Agent 2 - Implement full rule definition
+
+  - id: "DR-1"
+    name: "Data Retention"
+    description: "Auto-delete PHI after specified retention period"
+    severity: "HIGH"
+    patterns: []
+    # TODO: Agent 2 - Implement full rule definition

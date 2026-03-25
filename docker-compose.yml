@@ -164,6 +164,46 @@ services:
       - businessos-network
 
   # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector (port 4317 for OTLP gRPC, 4318 for HTTP)
+  # Receives spans from all 4 projects (OSA, Canopy, BusinessOS, pm4py-rust)
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: businessos-otel-collector
+    restart: unless-stopped
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "13133:13133" # Health check
+    environment:
+      GOGC: "80"
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector/config.yaml:ro
+    command: [--config=/etc/otel-collector/config.yaml]
+    depends_on:
+      - jaeger
+    networks:
+      - businessos-network
+
+  # ---------------------------------------------------------------------------
+  # Jaeger (port 6831 UDP, 6832 UDP, 16686 UI)
+  # Trace visualization and storage
+  # ---------------------------------------------------------------------------
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: businessos-jaeger
+    restart: unless-stopped
+    ports:
+      - "6831:6831/udp"  # Jaeger agent compact Thrift
+      - "6832:6832/udp"  # Jaeger agent binary Thrift
+      - "16686:16686"    # Jaeger UI (http://localhost:16686)
+    environment:
+      MEMORY_MAX_TRACES: "5000"
+      COLLECTOR_OTLP_ENABLED: "true"
+    networks:
+      - businessos-network
+
+  # ---------------------------------------------------------------------------
   # BusinessOS Frontend (SvelteKit adapter-node, port 3000)
   # Dockerfile: frontend/Dockerfile (multi-stage, node:20-alpine final image)
   # PUBLIC_API_URL is baked at build time via ARG; override via env at runtime.

@@ -7,3 +7,4 @@ pub mod ontology;
 pub mod search;
 pub mod validate;
 pub mod pm4py;
+pub mod commands;

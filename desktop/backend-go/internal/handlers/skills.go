@@ -143,9 +143,13 @@ func (h *SkillsHandler) ValidateSkill(c *gin.Context) {
 		return
 	}
 
-	issues := h.loader.ValidateSkill(name)
+	err := h.loader.ValidateSkill(name)
 
-	valid := len(issues) == 0
+	valid := err == nil
+	var issues string
+	if err != nil {
+		issues = err.Error()
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"skill":  name,
 		"valid":  valid,
