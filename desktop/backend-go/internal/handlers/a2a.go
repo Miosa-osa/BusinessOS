@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rhl/businessos-backend/internal/idempotency"
 	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
@@ -48,12 +50,16 @@ type disconnectAgentRequest struct {
 
 // A2AHandler handles A2A agent communication endpoints.
 type A2AHandler struct {
-	a2aClient *services.A2AClient
+	a2aClient      *services.A2AClient
+	idempotencyKey *idempotency.Store
 }
 
 // NewA2AHandler creates a new A2A handler.
 func NewA2AHandler(a2aClient *services.A2AClient) *A2AHandler {
-	return &A2AHandler{a2aClient: a2aClient}
+	return &A2AHandler{
+		a2aClient:      a2aClient,
+		idempotencyKey: idempotency.New(),
+	}
 }
 
 // DiscoverAgent handles POST /api/integrations/a2a/agents/discover
@@ -84,7 +90,16 @@ func (h *A2AHandler) DiscoverAgent(c *gin.Context) {
 
 // CallAgent handles POST /api/integrations/a2a/agents/call
 // Sends a message to a remote A2A agent and returns the task result.
+// Supports Idempotency-Key header for idempotent replays.
 func (h *A2AHandler) CallAgent(c *gin.Context) {
+	// Check idempotency cache first
+	if found, status, body := h.checkIdempotency(c); found {
+		var result interface{}
+		json.Unmarshal([]byte(body), &result)
+		c.JSON(status, result)
+		return
+	}
+
 	var req callAgentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.RespondInvalidRequest(c, slog.Default(), err)
@@ -103,9 +118,14 @@ func (h *A2AHandler) CallAgent(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"task": task,
-	})
+	}
+
+	// Cache idempotent response
+	h.cacheIdempotencyResponse(c, http.StatusOK, response)
+
+	c.JSON(http.StatusOK, response)
 }
 
 // GetAgentTools handles GET /api/integrations/a2a/agents/tools
@@ -136,7 +156,16 @@ func (h *A2AHandler) GetAgentTools(c *gin.Context) {
 
 // ExecuteAgentTool handles POST /api/integrations/a2a/agents/tools/:name
 // Invokes a specific tool on a remote A2A agent.
+// Supports Idempotency-Key header for idempotent replays.
 func (h *A2AHandler) ExecuteAgentTool(c *gin.Context) {
+	// Check idempotency cache first
+	if found, status, body := h.checkIdempotency(c); found {
+		var result interface{}
+		json.Unmarshal([]byte(body), &result)
+		c.JSON(status, result)
+		return
+	}
+
 	toolName := c.Param("name")
 	if toolName == "" {
 		utils.RespondBadRequest(c, slog.Default(), "Tool name is required")
@@ -166,9 +195,14 @@ func (h *A2AHandler) ExecuteAgentTool(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"result": result,
-	})
+	}
+
+	// Cache idempotent response
+	h.cacheIdempotencyResponse(c, http.StatusOK, response)
+
+	c.JSON(http.StatusOK, response)
 }
 
 // ListConnectedAgents handles GET /api/integrations/a2a/agents
@@ -240,4 +274,32 @@ func validateAgentURL(rawURL string) error {
 		return fmt.Errorf("agent_url must use http or https")
 	}
 	return nil
+}
+
+// checkIdempotency checks if a request has been processed before using the Idempotency-Key header.
+// If found in cache, returns (true, status, body). Otherwise, returns (false, 0, nil).
+func (h *A2AHandler) checkIdempotency(c *gin.Context) (bool, int, string) {
+	idempKey := c.GetHeader("Idempotency-Key")
+	if idempKey == "" {
+		return false, 0, ""
+	}
+
+	entry := h.idempotencyKey.Get(idempKey)
+	if entry == nil {
+		return false, 0, ""
+	}
+
+	slog.Debug("idempotency cache hit", "key", idempKey, "status", entry.Status)
+	return true, entry.Status, entry.Body
+}
+
+// cacheIdempotencyResponse stores a response for idempotent replayability.
+func (h *A2AHandler) cacheIdempotencyResponse(c *gin.Context, status int, body interface{}) {
+	idempKey := c.GetHeader("Idempotency-Key")
+	if idempKey == "" {
+		return
+	}
+
+	bodyBytes, _ := json.Marshal(body)
+	_ = h.idempotencyKey.Store(idempKey, status, bodyBytes)
 }
