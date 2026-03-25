@@ -4766,3 +4766,95 @@ func TestIter24LLMValidationSchemaID(t *testing.T) {
 func TestIter24SpanLLMResponseValidate(t *testing.T) {
 	assert.Equal(t, "span.llm.response.validate", SpanLLMResponseValidate)
 }
+
+func TestIter25AgentReasoningTraceID(t *testing.T) {
+	assert.Equal(t, "agent.reasoning.trace_id", AgentReasoningTraceID)
+}
+
+func TestIter25AgentReasoningStepCount(t *testing.T) {
+	assert.Equal(t, "agent.reasoning.step_count", AgentReasoningStepCount)
+}
+
+func TestIter25AgentReasoningConfidenceDelta(t *testing.T) {
+	assert.Equal(t, "agent.reasoning.confidence_delta", AgentReasoningConfidenceDelta)
+}
+
+func TestIter25SpanAgentReasoningTrace(t *testing.T) {
+	assert.Equal(t, "span.agent.reasoning.trace", SpanAgentReasoningTrace)
+}
+
+func TestIter25A2APenaltyAmount(t *testing.T) {
+	assert.Equal(t, "a2a.penalty.amount", A2APenaltyAmount)
+}
+
+func TestIter25A2APenaltyReason(t *testing.T) {
+	assert.Equal(t, "a2a.penalty.reason", A2APenaltyReason)
+}
+
+func TestIter25A2ARewardAmount(t *testing.T) {
+	assert.Equal(t, "a2a.reward.amount", A2ARewardAmount)
+}
+
+func TestIter25SpanA2APenaltyApply(t *testing.T) {
+	assert.Equal(t, "span.a2a.penalty.apply", SpanA2APenaltyApply)
+}
+
+func TestIter25ProcessMiningEnhancementType(t *testing.T) {
+	assert.Equal(t, "process.mining.enhancement.type", ProcessMiningEnhancementType)
+}
+
+func TestIter25ProcessMiningEnhancementImprovementRate(t *testing.T) {
+	assert.Equal(t, "process.mining.enhancement.improvement_rate", ProcessMiningEnhancementImprovementRate)
+}
+
+func TestIter25ProcessMiningEnhancementBaseModelID(t *testing.T) {
+	assert.Equal(t, "process.mining.enhancement.base_model_id", ProcessMiningEnhancementBaseModelID)
+}
+
+func TestIter25SpanProcessMiningModelEnhance(t *testing.T) {
+	assert.Equal(t, "span.process.mining.model.enhance", SpanProcessMiningModelEnhance)
+}
+
+func TestIter25ConsensusQuorumGrowthRate(t *testing.T) {
+	assert.Equal(t, "consensus.quorum.growth_rate", ConsensusQuorumGrowthRate)
+}
+
+func TestIter25ConsensusQuorumCurrentSize(t *testing.T) {
+	assert.Equal(t, "consensus.quorum.current_size", ConsensusQuorumCurrentSize)
+}
+
+func TestIter25ConsensusQuorumTargetSize(t *testing.T) {
+	assert.Equal(t, "consensus.quorum.target_size", ConsensusQuorumTargetSize)
+}
+
+func TestIter25SpanConsensusQuorumGrow(t *testing.T) {
+	assert.Equal(t, "span.consensus.quorum.grow", SpanConsensusQuorumGrow)
+}
+
+func TestIter25HealingMemorySnapshotID(t *testing.T) {
+	assert.Equal(t, "healing.memory.snapshot_id", HealingMemorySnapshotID)
+}
+
+func TestIter25HealingMemorySnapshotSizeBytes(t *testing.T) {
+	assert.Equal(t, "healing.memory.snapshot_size_bytes", HealingMemorySnapshotSizeBytes)
+}
+
+func TestIter25SpanHealingMemorySnapshot(t *testing.T) {
+	assert.Equal(t, "span.healing.memory.snapshot", SpanHealingMemorySnapshot)
+}
+
+func TestIter25LLMMultimodalInputType(t *testing.T) {
+	assert.Equal(t, "llm.multimodal.input_type", LLMMultimodalInputType)
+}
+
+func TestIter25LLMMultimodalModalityCount(t *testing.T) {
+	assert.Equal(t, "llm.multimodal.modality_count", LLMMultimodalModalityCount)
+}
+
+func TestIter25LLMMultimodalInputSizeBytes(t *testing.T) {
+	assert.Equal(t, "llm.multimodal.input_size_bytes", LLMMultimodalInputSizeBytes)
+}
+
+func TestIter25SpanLLMMultimodalProcess(t *testing.T) {
+	assert.Equal(t, "span.llm.multimodal.process", SpanLLMMultimodalProcess)
+}
