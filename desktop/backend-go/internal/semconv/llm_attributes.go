@@ -7,6 +7,15 @@ import "go.opentelemetry.io/otel/attribute"
 
 // Llm Attributes
 const (
+	// LlmContextCompressionRatioKey is the OTel attribute key for llm.context.compression.ratio.
+	// Compression ratio for context (original_tokens / compressed_tokens).
+	LlmContextCompressionRatioKey = attribute.Key("llm.context.compression.ratio")
+	// LlmContextCompressionStrategyKey is the OTel attribute key for llm.context.compression.strategy.
+	// Strategy used for context compression.
+	LlmContextCompressionStrategyKey = attribute.Key("llm.context.compression.strategy")
+	// LlmContextCompressionTokensSavedKey is the OTel attribute key for llm.context.compression.tokens_saved.
+	// Number of tokens saved through compression.
+	LlmContextCompressionTokensSavedKey = attribute.Key("llm.context.compression.tokens_saved")
 	// LlmAdapterIdKey is the OTel attribute key for llm.adapter.id.
 	// The unique identifier of the LLM adapter being applied.
 	LlmAdapterIdKey = attribute.Key("llm.adapter.id")
@@ -49,15 +58,6 @@ const (
 	// LlmChainOfThoughtStepsKey is the OTel attribute key for llm.chain_of_thought.steps.
 	// Number of chain-of-thought reasoning steps in this LLM response.
 	LlmChainOfThoughtStepsKey = attribute.Key("llm.chain_of_thought.steps")
-	// LlmContextCompressionRatioKey is the OTel attribute key for llm.context.compression.ratio.
-	// Compression ratio for context (original_tokens / compressed_tokens).
-	LlmContextCompressionRatioKey = attribute.Key("llm.context.compression.ratio")
-	// LlmContextCompressionStrategyKey is the OTel attribute key for llm.context.compression.strategy.
-	// Strategy used for context compression.
-	LlmContextCompressionStrategyKey = attribute.Key("llm.context.compression.strategy")
-	// LlmContextCompressionTokensSavedKey is the OTel attribute key for llm.context.compression.tokens_saved.
-	// Number of tokens saved through compression.
-	LlmContextCompressionTokensSavedKey = attribute.Key("llm.context.compression.tokens_saved")
 	// LlmContextMaxTokensKey is the OTel attribute key for llm.context.max_tokens.
 	// Maximum token limit for the LLM context window.
 	LlmContextMaxTokensKey = attribute.Key("llm.context.max_tokens")
@@ -306,6 +306,34 @@ const (
 	LlmValidationSchemaIdKey = attribute.Key("llm.validation.schema_id")
 )
 
+// LlmContextCompressionRatio returns an attribute KeyValue for llm.context.compression.ratio.
+func LlmContextCompressionRatio(val float64) attribute.KeyValue {
+	return LlmContextCompressionRatioKey.Float64(val)
+}
+
+// LlmContextCompressionStrategy returns an attribute KeyValue for llm.context.compression.strategy.
+func LlmContextCompressionStrategy(val string) attribute.KeyValue {
+	return LlmContextCompressionStrategyKey.String(val)
+}
+
+// LlmContextCompressionStrategyValues contains the known enum values for llm.context.compression.strategy.
+var LlmContextCompressionStrategyValues = struct {
+	Summarize string
+	Truncate string
+	SlidingWindow string
+	Selective string
+}{
+	Summarize: "summarize",
+	Truncate: "truncate",
+	SlidingWindow: "sliding_window",
+	Selective: "selective",
+}
+
+// LlmContextCompressionTokensSaved returns an attribute KeyValue for llm.context.compression.tokens_saved.
+func LlmContextCompressionTokensSaved(val int64) attribute.KeyValue {
+	return LlmContextCompressionTokensSavedKey.Int64(val)
+}
+
 // LlmAdapterId returns an attribute KeyValue for llm.adapter.id.
 func LlmAdapterId(val string) attribute.KeyValue {
 	return LlmAdapterIdKey.String(val)
@@ -411,34 +439,6 @@ func LlmChainOfThoughtEnabled(val bool) attribute.KeyValue {
 // LlmChainOfThoughtSteps returns an attribute KeyValue for llm.chain_of_thought.steps.
 func LlmChainOfThoughtSteps(val int64) attribute.KeyValue {
 	return LlmChainOfThoughtStepsKey.Int64(val)
-}
-
-// LlmContextCompressionRatio returns an attribute KeyValue for llm.context.compression.ratio.
-func LlmContextCompressionRatio(val float64) attribute.KeyValue {
-	return LlmContextCompressionRatioKey.Float64(val)
-}
-
-// LlmContextCompressionStrategy returns an attribute KeyValue for llm.context.compression.strategy.
-func LlmContextCompressionStrategy(val string) attribute.KeyValue {
-	return LlmContextCompressionStrategyKey.String(val)
-}
-
-// LlmContextCompressionStrategyValues contains the known enum values for llm.context.compression.strategy.
-var LlmContextCompressionStrategyValues = struct {
-	Summarize string
-	Truncate string
-	SlidingWindow string
-	Selective string
-}{
-	Summarize: "summarize",
-	Truncate: "truncate",
-	SlidingWindow: "sliding_window",
-	Selective: "selective",
-}
-
-// LlmContextCompressionTokensSaved returns an attribute KeyValue for llm.context.compression.tokens_saved.
-func LlmContextCompressionTokensSaved(val int64) attribute.KeyValue {
-	return LlmContextCompressionTokensSavedKey.Int64(val)
 }
 
 // LlmContextMaxTokens returns an attribute KeyValue for llm.context.max_tokens.

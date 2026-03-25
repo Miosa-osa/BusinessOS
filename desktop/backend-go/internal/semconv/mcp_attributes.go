@@ -7,9 +7,6 @@ import "go.opentelemetry.io/otel/attribute"
 
 // Mcp Attributes
 const (
-	// McpConnectionIdKey is the OTel attribute key for mcp.connection.id.
-	// Unique identifier for this MCP client-server connection.
-	McpConnectionIdKey = attribute.Key("mcp.connection.id")
 	// McpConnectionPoolActiveCountKey is the OTel attribute key for mcp.connection.pool.active_count.
 	// Number of currently active connections in the pool.
 	McpConnectionPoolActiveCountKey = attribute.Key("mcp.connection.pool.active_count")
@@ -22,6 +19,9 @@ const (
 	// McpConnectionPoolWaitMsKey is the OTel attribute key for mcp.connection.pool.wait_ms.
 	// Time in milliseconds the request waited to acquire a connection.
 	McpConnectionPoolWaitMsKey = attribute.Key("mcp.connection.pool.wait_ms")
+	// McpConnectionIdKey is the OTel attribute key for mcp.connection.id.
+	// Unique identifier for this MCP client-server connection.
+	McpConnectionIdKey = attribute.Key("mcp.connection.id")
 	// McpConnectionTransportKey is the OTel attribute key for mcp.connection.transport.
 	// Transport protocol used for this MCP connection.
 	McpConnectionTransportKey = attribute.Key("mcp.connection.transport")
@@ -162,11 +162,6 @@ const (
 	McpTransportTypeKey = attribute.Key("mcp.transport.type")
 )
 
-// McpConnectionId returns an attribute KeyValue for mcp.connection.id.
-func McpConnectionId(val string) attribute.KeyValue {
-	return McpConnectionIdKey.String(val)
-}
-
 // McpConnectionPoolActiveCount returns an attribute KeyValue for mcp.connection.pool.active_count.
 func McpConnectionPoolActiveCount(val int64) attribute.KeyValue {
 	return McpConnectionPoolActiveCountKey.Int64(val)
@@ -185,6 +180,11 @@ func McpConnectionPoolSize(val int64) attribute.KeyValue {
 // McpConnectionPoolWaitMs returns an attribute KeyValue for mcp.connection.pool.wait_ms.
 func McpConnectionPoolWaitMs(val float64) attribute.KeyValue {
 	return McpConnectionPoolWaitMsKey.Float64(val)
+}
+
+// McpConnectionId returns an attribute KeyValue for mcp.connection.id.
+func McpConnectionId(val string) attribute.KeyValue {
+	return McpConnectionIdKey.String(val)
 }
 
 // McpConnectionTransport returns an attribute KeyValue for mcp.connection.transport.

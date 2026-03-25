@@ -7,6 +7,15 @@ import "go.opentelemetry.io/otel/attribute"
 
 // Healing Attributes
 const (
+	// HealingRetryAdaptiveAttemptKey is the OTel attribute key for healing.retry.adaptive.attempt.
+	// Current retry attempt number (1-indexed) for adaptive retry logic.
+	HealingRetryAdaptiveAttemptKey = attribute.Key("healing.retry.adaptive.attempt")
+	// HealingRetryAdaptiveBackoffMsKey is the OTel attribute key for healing.retry.adaptive.backoff_ms.
+	// Backoff duration in milliseconds before the next retry attempt.
+	HealingRetryAdaptiveBackoffMsKey = attribute.Key("healing.retry.adaptive.backoff_ms")
+	// HealingRetryAdaptiveStrategyKey is the OTel attribute key for healing.retry.adaptive.strategy.
+	// Backoff strategy for adaptive retries during healing.
+	HealingRetryAdaptiveStrategyKey = attribute.Key("healing.retry.adaptive.strategy")
 	// HealingAdaptiveLearningRateKey is the OTel attribute key for healing.adaptive.learning_rate.
 	// Learning rate used to adjust the adaptive healing threshold — controls how quickly it adapts.
 	HealingAdaptiveLearningRateKey = attribute.Key("healing.adaptive.learning_rate")
@@ -232,15 +241,6 @@ const (
 	// HealingRepairStrategyKey is the OTel attribute key for healing.repair.strategy.
 	// The repair strategy applied during healing recovery.
 	HealingRepairStrategyKey = attribute.Key("healing.repair.strategy")
-	// HealingRetryAdaptiveAttemptKey is the OTel attribute key for healing.retry.adaptive.attempt.
-	// Current retry attempt number (1-indexed) for adaptive retry logic.
-	HealingRetryAdaptiveAttemptKey = attribute.Key("healing.retry.adaptive.attempt")
-	// HealingRetryAdaptiveBackoffMsKey is the OTel attribute key for healing.retry.adaptive.backoff_ms.
-	// Backoff duration in milliseconds before the next retry attempt.
-	HealingRetryAdaptiveBackoffMsKey = attribute.Key("healing.retry.adaptive.backoff_ms")
-	// HealingRetryAdaptiveStrategyKey is the OTel attribute key for healing.retry.adaptive.strategy.
-	// Backoff strategy for adaptive retries during healing.
-	HealingRetryAdaptiveStrategyKey = attribute.Key("healing.retry.adaptive.strategy")
 	// HealingRollbackCheckpointIdKey is the OTel attribute key for healing.rollback.checkpoint_id.
 	// Identifier of the checkpoint or snapshot used as the rollback target.
 	HealingRollbackCheckpointIdKey = attribute.Key("healing.rollback.checkpoint_id")
@@ -302,6 +302,34 @@ const (
 	// Number of warm standby replicas available for failover.
 	HealingWarmStandbyReplicaCountKey = attribute.Key("healing.warm_standby.replica_count")
 )
+
+// HealingRetryAdaptiveAttempt returns an attribute KeyValue for healing.retry.adaptive.attempt.
+func HealingRetryAdaptiveAttempt(val int64) attribute.KeyValue {
+	return HealingRetryAdaptiveAttemptKey.Int64(val)
+}
+
+// HealingRetryAdaptiveBackoffMs returns an attribute KeyValue for healing.retry.adaptive.backoff_ms.
+func HealingRetryAdaptiveBackoffMs(val int64) attribute.KeyValue {
+	return HealingRetryAdaptiveBackoffMsKey.Int64(val)
+}
+
+// HealingRetryAdaptiveStrategy returns an attribute KeyValue for healing.retry.adaptive.strategy.
+func HealingRetryAdaptiveStrategy(val string) attribute.KeyValue {
+	return HealingRetryAdaptiveStrategyKey.String(val)
+}
+
+// HealingRetryAdaptiveStrategyValues contains the known enum values for healing.retry.adaptive.strategy.
+var HealingRetryAdaptiveStrategyValues = struct {
+	Exponential string
+	Linear string
+	Fibonacci string
+	Constant string
+}{
+	Exponential: "exponential",
+	Linear: "linear",
+	Fibonacci: "fibonacci",
+	Constant: "constant",
+}
 
 // HealingAdaptiveLearningRate returns an attribute KeyValue for healing.adaptive.learning_rate.
 func HealingAdaptiveLearningRate(val float64) attribute.KeyValue {
@@ -864,34 +892,6 @@ var HealingRepairStrategyValues = struct {
 	Rollback: "rollback",
 	Failover: "failover",
 	Rebalance: "rebalance",
-}
-
-// HealingRetryAdaptiveAttempt returns an attribute KeyValue for healing.retry.adaptive.attempt.
-func HealingRetryAdaptiveAttempt(val int64) attribute.KeyValue {
-	return HealingRetryAdaptiveAttemptKey.Int64(val)
-}
-
-// HealingRetryAdaptiveBackoffMs returns an attribute KeyValue for healing.retry.adaptive.backoff_ms.
-func HealingRetryAdaptiveBackoffMs(val int64) attribute.KeyValue {
-	return HealingRetryAdaptiveBackoffMsKey.Int64(val)
-}
-
-// HealingRetryAdaptiveStrategy returns an attribute KeyValue for healing.retry.adaptive.strategy.
-func HealingRetryAdaptiveStrategy(val string) attribute.KeyValue {
-	return HealingRetryAdaptiveStrategyKey.String(val)
-}
-
-// HealingRetryAdaptiveStrategyValues contains the known enum values for healing.retry.adaptive.strategy.
-var HealingRetryAdaptiveStrategyValues = struct {
-	Exponential string
-	Linear string
-	Fibonacci string
-	Constant string
-}{
-	Exponential: "exponential",
-	Linear: "linear",
-	Fibonacci: "fibonacci",
-	Constant: "constant",
 }
 
 // HealingRollbackCheckpointId returns an attribute KeyValue for healing.rollback.checkpoint_id.

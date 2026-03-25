@@ -7,6 +7,18 @@ import "go.opentelemetry.io/otel/attribute"
 
 // Process Attributes
 const (
+	// ProcessMiningInductiveAlgorithmKey is the OTel attribute key for process.mining.inductive.algorithm.
+	// Variant of the inductive miner algorithm applied.
+	ProcessMiningInductiveAlgorithmKey = attribute.Key("process.mining.inductive.algorithm")
+	// ProcessMiningInductiveCutCountKey is the OTel attribute key for process.mining.inductive.cut_count.
+	// Number of cuts made during inductive mining.
+	ProcessMiningInductiveCutCountKey = attribute.Key("process.mining.inductive.cut_count")
+	// ProcessMiningInductiveSplitTypeKey is the OTel attribute key for process.mining.inductive.split_type.
+	// Type of split in inductive miner tree.
+	ProcessMiningInductiveSplitTypeKey = attribute.Key("process.mining.inductive.split_type")
+	// ProcessMiningInductiveTreeDepthKey is the OTel attribute key for process.mining.inductive.tree_depth.
+	// Maximum depth of inductive miner tree.
+	ProcessMiningInductiveTreeDepthKey = attribute.Key("process.mining.inductive.tree_depth")
 	// ProcessMiningActivityKey is the OTel attribute key for process.mining.activity.
 	// Name of the process activity (event class) from the XES log.
 	ProcessMiningActivityKey = attribute.Key("process.mining.activity")
@@ -208,15 +220,6 @@ const (
 	// ProcessMiningHierarchyParentProcessIdKey is the OTel attribute key for process.mining.hierarchy.parent_process_id.
 	// Identifier of the parent process in the hierarchy.
 	ProcessMiningHierarchyParentProcessIdKey = attribute.Key("process.mining.hierarchy.parent_process_id")
-	// ProcessMiningInductiveCutCountKey is the OTel attribute key for process.mining.inductive.cut_count.
-	// Number of cuts made during inductive mining.
-	ProcessMiningInductiveCutCountKey = attribute.Key("process.mining.inductive.cut_count")
-	// ProcessMiningInductiveSplitTypeKey is the OTel attribute key for process.mining.inductive.split_type.
-	// Type of split in inductive miner tree.
-	ProcessMiningInductiveSplitTypeKey = attribute.Key("process.mining.inductive.split_type")
-	// ProcessMiningInductiveTreeDepthKey is the OTel attribute key for process.mining.inductive.tree_depth.
-	// Maximum depth of inductive miner tree.
-	ProcessMiningInductiveTreeDepthKey = attribute.Key("process.mining.inductive.tree_depth")
 	// ProcessMiningLogIdKey is the OTel attribute key for process.mining.log.id.
 	// Unique identifier of the event log being processed.
 	ProcessMiningLogIdKey = attribute.Key("process.mining.log.id")
@@ -353,6 +356,50 @@ const (
 	// Number of unique trace variants in the event log.
 	ProcessMiningVariantCountKey = attribute.Key("process.mining.variant_count")
 )
+
+// ProcessMiningInductiveAlgorithm returns an attribute KeyValue for process.mining.inductive.algorithm.
+func ProcessMiningInductiveAlgorithm(val string) attribute.KeyValue {
+	return ProcessMiningInductiveAlgorithmKey.String(val)
+}
+
+// ProcessMiningInductiveAlgorithmValues contains the known enum values for process.mining.inductive.algorithm.
+var ProcessMiningInductiveAlgorithmValues = struct {
+	InductiveMinerBase string
+	InductiveMinerDfg string
+	InductiveMinerImdfa string
+}{
+	InductiveMinerBase: "inductive_miner_base",
+	InductiveMinerDfg: "inductive_miner_dfg",
+	InductiveMinerImdfa: "inductive_miner_imdfa",
+}
+
+// ProcessMiningInductiveCutCount returns an attribute KeyValue for process.mining.inductive.cut_count.
+func ProcessMiningInductiveCutCount(val int64) attribute.KeyValue {
+	return ProcessMiningInductiveCutCountKey.Int64(val)
+}
+
+// ProcessMiningInductiveSplitType returns an attribute KeyValue for process.mining.inductive.split_type.
+func ProcessMiningInductiveSplitType(val string) attribute.KeyValue {
+	return ProcessMiningInductiveSplitTypeKey.String(val)
+}
+
+// ProcessMiningInductiveSplitTypeValues contains the known enum values for process.mining.inductive.split_type.
+var ProcessMiningInductiveSplitTypeValues = struct {
+	Exclusive string
+	Parallel string
+	Loop string
+	Sequence string
+}{
+	Exclusive: "exclusive",
+	Parallel: "parallel",
+	Loop: "loop",
+	Sequence: "sequence",
+}
+
+// ProcessMiningInductiveTreeDepth returns an attribute KeyValue for process.mining.inductive.tree_depth.
+func ProcessMiningInductiveTreeDepth(val int64) attribute.KeyValue {
+	return ProcessMiningInductiveTreeDepthKey.Int64(val)
+}
 
 // ProcessMiningActivity returns an attribute KeyValue for process.mining.activity.
 func ProcessMiningActivity(val string) attribute.KeyValue {
@@ -843,34 +890,6 @@ func ProcessMiningHierarchyDepth(val int64) attribute.KeyValue {
 // ProcessMiningHierarchyParentProcessId returns an attribute KeyValue for process.mining.hierarchy.parent_process_id.
 func ProcessMiningHierarchyParentProcessId(val string) attribute.KeyValue {
 	return ProcessMiningHierarchyParentProcessIdKey.String(val)
-}
-
-// ProcessMiningInductiveCutCount returns an attribute KeyValue for process.mining.inductive.cut_count.
-func ProcessMiningInductiveCutCount(val int64) attribute.KeyValue {
-	return ProcessMiningInductiveCutCountKey.Int64(val)
-}
-
-// ProcessMiningInductiveSplitType returns an attribute KeyValue for process.mining.inductive.split_type.
-func ProcessMiningInductiveSplitType(val string) attribute.KeyValue {
-	return ProcessMiningInductiveSplitTypeKey.String(val)
-}
-
-// ProcessMiningInductiveSplitTypeValues contains the known enum values for process.mining.inductive.split_type.
-var ProcessMiningInductiveSplitTypeValues = struct {
-	Exclusive string
-	Parallel string
-	Loop string
-	Sequence string
-}{
-	Exclusive: "exclusive",
-	Parallel: "parallel",
-	Loop: "loop",
-	Sequence: "sequence",
-}
-
-// ProcessMiningInductiveTreeDepth returns an attribute KeyValue for process.mining.inductive.tree_depth.
-func ProcessMiningInductiveTreeDepth(val int64) attribute.KeyValue {
-	return ProcessMiningInductiveTreeDepthKey.Int64(val)
 }
 
 // ProcessMiningLogId returns an attribute KeyValue for process.mining.log.id.

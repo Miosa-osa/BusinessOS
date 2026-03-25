@@ -31,6 +31,12 @@ const (
 	// Kind: internal
 	// Stability: development
 	LlmContextCompressSpan = "llm.context.compress"
+	// llm_context_compress_process is the span name for "llm.context.compress.process".
+	//
+	// Processing a single context compression operation — validates compression ratio and token savings.
+	// Kind: internal
+	// Stability: development
+	LlmContextCompressProcessSpan = "llm.context.compress.process"
 	// llm_context_manage is the span name for "llm.context.manage".
 	//
 	// Context window management — handles overflow by applying the configured strategy.
