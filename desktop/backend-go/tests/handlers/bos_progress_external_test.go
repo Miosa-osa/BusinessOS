@@ -43,32 +43,32 @@ func TestProgressEndpointRequiresAuth(t *testing.T) {
 	secretKey := "test-secret-key-12345"
 
 	tests := []struct {
-		name           string
-		authHeader     string
-		expectStatus   int
-		expectError    string
-		description    string
+		name         string
+		authHeader   string
+		expectStatus int
+		expectError  string
+		description  string
 	}{
 		{
-			name:           "NoToken",
-			authHeader:     "",
-			expectStatus:   http.StatusUnauthorized,
-			expectError:    "Missing Authorization header",
-			description:    "POST without Authorization header should return 401",
+			name:         "NoToken",
+			authHeader:   "",
+			expectStatus: http.StatusUnauthorized,
+			expectError:  "Missing Authorization header",
+			description:  "POST without Authorization header should return 401",
 		},
 		{
-			name:           "InvalidToken",
-			authHeader:     "Bearer invalid.token.here",
-			expectStatus:   http.StatusUnauthorized,
-			expectError:    "Invalid or expired token",
-			description:    "POST with invalid JWT should return 401",
+			name:         "InvalidToken",
+			authHeader:   "Bearer invalid.token.here",
+			expectStatus: http.StatusUnauthorized,
+			expectError:  "Invalid or expired token",
+			description:  "POST with invalid JWT should return 401",
 		},
 		{
-			name:           "InvalidFormat",
-			authHeader:     "Basic dXNlcjpwYXNz",
-			expectStatus:   http.StatusUnauthorized,
-			expectError:    "Invalid Authorization header format",
-			description:    "POST with wrong Bearer scheme should return 401",
+			name:         "InvalidFormat",
+			authHeader:   "Basic dXNlcjpwYXNz",
+			expectStatus: http.StatusUnauthorized,
+			expectError:  "Invalid Authorization header format",
+			description:  "POST with wrong Bearer scheme should return 401",
 		},
 	}
 
