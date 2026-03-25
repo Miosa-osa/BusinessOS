@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<log xes.version="1.0" xes.features="nested-attributes" xmlns="http://www.xes-standard.org/">
+  <extension name="Concept" prefix="concept" uri="http://www.xes-standard.org/concept.xesext"/>
+  <extension name="Time" prefix="time" uri="http://www.xes-standard.org/time.xesext"/>
+  <global scope="trace">
+    <string key="concept:name" value="case name"/>
+  </global>
+  <global scope="event">
+    <string key="concept:name" value="activity name"/>
+    <date key="time:timestamp" value="timestamp"/>
+  </global>
+  <!-- Trace 1: Normal flow, no escalation -->
+  <trace>
+    <string key="concept:name" value="claim_001"/>
+    <event>
+      <string key="concept:name" value="claim_received"/>
+      <date key="time:timestamp" value="2024-01-01T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="parallel_region_start"/>
+      <date key="time:timestamp" value="2024-01-01T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="verify_documentation"/>
+      <date key="time:timestamp" value="2024-01-01T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="assess_damages"/>
+      <date key="time:timestamp" value="2024-01-01T10:15:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="check_coverage"/>
+      <date key="time:timestamp" value="2024-01-01T10:20:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="parallel_region_end"/>
+      <date key="time:timestamp" value="2024-01-01T10:25:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="claim_approved"/>
+      <date key="time:timestamp" value="2024-01-01T10:30:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 2: Normal flow, no escalation -->
+  <trace>
+    <string key="concept:name" value="claim_002"/>
+    <event>
+      <string key="concept:name" value="claim_received"/>
+      <date key="time:timestamp" value="2024-01-02T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="parallel_region_start"/>
+      <date key="time:timestamp" value="2024-01-02T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="verify_documentation"/>
+      <date key="time:timestamp" value="2024-01-02T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="assess_damages"/>
+      <date key="time:timestamp" value="2024-01-02T10:15:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="check_coverage"/>
+      <date key="time:timestamp" value="2024-01-02T10:20:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="parallel_region_end"/>
+      <date key="time:timestamp" value="2024-01-02T10:25:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="claim_approved"/>
+      <date key="time:timestamp" value="2024-01-02T10:30:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 3: Escalation triggered, region cancelled -->
+  <trace>
+    <string key="concept:name" value="claim_003"/>
+    <event>
+      <string key="concept:name" value="claim_received"/>
+      <date key="time:timestamp" value="2024-01-03T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="parallel_region_start"/>
+      <date key="time:timestamp" value="2024-01-03T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="verify_documentation"/>
+      <date key="time:timestamp" value="2024-01-03T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="escalation_triggered"/>
+      <date key="time:timestamp" value="2024-01-03T10:12:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="region_cancelled"/>
+      <date key="time:timestamp" value="2024-01-03T10:13:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="escalation_handling"/>
+      <date key="time:timestamp" value="2024-01-03T10:15:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="management_review"/>
+      <date key="time:timestamp" value="2024-01-03T11:00:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 4: Escalation triggered, region cancelled -->
+  <trace>
+    <string key="concept:name" value="claim_004"/>
+    <event>
+      <string key="concept:name" value="claim_received"/>
+      <date key="time:timestamp" value="2024-01-04T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="parallel_region_start"/>
+      <date key="time:timestamp" value="2024-01-04T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="assess_damages"/>
+      <date key="time:timestamp" value="2024-01-04T10:08:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="escalation_triggered"/>
+      <date key="time:timestamp" value="2024-01-04T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="region_cancelled"/>
+      <date key="time:timestamp" value="2024-01-04T10:11:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="escalation_handling"/>
+      <date key="time:timestamp" value="2024-01-04T10:15:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="management_review"/>
+      <date key="time:timestamp" value="2024-01-04T11:00:00.000Z"/>
+    </event>
+  </trace>
+</log>

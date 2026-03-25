@@ -1,0 +1,226 @@
+{
+  "metadata": {
+    "description": "Sample account event log for BOS process mining tests",
+    "generated": "2024-01-01T00:00:00Z",
+    "num_accounts": 3,
+    "num_events": 21,
+    "account_types": ["standard", "suspended", "abnormal"]
+  },
+  "accounts": [
+    {
+      "account_id": "account_0",
+      "account_type": "standard",
+      "description": "Standard account lifecycle (30-day onboarding)",
+      "events": [
+        {
+          "activity": "account_created",
+          "timestamp": "2024-01-01T10:00:00Z",
+          "resource": "system_api",
+          "metadata": {
+            "region": "US",
+            "initiator": "customer_web"
+          }
+        },
+        {
+          "activity": "account_verified",
+          "timestamp": "2024-01-01T12:00:00Z",
+          "resource": "verification_service",
+          "metadata": {
+            "method": "email",
+            "duration_minutes": 120
+          }
+        },
+        {
+          "activity": "account_activated",
+          "timestamp": "2024-01-01T13:00:00Z",
+          "resource": "system_api",
+          "metadata": {
+            "initiator": "system_automation"
+          }
+        },
+        {
+          "activity": "account_used",
+          "timestamp": "2024-01-11T14:30:00Z",
+          "resource": "payment_processor",
+          "metadata": {
+            "transaction_type": "purchase",
+            "amount": 150.00
+          }
+        },
+        {
+          "activity": "account_used",
+          "timestamp": "2024-01-21T09:15:00Z",
+          "resource": "payment_processor",
+          "metadata": {
+            "transaction_type": "subscription",
+            "amount": 29.99
+          }
+        },
+        {
+          "activity": "account_used",
+          "timestamp": "2024-01-31T16:45:00Z",
+          "resource": "api_gateway",
+          "metadata": {
+            "transaction_type": "api_call",
+            "endpoint": "/api/v1/data"
+          }
+        },
+        {
+          "activity": "account_closed",
+          "timestamp": "2024-02-01T10:00:00Z",
+          "resource": "system_api",
+          "metadata": {
+            "reason": "user_request",
+            "initiator": "customer_web"
+          }
+        }
+      ]
+    },
+    {
+      "account_id": "account_1",
+      "account_type": "suspended",
+      "description": "Account with suspension and reactivation (60-day lifecycle)",
+      "events": [
+        {
+          "activity": "account_created",
+          "timestamp": "2024-01-02T08:00:00Z",
+          "resource": "system_api",
+          "metadata": {
+            "region": "EU",
+            "initiator": "customer_mobile_app"
+          }
+        },
+        {
+          "activity": "account_verified",
+          "timestamp": "2024-01-02T10:30:00Z",
+          "resource": "verification_service",
+          "metadata": {
+            "method": "sms",
+            "duration_minutes": 150
+          }
+        },
+        {
+          "activity": "account_activated",
+          "timestamp": "2024-01-02T11:30:00Z",
+          "resource": "system_api",
+          "metadata": {
+            "initiator": "system_automation"
+          }
+        },
+        {
+          "activity": "account_used",
+          "timestamp": "2024-01-17T13:00:00Z",
+          "resource": "payment_processor",
+          "metadata": {
+            "transaction_type": "purchase",
+            "amount": 500.00
+          }
+        },
+        {
+          "activity": "account_suspended",
+          "timestamp": "2024-01-24T15:30:00Z",
+          "resource": "compliance_engine",
+          "metadata": {
+            "reason": "policy_violation",
+            "rule_triggered": "suspicious_pattern",
+            "suspension_duration_days": 7
+          }
+        },
+        {
+          "activity": "account_reactivated",
+          "timestamp": "2024-02-01T09:00:00Z",
+          "resource": "system_api",
+          "metadata": {
+            "initiator": "compliance_review",
+            "review_notes": "account_cleared_review"
+          }
+        },
+        {
+          "activity": "account_used",
+          "timestamp": "2024-02-15T11:45:00Z",
+          "resource": "api_gateway",
+          "metadata": {
+            "transaction_type": "api_call",
+            "endpoint": "/api/v1/analytics"
+          }
+        },
+        {
+          "activity": "account_closed",
+          "timestamp": "2024-03-01T14:00:00Z",
+          "resource": "system_api",
+          "metadata": {
+            "reason": "user_request",
+            "initiator": "customer_web"
+          }
+        }
+      ]
+    },
+    {
+      "account_id": "account_2",
+      "account_type": "abnormal",
+      "description": "Abnormal account (fraud risk - skipped verification)",
+      "events": [
+        {
+          "activity": "account_created",
+          "timestamp": "2024-01-15T22:00:00Z",
+          "resource": "system_api",
+          "metadata": {
+            "region": "UNKNOWN",
+            "initiator": "api_direct",
+            "ip_country": "RU"
+          }
+        },
+        {
+          "activity": "account_activated",
+          "timestamp": "2024-01-15T23:00:00Z",
+          "resource": "system_api",
+          "metadata": {
+            "initiator": "system_automation",
+            "note": "verification_skipped"
+          }
+        },
+        {
+          "activity": "account_used",
+          "timestamp": "2024-01-16T01:30:00Z",
+          "resource": "payment_processor",
+          "metadata": {
+            "transaction_type": "high_value_purchase",
+            "amount": 5000.00,
+            "flag": "fraud_risk"
+          }
+        },
+        {
+          "activity": "account_closed",
+          "timestamp": "2024-01-16T05:00:00Z",
+          "resource": "fraud_detection_system",
+          "metadata": {
+            "reason": "fraud_detected",
+            "initiator": "automated_system"
+          }
+        }
+      ]
+    }
+  ],
+  "statistics": {
+    "total_traces": 3,
+    "total_events": 21,
+    "variants": [
+      {
+        "pattern": "created → verified → activated → used → closed",
+        "count": 1,
+        "cycle_time_days": 31
+      },
+      {
+        "pattern": "created → verified → activated → used → suspended → reactivated → used → closed",
+        "count": 1,
+        "cycle_time_days": 59
+      },
+      {
+        "pattern": "created → activated → used → closed",
+        "count": 1,
+        "cycle_time_days": 3,
+        "note": "abnormal_fraud_risk"
+      }
+    ]
+  }
+}

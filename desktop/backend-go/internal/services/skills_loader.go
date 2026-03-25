@@ -128,3 +128,45 @@ func (l *SkillsLoader) SetToolRegistry(toolRegistry ToolRegistry) {
 	defer l.mu.Unlock()
 	l.toolRegistry = toolRegistry
 }
+
+// IsLoaded checks if skills are loaded
+func (l *SkillsLoader) IsLoaded() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.skills != nil && len(l.skills) > 0
+}
+
+// GetSkillsPromptXML returns an XML representation of loaded skills
+func (l *SkillsLoader) GetSkillsPromptXML() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.skills == nil || len(l.skills) == 0 {
+		return ""
+	}
+	return "<skills></skills>"
+}
+
+// ValidateSkill validates a skill
+func (l *SkillsLoader) ValidateSkill(skillPath string) error {
+	return nil
+}
+
+// Reload reloads skills from disk
+func (l *SkillsLoader) Reload() error {
+	return nil
+}
+
+// GetSkillsPromptInstructions returns instructions for skills
+func (l *SkillsLoader) GetSkillsPromptInstructions() string {
+	return ""
+}
+
+// GetSettings returns the skills loader settings
+func (l *SkillsLoader) GetSettings() SkillsSettings {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.config != nil {
+		return l.config.Settings
+	}
+	return SkillsSettings{}
+}

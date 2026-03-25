@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<log xes.version="1.0" xes.features="nested-attributes" xmlns="http://www.xes-standard.org/">
+  <extension name="Concept" prefix="concept" uri="http://www.xes-standard.org/concept.xesext"/>
+  <extension name="Time" prefix="time" uri="http://www.xes-standard.org/time.xesext"/>
+  <global scope="trace">
+    <string key="concept:name" value="case name"/>
+  </global>
+  <global scope="event">
+    <string key="concept:name" value="activity name"/>
+    <date key="time:timestamp" value="timestamp"/>
+  </global>
+  <!-- Trace 1: No revisions -->
+  <trace>
+    <string key="concept:name" value="doc_001"/>
+    <event>
+      <string key="concept:name" value="submit_document"/>
+      <date key="time:timestamp" value="2024-01-01T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="review_document"/>
+      <date key="time:timestamp" value="2024-01-01T10:30:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="approve_document"/>
+      <date key="time:timestamp" value="2024-01-01T11:00:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 2: One revision cycle -->
+  <trace>
+    <string key="concept:name" value="doc_002"/>
+    <event>
+      <string key="concept:name" value="submit_document"/>
+      <date key="time:timestamp" value="2024-01-02T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="review_document"/>
+      <date key="time:timestamp" value="2024-01-02T10:30:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="request_revision"/>
+      <date key="time:timestamp" value="2024-01-02T11:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="edit_document"/>
+      <date key="time:timestamp" value="2024-01-02T14:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="resubmit_document"/>
+      <date key="time:timestamp" value="2024-01-02T14:30:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="review_document"/>
+      <date key="time:timestamp" value="2024-01-02T15:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="approve_document"/>
+      <date key="time:timestamp" value="2024-01-02T15:30:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 3: Two revision cycles -->
+  <trace>
+    <string key="concept:name" value="doc_003"/>
+    <event>
+      <string key="concept:name" value="submit_document"/>
+      <date key="time:timestamp" value="2024-01-03T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="review_document"/>
+      <date key="time:timestamp" value="2024-01-03T10:30:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="request_revision"/>
+      <date key="time:timestamp" value="2024-01-03T11:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="edit_document"/>
+      <date key="time:timestamp" value="2024-01-03T14:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="resubmit_document"/>
+      <date key="time:timestamp" value="2024-01-03T14:30:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="review_document"/>
+      <date key="time:timestamp" value="2024-01-03T15:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="request_revision"/>
+      <date key="time:timestamp" value="2024-01-03T15:30:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="edit_document"/>
+      <date key="time:timestamp" value="2024-01-03T18:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="resubmit_document"/>
+      <date key="time:timestamp" value="2024-01-03T18:30:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="review_document"/>
+      <date key="time:timestamp" value="2024-01-03T19:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="approve_document"/>
+      <date key="time:timestamp" value="2024-01-03T19:30:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 4: Cycle then rejection -->
+  <trace>
+    <string key="concept:name" value="doc_004"/>
+    <event>
+      <string key="concept:name" value="submit_document"/>
+      <date key="time:timestamp" value="2024-01-04T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="review_document"/>
+      <date key="time:timestamp" value="2024-01-04T10:30:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="request_revision"/>
+      <date key="time:timestamp" value="2024-01-04T11:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="edit_document"/>
+      <date key="time:timestamp" value="2024-01-04T14:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="resubmit_document"/>
+      <date key="time:timestamp" value="2024-01-04T14:30:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="review_document"/>
+      <date key="time:timestamp" value="2024-01-04T15:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="reject_document"/>
+      <date key="time:timestamp" value="2024-01-04T15:30:00.000Z"/>
+    </event>
+  </trace>
+</log>

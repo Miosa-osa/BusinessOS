@@ -1,0 +1,62 @@
+rules:
+  # SOC2 CC6.1 - Logical Access Control
+  - id: "soc2.cc6.1"
+    title: "Logical access restricted to authorized personnel"
+    condition: "user.role != admin"
+    action: "escalate"
+    enabled: true
+    severity: "critical"
+    framework: "SOC2"
+
+  # SOC2 CC6.2 - User Provisioning
+  - id: "soc2.cc6.2"
+    title: "User provisioning requires verification"
+    condition: "user.role == guest"
+    action: "notify"
+    enabled: true
+    severity: "high"
+    framework: "SOC2"
+
+  # SOC2 A1.1 - Availability Monitoring
+  - id: "soc2.a1.1"
+    title: "Service availability must exceed 99.9%"
+    condition: "service.uptime < 99.9"
+    action: "create_gap"
+    enabled: true
+    severity: "high"
+    framework: "SOC2"
+
+  # SOC2 C1.1 - Confidentiality Encryption
+  - id: "soc2.c1.1"
+    title: "Sensitive data must be encrypted at rest"
+    condition: "data.encrypted != true"
+    action: "escalate"
+    enabled: true
+    severity: "critical"
+    framework: "SOC2"
+
+  # SOC2 I1.1 - Integrity Validation
+  - id: "soc2.i1.1"
+    title: "Audit trail entries must have valid signatures"
+    condition: "audit_entry.signature_valid != true"
+    action: "escalate"
+    enabled: true
+    severity: "critical"
+    framework: "SOC2"
+
+  # Additional SOC2 Rules
+  - id: "soc2.cc7.1"
+    title: "System monitoring and alerting enabled"
+    condition: "user.role == operator"
+    action: "audit"
+    enabled: true
+    severity: "medium"
+    framework: "SOC2"
+
+  - id: "soc2.cc7.2"
+    title: "Incident response procedures documented"
+    condition: "user.role == admin"
+    action: "audit"
+    enabled: true
+    severity: "medium"
+    framework: "SOC2"

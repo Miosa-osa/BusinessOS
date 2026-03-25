@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<log xes.version="1.0" xes.features="nested-attributes" xmlns="http://www.xes-standard.org/">
+  <extension name="Concept" prefix="concept" uri="http://www.xes-standard.org/concept.xesext"/>
+  <global scope="event">
+    <string key="concept:name" value="activity name"/>
+  </global>
+  <trace>
+    <string key="concept:name" value="app_001"/>
+    <event>
+      <string key="concept:name" value="validate_credit"/>
+    </event>
+    <event>
+      <string key="concept:name" value="approve_application"/>
+    </event>
+  </trace>
+  <trace>
+    <string key="concept:name" value="app_004"/>
+    <event>
+      <string key="concept:name" value="validate_credit"/>
+    </event>
+    <event>
+      <string key="concept:name" value="request_more_info"/>
+    </event>
+  </trace>
+</log>

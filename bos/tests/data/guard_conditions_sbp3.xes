@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<log xes.version="1.0" xes.features="nested-attributes" xmlns="http://www.xes-standard.org/">
+  <extension name="Concept" prefix="concept" uri="http://www.xes-standard.org/concept.xesext"/>
+  <extension name="Time" prefix="time" uri="http://www.xes-standard.org/time.xesext"/>
+  <extension name="Org" prefix="org" uri="http://www.xes-standard.org/org.xesext"/>
+  <global scope="trace">
+    <string key="concept:name" value="case name"/>
+    <int key="credit:score" value="score"/>
+  </global>
+  <global scope="event">
+    <string key="concept:name" value="activity name"/>
+    <date key="time:timestamp" value="timestamp"/>
+    <string key="org:role" value="role"/>
+  </global>
+  <!-- High Credit Cases (score >= 700): validation → approved -->
+  <trace>
+    <string key="concept:name" value="app_001"/>
+    <int key="credit:score" value="750"/>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-01T10:00:00.000Z"/>
+      <string key="org:role" value="customer"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_credit"/>
+      <date key="time:timestamp" value="2024-01-01T10:05:00.000Z"/>
+      <string key="org:role" value="system"/>
+    </event>
+    <event>
+      <string key="concept:name" value="approve_application"/>
+      <date key="time:timestamp" value="2024-01-01T10:10:00.000Z"/>
+      <string key="org:role" value="loan_officer"/>
+    </event>
+  </trace>
+  <!-- High Credit Case -->
+  <trace>
+    <string key="concept:name" value="app_002"/>
+    <int key="credit:score" value="800"/>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-02T10:00:00.000Z"/>
+      <string key="org:role" value="customer"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_credit"/>
+      <date key="time:timestamp" value="2024-01-02T10:05:00.000Z"/>
+      <string key="org:role" value="system"/>
+    </event>
+    <event>
+      <string key="concept:name" value="approve_application"/>
+      <date key="time:timestamp" value="2024-01-02T10:10:00.000Z"/>
+      <string key="org:role" value="loan_officer"/>
+    </event>
+  </trace>
+  <!-- High Credit Case -->
+  <trace>
+    <string key="concept:name" value="app_003"/>
+    <int key="credit:score" value="720"/>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-03T10:00:00.000Z"/>
+      <string key="org:role" value="customer"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_credit"/>
+      <date key="time:timestamp" value="2024-01-03T10:05:00.000Z"/>
+      <string key="org:role" value="system"/>
+    </event>
+    <event>
+      <string key="concept:name" value="approve_application"/>
+      <date key="time:timestamp" value="2024-01-03T10:10:00.000Z"/>
+      <string key="org:role" value="loan_officer"/>
+    </event>
+  </trace>
+  <!-- Low Credit Cases (score < 700): validation → request_more_info (guard prevents approval) -->
+  <trace>
+    <string key="concept:name" value="app_004"/>
+    <int key="credit:score" value="650"/>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-04T10:00:00.000Z"/>
+      <string key="org:role" value="customer"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_credit"/>
+      <date key="time:timestamp" value="2024-01-04T10:05:00.000Z"/>
+      <string key="org:role" value="system"/>
+    </event>
+    <event>
+      <string key="concept:name" value="request_more_info"/>
+      <date key="time:timestamp" value="2024-01-04T10:10:00.000Z"/>
+      <string key="org:role" value="loan_officer"/>
+    </event>
+    <event>
+      <string key="concept:name" value="manual_review"/>
+      <date key="time:timestamp" value="2024-01-04T14:00:00.000Z"/>
+      <string key="org:role" value="manager"/>
+    </event>
+  </trace>
+  <!-- Low Credit Case -->
+  <trace>
+    <string key="concept:name" value="app_005"/>
+    <int key="credit:score" value="600"/>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-05T10:00:00.000Z"/>
+      <string key="org:role" value="customer"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_credit"/>
+      <date key="time:timestamp" value="2024-01-05T10:05:00.000Z"/>
+      <string key="org:role" value="system"/>
+    </event>
+    <event>
+      <string key="concept:name" value="request_more_info"/>
+      <date key="time:timestamp" value="2024-01-05T10:10:00.000Z"/>
+      <string key="org:role" value="loan_officer"/>
+    </event>
+    <event>
+      <string key="concept:name" value="manual_review"/>
+      <date key="time:timestamp" value="2024-01-05T14:00:00.000Z"/>
+      <string key="org:role" value="manager"/>
+    </event>
+  </trace>
+  <!-- Low Credit Case -->
+  <trace>
+    <string key="concept:name" value="app_006"/>
+    <int key="credit:score" value="680"/>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-06T10:00:00.000Z"/>
+      <string key="org:role" value="customer"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_credit"/>
+      <date key="time:timestamp" value="2024-01-06T10:05:00.000Z"/>
+      <string key="org:role" value="system"/>
+    </event>
+    <event>
+      <string key="concept:name" value="request_more_info"/>
+      <date key="time:timestamp" value="2024-01-06T10:10:00.000Z"/>
+      <string key="org:role" value="loan_officer"/>
+    </event>
+    <event>
+      <string key="concept:name" value="manual_review"/>
+      <date key="time:timestamp" value="2024-01-06T14:00:00.000Z"/>
+      <string key="org:role" value="manager"/>
+    </event>
+  </trace>
+</log>

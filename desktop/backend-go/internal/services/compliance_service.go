@@ -16,16 +16,18 @@ import (
 )
 
 // ComplianceService manages in-memory compliance state, audit trail caching,
-// score computation, and gap analysis rules.
+// score computation, gap analysis rules, and compliance rule engine.
 type ComplianceService struct {
-	mu          sync.RWMutex
-	status      ComplianceStatus
-	auditCache  map[string][]AuditEntry
-	gaps        map[string][]ComplianceGap
-	lastRefresh time.Time
-	osaBaseURL  string
-	httpClient  *http.Client
-	logger      *slog.Logger
+	mu           sync.RWMutex
+	status       ComplianceStatus
+	auditCache   map[string][]AuditEntry
+	gaps         map[string][]ComplianceGap
+	lastRefresh  time.Time
+	osaBaseURL   string
+	httpClient   *http.Client
+	logger       *slog.Logger
+	ruleEngine   *RuleEngine
+	ruleLoader   *RuleLoader
 }
 
 // ComplianceStatus represents the overall compliance posture.
@@ -146,13 +148,30 @@ type RemediationTask struct {
 
 // NewComplianceService creates a ComplianceService that talks to OSA for audit data.
 func NewComplianceService(osaBaseURL string, logger *slog.Logger) *ComplianceService {
+	ruleEngine := NewRuleEngine(logger)
+	ruleLoader := NewRuleLoader("config/compliance-rules.yaml", logger)
+
 	svc := &ComplianceService{
-		osaBaseURL: osaBaseURL,
-		auditCache: make(map[string][]AuditEntry),
-		gaps:       make(map[string][]ComplianceGap),
-		httpClient: &http.Client{Timeout: 15 * time.Second},
-		logger:     logger,
+		osaBaseURL:   osaBaseURL,
+		auditCache:   make(map[string][]AuditEntry),
+		gaps:         make(map[string][]ComplianceGap),
+		httpClient:   &http.Client{Timeout: 15 * time.Second},
+		logger:       logger,
+		ruleEngine:   ruleEngine,
+		ruleLoader:   ruleLoader,
 	}
+
+	// Set up handlers for rule engine actions
+	ruleEngine.SetGapHandler(svc.addComplianceGap)
+	ruleEngine.SetNotifyHandler(svc.sendComplianceNotification)
+
+	// Load initial rules (log but don't fail on error)
+	if _, err := ruleLoader.LoadRules(); err != nil {
+		logger.Warn("failed to load initial rules", "error", err)
+	} else {
+		ruleEngine.SetRules(ruleLoader.GetRules())
+	}
+
 	// Seed default status
 	svc.status = ComplianceStatus{
 		OverallScore: 0,
@@ -650,4 +669,86 @@ func computeGapScore(gaps []ComplianceGap) float64 {
 	}
 
 	return 1.0 - (penaltyWeight / (totalWeight * 3.0))
+}
+
+// ---------------------------------------------------------------------------
+// Rule Engine Integration Methods
+// ---------------------------------------------------------------------------
+
+// EvaluateAuditEvent evaluates compliance rules after an audit event.
+func (s *ComplianceService) EvaluateAuditEvent(ctx context.Context, entry AuditEntry, userRole string) error {
+	// Build evaluation context from audit entry
+	ruleCtx := RuleEvaluationContext{
+		EventID:   entry.ID,
+		SessionID: entry.SessionID,
+		Timestamp: entry.Timestamp,
+		Action:    entry.Action,
+		Actor:     entry.Actor,
+		Details:   entry.Details,
+		UserRole:  userRole,
+	}
+
+	// Evaluate all rules
+	results := s.ruleEngine.EvaluateAll(ctx, ruleCtx)
+
+	if len(results) > 0 {
+		s.logger.Debug("audit event evaluated",
+			"event_id", entry.ID,
+			"rules_checked", len(s.ruleEngine.GetRules()),
+			"rules_matched", len(results),
+		)
+	}
+
+	return nil
+}
+
+// GetRules returns the current compliance rules.
+func (s *ComplianceService) GetRules() []Rule {
+	return s.ruleEngine.GetRules()
+}
+
+// ReloadRules reloads compliance rules from the YAML file.
+func (s *ComplianceService) ReloadRules(ctx context.Context) error {
+	rules, err := s.ruleLoader.LoadRules()
+	if err != nil {
+		return fmt.Errorf("load rules: %w", err)
+	}
+
+	s.ruleEngine.SetRules(rules)
+	s.logger.Info("rules reloaded", "count", len(rules))
+	return nil
+}
+
+// addComplianceGap is the handler for rule engine create_gap actions.
+func (s *ComplianceService) addComplianceGap(ctx context.Context, gap ComplianceGap) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, ok := s.gaps[gap.Framework]; !ok {
+		s.gaps[gap.Framework] = []ComplianceGap{}
+	}
+
+	s.gaps[gap.Framework] = append(s.gaps[gap.Framework], gap)
+
+	s.logger.Info("compliance gap created from rule",
+		"gap_id", gap.ID,
+		"framework", gap.Framework,
+		"control", gap.Control,
+		"severity", gap.Severity,
+	)
+
+	return nil
+}
+
+// sendComplianceNotification is the handler for rule engine notify actions.
+func (s *ComplianceService) sendComplianceNotification(ctx context.Context, ruleID string, message string) error {
+	s.logger.Warn("compliance notification",
+		"rule_id", ruleID,
+		"message", message,
+	)
+
+	// TODO: Implement actual notification delivery (email, Slack, PagerDuty, etc.)
+	// For now, this just logs to the audit trail.
+
+	return nil
 }

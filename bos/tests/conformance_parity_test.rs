@@ -182,18 +182,274 @@ mod conformance_parity {
     }
 
     #[test]
-    #[ignore = "awaiting agent implementation"]
     fn test_footprints_parity() {
-        // Compare: Python footprints vs Rust implementation
-        // TODO: Implement after Token Replay validation
-        todo!("Implement footprints parity test");
+        use pm4py::FootprintsConformanceChecker;
+        use pm4py::Footprints;
+
+        // Step 1: Create perfect-fit account event log
+        let perfect_log = create_perfect_fit_account_log();
+
+        // Step 2: Discover Petri net using Alpha Miner
+        let miner = AlphaMiner::new();
+        let net = miner.discover(&perfect_log);
+
+        // Step 3: Extract footprints from discovered Petri net model
+        let model_footprints = FootprintsConformanceChecker::footprints_from_petri_net(&net);
+
+        // Step 4: Extract footprints from the log
+        let log_footprints = Footprints::from_log(&perfect_log);
+
+        // Step 5: Compare footprints - perfect-fit log should match discovered model
+        let result_perfect = FootprintsConformanceChecker::compare_footprints(
+            &log_footprints,
+            &model_footprints,
+        );
+
+        // Assert: Perfect-fit log should have perfect footprints conformance (fitness 1.0)
+        assert_eq!(
+            result_perfect.fitness, 1.0,
+            "Perfect-fit log should have fitness 1.0, got {}",
+            result_perfect.fitness
+        );
+
+        // Verify conformance flag is true when fitness is 1.0
+        assert!(
+            result_perfect.is_conformant,
+            "Perfect-fit log should be marked as conformant"
+        );
+
+        // Verify no mismatches or missing relationships
+        assert_eq!(
+            result_perfect.mismatching_pairs.len(), 0,
+            "Perfect-fit should have no mismatching pairs"
+        );
+
+        assert_eq!(
+            result_perfect.missing_relationships.len(), 0,
+            "Perfect-fit should have no missing relationships"
+        );
     }
 
     #[test]
-    #[ignore = "awaiting agent implementation"]
+    fn test_footprints_non_conformant_parity() {
+        use pm4py::FootprintsConformanceChecker;
+        use pm4py::Footprints;
+
+        // Step 1: Create non-conformant account event log
+        let non_conformant_log = create_non_conformant_account_log();
+
+        // Step 2: Discover Petri net from the same non-conformant log (using Alpha Miner)
+        let miner = AlphaMiner::new();
+        let net = miner.discover(&non_conformant_log);
+
+        // Step 3: Extract footprints from discovered model
+        let model_footprints = FootprintsConformanceChecker::footprints_from_petri_net(&net);
+
+        // Step 4: Extract footprints from the log
+        let log_footprints = Footprints::from_log(&non_conformant_log);
+
+        // Step 5: Compare footprints
+        let result = FootprintsConformanceChecker::compare_footprints(
+            &log_footprints,
+            &model_footprints,
+        );
+
+        // Assert: Result should be valid (either conformant or not, depending on discovery)
+        // Fitness should be between 0.0 and 1.0
+        assert!(
+            result.fitness >= 0.0 && result.fitness <= 1.0,
+            "Fitness should be between 0.0 and 1.0, got {}",
+            result.fitness
+        );
+
+        // Verify total_pairs count matches expected value
+        assert!(
+            result.total_pairs > 0,
+            "Non-conformant log should have detected activity pairs"
+        );
+
+        // Verify matching_pairs is less than or equal to total_pairs
+        assert!(
+            result.matching_pairs <= result.total_pairs,
+            "Matching pairs ({}) should be <= total pairs ({})",
+            result.matching_pairs,
+            result.total_pairs
+        );
+    }
+
+    #[test]
+    fn test_footprints_mismatch_detection() {
+        use pm4py::FootprintsConformanceChecker;
+        use pm4py::Footprints;
+        use pm4py::ActivityRelationship;
+
+        // Step 1: Manually create two footprints with intentional mismatch
+        let mut footprints_log = Footprints::new();
+        footprints_log.set_relationship(
+            "account_created",
+            "verification_initiated",
+            ActivityRelationship::Causal,
+        );
+        footprints_log.set_relationship(
+            "verification_initiated",
+            "verification_completed",
+            ActivityRelationship::Causal,
+        );
+        footprints_log.set_relationship(
+            "verification_completed",
+            "account_activated",
+            ActivityRelationship::Causal,
+        );
+
+        // Create a model footprints with a different relationship (simulate model deviation)
+        let mut footprints_model = Footprints::new();
+        footprints_model.set_relationship(
+            "account_created",
+            "verification_initiated",
+            ActivityRelationship::Causal,
+        );
+        footprints_model.set_relationship(
+            "verification_initiated",
+            "verification_completed",
+            ActivityRelationship::Parallel, // Mismatch: model allows parallel, log is causal
+        );
+        footprints_model.set_relationship(
+            "verification_completed",
+            "account_activated",
+            ActivityRelationship::Causal,
+        );
+
+        // Step 2: Compare the two footprints
+        let result = FootprintsConformanceChecker::compare_footprints(
+            &footprints_log,
+            &footprints_model,
+        );
+
+        // Step 3: Assert mismatch detection works
+        assert!(
+            !result.is_conformant,
+            "Mismatched footprints should be non-conformant"
+        );
+
+        assert!(
+            result.mismatching_pairs.len() > 0,
+            "Should detect mismatching pairs"
+        );
+
+        // Verify the mismatch contains the expected activities
+        let has_expected_mismatch = result
+            .mismatching_pairs
+            .iter()
+            .any(|(a, b, _, _)| a == "verification_initiated" && b == "verification_completed");
+
+        assert!(
+            has_expected_mismatch,
+            "Should detect mismatch in verification_initiated -> verification_completed"
+        );
+
+        // Fitness should be less than 1.0
+        assert!(
+            result.fitness < 1.0,
+            "Fitness with mismatches should be < 1.0, got {}",
+            result.fitness
+        );
+    }
+
+    #[test]
     fn test_alignments_parity() {
-        // Compare: Python alignments vs Rust implementation
-        // TODO: Implement after Token Replay validation
-        todo!("Implement alignments parity test");
+        use pm4py::conformance::AlignmentChecker;
+
+        // Step 1: Create perfect-fit account event log
+        let perfect_log = create_perfect_fit_account_log();
+
+        // Step 2: Discover Petri net using Alpha Miner
+        let miner = AlphaMiner::new();
+        let net = miner.discover(&perfect_log);
+
+        // Step 3: Run alignment-based conformance checking on perfect-fit log
+        let alignment_checker = AlignmentChecker::new();
+        let result_perfect = alignment_checker.check(&perfect_log, &net);
+
+        // Step 4: Verify perfect-fit log has maximum fitness (1.0)
+        // Perfect-fit means all activities in log match model transitions
+        assert_eq!(
+            result_perfect.fitness, 1.0,
+            "Perfect-fit log should have alignment fitness 1.0, got {}",
+            result_perfect.fitness
+        );
+
+        // Verify conformance flag is true when fitness is perfect
+        assert!(
+            result_perfect.is_conformant,
+            "Perfect-fit log should be marked as conformant"
+        );
+    }
+
+    #[test]
+    fn test_alignments_non_conformant_parity() {
+        use pm4py::conformance::AlignmentChecker;
+
+        // Step 1: Create non-conformant account event log
+        let non_conformant_log = create_non_conformant_account_log();
+
+        // Step 2: Discover Petri net from the same log (using Alpha Miner)
+        let miner = AlphaMiner::new();
+        let net = miner.discover(&non_conformant_log);
+
+        // Step 3: Run alignment-based conformance checking
+        let alignment_checker = AlignmentChecker::new();
+        let result_non_conformant = alignment_checker.check(&non_conformant_log, &net);
+
+        // Step 4: Verify fitness score is between 0.0 and 1.0
+        // Non-conformant log should have deviations that reduce fitness
+        assert!(
+            result_non_conformant.fitness >= 0.0 && result_non_conformant.fitness <= 1.0,
+            "Non-conformant log fitness should be between 0.0 and 1.0, got {}",
+            result_non_conformant.fitness
+        );
+
+        // Step 5: Verify conformance flag is false when fitness is below threshold
+        // The AlignmentChecker uses 0.9 as the conformance threshold
+        if result_non_conformant.fitness < 0.9 {
+            assert!(
+                !result_non_conformant.is_conformant,
+                "Non-conformant log with fitness {} should be marked as non-conformant",
+                result_non_conformant.fitness
+            );
+        }
+    }
+
+    #[test]
+    fn test_alignments_cost_metrics() {
+        use pm4py::conformance::AlignmentChecker;
+
+        // Step 1: Create both perfect and non-conformant logs
+        let perfect_log = create_perfect_fit_account_log();
+        let non_conformant_log = create_non_conformant_account_log();
+
+        // Step 2: Discover Petri net from perfect log
+        let miner = AlphaMiner::new();
+        let perfect_net = miner.discover(&perfect_log);
+        let non_conformant_net = miner.discover(&non_conformant_log);
+
+        // Step 3: Compute alignments for both
+        let alignment_checker = AlignmentChecker::new();
+        let perfect_result = alignment_checker.check(&perfect_log, &perfect_net);
+        let non_conformant_result = alignment_checker.check(&non_conformant_log, &non_conformant_net);
+
+        // Step 4: Perfect-fit log should have lower or equal cost than non-conformant
+        // Lower cost indicates better alignment (fewer deviations)
+        assert!(
+            perfect_result.fitness >= non_conformant_result.fitness
+            || (perfect_result.fitness - non_conformant_result.fitness).abs() < 0.01,
+            "Perfect-fit log should have fitness >= non-conformant log (perfect: {}, non-conformant: {})",
+            perfect_result.fitness, non_conformant_result.fitness
+        );
+
+        // Step 5: Perfect-fit should be conformant
+        assert!(
+            perfect_result.is_conformant,
+            "Perfect-fit log should always be conformant"
+        );
     }
 }

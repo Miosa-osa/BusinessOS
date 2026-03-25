@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<log xes.version="1.0" xes.features="nested-attributes" xmlns="http://www.xes-standard.org/">
+  <extension name="Concept" prefix="concept" uri="http://www.xes-standard.org/concept.xesext"/>
+  <extension name="Time" prefix="time" uri="http://www.xes-standard.org/time.xesext"/>
+  <global scope="trace">
+    <string key="concept:name" value="case name"/>
+  </global>
+  <global scope="event">
+    <string key="concept:name" value="activity name"/>
+    <date key="time:timestamp" value="timestamp"/>
+  </global>
+  <trace>
+    <string key="concept:name" value="doc_002"/>
+    <event>
+      <string key="concept:name" value="request_revision"/>
+      <date key="time:timestamp" value="2024-01-02T11:00:00.000Z"/>
+    </event>
+  </trace>
+</log>

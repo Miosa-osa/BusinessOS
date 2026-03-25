@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<log xes.version="1.0" xes.features="nested-attributes" xmlns="http://www.xes-standard.org/">
+  <extension name="Concept" prefix="concept" uri="http://www.xes-standard.org/concept.xesext"/>
+  <extension name="Time" prefix="time" uri="http://www.xes-standard.org/time.xesext"/>
+  <global scope="trace">
+    <string key="concept:name" value="case name"/>
+  </global>
+  <global scope="event">
+    <string key="concept:name" value="activity name"/>
+    <date key="time:timestamp" value="timestamp"/>
+  </global>
+  <!-- Trace 1: Single iteration (passes immediately) -->
+  <trace>
+    <string key="concept:name" value="doc_001"/>
+    <event>
+      <string key="concept:name" value="document_submitted"/>
+      <date key="time:timestamp" value="2024-01-01T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="loop_iteration"/>
+      <date key="time:timestamp" value="2024-01-01T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_document"/>
+      <date key="time:timestamp" value="2024-01-01T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validation_pass"/>
+      <date key="time:timestamp" value="2024-01-01T10:15:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="loop_exit"/>
+      <date key="time:timestamp" value="2024-01-01T10:20:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="document_approved"/>
+      <date key="time:timestamp" value="2024-01-01T10:25:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 2: Two iterations (first fails, second passes) -->
+  <trace>
+    <string key="concept:name" value="doc_002"/>
+    <event>
+      <string key="concept:name" value="document_submitted"/>
+      <date key="time:timestamp" value="2024-01-02T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="loop_iteration"/>
+      <date key="time:timestamp" value="2024-01-02T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_document"/>
+      <date key="time:timestamp" value="2024-01-02T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validation_fail"/>
+      <date key="time:timestamp" value="2024-01-02T10:15:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="request_revision"/>
+      <date key="time:timestamp" value="2024-01-02T10:20:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="loop_iteration"/>
+      <date key="time:timestamp" value="2024-01-02T10:50:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_document"/>
+      <date key="time:timestamp" value="2024-01-02T10:55:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validation_pass"/>
+      <date key="time:timestamp" value="2024-01-02T11:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="loop_exit"/>
+      <date key="time:timestamp" value="2024-01-02T11:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="document_approved"/>
+      <date key="time:timestamp" value="2024-01-02T11:10:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 3: Three iterations (multiple rejections) -->
+  <trace>
+    <string key="concept:name" value="doc_003"/>
+    <event>
+      <string key="concept:name" value="document_submitted"/>
+      <date key="time:timestamp" value="2024-01-03T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="loop_iteration"/>
+      <date key="time:timestamp" value="2024-01-03T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_document"/>
+      <date key="time:timestamp" value="2024-01-03T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validation_fail"/>
+      <date key="time:timestamp" value="2024-01-03T10:15:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="request_revision"/>
+      <date key="time:timestamp" value="2024-01-03T10:20:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="loop_iteration"/>
+      <date key="time:timestamp" value="2024-01-03T10:50:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_document"/>
+      <date key="time:timestamp" value="2024-01-03T10:55:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validation_fail"/>
+      <date key="time:timestamp" value="2024-01-03T11:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="request_revision"/>
+      <date key="time:timestamp" value="2024-01-03T11:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="loop_iteration"/>
+      <date key="time:timestamp" value="2024-01-03T11:35:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_document"/>
+      <date key="time:timestamp" value="2024-01-03T11:40:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validation_pass"/>
+      <date key="time:timestamp" value="2024-01-03T11:45:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="loop_exit"/>
+      <date key="time:timestamp" value="2024-01-03T11:50:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="document_approved"/>
+      <date key="time:timestamp" value="2024-01-03T11:55:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 4: Single iteration (passes immediately) -->
+  <trace>
+    <string key="concept:name" value="doc_004"/>
+    <event>
+      <string key="concept:name" value="document_submitted"/>
+      <date key="time:timestamp" value="2024-01-04T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="loop_iteration"/>
+      <date key="time:timestamp" value="2024-01-04T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validate_document"/>
+      <date key="time:timestamp" value="2024-01-04T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="validation_pass"/>
+      <date key="time:timestamp" value="2024-01-04T10:15:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="loop_exit"/>
+      <date key="time:timestamp" value="2024-01-04T10:20:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="document_approved"/>
+      <date key="time:timestamp" value="2024-01-04T10:25:00.000Z"/>
+    </event>
+  </trace>
+</log>

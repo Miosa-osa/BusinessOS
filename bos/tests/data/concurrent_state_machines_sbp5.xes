@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<log xes.version="1.0" xes.features="nested-attributes" xmlns="http://www.xes-standard.org/">
+  <extension name="Concept" prefix="concept" uri="http://www.xes-standard.org/concept.xesext"/>
+  <extension name="Time" prefix="time" uri="http://www.xes-standard.org/time.xesext"/>
+  <extension name="Org" prefix="org" uri="http://www.xes-standard.org/org.xesext"/>
+  <global scope="trace">
+    <string key="concept:name" value="case name"/>
+  </global>
+  <global scope="event">
+    <string key="concept:name" value="activity name"/>
+    <date key="time:timestamp" value="timestamp"/>
+    <string key="org:role" value="role"/>
+  </global>
+  <!-- Trace 1: Payment completes before items ready (payment path faster) -->
+  <trace>
+    <string key="concept:name" value="order_001"/>
+    <event>
+      <string key="concept:name" value="receive_order"/>
+      <date key="time:timestamp" value="2024-01-01T10:00:00.000Z"/>
+      <string key="org:role" value="order_mgmt"/>
+    </event>
+    <!-- Order processing starts -->
+    <event>
+      <string key="concept:name" value="verify_items"/>
+      <date key="time:timestamp" value="2024-01-01T10:05:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <!-- Payment processing starts in parallel -->
+    <event>
+      <string key="concept:name" value="process_payment"/>
+      <date key="time:timestamp" value="2024-01-01T10:05:00.000Z"/>
+      <string key="org:role" value="payment_system"/>
+    </event>
+    <!-- Payment completes first -->
+    <event>
+      <string key="concept:name" value="payment_confirmed"/>
+      <date key="time:timestamp" value="2024-01-01T10:06:00.000Z"/>
+      <string key="org:role" value="payment_system"/>
+    </event>
+    <!-- Order processing continues -->
+    <event>
+      <string key="concept:name" value="pick_items"/>
+      <date key="time:timestamp" value="2024-01-01T10:15:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <event>
+      <string key="concept:name" value="pack_order"/>
+      <date key="time:timestamp" value="2024-01-01T10:30:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <!-- Both paths complete -->
+    <event>
+      <string key="concept:name" value="ready_to_ship"/>
+      <date key="time:timestamp" value="2024-01-01T10:45:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <event>
+      <string key="concept:name" value="create_shipment"/>
+      <date key="time:timestamp" value="2024-01-01T11:00:00.000Z"/>
+      <string key="org:role" value="shipping"/>
+    </event>
+  </trace>
+  <!-- Trace 2: Items ready before payment completes (order path faster) -->
+  <trace>
+    <string key="concept:name" value="order_002"/>
+    <event>
+      <string key="concept:name" value="receive_order"/>
+      <date key="time:timestamp" value="2024-01-02T10:00:00.000Z"/>
+      <string key="org:role" value="order_mgmt"/>
+    </event>
+    <!-- Both processes start in parallel -->
+    <event>
+      <string key="concept:name" value="verify_items"/>
+      <date key="time:timestamp" value="2024-01-02T10:05:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <event>
+      <string key="concept:name" value="process_payment"/>
+      <date key="time:timestamp" value="2024-01-02T10:05:00.000Z"/>
+      <string key="org:role" value="payment_system"/>
+    </event>
+    <!-- Order processing completes first -->
+    <event>
+      <string key="concept:name" value="pick_items"/>
+      <date key="time:timestamp" value="2024-01-02T10:10:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <event>
+      <string key="concept:name" value="pack_order"/>
+      <date key="time:timestamp" value="2024-01-02T10:20:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <!-- Payment still processing -->
+    <event>
+      <string key="concept:name" value="payment_confirmed"/>
+      <date key="time:timestamp" value="2024-01-02T10:30:00.000Z"/>
+      <string key="org:role" value="payment_system"/>
+    </event>
+    <!-- Both paths complete, shipment can proceed -->
+    <event>
+      <string key="concept:name" value="ready_to_ship"/>
+      <date key="time:timestamp" value="2024-01-02T10:45:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <event>
+      <string key="concept:name" value="create_shipment"/>
+      <date key="time:timestamp" value="2024-01-02T11:00:00.000Z"/>
+      <string key="org:role" value="shipping"/>
+    </event>
+  </trace>
+  <!-- Trace 3: Both processes complete at similar time -->
+  <trace>
+    <string key="concept:name" value="order_003"/>
+    <event>
+      <string key="concept:name" value="receive_order"/>
+      <date key="time:timestamp" value="2024-01-03T10:00:00.000Z"/>
+      <string key="org:role" value="order_mgmt"/>
+    </event>
+    <!-- Both processes start in parallel -->
+    <event>
+      <string key="concept:name" value="verify_items"/>
+      <date key="time:timestamp" value="2024-01-03T10:05:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <event>
+      <string key="concept:name" value="process_payment"/>
+      <date key="time:timestamp" value="2024-01-03T10:05:00.000Z"/>
+      <string key="org:role" value="payment_system"/>
+    </event>
+    <!-- Order path continues -->
+    <event>
+      <string key="concept:name" value="pick_items"/>
+      <date key="time:timestamp" value="2024-01-03T10:12:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <!-- Payment completes in middle -->
+    <event>
+      <string key="concept:name" value="payment_confirmed"/>
+      <date key="time:timestamp" value="2024-01-03T10:20:00.000Z"/>
+      <string key="org:role" value="payment_system"/>
+    </event>
+    <!-- Order path continues -->
+    <event>
+      <string key="concept:name" value="pack_order"/>
+      <date key="time:timestamp" value="2024-01-03T10:25:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <!-- Both paths complete -->
+    <event>
+      <string key="concept:name" value="ready_to_ship"/>
+      <date key="time:timestamp" value="2024-01-03T10:45:00.000Z"/>
+      <string key="org:role" value="warehouse"/>
+    </event>
+    <event>
+      <string key="concept:name" value="create_shipment"/>
+      <date key="time:timestamp" value="2024-01-03T11:00:00.000Z"/>
+      <string key="org:role" value="shipping"/>
+    </event>
+  </trace>
+</log>

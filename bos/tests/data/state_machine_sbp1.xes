@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<log xes.version="1.0" xes.features="nested-attributes" xmlns="http://www.xes-standard.org/">
+  <extension name="Concept" prefix="concept" uri="http://www.xes-standard.org/concept.xesext"/>
+  <extension name="Time" prefix="time" uri="http://www.xes-standard.org/time.xesext"/>
+  <extension name="Lifecycle" prefix="lifecycle" uri="http://www.xes-standard.org/lifecycle.xesext"/>
+  <global scope="trace">
+    <string key="concept:name" value="case name"/>
+  </global>
+  <global scope="event">
+    <string key="concept:name" value="activity name"/>
+    <date key="time:timestamp" value="timestamp"/>
+    <string key="lifecycle:transition" value="lifecycle:transition"/>
+  </global>
+  <!-- State 1: submitted, State 2: under_review, State 3: approved, State 4: closed -->
+  <!-- Trace 1: Approved path -->
+  <trace>
+    <string key="concept:name" value="loan_001"/>
+    <event>
+      <string key="concept:name" value="enter_submitted"/>
+      <date key="time:timestamp" value="2024-01-01T10:00:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-01T10:05:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_under_review"/>
+      <date key="time:timestamp" value="2024-01-01T10:10:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="perform_review"/>
+      <date key="time:timestamp" value="2024-01-02T14:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_approved"/>
+      <date key="time:timestamp" value="2024-01-02T14:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="send_approval_notice"/>
+      <date key="time:timestamp" value="2024-01-02T15:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_closed"/>
+      <date key="time:timestamp" value="2024-01-02T15:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="archive_case"/>
+      <date key="time:timestamp" value="2024-01-02T16:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+  </trace>
+  <!-- Trace 2: Approved path -->
+  <trace>
+    <string key="concept:name" value="loan_002"/>
+    <event>
+      <string key="concept:name" value="enter_submitted"/>
+      <date key="time:timestamp" value="2024-01-03T10:00:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-03T10:05:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_under_review"/>
+      <date key="time:timestamp" value="2024-01-03T10:10:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="perform_review"/>
+      <date key="time:timestamp" value="2024-01-03T16:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_approved"/>
+      <date key="time:timestamp" value="2024-01-03T16:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="send_approval_notice"/>
+      <date key="time:timestamp" value="2024-01-03T17:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_closed"/>
+      <date key="time:timestamp" value="2024-01-03T17:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="archive_case"/>
+      <date key="time:timestamp" value="2024-01-03T18:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+  </trace>
+  <!-- Trace 3: Approved path -->
+  <trace>
+    <string key="concept:name" value="loan_003"/>
+    <event>
+      <string key="concept:name" value="enter_submitted"/>
+      <date key="time:timestamp" value="2024-01-05T10:00:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-05T10:05:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_under_review"/>
+      <date key="time:timestamp" value="2024-01-05T10:10:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="perform_review"/>
+      <date key="time:timestamp" value="2024-01-05T11:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_approved"/>
+      <date key="time:timestamp" value="2024-01-05T11:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="send_approval_notice"/>
+      <date key="time:timestamp" value="2024-01-05T12:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_closed"/>
+      <date key="time:timestamp" value="2024-01-05T12:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="archive_case"/>
+      <date key="time:timestamp" value="2024-01-05T13:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+  </trace>
+  <!-- Trace 4: Denied path -->
+  <trace>
+    <string key="concept:name" value="loan_004"/>
+    <event>
+      <string key="concept:name" value="enter_submitted"/>
+      <date key="time:timestamp" value="2024-01-06T10:00:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-06T10:05:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_under_review"/>
+      <date key="time:timestamp" value="2024-01-06T10:10:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="perform_review"/>
+      <date key="time:timestamp" value="2024-01-06T14:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_denied"/>
+      <date key="time:timestamp" value="2024-01-06T14:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="send_rejection_notice"/>
+      <date key="time:timestamp" value="2024-01-06T15:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_closed"/>
+      <date key="time:timestamp" value="2024-01-06T15:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="archive_case"/>
+      <date key="time:timestamp" value="2024-01-06T16:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+  </trace>
+  <!-- Trace 5: Denied path -->
+  <trace>
+    <string key="concept:name" value="loan_005"/>
+    <event>
+      <string key="concept:name" value="enter_submitted"/>
+      <date key="time:timestamp" value="2024-01-07T10:00:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-07T10:05:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_under_review"/>
+      <date key="time:timestamp" value="2024-01-07T10:10:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="perform_review"/>
+      <date key="time:timestamp" value="2024-01-07T16:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_denied"/>
+      <date key="time:timestamp" value="2024-01-07T16:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="send_rejection_notice"/>
+      <date key="time:timestamp" value="2024-01-07T17:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_closed"/>
+      <date key="time:timestamp" value="2024-01-07T17:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="archive_case"/>
+      <date key="time:timestamp" value="2024-01-07T18:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+  </trace>
+  <!-- Trace 6: Denied path -->
+  <trace>
+    <string key="concept:name" value="loan_006"/>
+    <event>
+      <string key="concept:name" value="enter_submitted"/>
+      <date key="time:timestamp" value="2024-01-08T10:00:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="submit_application"/>
+      <date key="time:timestamp" value="2024-01-08T10:05:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_under_review"/>
+      <date key="time:timestamp" value="2024-01-08T10:10:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="perform_review"/>
+      <date key="time:timestamp" value="2024-01-08T11:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_denied"/>
+      <date key="time:timestamp" value="2024-01-08T11:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="send_rejection_notice"/>
+      <date key="time:timestamp" value="2024-01-08T12:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+    <event>
+      <string key="concept:name" value="enter_closed"/>
+      <date key="time:timestamp" value="2024-01-08T12:30:00.000Z"/>
+      <string key="lifecycle:transition" value="entry"/>
+    </event>
+    <event>
+      <string key="concept:name" value="archive_case"/>
+      <date key="time:timestamp" value="2024-01-08T13:00:00.000Z"/>
+      <string key="lifecycle:transition" value="execution"/>
+    </event>
+  </trace>
+</log>

@@ -2,7 +2,7 @@
 //!
 //! Provides ODCS workspace operations, schema validation/conversion,
 //! MADR decision records, knowledge base management, RDF triple store,
-//! and ontology bridge capabilities.
+//! ontology bridge capabilities, and supervision tree fault tolerance.
 
 pub mod decisions;
 pub mod export;
@@ -11,6 +11,8 @@ pub mod ontology;
 pub mod rdf;
 pub mod schema;
 pub mod workspace;
+pub mod supervision;
+pub mod distributed;
 
 pub use workspace::{WorkspaceGenerator, WorkspaceInitOptions, WorkspaceValidationResult};
 pub use schema::{SchemaConverter, SchemaValidationResult, FormatHint};
@@ -24,6 +26,8 @@ pub use ontology::infer::{ConfidenceLevel, InferConfig, InferResult, OntologyInf
 pub use ontology::select::{SemanticSearch, SelectResult};
 pub use ontology::serve::{ServeConfig, serve as serve_ontology};
 pub use rdf::store::{TripleStore, Triple};
+pub use supervision::{SupervisorConfig, SupervisorHandle, Worker, WorkerConfig, WorkerHandle, WorkerState};
+pub use distributed::{DistributedPM, RaftCoordinator, DistributedWorker, ConsensusProtocol, ModelMerger, FaultRecovery};
 
 // Process Mining (pm4py-rust integration)
 pub mod process;

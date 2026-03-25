@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<log xes.version="1.0" xes.features="nested-attributes" xmlns="http://www.xes-standard.org/">
+  <extension name="Concept" prefix="concept" uri="http://www.xes-standard.org/concept.xesext"/>
+  <extension name="Time" prefix="time" uri="http://www.xes-standard.org/time.xesext"/>
+  <global scope="trace">
+    <string key="concept:name" value="case name"/>
+  </global>
+  <global scope="event">
+    <string key="concept:name" value="activity name"/>
+    <date key="time:timestamp" value="timestamp"/>
+  </global>
+  <!-- Trace 1: Takes path_a branch -->
+  <trace>
+    <string key="concept:name" value="ticket_001"/>
+    <event>
+      <string key="concept:name" value="ticket_received"/>
+      <date key="time:timestamp" value="2024-01-01T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="path_a"/>
+      <date key="time:timestamp" value="2024-01-01T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="route_expert1"/>
+      <date key="time:timestamp" value="2024-01-01T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="resolution"/>
+      <date key="time:timestamp" value="2024-01-01T10:30:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 2: Takes path_a branch -->
+  <trace>
+    <string key="concept:name" value="ticket_002"/>
+    <event>
+      <string key="concept:name" value="ticket_received"/>
+      <date key="time:timestamp" value="2024-01-02T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="path_a"/>
+      <date key="time:timestamp" value="2024-01-02T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="route_expert1"/>
+      <date key="time:timestamp" value="2024-01-02T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="resolution"/>
+      <date key="time:timestamp" value="2024-01-02T10:30:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 3: Takes path_a branch -->
+  <trace>
+    <string key="concept:name" value="ticket_003"/>
+    <event>
+      <string key="concept:name" value="ticket_received"/>
+      <date key="time:timestamp" value="2024-01-03T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="path_a"/>
+      <date key="time:timestamp" value="2024-01-03T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="route_expert1"/>
+      <date key="time:timestamp" value="2024-01-03T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="resolution"/>
+      <date key="time:timestamp" value="2024-01-03T10:30:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 4: Takes path_b branch -->
+  <trace>
+    <string key="concept:name" value="ticket_004"/>
+    <event>
+      <string key="concept:name" value="ticket_received"/>
+      <date key="time:timestamp" value="2024-01-04T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="path_b"/>
+      <date key="time:timestamp" value="2024-01-04T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="route_expert2"/>
+      <date key="time:timestamp" value="2024-01-04T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="resolution"/>
+      <date key="time:timestamp" value="2024-01-04T10:30:00.000Z"/>
+    </event>
+  </trace>
+  <!-- Trace 5: Takes path_b branch -->
+  <trace>
+    <string key="concept:name" value="ticket_005"/>
+    <event>
+      <string key="concept:name" value="ticket_received"/>
+      <date key="time:timestamp" value="2024-01-05T10:00:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="path_b"/>
+      <date key="time:timestamp" value="2024-01-05T10:05:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="route_expert2"/>
+      <date key="time:timestamp" value="2024-01-05T10:10:00.000Z"/>
+    </event>
+    <event>
+      <string key="concept:name" value="resolution"/>
+      <date key="time:timestamp" value="2024-01-05T10:30:00.000Z"/>
+    </event>
+  </trace>
+</log>
