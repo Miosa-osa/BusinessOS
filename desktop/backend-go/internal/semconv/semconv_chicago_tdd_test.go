@@ -5301,3 +5301,114 @@ func TestIter29SpanA2AContractExecuteCascadeRules(t *testing.T) {
 	recommendedAttrs := []string{"a2a.operation", "a2a.contract.execution.progress_pct"}
 	assert.Contains(t, recommendedAttrs, "a2a.operation", "span.a2a.contract.execute must recommend a2a.operation per Rule 3")
 }
+
+// Iter30 tests — MCP analytics, A2A decay, PM drift, consensus partition, healing failover, LLM adapter
+
+func TestIter30MCPToolAnalyticsCallCountKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("mcp.tool.analytics.call_count"), MCPToolAnalyticsCallCountKey)
+}
+
+func TestIter30MCPToolAnalyticsErrorRateKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("mcp.tool.analytics.error_rate"), MCPToolAnalyticsErrorRateKey)
+}
+
+func TestIter30MCPToolAnalyticsAvgLatencyMsKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("mcp.tool.analytics.avg_latency_ms"), MCPToolAnalyticsAvgLatencyMsKey)
+}
+
+func TestIter30A2AReputationDecayRateKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("a2a.reputation.decay.rate"), A2AReputationDecayRateKey)
+}
+
+func TestIter30A2AReputationDecayTriggerKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("a2a.reputation.decay.trigger"), A2AReputationDecayTriggerKey)
+}
+
+func TestIter30A2AReputationDecayTriggerValues(t *testing.T) {
+	assert.Equal(t, "time", A2AReputationDecayTriggerTime)
+	assert.Equal(t, "interaction", A2AReputationDecayTriggerInteraction)
+	assert.Equal(t, "violation", A2AReputationDecayTriggerViolation)
+}
+
+func TestIter30ProcessMiningDriftCorrectionTypeKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("process.mining.drift.correction_type"), ProcessMiningDriftCorrectionTypeKey)
+}
+
+func TestIter30ProcessMiningDriftCorrectionTypeValues(t *testing.T) {
+	assert.Equal(t, "retrain", ProcessMiningDriftCorrectionTypeRetrain)
+	assert.Equal(t, "threshold_adjust", ProcessMiningDriftCorrectionTypeThresholdAdjust)
+	assert.Equal(t, "model_swap", ProcessMiningDriftCorrectionTypeModelSwap)
+	assert.Equal(t, "incremental_update", ProcessMiningDriftCorrectionTypeIncrementalUpdate)
+}
+
+func TestIter30ProcessMiningDriftCorrectionDeltaKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("process.mining.drift.correction.delta"), ProcessMiningDriftCorrectionDeltaKey)
+}
+
+func TestIter30ConsensusPartitionHealStrategyKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("consensus.partition.heal_strategy"), ConsensusPartitionHealStrategyKey)
+}
+
+func TestIter30ConsensusPartitionHealStrategyValues(t *testing.T) {
+	assert.Equal(t, "majority_wins", ConsensusPartitionHealStrategyMajorityWins)
+	assert.Equal(t, "epoch_fence", ConsensusPartitionHealStrategyEpochFence)
+	assert.Equal(t, "leader_arbitration", ConsensusPartitionHealStrategyLeaderArbitration)
+	assert.Equal(t, "rollback", ConsensusPartitionHealStrategyRollback)
+}
+
+func TestIter30ConsensusPartitionIsolationMsKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("consensus.partition.isolation_ms"), ConsensusPartitionIsolationMsKey)
+}
+
+func TestIter30HealingFailoverTypeKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("healing.failover.type"), HealingFailoverTypeKey)
+}
+
+func TestIter30HealingFailoverTypeValues(t *testing.T) {
+	assert.Equal(t, "warm_to_cold", HealingFailoverTypeWarmToCold)
+	assert.Equal(t, "primary_to_warm", HealingFailoverTypePrimaryToWarm)
+	assert.Equal(t, "primary_to_cold", HealingFailoverTypePrimaryToCold)
+	assert.Equal(t, "geographic", HealingFailoverTypeGeographic)
+}
+
+func TestIter30HealingFailoverDurationMsKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("healing.failover.duration_ms"), HealingFailoverDurationMsKey)
+}
+
+func TestIter30LLMAdapterIDKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("llm.adapter.id"), LLMAdapterIDKey)
+}
+
+func TestIter30LLMAdapterTypeKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("llm.adapter.type"), LLMAdapterTypeKey)
+}
+
+func TestIter30LLMAdapterTypeValues(t *testing.T) {
+	assert.Equal(t, "lora", LLMAdapterTypeLora)
+	assert.Equal(t, "prefix", LLMAdapterTypePrefix)
+	assert.Equal(t, "prompt_tuning", LLMAdapterTypePromptTuning)
+	assert.Equal(t, "adapter", LLMAdapterTypeAdapter)
+	assert.Equal(t, "ia3", LLMAdapterTypeIA3)
+}
+
+func TestIter30LLMAdapterMergeStrategyKeyMatchesSchema(t *testing.T) {
+	assert.Equal(t, attribute.Key("llm.adapter.merge_strategy"), LLMAdapterMergeStrategyKey)
+}
+
+func TestIter30SpanMCPToolAnalyticsRecordCascadeRules(t *testing.T) {
+	requiredAttrs := []string{"mcp.tool.name", "mcp.server.name", "mcp.tool.analytics.call_count"}
+	assert.Contains(t, requiredAttrs, "mcp.tool.name", "span.mcp.tool.analytics.record must require mcp.tool.name per Rule 5")
+	assert.Contains(t, requiredAttrs, "mcp.server.name", "span.mcp.tool.analytics.record must require mcp.server.name per Rule 23")
+}
+
+func TestIter30SpanHealingFailoverExecuteCascadeRules(t *testing.T) {
+	requiredAttrs := []string{"healing.failure_mode", "healing.failover.type", "healing.failover.source_id"}
+	recommendedAttrs := []string{"healing.diagnosis_stage", "healing.failover.target_id"}
+	assert.Contains(t, requiredAttrs, "healing.failure_mode", "span.healing.failover.execute must require healing.failure_mode per Rule 1")
+	assert.Contains(t, recommendedAttrs, "healing.diagnosis_stage", "span.healing.failover.execute must recommend healing.diagnosis_stage per Rule 32")
+}
+
+func TestIter30SpanA2AReputationDecayCascadeRules(t *testing.T) {
+	recommendedAttrs := []string{"a2a.operation", "a2a.reputation.decay.delta"}
+	assert.Contains(t, recommendedAttrs, "a2a.operation", "span.a2a.reputation.decay must recommend a2a.operation per Rule 3")
+}
