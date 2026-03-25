@@ -3646,3 +3646,175 @@ func TestCanopySnapshotSizeBytesKeyMatchesSchema(t *testing.T) {
 		t.Errorf("CanopySnapshotSizeBytesKey = %q, want %q", string(CanopySnapshotSizeBytesKey), "canopy.snapshot.size_bytes")
 	}
 }
+
+// ============================================================
+// Iter 15: Agent Memory Federation attributes
+// ============================================================
+
+func TestAgentMemoryFederationIDKeyMatchesSchema(t *testing.T) {
+	if string(AgentMemoryFederationIDKey) != "agent.memory.federation_id" {
+		t.Errorf("AgentMemoryFederationIDKey = %q, want %q", string(AgentMemoryFederationIDKey), "agent.memory.federation_id")
+	}
+}
+
+func TestAgentMemoryFederationPeerCountKeyMatchesSchema(t *testing.T) {
+	if string(AgentMemoryFederationPeerCountKey) != "agent.memory.federation.peer_count" {
+		t.Errorf("AgentMemoryFederationPeerCountKey = %q, want %q", string(AgentMemoryFederationPeerCountKey), "agent.memory.federation.peer_count")
+	}
+}
+
+func TestAgentMemorySyncLatencyMsKeyMatchesSchema(t *testing.T) {
+	if string(AgentMemorySyncLatencyMsKey) != "agent.memory.sync.latency_ms" {
+		t.Errorf("AgentMemorySyncLatencyMsKey = %q, want %q", string(AgentMemorySyncLatencyMsKey), "agent.memory.sync.latency_ms")
+	}
+}
+
+func TestAgentMemoryFederationVersionKeyMatchesSchema(t *testing.T) {
+	if string(AgentMemoryFederationVersionKey) != "agent.memory.federation.version" {
+		t.Errorf("AgentMemoryFederationVersionKey = %q, want %q", string(AgentMemoryFederationVersionKey), "agent.memory.federation.version")
+	}
+}
+
+// ============================================================
+// Iter 15: Process Mining Replay attributes
+// ============================================================
+
+func TestProcessMiningReplayEnabledTransitionsKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningReplayEnabledTransitionsKey) != "process.mining.replay.enabled_transitions" {
+		t.Errorf("ProcessMiningReplayEnabledTransitionsKey = %q, want %q", string(ProcessMiningReplayEnabledTransitionsKey), "process.mining.replay.enabled_transitions")
+	}
+}
+
+func TestProcessMiningReplayMissingTokensKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningReplayMissingTokensKey) != "process.mining.replay.missing_tokens" {
+		t.Errorf("ProcessMiningReplayMissingTokensKey = %q, want %q", string(ProcessMiningReplayMissingTokensKey), "process.mining.replay.missing_tokens")
+	}
+}
+
+func TestProcessMiningReplayConsumedTokensKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningReplayConsumedTokensKey) != "process.mining.replay.consumed_tokens" {
+		t.Errorf("ProcessMiningReplayConsumedTokensKey = %q, want %q", string(ProcessMiningReplayConsumedTokensKey), "process.mining.replay.consumed_tokens")
+	}
+}
+
+func TestProcessMiningCaseVariantIDKeyMatchesSchema(t *testing.T) {
+	if string(ProcessMiningCaseVariantIDKey) != "process.mining.case.variant_id" {
+		t.Errorf("ProcessMiningCaseVariantIDKey = %q, want %q", string(ProcessMiningCaseVariantIDKey), "process.mining.case.variant_id")
+	}
+}
+
+// ============================================================
+// Iter 15: Consensus Liveness attributes
+// ============================================================
+
+func TestConsensusLivenessProofRoundsKeyMatchesSchema(t *testing.T) {
+	if string(ConsensusLivenessProofRoundsKey) != "consensus.liveness.proof_rounds" {
+		t.Errorf("ConsensusLivenessProofRoundsKey = %q, want %q", string(ConsensusLivenessProofRoundsKey), "consensus.liveness.proof_rounds")
+	}
+}
+
+func TestConsensusNetworkRecoveryMsKeyMatchesSchema(t *testing.T) {
+	if string(ConsensusNetworkRecoveryMsKey) != "consensus.network.recovery_ms" {
+		t.Errorf("ConsensusNetworkRecoveryMsKey = %q, want %q", string(ConsensusNetworkRecoveryMsKey), "consensus.network.recovery_ms")
+	}
+}
+
+func TestConsensusViewDurationMsKeyMatchesSchema(t *testing.T) {
+	if string(ConsensusViewDurationMsKey) != "consensus.view.duration_ms" {
+		t.Errorf("ConsensusViewDurationMsKey = %q, want %q", string(ConsensusViewDurationMsKey), "consensus.view.duration_ms")
+	}
+}
+
+// ============================================================
+// Iter 15: Healing Self-Healing attributes
+// ============================================================
+
+func TestHealingSelfHealingEnabledKeyMatchesSchema(t *testing.T) {
+	if string(HealingSelfHealingEnabledKey) != "healing.self_healing.enabled" {
+		t.Errorf("HealingSelfHealingEnabledKey = %q, want %q", string(HealingSelfHealingEnabledKey), "healing.self_healing.enabled")
+	}
+}
+
+func TestHealingSelfHealingTriggerCountKeyMatchesSchema(t *testing.T) {
+	if string(HealingSelfHealingTriggerCountKey) != "healing.self_healing.trigger_count" {
+		t.Errorf("HealingSelfHealingTriggerCountKey = %q, want %q", string(HealingSelfHealingTriggerCountKey), "healing.self_healing.trigger_count")
+	}
+}
+
+func TestHealingSelfHealingSuccessRateKeyMatchesSchema(t *testing.T) {
+	if string(HealingSelfHealingSuccessRateKey) != "healing.self_healing.success_rate" {
+		t.Errorf("HealingSelfHealingSuccessRateKey = %q, want %q", string(HealingSelfHealingSuccessRateKey), "healing.self_healing.success_rate")
+	}
+}
+
+func TestHealingInterventionTypeKeyMatchesSchema(t *testing.T) {
+	if string(HealingInterventionTypeKey) != "healing.intervention.type" {
+		t.Errorf("HealingInterventionTypeKey = %q, want %q", string(HealingInterventionTypeKey), "healing.intervention.type")
+	}
+}
+
+// ============================================================
+// Iter 15: LLM Evaluation attributes
+// ============================================================
+
+func TestLlmEvaluationScoreKeyMatchesSchema(t *testing.T) {
+	if string(LlmEvaluationScoreKey) != "llm.evaluation.score" {
+		t.Errorf("LlmEvaluationScoreKey = %q, want %q", string(LlmEvaluationScoreKey), "llm.evaluation.score")
+	}
+}
+
+func TestLlmEvaluationRubricKeyMatchesSchema(t *testing.T) {
+	if string(LlmEvaluationRubricKey) != "llm.evaluation.rubric" {
+		t.Errorf("LlmEvaluationRubricKey = %q, want %q", string(LlmEvaluationRubricKey), "llm.evaluation.rubric")
+	}
+}
+
+func TestLlmEvaluationPassesThresholdKeyMatchesSchema(t *testing.T) {
+	if string(LlmEvaluationPassesThresholdKey) != "llm.evaluation.passes_threshold" {
+		t.Errorf("LlmEvaluationPassesThresholdKey = %q, want %q", string(LlmEvaluationPassesThresholdKey), "llm.evaluation.passes_threshold")
+	}
+}
+
+// ============================================================
+// Iter 15: Event Routing attributes
+// ============================================================
+
+func TestEventRoutingStrategyKeyMatchesSchema(t *testing.T) {
+	if string(EventRoutingStrategyKey) != "event.routing.strategy" {
+		t.Errorf("EventRoutingStrategyKey = %q, want %q", string(EventRoutingStrategyKey), "event.routing.strategy")
+	}
+}
+
+func TestEventRoutingFilterCountKeyMatchesSchema(t *testing.T) {
+	if string(EventRoutingFilterCountKey) != "event.routing.filter_count" {
+		t.Errorf("EventRoutingFilterCountKey = %q, want %q", string(EventRoutingFilterCountKey), "event.routing.filter_count")
+	}
+}
+
+func TestEventSubscriberCountKeyMatchesSchema(t *testing.T) {
+	if string(EventSubscriberCountKey) != "event.subscriber.count" {
+		t.Errorf("EventSubscriberCountKey = %q, want %q", string(EventSubscriberCountKey), "event.subscriber.count")
+	}
+}
+
+// ============================================================
+// Iter 15: Signal Quality attributes
+// ============================================================
+
+func TestSignalQualityScoreKeyMatchesSchema(t *testing.T) {
+	if string(SignalQualityScoreKey) != "signal.quality.score" {
+		t.Errorf("SignalQualityScoreKey = %q, want %q", string(SignalQualityScoreKey), "signal.quality.score")
+	}
+}
+
+func TestSignalQualityDegradedKeyMatchesSchema(t *testing.T) {
+	if string(SignalQualityDegradedKey) != "signal.quality.degraded" {
+		t.Errorf("SignalQualityDegradedKey = %q, want %q", string(SignalQualityDegradedKey), "signal.quality.degraded")
+	}
+}
+
+func TestSignalRetryCountKeyMatchesSchema(t *testing.T) {
+	if string(SignalRetryCountKey) != "signal.retry.count" {
+		t.Errorf("SignalRetryCountKey = %q, want %q", string(SignalRetryCountKey), "signal.retry.count")
+	}
+}
