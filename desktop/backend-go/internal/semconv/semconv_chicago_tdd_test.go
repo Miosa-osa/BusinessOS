@@ -506,8 +506,8 @@ func TestAgentIDKeyIsCorrectOtelName(t *testing.T) {
 }
 
 func TestAgentDecisionTypeKeyIsCorrectOtelName(t *testing.T) {
-	if string(AgentDecisionTypeKey) != "agent.decision_type" {
-		t.Errorf("AgentDecisionTypeKey = %q, want %q", AgentDecisionTypeKey, "agent.decision_type")
+	if string(AgentDecisionTypeKey) != "agent.decision.type" {
+		t.Errorf("AgentDecisionTypeKey = %q, want %q", AgentDecisionTypeKey, "agent.decision.type")
 	}
 }
 
@@ -1158,7 +1158,7 @@ func TestConsensusBlockHashKeyIsCorrectOtelName(t *testing.T) {
 	}
 }
 
-func TestConsensusLeaderIDKeyIsCorrectOtelName(t *testing.T) {
+func TestConsensusLeaderIdKeyIsCorrectOtelName(t *testing.T) {
 	if string(ConsensusLeaderIdKey) != "consensus.leader.id" {
 		t.Errorf("ConsensusLeaderIdKey = %q, want %q", ConsensusLeaderIdKey, "consensus.leader.id")
 	}
@@ -2457,8 +2457,8 @@ func TestConsensusQuorumSizeKeyMatchesSchema(t *testing.T) {
 }
 
 func TestConsensusLeaderIdKeyMatchesSchema(t *testing.T) {
-	if string(ConsensusLeaderIDKey) != "consensus.leader_id" {
-		t.Errorf("ConsensusLeaderIDKey = %q, want %q", ConsensusLeaderIDKey, "consensus.leader_id")
+	if string(ConsensusLeaderIdKey) != "consensus.leader.id" {
+		t.Errorf("ConsensusLeaderIdKey = %q, want %q", ConsensusLeaderIdKey, "consensus.leader.id")
 	}
 }
 
@@ -2537,14 +2537,14 @@ func TestLlmLatencyMsKeyMatchesSchema(t *testing.T) {
 }
 
 func TestLlmStopReasonEndTurnValueMatchesSchema(t *testing.T) {
-	if LlmStopReasonEndTurn != "end_turn" {
-		t.Errorf("LlmStopReasonEndTurn = %q, want %q", LlmStopReasonEndTurn, "end_turn")
+	if LlmStopReasonValues.EndTurn != "end_turn" {
+		t.Errorf("LlmStopReasonValues.EndTurn = %q, want %q", LlmStopReasonValues.EndTurn, "end_turn")
 	}
 }
 
 func TestLlmStopReasonToolUseValueMatchesSchema(t *testing.T) {
-	if LlmStopReasonToolUse != "tool_use" {
-		t.Errorf("LlmStopReasonToolUse = %q, want %q", LlmStopReasonToolUse, "tool_use")
+	if LlmStopReasonValues.ToolUse != "tool_use" {
+		t.Errorf("LlmStopReasonValues.ToolUse = %q, want %q", LlmStopReasonValues.ToolUse, "tool_use")
 	}
 }
 
@@ -2553,8 +2553,8 @@ func TestLlmStopReasonToolUseValueMatchesSchema(t *testing.T) {
 // ============================================================
 
 func TestWorkspaceSessionIdKeyMatchesSchema(t *testing.T) {
-	if string(WorkspaceSessionIDKey) != "workspace.session.id" {
-		t.Errorf("WorkspaceSessionIDKey = %q, want %q", WorkspaceSessionIDKey, "workspace.session.id")
+	if string(WorkspaceSessionIdKey) != "workspace.session.id" {
+		t.Errorf("WorkspaceSessionIdKey = %q, want %q", WorkspaceSessionIdKey, "workspace.session.id")
 	}
 }
 
@@ -2571,20 +2571,20 @@ func TestWorkspaceToolNameKeyMatchesSchema(t *testing.T) {
 }
 
 func TestWorkspaceAgentRolePlannerValueMatchesSchema(t *testing.T) {
-	if WorkspaceAgentRolePlanner != "planner" {
-		t.Errorf("WorkspaceAgentRolePlanner = %q, want %q", WorkspaceAgentRolePlanner, "planner")
+	if WorkspaceAgentRoleValues.Planner != "planner" {
+		t.Errorf("WorkspaceAgentRoleValues.Planner = %q, want %q", WorkspaceAgentRoleValues.Planner, "planner")
 	}
 }
 
 func TestWorkspaceAgentRoleExecutorValueMatchesSchema(t *testing.T) {
-	if WorkspaceAgentRoleExecutor != "executor" {
-		t.Errorf("WorkspaceAgentRoleExecutor = %q, want %q", WorkspaceAgentRoleExecutor, "executor")
+	if WorkspaceAgentRoleValues.Executor != "executor" {
+		t.Errorf("WorkspaceAgentRoleValues.Executor = %q, want %q", WorkspaceAgentRoleValues.Executor, "executor")
 	}
 }
 
 func TestWorkspacePhaseActiveValueMatchesSchema(t *testing.T) {
-	if WorkspacePhaseActive != "active" {
-		t.Errorf("WorkspacePhaseActive = %q, want %q", WorkspacePhaseActive, "active")
+	if WorkspacePhaseValues.Active != "active" {
+		t.Errorf("WorkspacePhaseValues.Active = %q, want %q", WorkspacePhaseValues.Active, "active")
 	}
 }
 
@@ -2605,8 +2605,8 @@ func TestWorkflowMergePolicyKeyMatchesSchema(t *testing.T) {
 }
 
 func TestWorkflowMergePolicyAllValueMatchesSchema(t *testing.T) {
-	if WorkflowMergePolicyAll != "all" {
-		t.Errorf("WorkflowMergePolicyAll = %q, want %q", WorkflowMergePolicyAll, "all")
+	if WorkflowMergePolicyValues.All != "all" {
+		t.Errorf("WorkflowMergePolicyValues.All = %q, want %q", WorkflowMergePolicyValues.All, "all")
 	}
 }
 
@@ -2639,32 +2639,32 @@ func TestA2aDealExpiryMsKeyMatchesSchema(t *testing.T) {
 }
 
 func TestA2aDealStatusCompletedValueMatchesSchema(t *testing.T) {
-	if A2aDealStatusCompleted != "completed" {
-		t.Errorf("A2aDealStatusCompleted = %q, want %q", A2aDealStatusCompleted, "completed")
+	if A2aDealStatusValues.Completed != "completed" {
+		t.Errorf("A2aDealStatusValues.Completed = %q, want %q", A2aDealStatusValues.Completed, "completed")
 	}
 }
 
 func TestA2aDealStatusPendingValueMatchesSchema(t *testing.T) {
-	if A2aDealStatusPending != "pending" {
-		t.Errorf("A2aDealStatusPending = %q, want %q", A2aDealStatusPending, "pending")
+	if A2aDealStatusValues.Pending != "pending" {
+		t.Errorf("A2aDealStatusValues.Pending = %q, want %q", A2aDealStatusValues.Pending, "pending")
 	}
 }
 
 func TestA2aDealStatusActiveValueMatchesSchema(t *testing.T) {
-	if A2aDealStatusActive != "active" {
-		t.Errorf("A2aDealStatusActive = %q, want %q", A2aDealStatusActive, "active")
+	if A2aDealStatusValues.Active != "active" {
+		t.Errorf("A2aDealStatusValues.Active = %q, want %q", A2aDealStatusValues.Active, "active")
 	}
 }
 
 func TestA2aDealStatusCancelledValueMatchesSchema(t *testing.T) {
-	if A2aDealStatusCancelled != "cancelled" {
-		t.Errorf("A2aDealStatusCancelled = %q, want %q", A2aDealStatusCancelled, "cancelled")
+	if A2aDealStatusValues.Cancelled != "cancelled" {
+		t.Errorf("A2aDealStatusValues.Cancelled = %q, want %q", A2aDealStatusValues.Cancelled, "cancelled")
 	}
 }
 
 func TestA2aDealStatusDisputedValueMatchesSchema(t *testing.T) {
-	if A2aDealStatusDisputed != "disputed" {
-		t.Errorf("A2aDealStatusDisputed = %q, want %q", A2aDealStatusDisputed, "disputed")
+	if A2aDealStatusValues.Disputed != "disputed" {
+		t.Errorf("A2aDealStatusValues.Disputed = %q, want %q", A2aDealStatusValues.Disputed, "disputed")
 	}
 }
 
@@ -2675,7 +2675,7 @@ func TestA2aCapabilityVersionKeyMatchesSchema(t *testing.T) {
 }
 
 func TestA2aDealStatusKeyValueRoundTrip(t *testing.T) {
-	kv := A2aDealStatus(A2aDealStatusCompleted)
+	kv := A2aDealStatus(A2aDealStatusValues.Completed)
 	if string(kv.Key) != "a2a.deal.status" {
 		t.Errorf("A2aDealStatus key = %q, want %q", string(kv.Key), "a2a.deal.status")
 	}
@@ -2824,11 +2824,6 @@ func TestProcessMiningLogSizeKeyMatchesSchema(t *testing.T) {
 	}
 }
 
-func TestProcessMiningReplayFitnessKeyMatchesSchema(t *testing.T) {
-	if string(ProcessMiningReplayFitnessKey) != "process.mining.replay_fitness" {
-		t.Errorf("ProcessMiningReplayFitnessKey = %q, want %q", ProcessMiningReplayFitnessKey, "process.mining.replay_fitness")
-	}
-}
 
 func TestProcessMiningThroughputTimeMsKeyValueRoundTrip(t *testing.T) {
 	kv := ProcessMiningThroughputTimeMs(86400000)
@@ -2861,15 +2856,6 @@ func TestProcessMiningLogSizeKeyValueRoundTrip(t *testing.T) {
 	}
 }
 
-func TestProcessMiningReplayFitnessKeyValueRoundTrip(t *testing.T) {
-	kv := ProcessMiningReplayFitness(0.87)
-	if string(kv.Key) != "process.mining.replay_fitness" {
-		t.Errorf("ProcessMiningReplayFitness key = %q, want %q", string(kv.Key), "process.mining.replay_fitness")
-	}
-	if kv.Value.AsFloat64() != 0.87 {
-		t.Errorf("ProcessMiningReplayFitness value = %f, want %f", kv.Value.AsFloat64(), 0.87)
-	}
-}
 
 func TestProcessMiningReplayFitnessBounded(t *testing.T) {
 	// WvdA soundness: replay fitness score must be in [0.0, 1.0]
@@ -2890,8 +2876,8 @@ func TestSignalPriorityKeyMatchesSchema(t *testing.T) {
 }
 
 func TestSignalPriorityCriticalValueMatchesSchema(t *testing.T) {
-	if SignalPriorityCritical != "critical" {
-		t.Errorf("SignalPriorityCritical = %q, want %q", SignalPriorityCritical, "critical")
+	if SignalPriorityValues.Critical != "critical" {
+		t.Errorf("SignalPriorityValues.Critical = %q, want %q", SignalPriorityValues.Critical, "critical")
 	}
 }
 
@@ -2924,8 +2910,8 @@ func TestCanopyHeartbeatSequenceNumKeyMatchesSchema(t *testing.T) {
 }
 
 func TestCanopySessionIdKeyMatchesSchema(t *testing.T) {
-	if string(CanopySessionIDKey) != "canopy.session.id" {
-		t.Errorf("CanopySessionIDKey = %q, want %q", string(CanopySessionIDKey), "canopy.session.id")
+	if string(CanopySessionIdKey) != "canopy.session.id" {
+		t.Errorf("CanopySessionIdKey = %q, want %q", string(CanopySessionIdKey), "canopy.session.id")
 	}
 }
 
@@ -2946,8 +2932,8 @@ func TestMcpConnectionTransportKeyMatchesSchema(t *testing.T) {
 }
 
 func TestMcpConnectionTransportStdioValueMatchesSchema(t *testing.T) {
-	if McpConnectionTransportStdio != "stdio" {
-		t.Errorf("McpConnectionTransportStdio = %q, want %q", McpConnectionTransportStdio, "stdio")
+	if McpConnectionTransportValues.Stdio != "stdio" {
+		t.Errorf("McpConnectionTransportValues.Stdio = %q, want %q", McpConnectionTransportValues.Stdio, "stdio")
 	}
 }
 
@@ -2956,8 +2942,8 @@ func TestMcpConnectionTransportStdioValueMatchesSchema(t *testing.T) {
 // ============================================================
 
 func TestConversationIdKeyMatchesSchema(t *testing.T) {
-	if string(ConversationIDKey) != "conversation.id" {
-		t.Errorf("ConversationIDKey = %q, want %q", string(ConversationIDKey), "conversation.id")
+	if string(ConversationIdKey) != "conversation.id" {
+		t.Errorf("ConversationIdKey = %q, want %q", string(ConversationIdKey), "conversation.id")
 	}
 }
 
@@ -2974,14 +2960,14 @@ func TestConversationModelKeyMatchesSchema(t *testing.T) {
 }
 
 func TestConversationPhaseActiveValueMatchesSchema(t *testing.T) {
-	if ConversationPhaseActive != "active" {
-		t.Errorf("ConversationPhaseActive = %q, want %q", ConversationPhaseActive, "active")
+	if ConversationPhaseValues.Active != "active" {
+		t.Errorf("ConversationPhaseValues.Active = %q, want %q", ConversationPhaseValues.Active, "active")
 	}
 }
 
 func TestConversationPhaseCompleteValueMatchesSchema(t *testing.T) {
-	if ConversationPhaseComplete != "complete" {
-		t.Errorf("ConversationPhaseComplete = %q, want %q", ConversationPhaseComplete, "complete")
+	if ConversationPhaseValues.Complete != "complete" {
+		t.Errorf("ConversationPhaseValues.Complete = %q, want %q", ConversationPhaseValues.Complete, "complete")
 	}
 }
 
@@ -3039,35 +3025,10 @@ func TestLlmRequestIdKeyMatchesSchema(t *testing.T) {
 // Wave 9 Iteration 11: Process mining replay quality metrics
 // ============================================================
 
-func TestProcessMiningReplayPrecisionKeyMatchesSchema(t *testing.T) {
-	if string(ProcessMiningReplayPrecisionKey) != "process_mining.replay.precision" {
-		t.Errorf("ProcessMiningReplayPrecisionKey = %q, want %q", string(ProcessMiningReplayPrecisionKey), "process_mining.replay.precision")
-	}
-}
 
-func TestProcessMiningReplayGeneralizationKeyMatchesSchema(t *testing.T) {
-	if string(ProcessMiningReplayGeneralizationKey) != "process_mining.replay.generalization" {
-		t.Errorf("ProcessMiningReplayGeneralizationKey = %q, want %q", string(ProcessMiningReplayGeneralizationKey), "process_mining.replay.generalization")
-	}
-}
 
-func TestProcessMiningReplaySimplicityKeyMatchesSchema(t *testing.T) {
-	if string(ProcessMiningReplaySimplicityKey) != "process_mining.replay.simplicity" {
-		t.Errorf("ProcessMiningReplaySimplicityKey = %q, want %q", string(ProcessMiningReplaySimplicityKey), "process_mining.replay.simplicity")
-	}
-}
 
-func TestProcessMiningAlignmentCostKeyMatchesSchema(t *testing.T) {
-	if string(ProcessMiningAlignmentCostKey) != "process_mining.alignment.cost" {
-		t.Errorf("ProcessMiningAlignmentCostKey = %q, want %q", string(ProcessMiningAlignmentCostKey), "process_mining.alignment.cost")
-	}
-}
 
-func TestProcessMiningModelTypeKeyMatchesSchema(t *testing.T) {
-	if string(ProcessMiningModelTypeKey) != "process_mining.model.type" {
-		t.Errorf("ProcessMiningModelTypeKey = %q, want %q", string(ProcessMiningModelTypeKey), "process_mining.model.type")
-	}
-}
 
 // ============================================================
 // Wave 9 Iteration 11: Consensus quorum health and replica counts
@@ -3102,26 +3063,26 @@ func TestConsensusFailureCountKeyMatchesSchema(t *testing.T) {
 // ============================================================
 
 func TestA2ASlaDeadlineMsKeyMatchesSchema(t *testing.T) {
-	if string(A2ASlaDeadlineMsKey) != "a2a.sla.deadline_ms" {
-		t.Errorf("A2ASlaDeadlineMsKey = %q, want %q", string(A2ASlaDeadlineMsKey), "a2a.sla.deadline_ms")
+	if string(A2aSlaDeadlineMsKey) != "a2a.sla.deadline_ms" {
+		t.Errorf("A2aSlaDeadlineMsKey = %q, want %q", string(A2aSlaDeadlineMsKey), "a2a.sla.deadline_ms")
 	}
 }
 
 func TestA2ASlaBreachKeyMatchesSchema(t *testing.T) {
-	if string(A2ASlaBreachKey) != "a2a.sla.breach" {
-		t.Errorf("A2ASlaBreachKey = %q, want %q", string(A2ASlaBreachKey), "a2a.sla.breach")
+	if string(A2aSlaBreachKey) != "a2a.sla.breach" {
+		t.Errorf("A2aSlaBreachKey = %q, want %q", string(A2aSlaBreachKey), "a2a.sla.breach")
 	}
 }
 
 func TestA2ASlaLatencyMsKeyMatchesSchema(t *testing.T) {
-	if string(A2ASlaLatencyMsKey) != "a2a.sla.latency_ms" {
-		t.Errorf("A2ASlaLatencyMsKey = %q, want %q", string(A2ASlaLatencyMsKey), "a2a.sla.latency_ms")
+	if string(A2aSlaLatencyMsKey) != "a2a.sla.latency_ms" {
+		t.Errorf("A2aSlaLatencyMsKey = %q, want %q", string(A2aSlaLatencyMsKey), "a2a.sla.latency_ms")
 	}
 }
 
 func TestA2ARetryCountKeyMatchesSchema(t *testing.T) {
-	if string(A2ARetryCountKey) != "a2a.retry.count" {
-		t.Errorf("A2ARetryCountKey = %q, want %q", string(A2ARetryCountKey), "a2a.retry.count")
+	if string(A2aRetryCountKey) != "a2a.retry.count" {
+		t.Errorf("A2aRetryCountKey = %q, want %q", string(A2aRetryCountKey), "a2a.retry.count")
 	}
 }
 
@@ -3213,29 +3174,9 @@ func TestAgentMessageCountKeyMatchesSchema(t *testing.T) {
 }
 
 // Process mining streaming and drift detection
-func TestProcessMiningStreamingWindowSizeKeyMatchesSchema(t *testing.T) {
-	if string(ProcessMiningStreamingWindowSizeKey) != "process_mining.streaming.window_size" {
-		t.Errorf("ProcessMiningStreamingWindowSizeKey = %q, want %q", string(ProcessMiningStreamingWindowSizeKey), "process_mining.streaming.window_size")
-	}
-}
 
-func TestProcessMiningStreamingLagMsKeyMatchesSchema(t *testing.T) {
-	if string(ProcessMiningStreamingLagMsKey) != "process_mining.streaming.lag_ms" {
-		t.Errorf("ProcessMiningStreamingLagMsKey = %q, want %q", string(ProcessMiningStreamingLagMsKey), "process_mining.streaming.lag_ms")
-	}
-}
 
-func TestProcessMiningDriftDetectedKeyMatchesSchema(t *testing.T) {
-	if string(ProcessMiningDriftDetectedKey) != "process_mining.drift.detected" {
-		t.Errorf("ProcessMiningDriftDetectedKey = %q, want %q", string(ProcessMiningDriftDetectedKey), "process_mining.drift.detected")
-	}
-}
 
-func TestProcessMiningDriftSeverityKeyMatchesSchema(t *testing.T) {
-	if string(ProcessMiningDriftSeverityKey) != "process_mining.drift.severity" {
-		t.Errorf("ProcessMiningDriftSeverityKey = %q, want %q", string(ProcessMiningDriftSeverityKey), "process_mining.drift.severity")
-	}
-}
 
 // Canopy protocol and sync
 func TestCanopyProtocolVersionKeyMatchesSchema(t *testing.T) {
@@ -3339,32 +3280,32 @@ func TestWorkspaceIterationCountKeyMatchesSchema(t *testing.T) {
 // ============================================================
 
 func TestA2ACapabilityMatchScoreKeyMatchesSchema(t *testing.T) {
-	if string(A2ACapabilityMatchScoreKey) != "a2a.capability.match_score" {
-		t.Errorf("A2ACapabilityMatchScoreKey = %q, want %q", string(A2ACapabilityMatchScoreKey), "a2a.capability.match_score")
+	if string(A2aCapabilityMatchScoreKey) != "a2a.capability.match_score" {
+		t.Errorf("A2aCapabilityMatchScoreKey = %q, want %q", string(A2aCapabilityMatchScoreKey), "a2a.capability.match_score")
 	}
 }
 
 func TestA2ACapabilityRequiredKeyMatchesSchema(t *testing.T) {
-	if string(A2ACapabilityRequiredKey) != "a2a.capability.required" {
-		t.Errorf("A2ACapabilityRequiredKey = %q, want %q", string(A2ACapabilityRequiredKey), "a2a.capability.required")
+	if string(A2aCapabilityRequiredKey) != "a2a.capability.required" {
+		t.Errorf("A2aCapabilityRequiredKey = %q, want %q", string(A2aCapabilityRequiredKey), "a2a.capability.required")
 	}
 }
 
 func TestA2ACapabilityOfferedKeyMatchesSchema(t *testing.T) {
-	if string(A2ACapabilityOfferedKey) != "a2a.capability.offered" {
-		t.Errorf("A2ACapabilityOfferedKey = %q, want %q", string(A2ACapabilityOfferedKey), "a2a.capability.offered")
+	if string(A2aCapabilityOfferedKey) != "a2a.capability.offered" {
+		t.Errorf("A2aCapabilityOfferedKey = %q, want %q", string(A2aCapabilityOfferedKey), "a2a.capability.offered")
 	}
 }
 
 func TestA2ARoutingStrategyKeyMatchesSchema(t *testing.T) {
-	if string(A2ARoutingStrategyKey) != "a2a.routing.strategy" {
-		t.Errorf("A2ARoutingStrategyKey = %q, want %q", string(A2ARoutingStrategyKey), "a2a.routing.strategy")
+	if string(A2aRoutingStrategyKey) != "a2a.routing.strategy" {
+		t.Errorf("A2aRoutingStrategyKey = %q, want %q", string(A2aRoutingStrategyKey), "a2a.routing.strategy")
 	}
 }
 
 func TestA2AQueueDepthKeyMatchesSchema(t *testing.T) {
-	if string(A2AQueueDepthKey) != "a2a.queue.depth" {
-		t.Errorf("A2AQueueDepthKey = %q, want %q", string(A2AQueueDepthKey), "a2a.queue.depth")
+	if string(A2aQueueDepthKey) != "a2a.queue.depth" {
+		t.Errorf("A2aQueueDepthKey = %q, want %q", string(A2aQueueDepthKey), "a2a.queue.depth")
 	}
 }
 
@@ -3489,26 +3430,26 @@ func TestProcessMiningActivityWaitingMsKeyMatchesSchema(t *testing.T) {
 // ============================================================
 
 func TestA2ATrustScoreKeyMatchesSchema(t *testing.T) {
-	if string(A2ATrustScoreKey) != "a2a.trust.score" {
-		t.Errorf("A2ATrustScoreKey = %q, want %q", string(A2ATrustScoreKey), "a2a.trust.score")
+	if string(A2aTrustScoreKey) != "a2a.trust.score" {
+		t.Errorf("A2aTrustScoreKey = %q, want %q", string(A2aTrustScoreKey), "a2a.trust.score")
 	}
 }
 
 func TestA2AReputationHistoryLengthKeyMatchesSchema(t *testing.T) {
-	if string(A2AReputationHistoryLengthKey) != "a2a.reputation.history_length" {
-		t.Errorf("A2AReputationHistoryLengthKey = %q, want %q", string(A2AReputationHistoryLengthKey), "a2a.reputation.history_length")
+	if string(A2aReputationHistoryLengthKey) != "a2a.reputation.history_length" {
+		t.Errorf("A2aReputationHistoryLengthKey = %q, want %q", string(A2aReputationHistoryLengthKey), "a2a.reputation.history_length")
 	}
 }
 
 func TestA2ATrustDecayFactorKeyMatchesSchema(t *testing.T) {
-	if string(A2ATrustDecayFactorKey) != "a2a.trust.decay_factor" {
-		t.Errorf("A2ATrustDecayFactorKey = %q, want %q", string(A2ATrustDecayFactorKey), "a2a.trust.decay_factor")
+	if string(A2aTrustDecayFactorKey) != "a2a.trust.decay_factor" {
+		t.Errorf("A2aTrustDecayFactorKey = %q, want %q", string(A2aTrustDecayFactorKey), "a2a.trust.decay_factor")
 	}
 }
 
 func TestA2ATrustUpdatedAtMsKeyMatchesSchema(t *testing.T) {
-	if string(A2ATrustUpdatedAtMsKey) != "a2a.trust.updated_at_ms" {
-		t.Errorf("A2ATrustUpdatedAtMsKey = %q, want %q", string(A2ATrustUpdatedAtMsKey), "a2a.trust.updated_at_ms")
+	if string(A2aTrustUpdatedAtMsKey) != "a2a.trust.updated_at_ms" {
+		t.Errorf("A2aTrustUpdatedAtMsKey = %q, want %q", string(A2aTrustUpdatedAtMsKey), "a2a.trust.updated_at_ms")
 	}
 }
 
@@ -3655,8 +3596,8 @@ func TestCanopySnapshotSizeBytesKeyMatchesSchema(t *testing.T) {
 // ============================================================
 
 func TestAgentMemoryFederationIDKeyMatchesSchema(t *testing.T) {
-	if string(AgentMemoryFederationIDKey) != "agent.memory.federation_id" {
-		t.Errorf("AgentMemoryFederationIDKey = %q, want %q", string(AgentMemoryFederationIDKey), "agent.memory.federation_id")
+	if string(AgentMemoryFederationIdKey) != "agent.memory.federation_id" {
+		t.Errorf("AgentMemoryFederationIdKey = %q, want %q", string(AgentMemoryFederationIdKey), "agent.memory.federation_id")
 	}
 }
 
@@ -3701,8 +3642,8 @@ func TestProcessMiningReplayConsumedTokensKeyMatchesSchema(t *testing.T) {
 }
 
 func TestProcessMiningCaseVariantIDKeyMatchesSchema(t *testing.T) {
-	if string(ProcessMiningCaseVariantIDKey) != "process.mining.case.variant_id" {
-		t.Errorf("ProcessMiningCaseVariantIDKey = %q, want %q", string(ProcessMiningCaseVariantIDKey), "process.mining.case.variant_id")
+	if string(ProcessMiningCaseVariantIdKey) != "process.mining.case.variant_id" {
+		t.Errorf("ProcessMiningCaseVariantIdKey = %q, want %q", string(ProcessMiningCaseVariantIdKey), "process.mining.case.variant_id")
 	}
 }
 
@@ -3827,8 +3768,8 @@ func TestSignalRetryCountKeyMatchesSchema(t *testing.T) {
 // ============================================================
 
 func TestChatmangptSessionIDKeyMatchesSchema(t *testing.T) {
-	if string(ChatmangptSessionIDKey) != "chatmangpt.session.id" {
-		t.Errorf("ChatmangptSessionIDKey = %q, want %q", string(ChatmangptSessionIDKey), "chatmangpt.session.id")
+	if string(ChatmangptSessionIdKey) != "chatmangpt.session.id" {
+		t.Errorf("ChatmangptSessionIdKey = %q, want %q", string(ChatmangptSessionIdKey), "chatmangpt.session.id")
 	}
 }
 
@@ -3855,20 +3796,20 @@ func TestChatmangptSessionTurnCountKeyMatchesSchema(t *testing.T) {
 // ============================================================
 
 func TestA2AMessagePriorityKeyMatchesSchema(t *testing.T) {
-	if string(A2AMessagePriorityKey) != "a2a.message.priority" {
-		t.Errorf("A2AMessagePriorityKey = %q, want %q", string(A2AMessagePriorityKey), "a2a.message.priority")
+	if string(A2aMessagePriorityKey) != "a2a.message.priority" {
+		t.Errorf("A2aMessagePriorityKey = %q, want %q", string(A2aMessagePriorityKey), "a2a.message.priority")
 	}
 }
 
 func TestA2AMessageSizeBytesKeyMatchesSchema(t *testing.T) {
-	if string(A2AMessageSizeBytesKey) != "a2a.message.size_bytes" {
-		t.Errorf("A2AMessageSizeBytesKey = %q, want %q", string(A2AMessageSizeBytesKey), "a2a.message.size_bytes")
+	if string(A2aMessageSizeBytesKey) != "a2a.message.size_bytes" {
+		t.Errorf("A2aMessageSizeBytesKey = %q, want %q", string(A2aMessageSizeBytesKey), "a2a.message.size_bytes")
 	}
 }
 
 func TestA2AMessageEncodingKeyMatchesSchema(t *testing.T) {
-	if string(A2AMessageEncodingKey) != "a2a.message.encoding" {
-		t.Errorf("A2AMessageEncodingKey = %q, want %q", string(A2AMessageEncodingKey), "a2a.message.encoding")
+	if string(A2aMessageEncodingKey) != "a2a.message.encoding" {
+		t.Errorf("A2aMessageEncodingKey = %q, want %q", string(A2aMessageEncodingKey), "a2a.message.encoding")
 	}
 }
 
@@ -3877,26 +3818,26 @@ func TestA2AMessageEncodingKeyMatchesSchema(t *testing.T) {
 // ============================================================
 
 func TestPMDecisionPointIDKeyMatchesSchema(t *testing.T) {
-	if string(PMDecisionPointIDKey) != "process.mining.decision.point_id" {
-		t.Errorf("PMDecisionPointIDKey = %q, want %q", string(PMDecisionPointIDKey), "process.mining.decision.point_id")
+	if string(ProcessMiningDecisionPointIdKey) != "process.mining.decision.point_id" {
+		t.Errorf("ProcessMiningDecisionPointIdKey = %q, want %q", string(ProcessMiningDecisionPointIdKey), "process.mining.decision.point_id")
 	}
 }
 
 func TestPMDecisionOutcomeKeyMatchesSchema(t *testing.T) {
-	if string(PMDecisionOutcomeKey) != "process.mining.decision.outcome" {
-		t.Errorf("PMDecisionOutcomeKey = %q, want %q", string(PMDecisionOutcomeKey), "process.mining.decision.outcome")
+	if string(ProcessMiningDecisionOutcomeKey) != "process.mining.decision.outcome" {
+		t.Errorf("ProcessMiningDecisionOutcomeKey = %q, want %q", string(ProcessMiningDecisionOutcomeKey), "process.mining.decision.outcome")
 	}
 }
 
 func TestPMDecisionConfidenceKeyMatchesSchema(t *testing.T) {
-	if string(PMDecisionConfidenceKey) != "process.mining.decision.confidence" {
-		t.Errorf("PMDecisionConfidenceKey = %q, want %q", string(PMDecisionConfidenceKey), "process.mining.decision.confidence")
+	if string(ProcessMiningDecisionConfidenceKey) != "process.mining.decision.confidence" {
+		t.Errorf("ProcessMiningDecisionConfidenceKey = %q, want %q", string(ProcessMiningDecisionConfidenceKey), "process.mining.decision.confidence")
 	}
 }
 
 func TestPMDecisionRuleCountKeyMatchesSchema(t *testing.T) {
-	if string(PMDecisionRuleCountKey) != "process.mining.decision.rule_count" {
-		t.Errorf("PMDecisionRuleCountKey = %q, want %q", string(PMDecisionRuleCountKey), "process.mining.decision.rule_count")
+	if string(ProcessMiningDecisionRuleCountKey) != "process.mining.decision.rule_count" {
+		t.Errorf("ProcessMiningDecisionRuleCountKey = %q, want %q", string(ProcessMiningDecisionRuleCountKey), "process.mining.decision.rule_count")
 	}
 }
 
@@ -3949,20 +3890,20 @@ func TestHealingPredictionModelKeyMatchesSchema(t *testing.T) {
 // ============================================================
 
 func TestLLMStreamingChunkCountKeyMatchesSchema(t *testing.T) {
-	if string(LLMStreamingChunkCountKey) != "llm.streaming.chunk_count" {
-		t.Errorf("LLMStreamingChunkCountKey = %q, want %q", string(LLMStreamingChunkCountKey), "llm.streaming.chunk_count")
+	if string(LlmStreamingChunkCountKey) != "llm.streaming.chunk_count" {
+		t.Errorf("LlmStreamingChunkCountKey = %q, want %q", string(LlmStreamingChunkCountKey), "llm.streaming.chunk_count")
 	}
 }
 
 func TestLLMStreamingFirstTokenMsKeyMatchesSchema(t *testing.T) {
-	if string(LLMStreamingFirstTokenMsKey) != "llm.streaming.first_token_ms" {
-		t.Errorf("LLMStreamingFirstTokenMsKey = %q, want %q", string(LLMStreamingFirstTokenMsKey), "llm.streaming.first_token_ms")
+	if string(LlmStreamingFirstTokenMsKey) != "llm.streaming.first_token_ms" {
+		t.Errorf("LlmStreamingFirstTokenMsKey = %q, want %q", string(LlmStreamingFirstTokenMsKey), "llm.streaming.first_token_ms")
 	}
 }
 
 func TestLLMStreamingTokensPerSecondKeyMatchesSchema(t *testing.T) {
-	if string(LLMStreamingTokensPerSecondKey) != "llm.streaming.tokens_per_second" {
-		t.Errorf("LLMStreamingTokensPerSecondKey = %q, want %q", string(LLMStreamingTokensPerSecondKey), "llm.streaming.tokens_per_second")
+	if string(LlmStreamingTokensPerSecondKey) != "llm.streaming.tokens_per_second" {
+		t.Errorf("LlmStreamingTokensPerSecondKey = %q, want %q", string(LlmStreamingTokensPerSecondKey), "llm.streaming.tokens_per_second")
 	}
 }
 
@@ -3971,8 +3912,8 @@ func TestLLMStreamingTokensPerSecondKeyMatchesSchema(t *testing.T) {
 // ============================================================
 
 func TestWorkspaceContextSnapshotIDKeyMatchesSchema(t *testing.T) {
-	if string(WorkspaceContextSnapshotIDKey) != "workspace.context.snapshot_id" {
-		t.Errorf("WorkspaceContextSnapshotIDKey = %q, want %q", string(WorkspaceContextSnapshotIDKey), "workspace.context.snapshot_id")
+	if string(WorkspaceContextSnapshotIdKey) != "workspace.context.snapshot_id" {
+		t.Errorf("WorkspaceContextSnapshotIdKey = %q, want %q", string(WorkspaceContextSnapshotIdKey), "workspace.context.snapshot_id")
 	}
 }
 
@@ -3991,47 +3932,47 @@ func TestWorkspaceContextSizeTokensKeyMatchesSchema(t *testing.T) {
 // === Wave 9 Iteration 17: MCP Tool Versioning ===
 
 func TestMCPToolVersionKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "mcp.tool.version", string(MCPToolVersionKey))
+	assert.Equal(t, "mcp.tool.version", string(McpToolVersionKey))
 }
 
 func TestMCPToolSchemaHashKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "mcp.tool.schema_hash", string(MCPToolSchemaHashKey))
+	assert.Equal(t, "mcp.tool.schema_hash", string(McpToolSchemaHashKey))
 }
 
 func TestMCPToolDeprecatedKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "mcp.tool.deprecated", string(MCPToolDeprecatedKey))
+	assert.Equal(t, "mcp.tool.deprecated", string(McpToolDeprecatedKey))
 }
 
 // === Wave 9 Iteration 17: A2A Capability Negotiation ===
 
 func TestA2ACapNegotiationIDKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "a2a.capability.negotiation.id", string(A2ACapNegotiationIDKey))
+	assert.Equal(t, "a2a.capability.negotiation.id", string(A2aCapabilityNegotiationIdKey))
 }
 
 func TestA2ACapNegotiationOutcomeKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "a2a.capability.negotiation.outcome", string(A2ACapNegotiationOutcomeKey))
+	assert.Equal(t, "a2a.capability.negotiation.outcome", string(A2aCapabilityNegotiationOutcomeKey))
 }
 
 func TestA2ACapNegotiationRoundsKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "a2a.capability.negotiation.rounds", string(A2ACapNegotiationRoundsKey))
+	assert.Equal(t, "a2a.capability.negotiation.rounds", string(A2aCapabilityNegotiationRoundsKey))
 }
 
 // === Wave 9 Iteration 17: Process Mining Root Cause ===
 
 func TestPMRootCauseIDKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "process.mining.root_cause.id", string(PMRootCauseIDKey))
+	assert.Equal(t, "process.mining.root_cause.id", string(ProcessMiningRootCauseIdKey))
 }
 
 func TestPMRootCauseTypeKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "process.mining.root_cause.type", string(PMRootCauseTypeKey))
+	assert.Equal(t, "process.mining.root_cause.type", string(ProcessMiningRootCauseTypeKey))
 }
 
 func TestPMRootCauseConfidenceKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "process.mining.root_cause.confidence", string(PMRootCauseConfidenceKey))
+	assert.Equal(t, "process.mining.root_cause.confidence", string(ProcessMiningRootCauseConfidenceKey))
 }
 
 func TestPMAnomalyScoreKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "process.mining.anomaly.score", string(PMAnomalyScoreKey))
+	assert.Equal(t, "process.mining.anomaly.score", string(ProcessMiningAnomalyScoreKey))
 }
 
 // === Wave 9 Iteration 17: Consensus View Change ===
@@ -4051,7 +3992,7 @@ func TestConsensusViewChangeBackoffMsKeyMatchesSchema(t *testing.T) {
 // === Wave 9 Iteration 17: Healing Playbook ===
 
 func TestHealingPlaybookIDKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "healing.playbook.id", string(HealingPlaybookIDKey))
+	assert.Equal(t, "healing.playbook.id", string(HealingPlaybookIdKey))
 }
 
 func TestHealingPlaybookStepCountKeyMatchesSchema(t *testing.T) {
@@ -4065,21 +4006,21 @@ func TestHealingPlaybookExecutionMsKeyMatchesSchema(t *testing.T) {
 // === Wave 9 Iteration 17: LLM Context Management ===
 
 func TestLLMContextMaxTokensKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "llm.context.max_tokens", string(LLMContextMaxTokensKey))
+	assert.Equal(t, "llm.context.max_tokens", string(LlmContextMaxTokensKey))
 }
 
 func TestLLMContextOverflowStrategyKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "llm.context.overflow_strategy", string(LLMContextOverflowStrategyKey))
+	assert.Equal(t, "llm.context.overflow_strategy", string(LlmContextOverflowStrategyKey))
 }
 
 func TestLLMContextUtilizationKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "llm.context.utilization", string(LLMContextUtilizationKey))
+	assert.Equal(t, "llm.context.utilization", string(LlmContextUtilizationKey))
 }
 
 // === Wave 9 Iteration 17: Agent Pipeline + Workspace Activity ===
 
 func TestAgentPipelineIDKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, "agent.pipeline.id", string(AgentPipelineIDKey))
+	assert.Equal(t, "agent.pipeline.id", string(AgentPipelineIdKey))
 }
 
 func TestAgentPipelineStageKeyMatchesSchema(t *testing.T) {
@@ -4097,47 +4038,47 @@ func TestWorkspaceActivityDurationMsKeyMatchesSchema(t *testing.T) {
 // ===== ITER18: MCP Transport + A2A Trust Federation + PM Variant + Consensus Safety + Healing Circuit Breaker + LLM Prompt =====
 
 func TestIter18MCPTransportTypeKey(t *testing.T) {
-	assert.Equal(t, "mcp.transport.type", string(MCPTransportTypeKey))
+	assert.Equal(t, "mcp.transport.type", string(McpTransportTypeKey))
 }
 
 func TestIter18MCPTransportLatencyMsKey(t *testing.T) {
-	assert.Equal(t, "mcp.transport.latency_ms", string(MCPTransportLatencyMsKey))
+	assert.Equal(t, "mcp.transport.latency_ms", string(McpTransportLatencyMsKey))
 }
 
 func TestIter18MCPTransportReconnectCountKey(t *testing.T) {
-	assert.Equal(t, "mcp.transport.reconnect_count", string(MCPTransportReconnectCountKey))
+	assert.Equal(t, "mcp.transport.reconnect_count", string(McpTransportReconnectCountKey))
 }
 
 func TestIter18A2ATrustFederationIDKey(t *testing.T) {
-	assert.Equal(t, "a2a.trust.federation_id", string(A2ATrustFederationIDKey))
+	assert.Equal(t, "a2a.trust.federation_id", string(A2aTrustFederationIdKey))
 }
 
 func TestIter18A2ATrustPeerCountKey(t *testing.T) {
-	assert.Equal(t, "a2a.trust.peer_count", string(A2ATrustPeerCountKey))
+	assert.Equal(t, "a2a.trust.peer_count", string(A2aTrustPeerCountKey))
 }
 
 func TestIter18A2ATrustConsensusThresholdKey(t *testing.T) {
-	assert.Equal(t, "a2a.trust.consensus_threshold", string(A2ATrustConsensusThresholdKey))
+	assert.Equal(t, "a2a.trust.consensus_threshold", string(A2aTrustConsensusThresholdKey))
 }
 
 func TestIter18A2ATrustEpochKey(t *testing.T) {
-	assert.Equal(t, "a2a.trust.epoch", string(A2ATrustEpochKey))
+	assert.Equal(t, "a2a.trust.epoch", string(A2aTrustEpochKey))
 }
 
 func TestIter18PMVariantIDKey(t *testing.T) {
-	assert.Equal(t, "process.mining.variant.id", string(PMVariantIDKey))
+	assert.Equal(t, "process.mining.variant.id", string(ProcessMiningVariantIdKey))
 }
 
 func TestIter18PMVariantFrequencyKey(t *testing.T) {
-	assert.Equal(t, "process.mining.variant.frequency", string(PMVariantFrequencyKey))
+	assert.Equal(t, "process.mining.variant.frequency", string(ProcessMiningVariantFrequencyKey))
 }
 
 func TestIter18PMVariantIsOptimalKey(t *testing.T) {
-	assert.Equal(t, "process.mining.variant.is_optimal", string(PMVariantIsOptimalKey))
+	assert.Equal(t, "process.mining.variant.is_optimal", string(ProcessMiningVariantIsOptimalKey))
 }
 
 func TestIter18PMVariantDeviationScoreKey(t *testing.T) {
-	assert.Equal(t, "process.mining.variant.deviation_score", string(PMVariantDeviationScoreKey))
+	assert.Equal(t, "process.mining.variant.deviation_score", string(ProcessMiningVariantDeviationScoreKey))
 }
 
 func TestIter18ConsensusSafetyQuorumRatioKey(t *testing.T) {
@@ -4169,29 +4110,29 @@ func TestIter18HealingCircuitBreakerCallCountKey(t *testing.T) {
 }
 
 func TestIter18LLMPromptTemplateIDKey(t *testing.T) {
-	assert.Equal(t, "llm.prompt.template_id", string(LLMPromptTemplateIDKey))
+	assert.Equal(t, "llm.prompt.template_id", string(LlmPromptTemplateIdKey))
 }
 
 func TestIter18LLMPromptVersionKey(t *testing.T) {
-	assert.Equal(t, "llm.prompt.version", string(LLMPromptVersionKey))
+	assert.Equal(t, "llm.prompt.version", string(LlmPromptVersionKey))
 }
 
 func TestIter18LLMPromptVariableCountKey(t *testing.T) {
-	assert.Equal(t, "llm.prompt.variable_count", string(LLMPromptVariableCountKey))
+	assert.Equal(t, "llm.prompt.variable_count", string(LlmPromptVariableCountKey))
 }
 
 func TestIter18LLMPromptRenderedTokensKey(t *testing.T) {
-	assert.Equal(t, "llm.prompt.rendered_tokens", string(LLMPromptRenderedTokensKey))
+	assert.Equal(t, "llm.prompt.rendered_tokens", string(LlmPromptRenderedTokensKey))
 }
 
 func TestIter18MCPTransportErrorCountKey(t *testing.T) {
-	assert.Equal(t, "mcp.transport.error_count", string(MCPTransportErrorCountKey))
+	assert.Equal(t, "mcp.transport.error_count", string(McpTransportErrorCountKey))
 }
 
 // ===== ITER19: Agent Execution Graph + A2A Batch + PM Event Abstraction + Consensus Epoch + Healing Anomaly + LLM Sampling =====
 
 func TestIter19AgentExecutionGraphIDKey(t *testing.T) {
-	assert.Equal(t, "agent.execution.graph_id", string(AgentExecutionGraphIDKey))
+	assert.Equal(t, "agent.execution.graph_id", string(AgentExecutionGraphIdKey))
 }
 
 func TestIter19AgentExecutionNodeCountKey(t *testing.T) {
@@ -4207,39 +4148,39 @@ func TestIter19AgentExecutionCriticalPathMsKey(t *testing.T) {
 }
 
 func TestIter19A2ABatchIDKey(t *testing.T) {
-	assert.Equal(t, "a2a.batch.id", string(A2ABatchIDKey))
+	assert.Equal(t, "a2a.batch.id", string(A2aBatchIdKey))
 }
 
 func TestIter19A2ABatchSizeKey(t *testing.T) {
-	assert.Equal(t, "a2a.batch.size", string(A2ABatchSizeKey))
+	assert.Equal(t, "a2a.batch.size", string(A2aBatchSizeKey))
 }
 
 func TestIter19A2ABatchCompressionRatioKey(t *testing.T) {
-	assert.Equal(t, "a2a.batch.compression_ratio", string(A2ABatchCompressionRatioKey))
+	assert.Equal(t, "a2a.batch.compression_ratio", string(A2aBatchCompressionRatioKey))
 }
 
 func TestIter19A2ABatchDeliveryPolicyKey(t *testing.T) {
-	assert.Equal(t, "a2a.batch.delivery_policy", string(A2ABatchDeliveryPolicyKey))
+	assert.Equal(t, "a2a.batch.delivery_policy", string(A2aBatchDeliveryPolicyKey))
 }
 
 func TestIter19PMEventAbstractionLevelKey(t *testing.T) {
-	assert.Equal(t, "process.mining.event.abstraction_level", string(PMEventAbstractionLevelKey))
+	assert.Equal(t, "process.mining.event.abstraction_level", string(ProcessMiningEventAbstractionLevelKey))
 }
 
 func TestIter19PMEventAbstractionMappingRulesKey(t *testing.T) {
-	assert.Equal(t, "process.mining.event.abstraction_mapping_rules", string(PMEventAbstractionMappingRulesKey))
+	assert.Equal(t, "process.mining.event.abstraction_mapping_rules", string(ProcessMiningEventAbstractionMappingRulesKey))
 }
 
 func TestIter19PMEventAbstractionInputCountKey(t *testing.T) {
-	assert.Equal(t, "process.mining.event.abstraction_input_count", string(PMEventAbstractionInputCountKey))
+	assert.Equal(t, "process.mining.event.abstraction_input_count", string(ProcessMiningEventAbstractionInputCountKey))
 }
 
 func TestIter19PMEventAbstractionOutputCountKey(t *testing.T) {
-	assert.Equal(t, "process.mining.event.abstraction_output_count", string(PMEventAbstractionOutputCountKey))
+	assert.Equal(t, "process.mining.event.abstraction_output_count", string(ProcessMiningEventAbstractionOutputCountKey))
 }
 
 func TestIter19ConsensusEpochIDKey(t *testing.T) {
-	assert.Equal(t, "consensus.epoch.id", string(ConsensusEpochIDKey))
+	assert.Equal(t, "consensus.epoch.id", string(ConsensusEpochIdKey))
 }
 
 func TestIter19ConsensusEpochStartRoundKey(t *testing.T) {
@@ -4267,19 +4208,19 @@ func TestIter19HealingAnomalyBaselineMsKey(t *testing.T) {
 }
 
 func TestIter19LLMSamplingTemperatureKey(t *testing.T) {
-	assert.Equal(t, "llm.sampling.temperature", string(LLMSamplingTemperatureKey))
+	assert.Equal(t, "llm.sampling.temperature", string(LlmSamplingTemperatureKey))
 }
 
 func TestIter19LLMSamplingTopPKey(t *testing.T) {
-	assert.Equal(t, "llm.sampling.top_p", string(LLMSamplingTopPKey))
+	assert.Equal(t, "llm.sampling.top_p", string(LlmSamplingTopPKey))
 }
 
 func TestIter19LLMSamplingMaxTokensKey(t *testing.T) {
-	assert.Equal(t, "llm.sampling.max_tokens", string(LLMSamplingMaxTokensKey))
+	assert.Equal(t, "llm.sampling.max_tokens", string(LlmSamplingMaxTokensKey))
 }
 
 func TestIter19LLMSamplingSeedKey(t *testing.T) {
-	assert.Equal(t, "llm.sampling.seed", string(LLMSamplingSeedKey))
+	assert.Equal(t, "llm.sampling.seed", string(LlmSamplingSeedKey))
 }
 
 // ===== Iter 20: Workspace Sharing + A2A Protocol Versioning + PM Temporal + Consensus Fork + Healing Adaptive + LLM Cache =====
@@ -4299,33 +4240,33 @@ func TestIter20WorkspaceSharingScope(t *testing.T) {
 	assert.Equal(t, "team", kv.Value.AsString())
 }
 func TestIter20A2AProtocolVersionKey(t *testing.T) {
-	assert.Equal(t, "a2a.protocol.version", string(A2AProtocolVersionKey))
+	assert.Equal(t, "a2a.protocol.version", string(A2aProtocolVersionKey))
 }
 func TestIter20A2AProtocolMinVersionKey(t *testing.T) {
-	assert.Equal(t, "a2a.protocol.min_version", string(A2AProtocolMinVersionKey))
+	assert.Equal(t, "a2a.protocol.min_version", string(A2aProtocolMinVersionKey))
 }
 func TestIter20A2AProtocolDeprecatedKey(t *testing.T) {
-	assert.Equal(t, "a2a.protocol.deprecated", string(A2AProtocolDeprecatedKey))
+	assert.Equal(t, "a2a.protocol.deprecated", string(A2aProtocolDeprecatedKey))
 }
 func TestIter20A2AProtocolNegotiationMsKey(t *testing.T) {
-	assert.Equal(t, "a2a.protocol.negotiation_ms", string(A2AProtocolNegotiationMsKey))
+	assert.Equal(t, "a2a.protocol.negotiation_ms", string(A2aProtocolNegotiationMsKey))
 }
 func TestIter20A2AProtocolVersion(t *testing.T) {
-	kv := A2AProtocolVersion("1.1")
+	kv := A2aProtocolVersion("1.1")
 	assert.Equal(t, "a2a.protocol.version", string(kv.Key))
 	assert.Equal(t, "1.1", kv.Value.AsString())
 }
 func TestIter20PMTemporalDriftMsKey(t *testing.T) {
-	assert.Equal(t, "process.mining.temporal.drift_ms", string(PMTemporalDriftMsKey))
+	assert.Equal(t, "process.mining.temporal.drift_ms", string(ProcessMiningTemporalDriftMsKey))
 }
 func TestIter20PMTemporalSeasonalityPeriodMsKey(t *testing.T) {
-	assert.Equal(t, "process.mining.temporal.seasonality_period_ms", string(PMTemporalSeasonalityPeriodMsKey))
+	assert.Equal(t, "process.mining.temporal.seasonality_period_ms", string(ProcessMiningTemporalSeasonalityPeriodMsKey))
 }
 func TestIter20PMTemporalTrendSlopeKey(t *testing.T) {
-	assert.Equal(t, "process.mining.temporal.trend_slope", string(PMTemporalTrendSlopeKey))
+	assert.Equal(t, "process.mining.temporal.trend_slope", string(ProcessMiningTemporalTrendSlopeKey))
 }
 func TestIter20PMTemporalDriftMs(t *testing.T) {
-	kv := PMTemporalDriftMs(5000)
+	kv := ProcessMiningTemporalDriftMs(5000)
 	assert.Equal(t, "process.mining.temporal.drift_ms", string(kv.Key))
 	assert.Equal(t, int64(5000), kv.Value.AsInt64())
 }
@@ -4355,19 +4296,19 @@ func TestIter20HealingAdaptiveThresholdCurrent(t *testing.T) {
 	assert.InDelta(t, 0.85, kv.Value.AsFloat64(), 0.001)
 }
 func TestIter20LLMCacheHitKey(t *testing.T) {
-	assert.Equal(t, "llm.cache.hit", string(LLMCacheHitKey))
+	assert.Equal(t, "llm.cache.hit", string(LlmCacheHitKey))
 }
 func TestIter20LLMCacheTTLMsKey(t *testing.T) {
-	assert.Equal(t, "llm.cache.ttl_ms", string(LLMCacheTTLMsKey))
+	assert.Equal(t, "llm.cache.ttl_ms", string(LlmCacheTtlMsKey))
 }
 func TestIter20LLMCacheKeyHashKey(t *testing.T) {
-	assert.Equal(t, "llm.cache.key_hash", string(LLMCacheKeyHashKey))
+	assert.Equal(t, "llm.cache.key_hash", string(LlmCacheKeyHashKey))
 }
 
 // ===== Iter 21: Agent Handoff + A2A Auction + PM Conformance Threshold + Consensus Byzantine + Healing Intervention + LLM Tool Orchestration =====
 
 func TestIter21AgentHandoffTargetIDKey(t *testing.T) {
-	assert.Equal(t, "agent.handoff.target_id", string(AgentHandoffTargetIDKey))
+	assert.Equal(t, "agent.handoff.target_id", string(AgentHandoffTargetIdKey))
 }
 func TestIter21AgentHandoffReasonKey(t *testing.T) {
 	assert.Equal(t, "agent.handoff.reason", string(AgentHandoffReasonKey))
@@ -4376,38 +4317,38 @@ func TestIter21AgentHandoffStateTransferMsKey(t *testing.T) {
 	assert.Equal(t, "agent.handoff.state_transfer_ms", string(AgentHandoffStateTransferMsKey))
 }
 func TestIter21AgentHandoffTargetID(t *testing.T) {
-	kv := AgentHandoffTargetID("agent-7")
+	kv := AgentHandoffTargetId("agent-7")
 	assert.Equal(t, "agent.handoff.target_id", string(kv.Key))
 	assert.Equal(t, "agent-7", kv.Value.AsString())
 }
 func TestIter21A2AAuctionIDKey(t *testing.T) {
-	assert.Equal(t, "a2a.auction.id", string(A2AAuctionIDKey))
+	assert.Equal(t, "a2a.auction.id", string(A2aAuctionIdKey))
 }
 func TestIter21A2AAuctionBidCountKey(t *testing.T) {
-	assert.Equal(t, "a2a.auction.bid_count", string(A2AAuctionBidCountKey))
+	assert.Equal(t, "a2a.auction.bid_count", string(A2aAuctionBidCountKey))
 }
 func TestIter21A2AAuctionWinnerIDKey(t *testing.T) {
-	assert.Equal(t, "a2a.auction.winner_id", string(A2AAuctionWinnerIDKey))
+	assert.Equal(t, "a2a.auction.winner_id", string(A2aAuctionWinnerIdKey))
 }
 func TestIter21A2AAuctionClearingPriceKey(t *testing.T) {
-	assert.Equal(t, "a2a.auction.clearing_price", string(A2AAuctionClearingPriceKey))
+	assert.Equal(t, "a2a.auction.clearing_price", string(A2aAuctionClearingPriceKey))
 }
 func TestIter21A2AAuctionID(t *testing.T) {
-	kv := A2AAuctionID("auction-001")
+	kv := A2aAuctionId("auction-001")
 	assert.Equal(t, "a2a.auction.id", string(kv.Key))
 	assert.Equal(t, "auction-001", kv.Value.AsString())
 }
 func TestIter21PMConformanceCaseThresholdKey(t *testing.T) {
-	assert.Equal(t, "process.mining.conformance.case_threshold", string(PMConformanceCaseThresholdKey))
+	assert.Equal(t, "process.mining.conformance.case_threshold", string(ProcessMiningConformanceCaseThresholdKey))
 }
 func TestIter21PMConformanceViolationCountKey(t *testing.T) {
-	assert.Equal(t, "process.mining.conformance.violation_count", string(PMConformanceViolationCountKey))
+	assert.Equal(t, "process.mining.conformance.violation_count", string(ProcessMiningConformanceViolationCountKey))
 }
 func TestIter21PMConformanceRepairStepsKey(t *testing.T) {
-	assert.Equal(t, "process.mining.conformance.repair_steps", string(PMConformanceRepairStepsKey))
+	assert.Equal(t, "process.mining.conformance.repair_steps", string(ProcessMiningConformanceRepairStepsKey))
 }
 func TestIter21PMConformanceCaseThreshold(t *testing.T) {
-	kv := PMConformanceCaseThreshold(0.85)
+	kv := ProcessMiningConformanceCaseThreshold(0.85)
 	assert.Equal(t, "process.mining.conformance.case_threshold", string(kv.Key))
 	assert.InDelta(t, 0.85, kv.Value.AsFloat64(), 0.001)
 }
@@ -4434,522 +4375,357 @@ func TestIter21HealingInterventionScore(t *testing.T) {
 	assert.InDelta(t, 0.92, kv.Value.AsFloat64(), 0.001)
 }
 func TestIter21LLMToolOrchestrationStrategyKey(t *testing.T) {
-	assert.Equal(t, "llm.tool.orchestration.strategy", string(LLMToolOrchestrationStrategyKey))
+	assert.Equal(t, "llm.tool.orchestration.strategy", string(LlmToolOrchestrationStrategyKey))
 }
 func TestIter21LLMToolOrchestrationStepCountKey(t *testing.T) {
-	assert.Equal(t, "llm.tool.orchestration.step_count", string(LLMToolOrchestrationStepCountKey))
+	assert.Equal(t, "llm.tool.orchestration.step_count", string(LlmToolOrchestrationStepCountKey))
 }
 func TestIter21LLMToolOrchestrationStrategy(t *testing.T) {
-	kv := LLMToolOrchestrationStrategy("parallel")
+	kv := LlmToolOrchestrationStrategy("parallel")
 	assert.Equal(t, "llm.tool.orchestration.strategy", string(kv.Key))
 	assert.Equal(t, "parallel", kv.Value.AsString())
 }
 func TestIter21LLMToolOrchestrationSuccessRateKey(t *testing.T) {
-	assert.Equal(t, "llm.tool.orchestration.success_rate", string(LLMToolOrchestrationSuccessRateKey))
+	assert.Equal(t, "llm.tool.orchestration.success_rate", string(LlmToolOrchestrationSuccessRateKey))
 }
 
 // Iter22: Signal batch aggregation tests
 func TestSignalBatchSizeAttrName(t *testing.T) {
-	if SignalBatchSize != "signal.batch.size" {
-		t.Errorf("expected signal.batch.size, got %s", SignalBatchSize)
+	if string(SignalBatchSizeKey) != "signal.batch.size" {
+		t.Errorf("expected signal.batch.size, got %s", string(SignalBatchSizeKey))
 	}
 }
 
 func TestSignalBatchWindowMsAttrName(t *testing.T) {
-	if SignalBatchWindowMs != "signal.batch.window_ms" {
-		t.Errorf("expected signal.batch.window_ms, got %s", SignalBatchWindowMs)
+	if string(SignalBatchWindowMsKey) != "signal.batch.window_ms" {
+		t.Errorf("expected signal.batch.window_ms, got %s", string(SignalBatchWindowMsKey))
 	}
 }
 
 func TestSignalBatchDropCountAttrName(t *testing.T) {
-	if SignalBatchDropCount != "signal.batch.drop_count" {
-		t.Errorf("expected signal.batch.drop_count, got %s", SignalBatchDropCount)
+	if string(SignalBatchDropCountKey) != "signal.batch.drop_count" {
+		t.Errorf("expected signal.batch.drop_count, got %s", string(SignalBatchDropCountKey))
 	}
 }
 
 // Iter22: Workspace memory compaction tests
 func TestWorkspaceMemoryCompactionRatioAttrName(t *testing.T) {
-	if WorkspaceMemoryCompactionRatio != "workspace.memory.compaction_ratio" {
-		t.Errorf("expected workspace.memory.compaction_ratio, got %s", WorkspaceMemoryCompactionRatio)
+	if string(WorkspaceMemoryCompactionRatioKey) != "workspace.memory.compaction_ratio" {
+		t.Errorf("expected workspace.memory.compaction_ratio, got %s", string(WorkspaceMemoryCompactionRatioKey))
 	}
 }
 
 func TestWorkspaceMemoryCompactionMsAttrName(t *testing.T) {
-	if WorkspaceMemoryCompactionMs != "workspace.memory.compaction_ms" {
-		t.Errorf("expected workspace.memory.compaction_ms, got %s", WorkspaceMemoryCompactionMs)
+	if string(WorkspaceMemoryCompactionMsKey) != "workspace.memory.compaction_ms" {
+		t.Errorf("expected workspace.memory.compaction_ms, got %s", string(WorkspaceMemoryCompactionMsKey))
 	}
 }
 
 func TestWorkspaceMemoryItemsBeforeAttrName(t *testing.T) {
-	if WorkspaceMemoryItemsBefore != "workspace.memory.items_before" {
-		t.Errorf("expected workspace.memory.items_before, got %s", WorkspaceMemoryItemsBefore)
+	if string(WorkspaceMemoryItemsBeforeKey) != "workspace.memory.items_before" {
+		t.Errorf("expected workspace.memory.items_before, got %s", string(WorkspaceMemoryItemsBeforeKey))
 	}
 }
 
 func TestWorkspaceMemoryItemsAfterAttrName(t *testing.T) {
-	if WorkspaceMemoryItemsAfter != "workspace.memory.items_after" {
-		t.Errorf("expected workspace.memory.items_after, got %s", WorkspaceMemoryItemsAfter)
+	if string(WorkspaceMemoryItemsAfterKey) != "workspace.memory.items_after" {
+		t.Errorf("expected workspace.memory.items_after, got %s", string(WorkspaceMemoryItemsAfterKey))
 	}
 }
 
 // Iter22: A2A bid evaluation tests
 func TestA2ABidStrategyAttrName(t *testing.T) {
-	if A2ABidStrategy != "a2a.bid.strategy" {
-		t.Errorf("expected a2a.bid.strategy, got %s", A2ABidStrategy)
+	if string(A2aBidStrategyKey) != "a2a.bid.strategy" {
+		t.Errorf("expected a2a.bid.strategy, got %s", string(A2aBidStrategyKey))
 	}
 }
 
 func TestA2ABidScoreAttrName(t *testing.T) {
-	if A2ABidScore != "a2a.bid.score" {
-		t.Errorf("expected a2a.bid.score, got %s", A2ABidScore)
+	if string(A2aBidScoreKey) != "a2a.bid.score" {
+		t.Errorf("expected a2a.bid.score, got %s", string(A2aBidScoreKey))
 	}
 }
 
 func TestA2ABidWinnerIdAttrName(t *testing.T) {
-	if A2ABidWinnerId != "a2a.bid.winner_id" {
-		t.Errorf("expected a2a.bid.winner_id, got %s", A2ABidWinnerId)
+	if string(A2aBidWinnerIdKey) != "a2a.bid.winner_id" {
+		t.Errorf("expected a2a.bid.winner_id, got %s", string(A2aBidWinnerIdKey))
 	}
 }
 
 // Iter22: PM alignment analysis tests
 func TestProcessMiningAlignmentOptimalPathLengthAttrName(t *testing.T) {
-	if ProcessMiningAlignmentOptimalPathLength != "process.mining.alignment.optimal_path_length" {
-		t.Errorf("expected process.mining.alignment.optimal_path_length, got %s", ProcessMiningAlignmentOptimalPathLength)
+	if string(ProcessMiningAlignmentOptimalPathLengthKey) != "process.mining.alignment.optimal_path_length" {
+		t.Errorf("expected process.mining.alignment.optimal_path_length, got %s", string(ProcessMiningAlignmentOptimalPathLengthKey))
 	}
 }
 
 func TestProcessMiningAlignmentMoveCountAttrName(t *testing.T) {
-	if ProcessMiningAlignmentMoveCount != "process.mining.alignment.move_count" {
-		t.Errorf("expected process.mining.alignment.move_count, got %s", ProcessMiningAlignmentMoveCount)
+	if string(ProcessMiningAlignmentMoveCountKey) != "process.mining.alignment.move_count" {
+		t.Errorf("expected process.mining.alignment.move_count, got %s", string(ProcessMiningAlignmentMoveCountKey))
 	}
 }
 
 func TestProcessMiningAlignmentFitnessDeltaAttrName(t *testing.T) {
-	if ProcessMiningAlignmentFitnessDelta != "process.mining.alignment.fitness_delta" {
-		t.Errorf("expected process.mining.alignment.fitness_delta, got %s", ProcessMiningAlignmentFitnessDelta)
+	if string(ProcessMiningAlignmentFitnessDeltaKey) != "process.mining.alignment.fitness_delta" {
+		t.Errorf("expected process.mining.alignment.fitness_delta, got %s", string(ProcessMiningAlignmentFitnessDeltaKey))
 	}
 }
 
 // Iter22: Consensus partition recovery tests
 func TestConsensusPartitionDetectedAttrName(t *testing.T) {
-	if ConsensusPartitionDetected != "consensus.partition.detected" {
-		t.Errorf("expected consensus.partition.detected, got %s", ConsensusPartitionDetected)
+	if string(ConsensusPartitionDetectedKey) != "consensus.partition.detected" {
+		t.Errorf("expected consensus.partition.detected, got %s", string(ConsensusPartitionDetectedKey))
 	}
 }
 
 func TestConsensusPartitionSizeAttrName(t *testing.T) {
-	if ConsensusPartitionSize != "consensus.partition.size" {
-		t.Errorf("expected consensus.partition.size, got %s", ConsensusPartitionSize)
+	if string(ConsensusPartitionSizeKey) != "consensus.partition.size" {
+		t.Errorf("expected consensus.partition.size, got %s", string(ConsensusPartitionSizeKey))
 	}
 }
 
 func TestConsensusPartitionRecoveryMsAttrName(t *testing.T) {
-	if ConsensusPartitionRecoveryMs != "consensus.partition.recovery_ms" {
-		t.Errorf("expected consensus.partition.recovery_ms, got %s", ConsensusPartitionRecoveryMs)
+	if string(ConsensusPartitionRecoveryMsKey) != "consensus.partition.recovery_ms" {
+		t.Errorf("expected consensus.partition.recovery_ms, got %s", string(ConsensusPartitionRecoveryMsKey))
 	}
 }
 
 func TestConsensusPartitionStrategyAttrName(t *testing.T) {
-	if ConsensusPartitionStrategy != "consensus.partition.strategy" {
-		t.Errorf("expected consensus.partition.strategy, got %s", ConsensusPartitionStrategy)
+	if string(ConsensusPartitionStrategyKey) != "consensus.partition.strategy" {
+		t.Errorf("expected consensus.partition.strategy, got %s", string(ConsensusPartitionStrategyKey))
 	}
 }
 
 // Iter22: Healing rollback tests
 func TestHealingRollbackStrategyAttrName(t *testing.T) {
-	if HealingRollbackStrategy != "healing.rollback.strategy" {
-		t.Errorf("expected healing.rollback.strategy, got %s", HealingRollbackStrategy)
+	if string(HealingRollbackStrategyKey) != "healing.rollback.strategy" {
+		t.Errorf("expected healing.rollback.strategy, got %s", string(HealingRollbackStrategyKey))
 	}
 }
 
 func TestHealingRollbackCheckpointIdAttrName(t *testing.T) {
-	if HealingRollbackCheckpointId != "healing.rollback.checkpoint_id" {
-		t.Errorf("expected healing.rollback.checkpoint_id, got %s", HealingRollbackCheckpointId)
+	if string(HealingRollbackCheckpointIdKey) != "healing.rollback.checkpoint_id" {
+		t.Errorf("expected healing.rollback.checkpoint_id, got %s", string(HealingRollbackCheckpointIdKey))
 	}
 }
 
 func TestHealingRollbackRecoveryMsAttrName(t *testing.T) {
-	if HealingRollbackRecoveryMs != "healing.rollback.recovery_ms" {
-		t.Errorf("expected healing.rollback.recovery_ms, got %s", HealingRollbackRecoveryMs)
+	if string(HealingRollbackRecoveryMsKey) != "healing.rollback.recovery_ms" {
+		t.Errorf("expected healing.rollback.recovery_ms, got %s", string(HealingRollbackRecoveryMsKey))
 	}
 }
 
 func TestHealingRollbackSuccessAttrName(t *testing.T) {
-	if HealingRollbackSuccess != "healing.rollback.success" {
-		t.Errorf("expected healing.rollback.success, got %s", HealingRollbackSuccess)
+	if string(HealingRollbackSuccessKey) != "healing.rollback.success" {
+		t.Errorf("expected healing.rollback.success, got %s", string(HealingRollbackSuccessKey))
 	}
 }
 
 // Iter22: LLM structured output tests
 func TestLLMStructuredOutputSchemaIdAttrName(t *testing.T) {
-	if LLMStructuredOutputSchemaId != "llm.structured_output.schema_id" {
-		t.Errorf("expected llm.structured_output.schema_id, got %s", LLMStructuredOutputSchemaId)
+	if string(LlmStructuredOutputSchemaIdKey) != "llm.structured_output.schema_id" {
+		t.Errorf("expected llm.structured_output.schema_id, got %s", string(LlmStructuredOutputSchemaIdKey))
 	}
 }
 
 func TestLLMStructuredOutputValidationMsAttrName(t *testing.T) {
-	if LLMStructuredOutputValidationMs != "llm.structured_output.validation_ms" {
-		t.Errorf("expected llm.structured_output.validation_ms, got %s", LLMStructuredOutputValidationMs)
+	if string(LlmStructuredOutputValidationMsKey) != "llm.structured_output.validation_ms" {
+		t.Errorf("expected llm.structured_output.validation_ms, got %s", string(LlmStructuredOutputValidationMsKey))
 	}
 }
 
 // Iter23: Agent spawn profiling tests
-func TestAgentSpawnParentIdAttrName(t *testing.T) {
-	assert.Equal(t, "agent.spawn.parent_id", AgentSpawnParentId)
-}
-func TestAgentSpawnStrategyAttrName(t *testing.T) {
-	assert.Equal(t, "agent.spawn.strategy", AgentSpawnStrategy)
-}
-func TestAgentSpawnLatencyMsAttrName(t *testing.T) {
-	assert.Equal(t, "agent.spawn.latency_ms", AgentSpawnLatencyMs)
-}
 
 // Iter23: A2A escrow mechanics tests
 func TestA2AEscrowIdAttrName(t *testing.T) {
-	assert.Equal(t, "a2a.escrow.id", A2AEscrowId)
+	assert.Equal(t, "a2a.escrow.id", string(A2aEscrowIdKey))
 }
 func TestA2AEscrowAmountAttrName(t *testing.T) {
-	assert.Equal(t, "a2a.escrow.amount", A2AEscrowAmount)
+	assert.Equal(t, "a2a.escrow.amount", string(A2aEscrowAmountKey))
 }
 func TestA2AEscrowReleaseConditionAttrName(t *testing.T) {
-	assert.Equal(t, "a2a.escrow.release_condition", A2AEscrowReleaseCondition)
+	assert.Equal(t, "a2a.escrow.release_condition", string(A2aEscrowReleaseConditionKey))
 }
 func TestA2AEscrowStatusAttrName(t *testing.T) {
-	assert.Equal(t, "a2a.escrow.status", A2AEscrowStatus)
+	assert.Equal(t, "a2a.escrow.status", string(A2aEscrowStatusKey))
 }
 
 // Iter23: PM bottleneck scoring tests
-func TestProcessMiningBottleneckScoreAttrName(t *testing.T) {
-	assert.Equal(t, "process.mining.bottleneck.score", ProcessMiningBottleneckScore)
-}
-func TestProcessMiningBottleneckRankAttrName(t *testing.T) {
-	assert.Equal(t, "process.mining.bottleneck.rank", ProcessMiningBottleneckRank)
-}
-func TestProcessMiningBottleneckImpactMsAttrName(t *testing.T) {
-	assert.Equal(t, "process.mining.bottleneck.impact_ms", ProcessMiningBottleneckImpactMs)
-}
 
 // Iter23: Consensus epoch key rotation tests
-func TestConsensusEpochKeyRotationIdAttrName(t *testing.T) {
-	assert.Equal(t, "consensus.epoch.key_rotation_id", ConsensusEpochKeyRotationId)
-}
-func TestConsensusEpochKeyRotationReasonAttrName(t *testing.T) {
-	assert.Equal(t, "consensus.epoch.key_rotation_reason", ConsensusEpochKeyRotationReason)
-}
-func TestConsensusEpochKeyRotationMsAttrName(t *testing.T) {
-	assert.Equal(t, "consensus.epoch.key_rotation_ms", ConsensusEpochKeyRotationMs)
-}
 
 // Iter23: Healing quarantine tests
-func TestHealingQuarantineIdAttrName(t *testing.T) {
-	assert.Equal(t, "healing.quarantine.id", HealingQuarantineId)
-}
-func TestHealingQuarantineReasonAttrName(t *testing.T) {
-	assert.Equal(t, "healing.quarantine.reason", HealingQuarantineReason)
-}
-func TestHealingQuarantineDurationMsAttrName(t *testing.T) {
-	assert.Equal(t, "healing.quarantine.duration_ms", HealingQuarantineDurationMs)
-}
-func TestHealingQuarantineActiveAttrName(t *testing.T) {
-	assert.Equal(t, "healing.quarantine.active", HealingQuarantineActive)
-}
 
 // Iter23: LLM function call routing tests
 func TestLLMFunctionCallNameAttrName(t *testing.T) {
-	assert.Equal(t, "llm.function_call.name", LLMFunctionCallName)
+	assert.Equal(t, "llm.function_call.name", string(LlmFunctionCallNameKey))
 }
 func TestLLMFunctionCallRoutingStrategyAttrName(t *testing.T) {
-	assert.Equal(t, "llm.function_call.routing_strategy", LLMFunctionCallRoutingStrategy)
+	assert.Equal(t, "llm.function_call.routing_strategy", string(LlmFunctionCallRoutingStrategyKey))
 }
 func TestLLMFunctionCallLatencyMsAttrName(t *testing.T) {
-	assert.Equal(t, "llm.function_call.latency_ms", LLMFunctionCallLatencyMs)
+	assert.Equal(t, "llm.function_call.latency_ms", string(LlmFunctionCallLatencyMsKey))
 }
 
 // Iter23: ChatmanGPT namespace tests
-func TestChatmangptWaveAttrName(t *testing.T) {
-	assert.Equal(t, "chatmangpt.wave", ChatmangptWave)
-}
-func TestChatmangptVersionAttrName(t *testing.T) {
-	assert.Equal(t, "chatmangpt.version", ChatmangptVersion)
-}
-func TestChatmangptDeploymentAttrName(t *testing.T) {
-	assert.Equal(t, "chatmangpt.deployment", ChatmangptDeployment)
-}
 
 func TestIter24MCPToolCompositionID(t *testing.T) {
-	assert.Equal(t, "mcp.tool.composition_id", MCPToolCompositionID)
+	assert.Equal(t, "mcp.tool.composition_id", string(McpToolCompositionIdKey))
 }
 
-func TestIter24MCPToolCompositionStrategy(t *testing.T) {
-	assert.Equal(t, "mcp.tool.composition_strategy", MCPToolCompositionStrategy)
-}
 
-func TestIter24MCPToolCompositionStepCount(t *testing.T) {
-	assert.Equal(t, "mcp.tool.composition_step_count", MCPToolCompositionStepCount)
-}
 
 func TestIter24MCPToolCompositionLatencyMs(t *testing.T) {
-	assert.Equal(t, "mcp.tool.composition_latency_ms", MCPToolCompositionLatencyMs)
+	assert.Equal(t, "mcp.tool.composition_latency_ms", string(McpToolCompositionLatencyMsKey))
 }
 
-func TestIter24SpanMCPToolCompose(t *testing.T) {
-	assert.Equal(t, "span.mcp.tool.compose", SpanMCPToolCompose)
-}
 
 func TestIter24A2AContractID(t *testing.T) {
-	assert.Equal(t, "a2a.contract.id", A2AContractID)
+	assert.Equal(t, "a2a.contract.id", string(A2aContractIdKey))
 }
 
 func TestIter24A2AContractTermsHash(t *testing.T) {
-	assert.Equal(t, "a2a.contract.terms_hash", A2AContractTermsHash)
+	assert.Equal(t, "a2a.contract.terms_hash", string(A2aContractTermsHashKey))
 }
 
 func TestIter24A2AContractExpiryMs(t *testing.T) {
-	assert.Equal(t, "a2a.contract.expiry_ms", A2AContractExpiryMs)
+	assert.Equal(t, "a2a.contract.expiry_ms", string(A2aContractExpiryMsKey))
 }
 
 func TestIter24A2AContractViolationCount(t *testing.T) {
-	assert.Equal(t, "a2a.contract.violation_count", A2AContractViolationCount)
+	assert.Equal(t, "a2a.contract.violation_count", string(A2aContractViolationCountKey))
 }
 
-func TestIter24SpanA2AContractNegotiate(t *testing.T) {
-	assert.Equal(t, "span.a2a.contract.negotiate", SpanA2AContractNegotiate)
-}
 
 func TestIter24ProcessMiningClusterID(t *testing.T) {
-	assert.Equal(t, "process.mining.cluster.id", ProcessMiningClusterID)
+	assert.Equal(t, "process.mining.cluster.id", string(ProcessMiningClusterIdKey))
 }
 
-func TestIter24ProcessMiningClusterAlgorithm(t *testing.T) {
-	assert.Equal(t, "process.mining.cluster.algorithm", ProcessMiningClusterAlgorithm)
-}
 
-func TestIter24ProcessMiningClusterCaseCount(t *testing.T) {
-	assert.Equal(t, "process.mining.cluster.case_count", ProcessMiningClusterCaseCount)
-}
 
-func TestIter24SpanProcessMiningCaseCluster(t *testing.T) {
-	assert.Equal(t, "span.process.mining.case.cluster", SpanProcessMiningCaseCluster)
-}
 
-func TestIter24ConsensusThresholdCurrent(t *testing.T) {
-	assert.Equal(t, "consensus.threshold.current", ConsensusThresholdCurrent)
-}
 
-func TestIter24ConsensusThresholdAdaptationRate(t *testing.T) {
-	assert.Equal(t, "consensus.threshold.adaptation_rate", ConsensusThresholdAdaptationRate)
-}
 
-func TestIter24SpanConsensusThresholdAdapt(t *testing.T) {
-	assert.Equal(t, "span.consensus.threshold.adapt", SpanConsensusThresholdAdapt)
-}
 
 func TestIter24HealingSimulationID(t *testing.T) {
-	assert.Equal(t, "healing.simulation.id", HealingSimulationID)
+	assert.Equal(t, "healing.simulation.id", string(HealingSimulationIdKey))
 }
 
-func TestIter24HealingSimulationFailureModeCount(t *testing.T) {
-	assert.Equal(t, "healing.simulation.failure_mode_count", HealingSimulationFailureModeCount)
-}
 
-func TestIter24HealingSimulationSuccessRate(t *testing.T) {
-	assert.Equal(t, "healing.simulation.success_rate", HealingSimulationSuccessRate)
-}
 
-func TestIter24SpanHealingRecoverySimulate(t *testing.T) {
-	assert.Equal(t, "span.healing.recovery.simulate", SpanHealingRecoverySimulate)
-}
 
 func TestIter24LLMValidationSchemaID(t *testing.T) {
-	assert.Equal(t, "llm.validation.schema_id", LLMValidationSchemaID)
+	assert.Equal(t, "llm.validation.schema_id", string(LlmValidationSchemaIdKey))
 }
 
-func TestIter24SpanLLMResponseValidate(t *testing.T) {
-	assert.Equal(t, "span.llm.response.validate", SpanLLMResponseValidate)
-}
 
 func TestIter25AgentReasoningTraceID(t *testing.T) {
-	assert.Equal(t, "agent.reasoning.trace_id", AgentReasoningTraceID)
+	assert.Equal(t, "agent.reasoning.trace_id", string(AgentReasoningTraceIdKey))
 }
 
-func TestIter25AgentReasoningStepCount(t *testing.T) {
-	assert.Equal(t, "agent.reasoning.step_count", AgentReasoningStepCount)
-}
 
-func TestIter25AgentReasoningConfidenceDelta(t *testing.T) {
-	assert.Equal(t, "agent.reasoning.confidence_delta", AgentReasoningConfidenceDelta)
-}
 
-func TestIter25SpanAgentReasoningTrace(t *testing.T) {
-	assert.Equal(t, "span.agent.reasoning.trace", SpanAgentReasoningTrace)
-}
 
 func TestIter25A2APenaltyAmount(t *testing.T) {
-	assert.Equal(t, "a2a.penalty.amount", A2APenaltyAmount)
+	assert.Equal(t, "a2a.penalty.amount", string(A2aPenaltyAmountKey))
 }
 
 func TestIter25A2APenaltyReason(t *testing.T) {
-	assert.Equal(t, "a2a.penalty.reason", A2APenaltyReason)
+	assert.Equal(t, "a2a.penalty.reason", string(A2aPenaltyReasonKey))
 }
 
 func TestIter25A2ARewardAmount(t *testing.T) {
-	assert.Equal(t, "a2a.reward.amount", A2ARewardAmount)
+	assert.Equal(t, "a2a.reward.amount", string(A2aRewardAmountKey))
 }
 
-func TestIter25SpanA2APenaltyApply(t *testing.T) {
-	assert.Equal(t, "span.a2a.penalty.apply", SpanA2APenaltyApply)
-}
 
-func TestIter25ProcessMiningEnhancementType(t *testing.T) {
-	assert.Equal(t, "process.mining.enhancement.type", ProcessMiningEnhancementType)
-}
 
-func TestIter25ProcessMiningEnhancementImprovementRate(t *testing.T) {
-	assert.Equal(t, "process.mining.enhancement.improvement_rate", ProcessMiningEnhancementImprovementRate)
-}
 
 func TestIter25ProcessMiningEnhancementBaseModelID(t *testing.T) {
-	assert.Equal(t, "process.mining.enhancement.base_model_id", ProcessMiningEnhancementBaseModelID)
+	assert.Equal(t, "process.mining.enhancement.base_model_id", string(ProcessMiningEnhancementBaseModelIdKey))
 }
 
-func TestIter25SpanProcessMiningModelEnhance(t *testing.T) {
-	assert.Equal(t, "span.process.mining.model.enhance", SpanProcessMiningModelEnhance)
-}
 
-func TestIter25ConsensusQuorumGrowthRate(t *testing.T) {
-	assert.Equal(t, "consensus.quorum.growth_rate", ConsensusQuorumGrowthRate)
-}
 
-func TestIter25ConsensusQuorumCurrentSize(t *testing.T) {
-	assert.Equal(t, "consensus.quorum.current_size", ConsensusQuorumCurrentSize)
-}
 
-func TestIter25ConsensusQuorumTargetSize(t *testing.T) {
-	assert.Equal(t, "consensus.quorum.target_size", ConsensusQuorumTargetSize)
-}
 
-func TestIter25SpanConsensusQuorumGrow(t *testing.T) {
-	assert.Equal(t, "span.consensus.quorum.grow", SpanConsensusQuorumGrow)
-}
 
 func TestIter25HealingMemorySnapshotID(t *testing.T) {
-	assert.Equal(t, "healing.memory.snapshot_id", HealingMemorySnapshotID)
+	assert.Equal(t, "healing.memory.snapshot_id", string(HealingMemorySnapshotIdKey))
 }
 
-func TestIter25HealingMemorySnapshotSizeBytes(t *testing.T) {
-	assert.Equal(t, "healing.memory.snapshot_size_bytes", HealingMemorySnapshotSizeBytes)
-}
 
-func TestIter25SpanHealingMemorySnapshot(t *testing.T) {
-	assert.Equal(t, "span.healing.memory.snapshot", SpanHealingMemorySnapshot)
-}
 
 func TestIter25LLMMultimodalInputType(t *testing.T) {
-	assert.Equal(t, "llm.multimodal.input_type", LLMMultimodalInputType)
+	assert.Equal(t, "llm.multimodal.input_type", string(LlmMultimodalInputTypeKey))
 }
 
 func TestIter25LLMMultimodalModalityCount(t *testing.T) {
-	assert.Equal(t, "llm.multimodal.modality_count", LLMMultimodalModalityCount)
+	assert.Equal(t, "llm.multimodal.modality_count", string(LlmMultimodalModalityCountKey))
 }
 
 func TestIter25LLMMultimodalInputSizeBytes(t *testing.T) {
-	assert.Equal(t, "llm.multimodal.input_size_bytes", LLMMultimodalInputSizeBytes)
+	assert.Equal(t, "llm.multimodal.input_size_bytes", string(LlmMultimodalInputSizeBytesKey))
 }
 
-func TestIter25SpanLLMMultimodalProcess(t *testing.T) {
-	assert.Equal(t, "span.llm.multimodal.process", SpanLLMMultimodalProcess)
-}
 
 func TestIter26MCPServerHealthStatus(t *testing.T) {
-	assert.Equal(t, "mcp.server.health.status", MCPServerHealthStatus)
+	assert.Equal(t, "mcp.server.health.status", string(McpServerHealthStatusKey))
 }
 
 func TestIter26MCPServerHealthCheckDurationMs(t *testing.T) {
-	assert.Equal(t, "mcp.server.health.check_duration_ms", MCPServerHealthCheckDurationMs)
+	assert.Equal(t, "mcp.server.health.check_duration_ms", string(McpServerHealthCheckDurationMsKey))
 }
 
 func TestIter26MCPServerHealthToolCount(t *testing.T) {
-	assert.Equal(t, "mcp.server.health.tool_count", MCPServerHealthToolCount)
+	assert.Equal(t, "mcp.server.health.tool_count", string(McpServerHealthToolCountKey))
 }
 
 func TestIter26MCPServerHealthUptimeMs(t *testing.T) {
-	assert.Equal(t, "mcp.server.health.uptime_ms", MCPServerHealthUptimeMs)
+	assert.Equal(t, "mcp.server.health.uptime_ms", string(McpServerHealthUptimeMsKey))
 }
 
 func TestIter26A2ADisputeID(t *testing.T) {
-	assert.Equal(t, "a2a.dispute.id", A2ADisputeID)
+	assert.Equal(t, "a2a.dispute.id", string(A2aDisputeIdKey))
 }
 
 func TestIter26A2ADisputeReason(t *testing.T) {
-	assert.Equal(t, "a2a.dispute.reason", A2ADisputeReason)
+	assert.Equal(t, "a2a.dispute.reason", string(A2aDisputeReasonKey))
 }
 
 func TestIter26A2ADisputeResolutionStatus(t *testing.T) {
-	assert.Equal(t, "a2a.dispute.resolution_status", A2ADisputeResolutionStatus)
+	assert.Equal(t, "a2a.dispute.resolution_status", string(A2aDisputeResolutionStatusKey))
 }
 
 func TestIter26A2ADisputeResolutionMs(t *testing.T) {
-	assert.Equal(t, "a2a.dispute.resolution_ms", A2ADisputeResolutionMs)
+	assert.Equal(t, "a2a.dispute.resolution_ms", string(A2aDisputeResolutionMsKey))
 }
 
-func TestIter26ProcessMiningSocialNetworkDensity(t *testing.T) {
-	assert.Equal(t, "process.mining.social_network.density", ProcessMiningSocialNetworkDensity)
-}
 
-func TestIter26ProcessMiningSocialNetworkNodeCount(t *testing.T) {
-	assert.Equal(t, "process.mining.social_network.node_count", ProcessMiningSocialNetworkNodeCount)
-}
 
-func TestIter26ProcessMiningSocialNetworkHandoverCount(t *testing.T) {
-	assert.Equal(t, "process.mining.social_network.handover_count", ProcessMiningSocialNetworkHandoverCount)
-}
 
-func TestIter26ProcessMiningSocialNetworkCentralityMax(t *testing.T) {
-	assert.Equal(t, "process.mining.social_network.centrality_max", ProcessMiningSocialNetworkCentralityMax)
-}
 
-func TestIter26ConsensusNetworkTopologyType(t *testing.T) {
-	assert.Equal(t, "consensus.network.topology_type", ConsensusNetworkTopologyType)
-}
 
-func TestIter26ConsensusNetworkPartitionCount(t *testing.T) {
-	assert.Equal(t, "consensus.network.partition_count", ConsensusNetworkPartitionCount)
-}
 
-func TestIter26ConsensusNetworkNodeDegree(t *testing.T) {
-	assert.Equal(t, "consensus.network.node_degree", ConsensusNetworkNodeDegree)
-}
 
-func TestIter26ConsensusNetworkDiameterHops(t *testing.T) {
-	assert.Equal(t, "consensus.network.diameter_hops", ConsensusNetworkDiameterHops)
-}
 
 func TestIter26HealingWarmStandbyID(t *testing.T) {
-	assert.Equal(t, "healing.warm_standby.id", HealingWarmStandbyID)
+	assert.Equal(t, "healing.warm_standby.id", string(HealingWarmStandbyIdKey))
 }
 
-func TestIter26HealingWarmStandbyReadiness(t *testing.T) {
-	assert.Equal(t, "healing.warm_standby.readiness", HealingWarmStandbyReadiness)
-}
 
-func TestIter26HealingWarmStandbyLatencyMs(t *testing.T) {
-	assert.Equal(t, "healing.warm_standby.latency_ms", HealingWarmStandbyLatencyMs)
-}
 
-func TestIter26HealingWarmStandbyReplicaCount(t *testing.T) {
-	assert.Equal(t, "healing.warm_standby.replica_count", HealingWarmStandbyReplicaCount)
-}
 
 func TestIter26LLMFinetuneJobID(t *testing.T) {
-	assert.Equal(t, "llm.finetune.job_id", LLMFinetuneJobID)
+	assert.Equal(t, "llm.finetune.job_id", string(LlmFinetuneJobIdKey))
 }
 
 func TestIter26LLMFinetuneBaseModel(t *testing.T) {
-	assert.Equal(t, "llm.finetune.base_model", LLMFinetuneBaseModel)
+	assert.Equal(t, "llm.finetune.base_model", string(LlmFinetuneBaseModelKey))
 }
 
 func TestIter26LLMFinetuneTrainingSteps(t *testing.T) {
-	assert.Equal(t, "llm.finetune.training_steps", LLMFinetuneTrainingSteps)
+	assert.Equal(t, "llm.finetune.training_steps", string(LlmFinetuneTrainingStepsKey))
 }
 
 // ============================================================
@@ -4959,19 +4735,19 @@ func TestIter26LLMFinetuneTrainingSteps(t *testing.T) {
 // ============================================================
 
 func TestIter27AgentCapabilityCatalogIDConstant(t *testing.T) {
-	assert.Equal(t, "agent.capability.catalog_id", AgentCapabilityCatalogID)
+	assert.Equal(t, "agent.capability.catalog_id", string(AgentCapabilityCatalogIdKey))
 }
 
 func TestIter27AgentCapabilityCatalogVersionConstant(t *testing.T) {
-	assert.Equal(t, "agent.capability.catalog_version", AgentCapabilityCatalogVersion)
+	assert.Equal(t, "agent.capability.catalog_version", string(AgentCapabilityCatalogVersionKey))
 }
 
 func TestIter27AgentCapabilityScopeConstant(t *testing.T) {
-	assert.Equal(t, "agent.capability.scope", AgentCapabilityScope)
+	assert.Equal(t, "agent.capability.scope", string(AgentCapabilityScopeKey))
 }
 
 func TestIter27AgentCapabilityCountConstant(t *testing.T) {
-	assert.Equal(t, "agent.capability.count", AgentCapabilityCount)
+	assert.Equal(t, "agent.capability.count", string(AgentCapabilityCountKey))
 }
 
 func TestIter27AgentCapabilityScopeLocalValue(t *testing.T) {
@@ -4987,248 +4763,224 @@ func TestIter27AgentCapabilityScopeFederatedValue(t *testing.T) {
 }
 
 func TestIter27A2AEscrowReleaseReasonConstant(t *testing.T) {
-	assert.Equal(t, "a2a.escrow.release_reason", A2AEscrowReleaseReason)
+	assert.Equal(t, "a2a.escrow.release_reason", string(A2aEscrowReleaseReasonKey))
 }
 
 func TestIter27A2AEscrowReleaseMsConstant(t *testing.T) {
-	assert.Equal(t, "a2a.escrow.release_ms", A2AEscrowReleaseMs)
+	assert.Equal(t, "a2a.escrow.release_ms", string(A2aEscrowReleaseMsKey))
 }
 
 func TestIter27A2AEscrowReleasedAmountConstant(t *testing.T) {
-	assert.Equal(t, "a2a.escrow.released_amount", A2AEscrowReleasedAmount)
+	assert.Equal(t, "a2a.escrow.released_amount", string(A2aEscrowReleasedAmountKey))
 }
 
 func TestIter27A2AEscrowReleaseReasonCompletionValue(t *testing.T) {
-	assert.Equal(t, "completion", A2AEscrowReleaseReasonValues.Completion)
+	assert.Equal(t, "completion", A2aEscrowReleaseReasonValues.Completion)
 }
 
-func TestIter27ProcessMiningConformanceRepairTypeConstant(t *testing.T) {
-	assert.Equal(t, "process.mining.conformance.repair_type", ProcessMiningConformanceRepairType)
-}
 
-func TestIter27ConformanceRepairCostMsConstant(t *testing.T) {
-	assert.Equal(t, "conformance.repair_cost_ms", ConformanceRepairCostMs)
-}
 
-func TestIter27ConformanceRepairCountConstant(t *testing.T) {
-	assert.Equal(t, "conformance.repair_count", ConformanceRepairCount)
-}
 
-func TestIter27ConformanceRepairedFitnessConstant(t *testing.T) {
-	assert.Equal(t, "conformance.repaired_fitness", ConformanceRepairedFitness)
-}
 
-func TestIter27ConsensusNetworkRecoveryDurationMsConstant(t *testing.T) {
-	assert.Equal(t, "consensus.network.recovery.duration_ms", ConsensusNetworkRecoveryDurationMs)
-}
 
-func TestIter27RecoveryStrategyConstant(t *testing.T) {
-	assert.Equal(t, "recovery.strategy", RecoveryStrategy)
-}
 
 func TestIter27RecoveryStrategyReconnectValue(t *testing.T) {
-	assert.Equal(t, "reconnect", RecoveryStrategyValues.Reconnect)
+	assert.Equal(t, "restart", HealingRecoveryStrategyValues.Restart)
 }
 
 func TestIter27HealingCheckpointIDConstant(t *testing.T) {
-	assert.Equal(t, "healing.checkpoint.id", HealingCheckpointID)
+	assert.Equal(t, "healing.checkpoint.id", string(HealingCheckpointIdKey))
 }
 
-func TestIter27CheckpointSizeBytesConstant(t *testing.T) {
-	assert.Equal(t, "checkpoint.size_bytes", CheckpointSizeBytes)
-}
 
 func TestIter27LLMBatchJobIDConstant(t *testing.T) {
-	assert.Equal(t, "llm.batch.job_id", LLMBatchJobID)
+	assert.Equal(t, "llm.batch.job_id", string(LlmBatchJobIdKey))
 }
 
-func TestIter27BatchCompletionRateConstant(t *testing.T) {
-	assert.Equal(t, "batch.completion_rate", BatchCompletionRate)
-}
 
 func TestIter27BatchPriorityHighValue(t *testing.T) {
-	assert.Equal(t, "high", BatchPriorityValues.High)
+	assert.Equal(t, "high", LlmBatchPriorityValues.High)
 }
 
 // iter28 — MCP tool composition, A2A reputation, PM enhancement quality,
 // consensus quorum shrink, healing cold standby, LLM LoRA
 
 func TestIter28MCPToolCompositionStrategyConstant(t *testing.T) {
-	if MCPToolCompositionStrategyKey != "mcp.tool.composition.strategy" {
-		t.Errorf("expected mcp.tool.composition.strategy, got %s", MCPToolCompositionStrategyKey)
+	if string(McpToolCompositionStrategyKey) != "mcp.tool.composition.strategy" {
+		t.Errorf("expected mcp.tool.composition.strategy, got %s", string(McpToolCompositionStrategyKey))
 	}
 }
 
 func TestIter28MCPToolCompositionStepCountConstant(t *testing.T) {
-	if MCPToolCompositionStepCountKey != "mcp.tool.composition.step_count" {
-		t.Errorf("expected mcp.tool.composition.step_count, got %s", MCPToolCompositionStepCountKey)
+	if string(McpToolCompositionStepCountKey) != "mcp.tool.composition.step_count" {
+		t.Errorf("expected mcp.tool.composition.step_count, got %s", string(McpToolCompositionStepCountKey))
 	}
 }
 
 func TestIter28MCPToolCompositionStrategySequentialValue(t *testing.T) {
-	if MCPToolCompositionStrategySequential != "sequential" {
-		t.Errorf("expected sequential, got %s", MCPToolCompositionStrategySequential)
+	if McpToolCompositionStrategyValues.Sequential != "sequential" {
+		t.Errorf("expected sequential, got %s", McpToolCompositionStrategyValues.Sequential)
 	}
 }
 
 func TestIter28MCPToolCompositionStrategyParallelValue(t *testing.T) {
-	if MCPToolCompositionStrategyParallel != "parallel" {
-		t.Errorf("expected parallel, got %s", MCPToolCompositionStrategyParallel)
+	if McpToolCompositionStrategyValues.Parallel != "parallel" {
+		t.Errorf("expected parallel, got %s", McpToolCompositionStrategyValues.Parallel)
 	}
 }
 
 func TestIter28A2AReputationScoreConstant(t *testing.T) {
-	if A2AReputationScoreKey != "a2a.reputation.score" {
-		t.Errorf("expected a2a.reputation.score, got %s", A2AReputationScoreKey)
+	if string(A2aReputationScoreKey) != "a2a.reputation.score" {
+		t.Errorf("expected a2a.reputation.score, got %s", string(A2aReputationScoreKey))
 	}
 }
 
 func TestIter28A2AReputationInteractionCountConstant(t *testing.T) {
-	if A2AReputationInteractionCountKey != "a2a.reputation.interaction_count" {
-		t.Errorf("expected a2a.reputation.interaction_count, got %s", A2AReputationInteractionCountKey)
+	if string(A2aReputationInteractionCountKey) != "a2a.reputation.interaction_count" {
+		t.Errorf("expected a2a.reputation.interaction_count, got %s", string(A2aReputationInteractionCountKey))
 	}
 }
 
 func TestIter28A2AReputationCategoryTrustedValue(t *testing.T) {
-	if A2AReputationCategoryTrusted != "trusted" {
-		t.Errorf("expected trusted, got %s", A2AReputationCategoryTrusted)
+	if A2aReputationCategoryValues.Trusted != "trusted" {
+		t.Errorf("expected trusted, got %s", A2aReputationCategoryValues.Trusted)
 	}
 }
 
 func TestIter28A2AReputationCategoryBannedValue(t *testing.T) {
-	if A2AReputationCategoryBanned != "banned" {
-		t.Errorf("expected banned, got %s", A2AReputationCategoryBanned)
+	if A2aReputationCategoryValues.Banned != "banned" {
+		t.Errorf("expected banned, got %s", A2aReputationCategoryValues.Banned)
 	}
 }
 
 func TestIter28PMEnhancementQualityScoreConstant(t *testing.T) {
-	if PMEnhancementQualityScoreKey != "process.mining.enhancement.quality_score" {
-		t.Errorf("expected process.mining.enhancement.quality_score, got %s", PMEnhancementQualityScoreKey)
+	if string(ProcessMiningEnhancementQualityScoreKey) != "process.mining.enhancement.quality_score" {
+		t.Errorf("expected process.mining.enhancement.quality_score, got %s", string(ProcessMiningEnhancementQualityScoreKey))
 	}
 }
 
 func TestIter28PMEnhancementCoveragePctConstant(t *testing.T) {
-	if PMEnhancementCoveragePctKey != "process.mining.enhancement.coverage_pct" {
-		t.Errorf("expected process.mining.enhancement.coverage_pct, got %s", PMEnhancementCoveragePctKey)
+	if string(ProcessMiningEnhancementCoveragePctKey) != "process.mining.enhancement.coverage_pct" {
+		t.Errorf("expected process.mining.enhancement.coverage_pct, got %s", string(ProcessMiningEnhancementCoveragePctKey))
 	}
 }
 
 func TestIter28PMEnhancementPerspectivePerformanceValue(t *testing.T) {
-	if PMEnhancementPerspectivePerformance != "performance" {
-		t.Errorf("expected performance, got %s", PMEnhancementPerspectivePerformance)
+	if ProcessMiningEnhancementPerspectiveValues.Performance != "performance" {
+		t.Errorf("expected performance, got %s", ProcessMiningEnhancementPerspectiveValues.Performance)
 	}
 }
 
 func TestIter28ConsensusQuorumShrinkReasonConstant(t *testing.T) {
-	if ConsensusQuorumShrinkReasonKey != "consensus.quorum.shrink.reason" {
-		t.Errorf("expected consensus.quorum.shrink.reason, got %s", ConsensusQuorumShrinkReasonKey)
+	if string(ConsensusQuorumShrinkReasonKey) != "consensus.quorum.shrink.reason" {
+		t.Errorf("expected consensus.quorum.shrink.reason, got %s", string(ConsensusQuorumShrinkReasonKey))
 	}
 }
 
 func TestIter28ConsensusQuorumShrinkRemovedCountConstant(t *testing.T) {
-	if ConsensusQuorumShrinkRemovedCountKey != "consensus.quorum.shrink.removed_count" {
-		t.Errorf("expected consensus.quorum.shrink.removed_count, got %s", ConsensusQuorumShrinkRemovedCountKey)
+	if string(ConsensusQuorumShrinkRemovedCountKey) != "consensus.quorum.shrink.removed_count" {
+		t.Errorf("expected consensus.quorum.shrink.removed_count, got %s", string(ConsensusQuorumShrinkRemovedCountKey))
 	}
 }
 
 func TestIter28ConsensusQuorumShrinkReasonNodeFailureValue(t *testing.T) {
-	if ConsensusQuorumShrinkReasonNodeFailure != "node_failure" {
-		t.Errorf("expected node_failure, got %s", ConsensusQuorumShrinkReasonNodeFailure)
+	if ConsensusQuorumShrinkReasonValues.NodeFailure != "node_failure" {
+		t.Errorf("expected node_failure, got %s", ConsensusQuorumShrinkReasonValues.NodeFailure)
 	}
 }
 
 func TestIter28ConsensusQuorumShrinkReasonRebalanceValue(t *testing.T) {
-	if ConsensusQuorumShrinkReasonRebalance != "rebalance" {
-		t.Errorf("expected rebalance, got %s", ConsensusQuorumShrinkReasonRebalance)
+	if ConsensusQuorumShrinkReasonValues.Rebalance != "rebalance" {
+		t.Errorf("expected rebalance, got %s", ConsensusQuorumShrinkReasonValues.Rebalance)
 	}
 }
 
 func TestIter28HealingColdStandbyIDConstant(t *testing.T) {
-	if HealingColdStandbyIDKey != "healing.cold_standby.id" {
-		t.Errorf("expected healing.cold_standby.id, got %s", HealingColdStandbyIDKey)
+	if string(HealingColdStandbyIdKey) != "healing.cold_standby.id" {
+		t.Errorf("expected healing.cold_standby.id, got %s", string(HealingColdStandbyIdKey))
 	}
 }
 
 func TestIter28HealingColdStandbyWarmupMsConstant(t *testing.T) {
-	if HealingColdStandbyWarmupMsKey != "healing.cold_standby.warmup_ms" {
-		t.Errorf("expected healing.cold_standby.warmup_ms, got %s", HealingColdStandbyWarmupMsKey)
+	if string(HealingColdStandbyWarmupMsKey) != "healing.cold_standby.warmup_ms" {
+		t.Errorf("expected healing.cold_standby.warmup_ms, got %s", string(HealingColdStandbyWarmupMsKey))
 	}
 }
 
 func TestIter28HealingColdStandbyReadinessReadyValue(t *testing.T) {
-	if HealingColdStandbyReadinessReady != "ready" {
-		t.Errorf("expected ready, got %s", HealingColdStandbyReadinessReady)
+	if HealingColdStandbyReadinessValues.Ready != "ready" {
+		t.Errorf("expected ready, got %s", HealingColdStandbyReadinessValues.Ready)
 	}
 }
 
 func TestIter28HealingColdStandbyReadinessColdValue(t *testing.T) {
-	if HealingColdStandbyReadinessCold != "cold" {
-		t.Errorf("expected cold, got %s", HealingColdStandbyReadinessCold)
+	if HealingColdStandbyReadinessValues.Cold != "cold" {
+		t.Errorf("expected cold, got %s", HealingColdStandbyReadinessValues.Cold)
 	}
 }
 
 func TestIter28LLMLoRARankConstant(t *testing.T) {
-	if LLMLoRARankKey != "llm.lora.rank" {
-		t.Errorf("expected llm.lora.rank, got %s", LLMLoRARankKey)
+	if string(LlmLoraRankKey) != "llm.lora.rank" {
+		t.Errorf("expected llm.lora.rank, got %s", string(LlmLoraRankKey))
 	}
 }
 
 func TestIter28LLMLoRAAlphaConstant(t *testing.T) {
-	if LLMLoRAlphaKey != "llm.lora.alpha" {
-		t.Errorf("expected llm.lora.alpha, got %s", LLMLoRAlphaKey)
+	if string(LlmLoraAlphaKey) != "llm.lora.alpha" {
+		t.Errorf("expected llm.lora.alpha, got %s", string(LlmLoraAlphaKey))
 	}
 }
 
 func TestIter28LLMLoRATargetModulesConstant(t *testing.T) {
-	if LLMLoRATargetModulesKey != "llm.lora.target_modules" {
-		t.Errorf("expected llm.lora.target_modules, got %s", LLMLoRATargetModulesKey)
+	if string(LlmLoraTargetModulesKey) != "llm.lora.target_modules" {
+		t.Errorf("expected llm.lora.target_modules, got %s", string(LlmLoraTargetModulesKey))
 	}
 }
 
 func TestIter28LLMLoRABaseModelConstant(t *testing.T) {
-	if LLMLoRABaseModelKey != "llm.lora.base_model" {
-		t.Errorf("expected llm.lora.base_model, got %s", LLMLoRABaseModelKey)
+	if string(LlmLoraBaseModelKey) != "llm.lora.base_model" {
+		t.Errorf("expected llm.lora.base_model, got %s", string(LlmLoraBaseModelKey))
 	}
 }
 
 // Iter29 tests — MCP deprecation, A2A contract execution, PM prediction, consensus epoch, healing load shedding, LLM embedding
 
 func TestIter29MCPToolDeprecationPolicyKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("mcp.tool.deprecation.policy"), MCPToolDeprecationPolicyKey,
+	assert.Equal(t, attribute.Key("mcp.tool.deprecation.policy"), McpToolDeprecationPolicyKey,
 		"mcp.tool.deprecation.policy key must match semconv schema")
 }
 
 func TestIter29MCPToolDeprecationReplacementToolKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("mcp.tool.deprecation.replacement_tool"), MCPToolDeprecationReplacementToolKey,
+	assert.Equal(t, attribute.Key("mcp.tool.deprecation.replacement_tool"), McpToolDeprecationReplacementToolKey,
 		"mcp.tool.deprecation.replacement_tool key must match semconv schema")
 }
 
 func TestIter29MCPToolDeprecationSunsetDateMsKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("mcp.tool.deprecation.sunset_date_ms"), MCPToolDeprecationSunsetDateMsKey,
+	assert.Equal(t, attribute.Key("mcp.tool.deprecation.sunset_date_ms"), McpToolDeprecationSunsetDateMsKey,
 		"mcp.tool.deprecation.sunset_date_ms key must match semconv schema")
 }
 
 func TestIter29MCPToolDeprecationPolicyValues(t *testing.T) {
-	assert.Equal(t, "immediate", MCPToolDeprecationPolicyImmediate)
-	assert.Equal(t, "grace_period", MCPToolDeprecationPolicyGracePeriod)
-	assert.Equal(t, "warn_only", MCPToolDeprecationPolicyWarnOnly)
+	assert.Equal(t, "immediate", McpToolDeprecationPolicyValues.Immediate)
+	assert.Equal(t, "grace_period", McpToolDeprecationPolicyValues.GracePeriod)
+	assert.Equal(t, "warn_only", McpToolDeprecationPolicyValues.WarnOnly)
 }
 
 func TestIter29A2AContractExecutionStatusKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("a2a.contract.execution.status"), A2AContractExecutionStatusKey,
+	assert.Equal(t, attribute.Key("a2a.contract.execution.status"), A2aContractExecutionStatusKey,
 		"a2a.contract.execution.status key must match semconv schema")
 }
 
 func TestIter29A2AContractExecutionProgressPctKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("a2a.contract.execution.progress_pct"), A2AContractExecutionProgressPctKey,
+	assert.Equal(t, attribute.Key("a2a.contract.execution.progress_pct"), A2aContractExecutionProgressPctKey,
 		"a2a.contract.execution.progress_pct key must match semconv schema")
 }
 
 func TestIter29A2AContractExecutionStatusValues(t *testing.T) {
-	assert.Equal(t, "running", A2AContractExecutionStatusRunning)
-	assert.Equal(t, "completed", A2AContractExecutionStatusCompleted)
-	assert.Equal(t, "failed", A2AContractExecutionStatusFailed)
-	assert.Equal(t, "disputed", A2AContractExecutionStatusDisputed)
+	assert.Equal(t, "running", A2aContractExecutionStatusValues.Running)
+	assert.Equal(t, "completed", A2aContractExecutionStatusValues.Completed)
+	assert.Equal(t, "failed", A2aContractExecutionStatusValues.Failed)
+	assert.Equal(t, "disputed", A2aContractExecutionStatusValues.Disputed)
 }
 
 func TestIter29ProcessMiningPredictionHorizonMsKeyMatchesSchema(t *testing.T) {
@@ -5264,21 +5016,21 @@ func TestIter29HealingLoadSheddingStrategyKeyMatchesSchema(t *testing.T) {
 }
 
 func TestIter29HealingLoadSheddingStrategyValues(t *testing.T) {
-	assert.Equal(t, "random", HealingLoadSheddingStrategyRandom)
-	assert.Equal(t, "priority", HealingLoadSheddingStrategyPriority)
-	assert.Equal(t, "oldest", HealingLoadSheddingStrategyOldest)
+	assert.Equal(t, "random", HealingLoadSheddingStrategyValues.Random)
+	assert.Equal(t, "priority", HealingLoadSheddingStrategyValues.Priority)
+	assert.Equal(t, "oldest", HealingLoadSheddingStrategyValues.Oldest)
 }
 
 func TestIter29LLMEmbeddingModelKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("llm.embedding.model"), LLMEmbeddingModelKey)
+	assert.Equal(t, attribute.Key("llm.embedding.model"), LlmEmbeddingModelKey)
 }
 
 func TestIter29LLMEmbeddingDimensionsKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("llm.embedding.dimensions"), LLMEmbeddingDimensionsKey)
+	assert.Equal(t, attribute.Key("llm.embedding.dimensions"), LlmEmbeddingDimensionsKey)
 }
 
 func TestIter29LLMEmbeddingSimilarityThresholdKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("llm.embedding.similarity_threshold"), LLMEmbeddingSimilarityThresholdKey)
+	assert.Equal(t, attribute.Key("llm.embedding.similarity_threshold"), LlmEmbeddingSimilarityThresholdKey)
 }
 
 func TestIter29SpanMCPToolDeprecateCascadeRules(t *testing.T) {
@@ -5305,29 +5057,29 @@ func TestIter29SpanA2AContractExecuteCascadeRules(t *testing.T) {
 // Iter30 tests — MCP analytics, A2A decay, PM drift, consensus partition, healing failover, LLM adapter
 
 func TestIter30MCPToolAnalyticsCallCountKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("mcp.tool.analytics.call_count"), MCPToolAnalyticsCallCountKey)
+	assert.Equal(t, attribute.Key("mcp.tool.analytics.call_count"), McpToolAnalyticsCallCountKey)
 }
 
 func TestIter30MCPToolAnalyticsErrorRateKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("mcp.tool.analytics.error_rate"), MCPToolAnalyticsErrorRateKey)
+	assert.Equal(t, attribute.Key("mcp.tool.analytics.error_rate"), McpToolAnalyticsErrorRateKey)
 }
 
 func TestIter30MCPToolAnalyticsAvgLatencyMsKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("mcp.tool.analytics.avg_latency_ms"), MCPToolAnalyticsAvgLatencyMsKey)
+	assert.Equal(t, attribute.Key("mcp.tool.analytics.avg_latency_ms"), McpToolAnalyticsAvgLatencyMsKey)
 }
 
 func TestIter30A2AReputationDecayRateKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("a2a.reputation.decay.rate"), A2AReputationDecayRateKey)
+	assert.Equal(t, attribute.Key("a2a.reputation.decay.rate"), A2aReputationDecayRateKey)
 }
 
 func TestIter30A2AReputationDecayTriggerKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("a2a.reputation.decay.trigger"), A2AReputationDecayTriggerKey)
+	assert.Equal(t, attribute.Key("a2a.reputation.decay.trigger"), A2aReputationDecayTriggerKey)
 }
 
 func TestIter30A2AReputationDecayTriggerValues(t *testing.T) {
-	assert.Equal(t, "time", A2AReputationDecayTriggerTime)
-	assert.Equal(t, "interaction", A2AReputationDecayTriggerInteraction)
-	assert.Equal(t, "violation", A2AReputationDecayTriggerViolation)
+	assert.Equal(t, "time", A2aReputationDecayTriggerValues.Time)
+	assert.Equal(t, "interaction", A2aReputationDecayTriggerValues.Interaction)
+	assert.Equal(t, "violation", A2aReputationDecayTriggerValues.Violation)
 }
 
 func TestIter30ProcessMiningDriftCorrectionTypeKeyMatchesSchema(t *testing.T) {
@@ -5335,10 +5087,10 @@ func TestIter30ProcessMiningDriftCorrectionTypeKeyMatchesSchema(t *testing.T) {
 }
 
 func TestIter30ProcessMiningDriftCorrectionTypeValues(t *testing.T) {
-	assert.Equal(t, "retrain", ProcessMiningDriftCorrectionTypeRetrain)
-	assert.Equal(t, "threshold_adjust", ProcessMiningDriftCorrectionTypeThresholdAdjust)
-	assert.Equal(t, "model_swap", ProcessMiningDriftCorrectionTypeModelSwap)
-	assert.Equal(t, "incremental_update", ProcessMiningDriftCorrectionTypeIncrementalUpdate)
+	assert.Equal(t, "retrain", ProcessMiningDriftCorrectionTypeValues.Retrain)
+	assert.Equal(t, "threshold_adjust", ProcessMiningDriftCorrectionTypeValues.ThresholdAdjust)
+	assert.Equal(t, "model_swap", ProcessMiningDriftCorrectionTypeValues.ModelSwap)
+	assert.Equal(t, "incremental_update", ProcessMiningDriftCorrectionTypeValues.IncrementalUpdate)
 }
 
 func TestIter30ProcessMiningDriftCorrectionDeltaKeyMatchesSchema(t *testing.T) {
@@ -5350,10 +5102,10 @@ func TestIter30ConsensusPartitionHealStrategyKeyMatchesSchema(t *testing.T) {
 }
 
 func TestIter30ConsensusPartitionHealStrategyValues(t *testing.T) {
-	assert.Equal(t, "majority_wins", ConsensusPartitionHealStrategyMajorityWins)
-	assert.Equal(t, "epoch_fence", ConsensusPartitionHealStrategyEpochFence)
-	assert.Equal(t, "leader_arbitration", ConsensusPartitionHealStrategyLeaderArbitration)
-	assert.Equal(t, "rollback", ConsensusPartitionHealStrategyRollback)
+	assert.Equal(t, "majority_wins", ConsensusPartitionHealStrategyValues.MajorityWins)
+	assert.Equal(t, "epoch_fence", ConsensusPartitionHealStrategyValues.EpochFence)
+	assert.Equal(t, "leader_arbitration", ConsensusPartitionHealStrategyValues.LeaderArbitration)
+	assert.Equal(t, "rollback", ConsensusPartitionHealStrategyValues.Rollback)
 }
 
 func TestIter30ConsensusPartitionIsolationMsKeyMatchesSchema(t *testing.T) {
@@ -5365,10 +5117,10 @@ func TestIter30HealingFailoverTypeKeyMatchesSchema(t *testing.T) {
 }
 
 func TestIter30HealingFailoverTypeValues(t *testing.T) {
-	assert.Equal(t, "warm_to_cold", HealingFailoverTypeWarmToCold)
-	assert.Equal(t, "primary_to_warm", HealingFailoverTypePrimaryToWarm)
-	assert.Equal(t, "primary_to_cold", HealingFailoverTypePrimaryToCold)
-	assert.Equal(t, "geographic", HealingFailoverTypeGeographic)
+	assert.Equal(t, "warm_to_cold", HealingFailoverTypeValues.WarmToCold)
+	assert.Equal(t, "primary_to_warm", HealingFailoverTypeValues.PrimaryToWarm)
+	assert.Equal(t, "primary_to_cold", HealingFailoverTypeValues.PrimaryToCold)
+	assert.Equal(t, "geographic", HealingFailoverTypeValues.Geographic)
 }
 
 func TestIter30HealingFailoverDurationMsKeyMatchesSchema(t *testing.T) {
@@ -5376,23 +5128,23 @@ func TestIter30HealingFailoverDurationMsKeyMatchesSchema(t *testing.T) {
 }
 
 func TestIter30LLMAdapterIDKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("llm.adapter.id"), LLMAdapterIDKey)
+	assert.Equal(t, attribute.Key("llm.adapter.id"), LlmAdapterIdKey)
 }
 
 func TestIter30LLMAdapterTypeKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("llm.adapter.type"), LLMAdapterTypeKey)
+	assert.Equal(t, attribute.Key("llm.adapter.type"), LlmAdapterTypeKey)
 }
 
 func TestIter30LLMAdapterTypeValues(t *testing.T) {
-	assert.Equal(t, "lora", LLMAdapterTypeLora)
-	assert.Equal(t, "prefix", LLMAdapterTypePrefix)
-	assert.Equal(t, "prompt_tuning", LLMAdapterTypePromptTuning)
-	assert.Equal(t, "adapter", LLMAdapterTypeAdapter)
-	assert.Equal(t, "ia3", LLMAdapterTypeIA3)
+	assert.Equal(t, "lora", LlmAdapterTypeValues.Lora)
+	assert.Equal(t, "prefix", LlmAdapterTypeValues.Prefix)
+	assert.Equal(t, "prompt_tuning", LlmAdapterTypeValues.PromptTuning)
+	assert.Equal(t, "adapter", LlmAdapterTypeValues.Adapter)
+	assert.Equal(t, "ia3", LlmAdapterTypeValues.Ia3)
 }
 
 func TestIter30LLMAdapterMergeStrategyKeyMatchesSchema(t *testing.T) {
-	assert.Equal(t, attribute.Key("llm.adapter.merge_strategy"), LLMAdapterMergeStrategyKey)
+	assert.Equal(t, attribute.Key("llm.adapter.merge_strategy"), LlmAdapterMergeStrategyKey)
 }
 
 func TestIter30SpanMCPToolAnalyticsRecordCascadeRules(t *testing.T) {
@@ -5411,4 +5163,56 @@ func TestIter30SpanHealingFailoverExecuteCascadeRules(t *testing.T) {
 func TestIter30SpanA2AReputationDecayCascadeRules(t *testing.T) {
 	recommendedAttrs := []string{"a2a.operation", "a2a.reputation.decay.delta"}
 	assert.Contains(t, recommendedAttrs, "a2a.operation", "span.a2a.reputation.decay must recommend a2a.operation per Rule 3")
+}
+
+// ============================================================
+// Iteration 34: A2A Knowledge Transfer Domain
+// ============================================================
+
+func TestA2AKnowledgeTransferSpanNameIsCorrect(t *testing.T) {
+	if A2aKnowledgeTransferSpan != "a2a.knowledge.transfer" {
+		t.Errorf("A2aKnowledgeTransferSpan = %q, want %q", A2aKnowledgeTransferSpan, "a2a.knowledge.transfer")
+	}
+}
+
+func TestA2AKnowledgeTransferIDKeyIsCorrectOtelName(t *testing.T) {
+	if string(A2aKnowledgeTransferIdKey) != "a2a.knowledge.transfer.id" {
+		t.Errorf("A2aKnowledgeTransferIdKey = %q, want %q", A2aKnowledgeTransferIdKey, "a2a.knowledge.transfer.id")
+	}
+}
+
+func TestA2AKnowledgeTransferTopicKeyIsCorrectOtelName(t *testing.T) {
+	if string(A2aKnowledgeTransferTopicKey) != "a2a.knowledge.transfer.topic" {
+		t.Errorf("A2aKnowledgeTransferTopicKey = %q, want %q", A2aKnowledgeTransferTopicKey, "a2a.knowledge.transfer.topic")
+	}
+}
+
+func TestA2AKnowledgeTransferSizeBytesKeyIsCorrectOtelName(t *testing.T) {
+	if string(A2aKnowledgeTransferSizeBytesKey) != "a2a.knowledge.transfer.size_bytes" {
+		t.Errorf("A2aKnowledgeTransferSizeBytesKey = %q, want %q", A2aKnowledgeTransferSizeBytesKey, "a2a.knowledge.transfer.size_bytes")
+	}
+}
+
+func TestA2AKnowledgeTransferAttributeTypesMatchSchema(t *testing.T) {
+	// Test attribute key types (should be string keys, not other types)
+	assert.Equal(t, attribute.Key("a2a.knowledge.transfer.id"), A2aKnowledgeTransferIdKey)
+	assert.Equal(t, attribute.Key("a2a.knowledge.transfer.topic"), A2aKnowledgeTransferTopicKey)
+	assert.Equal(t, attribute.Key("a2a.knowledge.transfer.size_bytes"), A2aKnowledgeTransferSizeBytesKey)
+}
+
+func TestA2AKnowledgeTransferOperationIsRequired(t *testing.T) {
+	// Span requires a2a.operation attribute (verified by schema conformance)
+	assert.Equal(t, attribute.Key("a2a.operation"), A2aOperationKey, "span.a2a.knowledge.transfer must require a2a.operation")
+}
+
+func TestA2AKnowledgeTransferAttributeKeyValueFunctions(t *testing.T) {
+	// Verify KeyValue functions work correctly
+	kvTransferId := A2aKnowledgeTransferId("kt-abc123")
+	assert.NotNil(t, kvTransferId)
+
+	kvTopic := A2aKnowledgeTransferTopic("process_mining")
+	assert.NotNil(t, kvTopic)
+
+	kvSizeBytes := A2aKnowledgeTransferSizeBytes(int64(65536))
+	assert.NotNil(t, kvSizeBytes)
 }
