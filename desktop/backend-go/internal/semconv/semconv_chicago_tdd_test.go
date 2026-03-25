@@ -5048,3 +5048,144 @@ func TestIter27BatchCompletionRateConstant(t *testing.T) {
 func TestIter27BatchPriorityHighValue(t *testing.T) {
 	assert.Equal(t, "high", BatchPriorityValues.High)
 }
+
+// iter28 — MCP tool composition, A2A reputation, PM enhancement quality,
+// consensus quorum shrink, healing cold standby, LLM LoRA
+
+func TestIter28MCPToolCompositionStrategyConstant(t *testing.T) {
+	if MCPToolCompositionStrategyKey != "mcp.tool.composition.strategy" {
+		t.Errorf("expected mcp.tool.composition.strategy, got %s", MCPToolCompositionStrategyKey)
+	}
+}
+
+func TestIter28MCPToolCompositionStepCountConstant(t *testing.T) {
+	if MCPToolCompositionStepCountKey != "mcp.tool.composition.step_count" {
+		t.Errorf("expected mcp.tool.composition.step_count, got %s", MCPToolCompositionStepCountKey)
+	}
+}
+
+func TestIter28MCPToolCompositionStrategySequentialValue(t *testing.T) {
+	if MCPToolCompositionStrategySequential != "sequential" {
+		t.Errorf("expected sequential, got %s", MCPToolCompositionStrategySequential)
+	}
+}
+
+func TestIter28MCPToolCompositionStrategyParallelValue(t *testing.T) {
+	if MCPToolCompositionStrategyParallel != "parallel" {
+		t.Errorf("expected parallel, got %s", MCPToolCompositionStrategyParallel)
+	}
+}
+
+func TestIter28A2AReputationScoreConstant(t *testing.T) {
+	if A2AReputationScoreKey != "a2a.reputation.score" {
+		t.Errorf("expected a2a.reputation.score, got %s", A2AReputationScoreKey)
+	}
+}
+
+func TestIter28A2AReputationInteractionCountConstant(t *testing.T) {
+	if A2AReputationInteractionCountKey != "a2a.reputation.interaction_count" {
+		t.Errorf("expected a2a.reputation.interaction_count, got %s", A2AReputationInteractionCountKey)
+	}
+}
+
+func TestIter28A2AReputationCategoryTrustedValue(t *testing.T) {
+	if A2AReputationCategoryTrusted != "trusted" {
+		t.Errorf("expected trusted, got %s", A2AReputationCategoryTrusted)
+	}
+}
+
+func TestIter28A2AReputationCategoryBannedValue(t *testing.T) {
+	if A2AReputationCategoryBanned != "banned" {
+		t.Errorf("expected banned, got %s", A2AReputationCategoryBanned)
+	}
+}
+
+func TestIter28PMEnhancementQualityScoreConstant(t *testing.T) {
+	if PMEnhancementQualityScoreKey != "process.mining.enhancement.quality_score" {
+		t.Errorf("expected process.mining.enhancement.quality_score, got %s", PMEnhancementQualityScoreKey)
+	}
+}
+
+func TestIter28PMEnhancementCoveragePctConstant(t *testing.T) {
+	if PMEnhancementCoveragePctKey != "process.mining.enhancement.coverage_pct" {
+		t.Errorf("expected process.mining.enhancement.coverage_pct, got %s", PMEnhancementCoveragePctKey)
+	}
+}
+
+func TestIter28PMEnhancementPerspectivePerformanceValue(t *testing.T) {
+	if PMEnhancementPerspectivePerformance != "performance" {
+		t.Errorf("expected performance, got %s", PMEnhancementPerspectivePerformance)
+	}
+}
+
+func TestIter28ConsensusQuorumShrinkReasonConstant(t *testing.T) {
+	if ConsensusQuorumShrinkReasonKey != "consensus.quorum.shrink.reason" {
+		t.Errorf("expected consensus.quorum.shrink.reason, got %s", ConsensusQuorumShrinkReasonKey)
+	}
+}
+
+func TestIter28ConsensusQuorumShrinkRemovedCountConstant(t *testing.T) {
+	if ConsensusQuorumShrinkRemovedCountKey != "consensus.quorum.shrink.removed_count" {
+		t.Errorf("expected consensus.quorum.shrink.removed_count, got %s", ConsensusQuorumShrinkRemovedCountKey)
+	}
+}
+
+func TestIter28ConsensusQuorumShrinkReasonNodeFailureValue(t *testing.T) {
+	if ConsensusQuorumShrinkReasonNodeFailure != "node_failure" {
+		t.Errorf("expected node_failure, got %s", ConsensusQuorumShrinkReasonNodeFailure)
+	}
+}
+
+func TestIter28ConsensusQuorumShrinkReasonRebalanceValue(t *testing.T) {
+	if ConsensusQuorumShrinkReasonRebalance != "rebalance" {
+		t.Errorf("expected rebalance, got %s", ConsensusQuorumShrinkReasonRebalance)
+	}
+}
+
+func TestIter28HealingColdStandbyIDConstant(t *testing.T) {
+	if HealingColdStandbyIDKey != "healing.cold_standby.id" {
+		t.Errorf("expected healing.cold_standby.id, got %s", HealingColdStandbyIDKey)
+	}
+}
+
+func TestIter28HealingColdStandbyWarmupMsConstant(t *testing.T) {
+	if HealingColdStandbyWarmupMsKey != "healing.cold_standby.warmup_ms" {
+		t.Errorf("expected healing.cold_standby.warmup_ms, got %s", HealingColdStandbyWarmupMsKey)
+	}
+}
+
+func TestIter28HealingColdStandbyReadinessReadyValue(t *testing.T) {
+	if HealingColdStandbyReadinessReady != "ready" {
+		t.Errorf("expected ready, got %s", HealingColdStandbyReadinessReady)
+	}
+}
+
+func TestIter28HealingColdStandbyReadinessColdValue(t *testing.T) {
+	if HealingColdStandbyReadinessCold != "cold" {
+		t.Errorf("expected cold, got %s", HealingColdStandbyReadinessCold)
+	}
+}
+
+func TestIter28LLMLoRARankConstant(t *testing.T) {
+	if LLMLoRARankKey != "llm.lora.rank" {
+		t.Errorf("expected llm.lora.rank, got %s", LLMLoRARankKey)
+	}
+}
+
+func TestIter28LLMLoRAAlphaConstant(t *testing.T) {
+	if LLMLoRAlphaKey != "llm.lora.alpha" {
+		t.Errorf("expected llm.lora.alpha, got %s", LLMLoRAlphaKey)
+	}
+}
+
+func TestIter28LLMLoRATargetModulesConstant(t *testing.T) {
+	if LLMLoRATargetModulesKey != "llm.lora.target_modules" {
+		t.Errorf("expected llm.lora.target_modules, got %s", LLMLoRATargetModulesKey)
+	}
+}
+
+func TestIter28LLMLoRABaseModelConstant(t *testing.T) {
+	if LLMLoRABaseModelKey != "llm.lora.base_model" {
+		t.Errorf("expected llm.lora.base_model, got %s", LLMLoRABaseModelKey)
+	}
+}
