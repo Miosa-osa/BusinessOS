@@ -27,6 +27,7 @@ import (
 	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	"github.com/rhl/businessos-backend/internal/observability"
+	"github.com/rhl/businessos-backend/internal/ontology"
 	redisClient "github.com/rhl/businessos-backend/internal/redis"
 	"github.com/rhl/businessos-backend/internal/security"
 	"github.com/rhl/businessos-backend/internal/services"
@@ -81,6 +82,9 @@ type AppServices struct {
 	sorxScheduler     *sorx.Scheduler
 	proactiveConsumer *carrier.ProactiveConsumer
 	carrierClient     *carrier.Client
+
+	// Board Chair Intelligence: L0 sync (BusinessOS → Oxigraph)
+	l0Sync *ontology.BoardchairL0Sync
 }
 
 // bootstrap initializes every service, constructs the router, and returns the
@@ -561,6 +565,24 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 	if app.sqlDB != nil {
 		blockMapper = services.NewBlockMapperService(app.sqlDB, slog.Default())
 		slog.Info("Block mapper initialized (markdown to structured blocks)")
+	}
+
+	// ===== BOARD CHAIR L0 SYNC =====
+	// Continuously mirrors BusinessOS case + handoff data into Oxigraph as L0 RDF facts.
+	// OSA MaterializationScheduler depends on this data for L1/L2/L3 CONSTRUCT levels.
+	// Armstrong: goroutine supervised by context cancellation; crashes are visible in logs.
+	// WvdA: bounded query (LIMIT 10000), 30s HTTP timeout, 15min refresh interval.
+	if app.sqlDB != nil {
+		oxigraphURL := os.Getenv("OXIGRAPH_URL")
+		if oxigraphURL == "" {
+			oxigraphURL = "http://localhost:7878"
+		}
+		l0Sync := ontology.NewBoardchairL0Sync(app.sqlDB, oxigraphURL)
+		app.l0Sync = l0Sync
+		go l0Sync.Start(ctx)
+		slog.Info("board.l0_sync started", "oxigraph_url", oxigraphURL)
+	} else {
+		slog.Info("board.l0_sync disabled (no sql.DB available)")
 	}
 
 	// ===== OSA INTEGRATION =====

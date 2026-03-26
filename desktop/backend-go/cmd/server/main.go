@@ -126,6 +126,11 @@ func gracefulShutdown(app *AppServices) {
 		}
 	}
 
+	if app.l0Sync != nil {
+		slog.Info("server: stopping board L0 sync")
+		app.l0Sync.Stop()
+	}
+
 	if app.osaQueueWorker != nil {
 		slog.Info("server: stopping OSA queue worker")
 		app.osaQueueWorker.Stop()

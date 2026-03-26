@@ -114,6 +114,8 @@ CONSTRUCT {
     bos:derivationLevel "L3" .
 
 }
+FROM <http://businessos.local/l2>
+FROM <http://businessos.local/l1>
 WHERE {
 
   # ── Aggregate all L2 OrgHealthIndicator nodes ─────────────────────────────

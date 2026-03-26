@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package handlers
 
 import (
@@ -7,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/seanchatmangpt/businessos/desktop/backend-go/internal/ontology"
-	"github.com/seanchatmangpt/businessos/desktop/backend-go/internal/services"
+	"github.com/rhl/businessos-backend/internal/ontology"
+	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -160,7 +163,7 @@ func TestOntologyAgentQuery(t *testing.T) {
 							"value": "3",
 						},
 					},
-				],
+				},
 			},
 		},
 		QueryError: nil,

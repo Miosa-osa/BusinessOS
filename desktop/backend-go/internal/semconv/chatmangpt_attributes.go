@@ -19,6 +19,10 @@ const (
 	// ChatmangptDeploymentKey is the OTel attribute key for chatmangpt.deployment.
 	// Deployment environment for this ChatmanGPT instance.
 	ChatmangptDeploymentKey = attribute.Key("chatmangpt.deployment")
+	// ChatmangptRunCorrelationIdKey is the OTel attribute key for chatmangpt.run.correlation_id.
+	// Shared identifier for a single Weaver live-check or CI run so spans across projects (OSA, Canopy, BusinessOS, pm4py-rust) can be filtered as one audit story.
+
+	ChatmangptRunCorrelationIdKey = attribute.Key("chatmangpt.run.correlation_id")
 	// ChatmangptServiceTierKey is the OTel attribute key for chatmangpt.service.tier.
 	// Priority tier of the operation, used for budget enforcement.
 	ChatmangptServiceTierKey = attribute.Key("chatmangpt.service.tier")
@@ -71,6 +75,11 @@ var ChatmangptDeploymentValues = struct {
 	Development: "development",
 	Staging: "staging",
 	Production: "production",
+}
+
+// ChatmangptRunCorrelationId returns an attribute KeyValue for chatmangpt.run.correlation_id.
+func ChatmangptRunCorrelationId(val string) attribute.KeyValue {
+	return ChatmangptRunCorrelationIdKey.String(val)
 }
 
 // ChatmangptServiceTier returns an attribute KeyValue for chatmangpt.service.tier.

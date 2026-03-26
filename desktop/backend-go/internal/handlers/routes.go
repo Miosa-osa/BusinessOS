@@ -43,6 +43,7 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	h.registerTransactionRoutes(api, auth)
 	h.registerMeshRoutes(api, auth)
 	h.registerBOSProgressRoutes(api, jwtAuth)
+	h.registerBoardRoutes(api)
 }
 
 // registerOntologyRoutes wires /api/ontology routes via bos CLI bridge.
@@ -66,6 +67,13 @@ func (h *Handlers) registerTransactionRoutes(api *gin.RouterGroup, auth gin.Hand
 func (h *Handlers) registerMeshRoutes(api *gin.RouterGroup, auth gin.HandlerFunc) {
 	meshHandler := NewDataMeshHandler("http://localhost:3030", nil)
 	RegisterDataMeshRoutes(api, meshHandler, auth)
+}
+
+// registerBoardRoutes wires /api/board routes for Board Chair Intelligence.
+// Unauthenticated by design at the handler level — callers may add middleware via the api group.
+func (h *Handlers) registerBoardRoutes(api *gin.RouterGroup) {
+	boardHandler := NewBoardHandler()
+	RegisterBoardRoutes(api, boardHandler)
 }
 
 // registerBOSProgressRoutes wires /api/bos/progress route for external progress event reception

@@ -99,6 +99,7 @@ CONSTRUCT {
     bos:derivationLevel "L2" .
 
 }
+FROM <http://businessos.local/l1>
 WHERE {
 
   # ── Read L1 ProcessMetric nodes (bounded to 10000) ────────────────────────

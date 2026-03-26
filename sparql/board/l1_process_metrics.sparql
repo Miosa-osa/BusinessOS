@@ -93,6 +93,7 @@ CONSTRUCT {
   ?department prov:wasUsedBy ?activity .
 
 }
+FROM <http://businessos.local/l0>
 WHERE {
 
   # ── Scan L0 department facts (bounded to 10000) ───────────────────────────
