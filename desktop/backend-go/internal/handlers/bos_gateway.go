@@ -57,6 +57,10 @@ func NewBOSGatewayHandler(pool *pgxpool.Pool, logger *slog.Logger) *BOSGatewayHa
 			LatencyValues: make([]uint64, 0),
 		},
 		pm4pyURL: pm4pyURL,
+		// ## Backpressure: HTTP Client Timeout
+		// 10-second timeout prevents unbounded hangs to pm4py-rust.
+		// If pm4py-rust stalls (discovery timeout), connection drops after 10s.
+		// Client should implement retry-with-backoff in caller (not here).
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -246,6 +250,10 @@ func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 		LatencyMs:   uint64(time.Since(startTime).Milliseconds()),
 	}
 
+	// ## Durability via Write-Ahead Logging (WAL)
+	// Persist result to PostgreSQL BEFORE sending response to client.
+	// If connection drops mid-flight or Gin crashes, result recoverable from DB.
+	// Non-fatal failure: continue even if WAL write fails (client gets response).
 	// WvdA soundness: write-ahead log before returning response.
 	// If the client connection drops after pm4py-rust succeeds, the result
 	// is recoverable from the WAL. Cleanup happens after successful response.
@@ -262,6 +270,9 @@ func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 		"latency_ms", response.LatencyMs,
 	)
 
+	// ## Asynchronous Cleanup
+	// Schedule WAL cleanup after response is sent (5s delay allows client to confirm receipt).
+	// Non-blocking cleanup: if deletion fails, it's non-critical (duplicate results acceptable).
 	// Schedule WAL cleanup after response is sent
 	go func() {
 		time.Sleep(5 * time.Second)
