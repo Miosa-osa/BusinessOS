@@ -1,0 +1,681 @@
+# ============================================================================
+# FIBO INTEGRATION ONTOLOGY FOR BUSINESSOS FINANCIAL DEALS
+# ============================================================================
+# Financial Industry Business Ontology (FIBO) mapping for deal/contract
+# domain modeling in BusinessOS. Maps CRM deals → FIBO financial concepts.
+#
+# Version: 1.0.0
+# Date: 2026-03-25
+# ============================================================================
+
+@prefix : <https://ontology.businessos.dev/fibo-deals/> .
+@prefix bos: <https://ontology.businessos.dev/> .
+@prefix fibo-fnd: <https://spec.edmcouncil.org/fibo/ontology/FND/> .
+@prefix fibo-fbc: <https://spec.edmcouncil.org/fibo/ontology/FBC/> .
+@prefix fibo-fei: <https://spec.edmcouncil.org/fibo/ontology/FEI/> .
+@prefix fibo-be: <https://spec.edmcouncil.org/fibo/ontology/BE/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix schema: <http://schema.org/> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix time: <http://www.w3.org/2006/time#> .
+
+# ============================================================================
+# ONTOLOGY METADATA
+# ============================================================================
+
+<https://ontology.businessos.dev/fibo-deals> a owl:Ontology ;
+  rdfs:label "BusinessOS FIBO Deal Integration Ontology"@en ;
+  rdfs:comment "Maps BusinessOS CRM deals, contracts, and counterparties to Financial Industry Business Ontology (FIBO) concepts, enabling proper financial semantic modeling of agreements, pricing, parties, and compliance."@en ;
+  owl:versionInfo "1.0.0" ;
+  owl:versionIRI <https://ontology.businessos.dev/fibo-deals/1.0.0> ;
+  dc:date "2026-03-25"^^xsd:date ;
+  dc:creator "BusinessOS Engineering Team" ;
+  dc:issued "2026-03-25"^^xsd:date ;
+  dc:conformsTo "FIBO FND, FIBO FBC, FIBO FEI, FIBO BE (2024-Q1)" ;
+  dcat:landingPage <https://businessos.dev/docs/diataxis/explanation/fibo-deal-integration.md> ;
+  owl:imports
+    <https://spec.edmcouncil.org/fibo/ontology/FND/Arrangements/Arrangements/> ,
+    <https://spec.edmcouncil.org/fibo/ontology/FND/Agreements/Agreements/> ,
+    <https://spec.edmcouncil.org/fibo/ontology/FBC/FinancialInstruments/FinancialInstruments/> ,
+    <https://spec.edmcouncil.org/fibo/ontology/FEI/Contracts/Contracts/> ,
+    <https://spec.edmcouncil.org/fibo/ontology/BE/LegalEntities/LegalEntities/> .
+
+
+# ============================================================================
+# 1. BUSINESS ENTITY MAPPING (fibo-be)
+# ============================================================================
+# Maps BusinessOS Party concept to FIBO legal persons, organizations,
+# and counterparties.
+
+:BusinessOSParty a owl:Class ;
+  rdfs:label "BusinessOS Party"@en ;
+  rdfs:comment "A participant in a BusinessOS deal (buyer, seller, broker, guarantor)."@en ;
+  rdfs:subClassOf fibo-be:LegalPerson ;
+  owl:equivalentClass fibo-be:Party ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:Counterparty a owl:Class ;
+  rdfs:label "Counterparty"@en ;
+  rdfs:comment "Another party to an agreement or deal in BusinessOS. Distinguished from internal party by external_flag."@en ;
+  rdfs:subClassOf :BusinessOSParty ;
+  rdfs:subClassOf fibo-be:ThirdParty ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:InternalParty a owl:Class ;
+  rdfs:label "Internal Party"@en ;
+  rdfs:comment "Participant within the BusinessOS organization (e.g., deal owner, account executive, underwriter)."@en ;
+  rdfs:subClassOf :BusinessOSParty ;
+  rdfs:subClassOf fibo-be:InternalParty ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+# Party identity and role properties
+:partyIdentifier a owl:DatatypeProperty ;
+  rdfs:label "Party Identifier"@en ;
+  rdfs:comment "Unique identifier for the party (UUID in BusinessOS)."@en ;
+  rdfs:domain :BusinessOSParty ;
+  rdfs:range xsd:string ;
+  owl:equivalentProperty schema:identifier ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:legalName a owl:DatatypeProperty ;
+  rdfs:label "Legal Name"@en ;
+  rdfs:comment "Full registered legal name of the party."@en ;
+  rdfs:domain :BusinessOSParty ;
+  rdfs:range xsd:string ;
+  owl:equivalentProperty fibo-be:hasLegalName ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:businessRegistrationNumber a owl:DatatypeProperty ;
+  rdfs:label "Business Registration Number"@en ;
+  rdfs:comment "Government-assigned registration number (DBA, Tax ID, Company Number)."@en ;
+  rdfs:domain :BusinessOSParty ;
+  rdfs:range xsd:string ;
+  owl:equivalentProperty fibo-be:hasRegistrationIdentifier ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:operatingJurisdiction a owl:ObjectProperty ;
+  rdfs:label "Operating Jurisdiction"@en ;
+  rdfs:comment "Primary jurisdiction where party operates (ISO 3166-1 alpha-2 code)."@en ;
+  rdfs:domain :BusinessOSParty ;
+  rdfs:range xsd:string ;
+  owl:equivalentProperty fibo-be:isJurisdictionalEntity ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:partyRole a owl:ObjectProperty ;
+  rdfs:label "Party Role"@en ;
+  rdfs:comment "Role of party in deal lifecycle (buyer, seller, broker, guarantor, underwriter, custodian)."@en ;
+  rdfs:domain :BusinessOSParty ;
+  rdfs:range :DealRole ;
+  owl:equivalentProperty fibo-be:playsRole ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:DealRole a owl:Class ;
+  rdfs:label "Deal Role"@en ;
+  rdfs:comment "Classification of roles a party can play in deal execution."@en ;
+  rdfs:subClassOf fibo-be:Role ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:BuyerRole a owl:Class ;
+  rdfs:label "Buyer Role"@en ;
+  rdfs:comment "Party purchasing goods, services, or financial instruments."@en ;
+  rdfs:subClassOf :DealRole ;
+  skos:exactMatch <http://purl.org/ontology/goodrelations/v1#BusinessFunction/Buy> ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:SellerRole a owl:Class ;
+  rdfs:label "Seller Role"@en ;
+  rdfs:comment "Party providing goods, services, or financial instruments."@en ;
+  rdfs:subClassOf :DealRole ;
+  skos:exactMatch <http://purl.org/ontology/goodrelations/v1#BusinessFunction/Sell> ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:BrokerRole a owl:Class ;
+  rdfs:label "Broker Role"@en ;
+  rdfs:comment "Intermediary facilitating deal between parties."@en ;
+  rdfs:subClassOf :DealRole ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:GuarantorRole a owl:Class ;
+  rdfs:label "Guarantor Role"@en ;
+  rdfs:comment "Party guaranteeing performance of primary obligor."@en ;
+  rdfs:subClassOf :DealRole ;
+  rdfs:subClassOf fibo-fei:Guarantor ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:UnderwriterRole a owl:Class ;
+  rdfs:label "Underwriter Role"@en ;
+  rdfs:comment "Party assuming risk in financial transaction."@en ;
+  rdfs:subClassOf :DealRole ;
+  rdfs:subClassOf fibo-fei:Underwriter ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+
+# ============================================================================
+# 2. DEAL MAPPING (fibo-fnd Agreement + fibo-fbc FinancialInstrument)
+# ============================================================================
+# Maps BusinessOS Deal to FIBO Agreement and FinancialInstrument concepts.
+
+:Deal a owl:Class ;
+  rdfs:label "Financial Deal"@en ;
+  rdfs:comment "A business transaction representing a proposed or executed financial arrangement between parties."@en ;
+  rdfs:subClassOf fibo-fnd:Agreement ;
+  rdfs:subClassOf fibo-fbc:FinancialInstrument ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:dealIdentifier a owl:DatatypeProperty ;
+  rdfs:label "Deal Identifier"@en ;
+  rdfs:comment "Unique system identifier for the deal (UUID)."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range xsd:string ;
+  owl:equivalentProperty fibo-fnd:hasIdentifier ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:dealName a owl:DatatypeProperty ;
+  rdfs:label "Deal Name"@en ;
+  rdfs:comment "Human-readable name or title of the deal."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range xsd:string ;
+  owl:equivalentProperty fibo-fnd:hasName ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:dealDescription a owl:DatatypeProperty ;
+  rdfs:label "Deal Description"@en ;
+  rdfs:comment "Detailed description of deal purpose, scope, and key terms."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range xsd:string ;
+  owl:equivalentProperty schema:description ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:dealStatus a owl:ObjectProperty ;
+  rdfs:label "Deal Status"@en ;
+  rdfs:comment "Current status in deal lifecycle (pipeline, negotiation, signed, closed-won, closed-lost)."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range :DealStatus ;
+  owl:equivalentProperty fibo-fnd:hasStatus ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:DealStatus a owl:Class ;
+  rdfs:label "Deal Status"@en ;
+  rdfs:comment "Enumeration of deal lifecycle states."@en ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:DealPipeline a owl:Class ;
+  rdfs:label "Deal Pipeline"@en ;
+  rdfs:comment "Deal in pipeline stage (proposed, not yet negotiated)."@en ;
+  rdfs:subClassOf :DealStatus ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:DealNegotiation a owl:Class ;
+  rdfs:label "Deal Negotiation"@en ;
+  rdfs:comment "Deal in active negotiation stage."@en ;
+  rdfs:subClassOf :DealStatus ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:DealSigned a owl:Class ;
+  rdfs:label "Deal Signed"@en ;
+  rdfs:comment "Deal agreement signed by authorized representatives."@en ;
+  rdfs:subClassOf :DealStatus ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:DealClosedWon a owl:Class ;
+  rdfs:label "Deal Closed Won"@en ;
+  rdfs:comment "Deal successfully closed and executed."@en ;
+  rdfs:subClassOf :DealStatus ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:DealClosedLost a owl:Class ;
+  rdfs:label "Deal Closed Lost"@en ;
+  rdfs:comment "Deal terminated or lost to competitor."@en ;
+  rdfs:subClassOf :DealStatus ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:hasPrimaryBuyer a owl:ObjectProperty ;
+  rdfs:label "Has Primary Buyer"@en ;
+  rdfs:comment "Party assuming buyer/purchaser role in deal."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range :BusinessOSParty ;
+  owl:equivalentProperty fibo-fnd:hasParty ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:hasPrimarySeller a owl:ObjectProperty ;
+  rdfs:label "Has Primary Seller"@en ;
+  rdfs:comment "Party assuming seller/provider role in deal."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range :BusinessOSParty ;
+  owl:equivalentProperty fibo-fnd:hasParty ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:hasCounterparty a owl:ObjectProperty ;
+  rdfs:label "Has Counterparty"@en ;
+  rdfs:comment "Any external party to the deal agreement."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range :Counterparty ;
+  owl:equivalentProperty fibo-fnd:hasParty ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:dealAmount a owl:ObjectProperty ;
+  rdfs:label "Deal Amount"@en ;
+  rdfs:comment "Principal amount or value of the deal."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range :MonetaryAmount ;
+  owl:equivalentProperty fibo-fnd:hasMonetaryAmount ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:dealCurrency a owl:DatatypeProperty ;
+  rdfs:label "Deal Currency"@en ;
+  rdfs:comment "ISO 4217 currency code of deal (USD, EUR, GBP, etc.)."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range xsd:string ;
+  owl:equivalentProperty fibo-fnd:hasCurrency ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:expectedCloseDate a owl:DatatypeProperty ;
+  rdfs:label "Expected Close Date"@en ;
+  rdfs:comment "Anticipated date for deal closure or execution."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range xsd:dateTime ;
+  owl:equivalentProperty fibo-fnd:hasTerminationDate ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:actualCloseDate a owl:DatatypeProperty ;
+  rdfs:label "Actual Close Date"@en ;
+  rdfs:comment "Actual date deal was closed or executed."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range xsd:dateTime ;
+  owl:equivalentProperty fibo-fnd:hasExecutionDate ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:dealProbability a owl:DatatypeProperty ;
+  rdfs:label "Deal Probability"@en ;
+  rdfs:comment "Sales probability or confidence level (0-100 percent)."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range xsd:integer ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+
+# ============================================================================
+# 3. CONTRACT TERMS (fibo-fnd ContractualDefinition + fibo-fei ContractualTerms)
+# ============================================================================
+# Maps BusinessOS contract terms to FIBO contractual definitions.
+
+:Contract a owl:Class ;
+  rdfs:label "Deal Contract"@en ;
+  rdfs:comment "Formal agreement documenting legal terms, conditions, and obligations of the deal."@en ;
+  rdfs:subClassOf fibo-fnd:Agreement ;
+  rdfs:subClassOf fibo-fei:ContractualElement ;
+  owl:equivalentClass fibo-fei:Contract ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:ContractualTerm a owl:Class ;
+  rdfs:label "Contractual Term"@en ;
+  rdfs:comment "Individual provision, clause, or condition in a contract."@en ;
+  rdfs:subClassOf fibo-fnd:ContractualDefinition ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:PricingTerm a owl:Class ;
+  rdfs:label "Pricing Term"@en ;
+  rdfs:comment "Contract provision specifying payment amount, schedule, and conditions."@en ;
+  rdfs:subClassOf :ContractualTerm ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:PaymentTerm a owl:Class ;
+  rdfs:label "Payment Term"@en ;
+  rdfs:comment "Specification of when and how payment is due (Net 30, Net 60, upon delivery, etc.)."@en ;
+  rdfs:subClassOf :ContractualTerm ;
+  rdfs:subClassOf fibo-fnd:PaymentObligation ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:TerminationTerm a owl:Class ;
+  rdfs:label "Termination Term"@en ;
+  rdfs:comment "Conditions and procedures for contract termination, exit, or dissolution."@en ;
+  rdfs:subClassOf :ContractualTerm ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:LiabilityTerm a owl:Class ;
+  rdfs:label "Liability Term"@en ;
+  rdfs:comment "Limitation of liability, indemnification, and risk allocation."@en ;
+  rdfs:subClassOf :ContractualTerm ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:ConfidentialityTerm a owl:Class ;
+  rdfs:label "Confidentiality Term"@en ;
+  rdfs:comment "Provisions protecting confidential information shared in deal."@en ;
+  rdfs:subClassOf :ContractualTerm ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:ComplianceTerm a owl:Class ;
+  rdfs:label "Compliance Term"@en ;
+  rdfs:comment "Regulatory and compliance requirements applicable to deal execution."@en ;
+  rdfs:subClassOf :ContractualTerm ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:hasContractualTerm a owl:ObjectProperty ;
+  rdfs:label "Has Contractual Term"@en ;
+  rdfs:comment "Contract includes or defines this term."@en ;
+  rdfs:domain :Contract ;
+  rdfs:range :ContractualTerm ;
+  owl:equivalentProperty fibo-fnd:hasContractualElement ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:termDescription a owl:DatatypeProperty ;
+  rdfs:label "Term Description"@en ;
+  rdfs:comment "Plain-language description of the term."@en ;
+  rdfs:domain :ContractualTerm ;
+  rdfs:range xsd:string ;
+  owl:equivalentProperty schema:text ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:termCondition a owl:DatatypeProperty ;
+  rdfs:label "Term Condition"@en ;
+  rdfs:comment "Logical condition that triggers term applicability."@en ;
+  rdfs:domain :ContractualTerm ;
+  rdfs:range xsd:string ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+
+# ============================================================================
+# 4. MONETARY AMOUNT (fibo-fnd MonetaryAmount)
+# ============================================================================
+# Models financial amounts with currency and precision.
+
+:MonetaryAmount a owl:Class ;
+  rdfs:label "Monetary Amount"@en ;
+  rdfs:comment "Quantified value in specific currency with precision and scale."@en ;
+  owl:equivalentClass fibo-fnd:MonetaryAmount ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:currency a owl:DatatypeProperty ;
+  rdfs:label "Currency"@en ;
+  rdfs:comment "ISO 4217 currency code (USD, EUR, GBP, JPY, etc.)."@en ;
+  rdfs:domain :MonetaryAmount ;
+  rdfs:range xsd:string ;
+  owl:equivalentProperty fibo-fnd:hasCurrency ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:amount a owl:DatatypeProperty ;
+  rdfs:label "Amount"@en ;
+  rdfs:comment "Numeric value with full precision."@en ;
+  rdfs:domain :MonetaryAmount ;
+  rdfs:range xsd:decimal ;
+  owl:equivalentProperty fibo-fnd:hasAmount ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+
+# ============================================================================
+# 5. KNOW YOUR CUSTOMER (KYC) & AML
+# ============================================================================
+# Compliance verification and party validation.
+
+:KYCStatus a owl:Class ;
+  rdfs:label "KYC Status"@en ;
+  rdfs:comment "Know-Your-Customer verification status (pending, verified, rejected, expired)."@en ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:KYCPending a owl:Class ;
+  rdfs:label "KYC Pending"@en ;
+  rdfs:comment "KYC verification not yet completed."@en ;
+  rdfs:subClassOf :KYCStatus ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:KYCVerified a owl:Class ;
+  rdfs:label "KYC Verified"@en ;
+  rdfs:comment "KYC verification completed successfully."@en ;
+  rdfs:subClassOf :KYCStatus ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:KYCRejected a owl:Class ;
+  rdfs:label "KYC Rejected"@en ;
+  rdfs:comment "KYC verification failed or party rejected."@en ;
+  rdfs:subClassOf :KYCStatus ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:KYCExpired a owl:Class ;
+  rdfs:label "KYC Expired"@en ;
+  rdfs:comment "KYC verification expired and requires renewal."@en ;
+  rdfs:subClassOf :KYCStatus ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:hasKYCStatus a owl:ObjectProperty ;
+  rdfs:label "Has KYC Status"@en ;
+  rdfs:comment "Current KYC verification status for party."@en ;
+  rdfs:domain :BusinessOSParty ;
+  rdfs:range :KYCStatus ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:kycVerificationDate a owl:DatatypeProperty ;
+  rdfs:label "KYC Verification Date"@en ;
+  rdfs:comment "Date when KYC verification was completed."@en ;
+  rdfs:domain :BusinessOSParty ;
+  rdfs:range xsd:dateTime ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:kycExpiryDate a owl:DatatypeProperty ;
+  rdfs:label "KYC Expiry Date"@en ;
+  rdfs:comment "Date when KYC verification expires and must be renewed."@en ;
+  rdfs:domain :BusinessOSParty ;
+  rdfs:range xsd:dateTime ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:amlScreeningResult a owl:DatatypeProperty ;
+  rdfs:label "AML Screening Result"@en ;
+  rdfs:comment "Result of AML screening against sanctions lists (OFAC, EU, UN)."@en ;
+  rdfs:domain :BusinessOSParty ;
+  rdfs:range xsd:string ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:amlScreeningDate a owl:DatatypeProperty ;
+  rdfs:label "AML Screening Date"@en ;
+  rdfs:comment "Most recent AML screening execution date."@en ;
+  rdfs:domain :BusinessOSParty ;
+  rdfs:range xsd:dateTime ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+
+# ============================================================================
+# 6. DEAL LIFECYCLE STATES (BPMN Integration)
+# ============================================================================
+# Maps deal stages to BPMN task states in workflow.
+
+:DealLifecycleStage a owl:Class ;
+  rdfs:label "Deal Lifecycle Stage"@en ;
+  rdfs:comment "Distinct phase in deal evolution from creation to closure."@en ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:InitiationStage a owl:Class ;
+  rdfs:label "Initiation Stage"@en ;
+  rdfs:comment "Deal created, initial scoping and qualification."@en ;
+  rdfs:subClassOf :DealLifecycleStage ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:QualificationStage a owl:Class ;
+  rdfs:label "Qualification Stage"@en ;
+  rdfs:comment "Deal evaluated for fit, budget, authority, and timeline."@en ;
+  rdfs:subClassOf :DealLifecycleStage ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:NegotiationStage a owl:Class ;
+  rdfs:label "Negotiation Stage"@en ;
+  rdfs:comment "Active negotiation of terms, pricing, and conditions."@en ;
+  rdfs:subClassOf :DealLifecycleStage ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:SignatureStage a owl:Class ;
+  rdfs:label "Signature Stage"@en ;
+  rdfs:comment "Contract reviewed and authorized signatures collected."@en ;
+  rdfs:subClassOf :DealLifecycleStage ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:ExecutionStage a owl:Class ;
+  rdfs:label "Execution Stage"@en ;
+  rdfs:comment "Deal executed: performance obligations initiated."@en ;
+  rdfs:subClassOf :DealLifecycleStage ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:ClosureStage a owl:Class ;
+  rdfs:label "Closure Stage"@en ;
+  rdfs:comment "Deal fully performed and completed, or terminated."@en ;
+  rdfs:subClassOf :DealLifecycleStage ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:currentStage a owl:ObjectProperty ;
+  rdfs:label "Current Stage"@en ;
+  rdfs:comment "Current lifecycle stage of deal."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range :DealLifecycleStage ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:stageTransitionDate a owl:DatatypeProperty ;
+  rdfs:label "Stage Transition Date"@en ;
+  rdfs:comment "Date when deal entered current stage."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range xsd:dateTime ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:stageDurationDays a owl:DatatypeProperty ;
+  rdfs:label "Stage Duration (Days)"@en ;
+  rdfs:comment "Number of days deal has been in current stage."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range xsd:integer ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+
+# ============================================================================
+# 7. DEAL TRACKING & AUDIT
+# ============================================================================
+# Provenance and audit trail for deal modifications.
+
+:DealAuditEntry a owl:Class ;
+  rdfs:label "Deal Audit Entry"@en ;
+  rdfs:comment "Immutable record of change to deal or contract."@en ;
+  rdfs:subClassOf prov:Entity ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:auditTimestamp a owl:DatatypeProperty ;
+  rdfs:label "Audit Timestamp"@en ;
+  rdfs:comment "Precise timestamp of change (RFC 3339 ISO 8601)."@en ;
+  rdfs:domain :DealAuditEntry ;
+  rdfs:range xsd:dateTime ;
+  owl:equivalentProperty prov:atTime ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:auditUser a owl:DatatypeProperty ;
+  rdfs:label "Audit User"@en ;
+  rdfs:comment "User ID or name of person making change."@en ;
+  rdfs:domain :DealAuditEntry ;
+  rdfs:range xsd:string ;
+  owl:equivalentProperty prov:wasAttributedTo ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:auditAction a owl:DatatypeProperty ;
+  rdfs:label "Audit Action"@en ;
+  rdfs:comment "Type of change (create, update, delete, status_change, amount_change)."@en ;
+  rdfs:domain :DealAuditEntry ;
+  rdfs:range xsd:string ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:auditField a owl:DatatypeProperty ;
+  rdfs:label "Audit Field"@en ;
+  rdfs:comment "Name of field that was changed."@en ;
+  rdfs:domain :DealAuditEntry ;
+  rdfs:range xsd:string ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:previousValue a owl:DatatypeProperty ;
+  rdfs:label "Previous Value"@en ;
+  rdfs:comment "Field value before change."@en ;
+  rdfs:domain :DealAuditEntry ;
+  rdfs:range xsd:string ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:newValue a owl:DatatypeProperty ;
+  rdfs:label "New Value"@en ;
+  rdfs:comment "Field value after change."@en ;
+  rdfs:domain :DealAuditEntry ;
+  rdfs:range xsd:string ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:auditReason a owl:DatatypeProperty ;
+  rdfs:label "Audit Reason"@en ;
+  rdfs:comment "Explanation for change."@en ;
+  rdfs:domain :DealAuditEntry ;
+  rdfs:range xsd:string ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+
+# ============================================================================
+# 8. COMPLIANCE FRAMEWORK INTEGRATION
+# ============================================================================
+# Links deal compliance requirements to frameworks (SOX, GDPR, HIPAA).
+
+:ComplianceRequirement a owl:Class ;
+  rdfs:label "Compliance Requirement"@en ;
+  rdfs:comment "Regulatory or policy requirement applicable to deal."@en ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:ComplianceFramework a owl:Class ;
+  rdfs:label "Compliance Framework"@en ;
+  rdfs:comment "Regulatory framework (SOX, GDPR, HIPAA, FINRA, etc.)."@en ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:SOXCompliance a owl:Class ;
+  rdfs:label "SOX Compliance"@en ;
+  rdfs:comment "Sarbanes-Oxley financial reporting and internal controls compliance."@en ;
+  rdfs:subClassOf :ComplianceFramework ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:GDPRCompliance a owl:Class ;
+  rdfs:label "GDPR Compliance"@en ;
+  rdfs:comment "General Data Protection Regulation for personal data in EU."@en ;
+  rdfs:subClassOf :ComplianceFramework ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:FINRACompliance a owl:Class ;
+  rdfs:label "FINRA Compliance"@en ;
+  rdfs:comment "Financial Industry Regulatory Authority compliance for brokers."@en ;
+  rdfs:subClassOf :ComplianceFramework ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:hasComplianceRequirement a owl:ObjectProperty ;
+  rdfs:label "Has Compliance Requirement"@en ;
+  rdfs:comment "Deal must satisfy this compliance requirement."@en ;
+  rdfs:domain :Deal ;
+  rdfs:range :ComplianceRequirement ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:complianceFramework a owl:ObjectProperty ;
+  rdfs:label "Compliance Framework"@en ;
+  rdfs:comment "Framework under which requirement applies."@en ;
+  rdfs:domain :ComplianceRequirement ;
+  rdfs:range :ComplianceFramework ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:complianceStatus a owl:DatatypeProperty ;
+  rdfs:label "Compliance Status"@en ;
+  rdfs:comment "Status of compliance validation (compliant, non-compliant, pending_review, exception_granted)."@en ;
+  rdfs:domain :ComplianceRequirement ;
+  rdfs:range xsd:string ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+:complianceValidationDate a owl:DatatypeProperty ;
+  rdfs:label "Compliance Validation Date"@en ;
+  rdfs:comment "Date when compliance was last validated."@en ;
+  rdfs:domain :ComplianceRequirement ;
+  rdfs:range xsd:dateTime ;
+  rdfs:isDefinedBy <https://ontology.businessos.dev/fibo-deals> .
+
+
+# ============================================================================
+# END OF ONTOLOGY
+# ============================================================================
+# Total statements: 150+
+# Namespaces: 16
+# Classes: 45
+# Properties: 60+
+# Ready for SPARQL CONSTRUCT queries and RDF integration.
+# ============================================================================
