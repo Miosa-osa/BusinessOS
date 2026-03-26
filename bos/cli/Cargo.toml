@@ -38,6 +38,7 @@ owo-colors = { workspace = true }
 console = { workspace = true }
 indicatif = { workspace = true }
 fxhash = "0.2"
+uuid = { workspace = true }
 
 [dev-dependencies]
 # For CLI integration testing

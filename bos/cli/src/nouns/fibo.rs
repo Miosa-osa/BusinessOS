@@ -178,7 +178,7 @@ fn deal_create(
 /// # Arguments
 /// * `status` - Filter by status: draft, active, completed, terminated [optional]
 /// * `deal-type` - Filter by deal type [optional]
-#[verb("list")]
+#[verb("list-deals")]
 fn deal_list(
     status: Option<String>,
     deal_type: Option<String>,

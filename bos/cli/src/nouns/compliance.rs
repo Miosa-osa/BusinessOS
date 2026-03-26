@@ -128,7 +128,7 @@ fn init(framework: String, organization: Option<String>) -> Result<ComplianceIni
 /// * `framework` - Compliance framework (soc2, gdpr, hipaa, sox)
 /// * `config-path` - Path to framework configuration file [optional]
 #[verb("verify")]
-fn verify(framework: String, config_path: Option<String>) -> Result<ComplianceVerificationResult> {
+fn verify(framework: String, _config_path: Option<String>) -> Result<ComplianceVerificationResult> {
     let framework_lower = framework.to_lowercase();
 
     if !["soc2", "gdpr", "hipaa", "sox"].contains(&framework_lower.as_str()) {
@@ -137,7 +137,13 @@ fn verify(framework: String, config_path: Option<String>) -> Result<ComplianceVe
         ));
     }
 
-    let (total_controls, gaps_found) = match framework_lower.as_str() {
+    // Delegate to domain logic
+    verify_framework(&framework_lower)
+}
+
+/// Domain logic: verify framework compliance
+fn verify_framework(framework: &str) -> Result<ComplianceVerificationResult> {
+    let (total_controls, gaps_found) = match framework {
         "soc2" => (30, 3),   // SOC2 has ~30 controls
         "gdpr" => (65, 5),   // GDPR Articles 1-65
         "hipaa" => (18, 2),  // HIPAA 18 main sections
@@ -147,24 +153,24 @@ fn verify(framework: String, config_path: Option<String>) -> Result<ComplianceVe
 
     let gaps = vec![
         ComplianceGap {
-            gap_id: format!("{}-gap-001", framework_lower),
+            gap_id: format!("{}-gap-001", framework),
             control_id: "cc6.1".to_string(),
             severity: "high".to_string(),
-            description: format!("{} access control verification incomplete", framework_lower),
+            description: format!("{} access control verification incomplete", framework),
             remediation: "Implement comprehensive access control policy".to_string(),
         },
         ComplianceGap {
-            gap_id: format!("{}-gap-002", framework_lower),
+            gap_id: format!("{}-gap-002", framework),
             control_id: "a1.1".to_string(),
             severity: "medium".to_string(),
-            description: format!("{} audit trail logging not configured", framework_lower),
+            description: format!("{} audit trail logging not configured", framework),
             remediation: "Enable and verify audit logging for all operations".to_string(),
         },
         ComplianceGap {
-            gap_id: format!("{}-gap-003", framework_lower),
+            gap_id: format!("{}-gap-003", framework),
             control_id: "c1.1".to_string(),
             severity: "critical".to_string(),
-            description: format!("{} encryption at rest not verified", framework_lower),
+            description: format!("{} encryption at rest not verified", framework),
             remediation: "Encrypt all sensitive data at rest using AES-256".to_string(),
         },
     ];
@@ -172,7 +178,7 @@ fn verify(framework: String, config_path: Option<String>) -> Result<ComplianceVe
     let compliance_percentage = ((total_controls - gaps_found) as f64 / total_controls as f64) * 100.0;
 
     Ok(ComplianceVerificationResult {
-        framework: framework_lower,
+        framework: framework.to_string(),
         verification_date: chrono::Utc::now().to_rfc3339(),
         total_controls,
         compliant: total_controls - gaps_found,
