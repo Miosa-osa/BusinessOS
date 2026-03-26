@@ -1,6 +1,6 @@
 {
   "prefixes": {
-    "bpmn": "http://www.omg.org/spec/BPMN/20100524/MODEL#"
+    "bpmn": "http://dkm.fbk.eu/index.php/BPMN_Ontology#"
   },
   "mappings": [
     {
@@ -41,10 +41,10 @@
           "IN_PROGRESS": "http://www.omg.org/spec/BPMN/20100524/MODEL#Active",
           "DONE": "http://www.omg.org/spec/BPMN/20100524/MODEL#Completed"
         }},
-        {"column": "priority", "predicate": "bpmn:priority"},
+        {"column": "priority", "predicate": "schema:priority"},
         {"column": "project_id", "predicate": "bpmn:processRef", "object_type": "uri", "target_table": "projects"},
         {"column": "assignee_id", "predicate": "bpmn:performerRef", "object_type": "uri", "target_table": "team_members"},
-        {"column": "due_date", "predicate": "bpmn:dueDate", "datatype": "xsd:date"},
+        {"column": "due_date", "predicate": "schema:expires", "datatype": "xsd:date"},
         {"column": "created_at", "predicate": "schema:dateCreated", "datatype": "xsd:dateTime"}
       ]
     },
@@ -115,7 +115,7 @@
       "uri_template": "http://businessos.dev/id/artifacts/{id}",
       "properties": [
         {"column": "id", "predicate": "schema:identifier", "datatype": "xsd:string", "is_primary_key": true},
-        {"column": "title", "predicate": "prov:hadDictionaryMember"},
+        {"column": "title", "predicate": "rdfs:label"},
         {"column": "type", "predicate": "schema:fileFormat"},
         {"column": "language", "predicate": "schema:programmingLanguage"},
         {"column": "content", "predicate": "prov:value"},
