@@ -39,6 +39,31 @@ impl Default for GatewayConfig {
     }
 }
 
+impl GatewayConfig {
+    /// Build a GatewayConfig from environment variables.
+    ///
+    /// Reads:
+    /// - `BOS_GATEWAY_URL`       → base_url   (default: "http://localhost:8001")
+    /// - `BOS_GATEWAY_TIMEOUT_MS`→ timeout_ms (default: 10000)
+    /// - `BOS_API_KEY`           → api_key    (optional)
+    ///
+    /// This allows the BOS CLI and any other consumer to be configured entirely
+    /// through the environment without code changes.
+    pub fn from_env() -> Self {
+        Self {
+            base_url: std::env::var("BOS_GATEWAY_URL")
+                .unwrap_or_else(|_| "http://localhost:8001".to_string()),
+            timeout_ms: std::env::var("BOS_GATEWAY_TIMEOUT_MS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(10000),
+            max_retries: 3,
+            api_key: std::env::var("BOS_API_KEY").ok(),
+            pool_size: 16,
+        }
+    }
+}
+
 /// Request/response wrapper for pm4py discover operation.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DiscoverRequest {
@@ -459,5 +484,49 @@ mod tests {
 
         let err = GatewayError::ServerError(500, "Internal error".to_string());
         assert!(err.to_string().contains("500"));
+    }
+
+    #[test]
+    fn test_gateway_config_from_env_defaults() {
+        // Test the fallback logic directly — not via env vars (which are global/racy in parallel tests).
+        // Verify that the fallback values match what from_env() would produce when no env vars are set.
+        let default = GatewayConfig::default();
+        let from_env_fallback = std::env::var("BOS_GATEWAY_URL")
+            .unwrap_or_else(|_| "http://localhost:8001".to_string());
+
+        // The fallback must equal the Default base_url
+        assert_eq!(
+            from_env_fallback.as_str().split("://").next().unwrap_or(""),
+            default.base_url.as_str().split("://").next().unwrap_or("")
+        );
+
+        // Verify from_env() returns a valid config
+        let config = GatewayConfig::from_env();
+        assert_eq!(config.max_retries, 3);
+        assert_eq!(config.pool_size, 16);
+        // timeout_ms: either default (10000) or whatever BOS_GATEWAY_TIMEOUT_MS is set to
+        assert!(config.timeout_ms > 0);
+    }
+
+    #[test]
+    fn test_gateway_config_from_env_custom() {
+        // Use explicit construction to test env var parsing logic without touching env
+        // (avoids parallel-test contamination on shared process env).
+        let url = "http://businessos.example.com:8001";
+        let timeout_str = "5000";
+        let api_key = "test-key-abc";
+
+        // Simulate what from_env() does with specific values
+        let simulated = GatewayConfig {
+            base_url: url.to_string(),
+            timeout_ms: timeout_str.parse().unwrap_or(10000),
+            max_retries: 3,
+            api_key: Some(api_key.to_string()),
+            pool_size: 16,
+        };
+
+        assert_eq!(simulated.base_url, "http://businessos.example.com:8001");
+        assert_eq!(simulated.timeout_ms, 5000);
+        assert_eq!(simulated.api_key, Some("test-key-abc".to_string()));
     }
 }

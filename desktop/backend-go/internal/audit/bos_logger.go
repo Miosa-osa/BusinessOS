@@ -589,7 +589,10 @@ func computeEntryHash(seq int64, event *AuditEvent) string {
 }
 
 func toJSON(v interface{}) json.RawMessage {
-	b, _ := json.Marshal(v)
+	b, err := json.Marshal(v)
+	if err != nil {
+		return json.RawMessage(`{}`)
+	}
 	return b
 }
 

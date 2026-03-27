@@ -3,9 +3,11 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -13,6 +15,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// ============================================================================
+// TEST HELPERS
+// ============================================================================
+
+// createTempEventLogFile writes a minimal valid JSON event log to a temp file.
+// The caller is responsible for removing the file via t.Cleanup or defer.
+func createTempEventLogFile(t *testing.T) string {
+	t.Helper()
+	content := []byte(`[{"case_id":"case_1","activity":"create_case","timestamp":"2024-01-01T10:00:00Z"},{"case_id":"case_1","activity":"close_case","timestamp":"2024-01-01T11:00:00Z"}]`)
+	f, err := os.CreateTemp("", "event_log_*.json")
+	require.NoError(t, err, "failed to create temp event log file")
+	_, err = f.Write(content)
+	require.NoError(t, err, "failed to write event log content")
+	require.NoError(t, f.Close())
+	t.Cleanup(func() { os.Remove(f.Name()) })
+	return f.Name()
+}
 
 // ============================================================================
 // FIXTURES: pm4py-rust Mock Server
@@ -23,11 +43,11 @@ func startPM4PyMockServer(t *testing.T) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("Mock pm4py-rust received: %s %s", r.Method, r.URL.Path)
 
-		// Mock /discover endpoint
+		// Mock /discover endpoint — expects {event_log: JSON, variant: string}
 		if r.URL.Path == "/discover" && r.Method == "POST" {
 			var req struct {
-				LogPath   string `json:"log_path"`
-				Algorithm string `json:"algorithm"`
+				EventLog json.RawMessage `json:"event_log"`
+				Variant  string          `json:"variant"`
 			}
 			err := json.NewDecoder(r.Body).Decode(&req)
 			if err != nil {
@@ -40,7 +60,7 @@ func startPM4PyMockServer(t *testing.T) *httptest.Server {
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"model_id":     "petri_net_abc123",
-				"algorithm":    req.Algorithm,
+				"algorithm":    req.Variant,
 				"activities":   []string{"create_case", "assign_case", "process_case", "close_case"},
 				"transitions":  8,
 				"source_place": "start",
@@ -55,11 +75,12 @@ func startPM4PyMockServer(t *testing.T) *httptest.Server {
 			return
 		}
 
-		// Mock /conformance endpoint
+		// Mock /conformance endpoint — expects {event_log: JSON, petri_net: JSON, method: string}
 		if r.URL.Path == "/conformance" && r.Method == "POST" {
 			var req struct {
-				LogPath string `json:"log_path"`
-				ModelID string `json:"model_id"`
+				EventLog json.RawMessage `json:"event_log"`
+				PetriNet json.RawMessage `json:"petri_net"`
+				Method   string          `json:"method"`
 			}
 			err := json.NewDecoder(r.Body).Decode(&req)
 			if err != nil {
@@ -81,10 +102,13 @@ func startPM4PyMockServer(t *testing.T) *httptest.Server {
 			return
 		}
 
-		// Mock /statistics endpoint
+		// Mock /statistics endpoint — expects {event_log: JSON, include_variants: bool, ...}
 		if r.URL.Path == "/statistics" && r.Method == "POST" {
 			var req struct {
-				LogPath string `json:"log_path"`
+				EventLog               json.RawMessage `json:"event_log"`
+				IncludeVariants        bool            `json:"include_variants"`
+				IncludeResourceMetrics bool            `json:"include_resource_metrics"`
+				IncludeBottlenecks     bool            `json:"include_bottlenecks"`
 			}
 			err := json.NewDecoder(r.Body).Decode(&req)
 			if err != nil {
@@ -131,7 +155,7 @@ func startPM4PyMockServer(t *testing.T) *httptest.Server {
 func setupPM4PyGatewayTest(t *testing.T, pm4pyURL string) (*BOSGatewayHandler, *gin.Engine) {
 	gin.SetMode(gin.TestMode)
 
-	logger := slog.New(slog.NewTextHandler(nil, nil))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := NewBOSGatewayHandler(nil, logger)
 	handler.pm4pyURL = pm4pyURL
 	handler.httpClient = &http.Client{
@@ -154,9 +178,10 @@ func TestDiscoverRealPM4Py_Success(t *testing.T) {
 	defer mockServer.Close()
 
 	handler, router := setupPM4PyGatewayTest(t, mockServer.URL)
+	logPath := createTempEventLogFile(t)
 
 	req := BOSDiscoverRequest{
-		LogPath:   "/path/to/log.xes",
+		LogPath:   logPath,
 		Algorithm: "inductive_miner",
 	}
 
@@ -198,9 +223,10 @@ func TestDiscoverRealPM4Py_RespondsWithActivityField(t *testing.T) {
 	defer mockServer.Close()
 
 	_, router := setupPM4PyGatewayTest(t, mockServer.URL)
+	logPath := createTempEventLogFile(t)
 
 	req := BOSDiscoverRequest{
-		LogPath:   "/path/to/event.xes",
+		LogPath:   logPath,
 		Algorithm: "heuristic_miner",
 	}
 
@@ -227,9 +253,10 @@ func TestDiscoverRealPM4Py_RespondsWithSourceAndSinkPlace(t *testing.T) {
 	defer mockServer.Close()
 
 	_, router := setupPM4PyGatewayTest(t, mockServer.URL)
+	logPath := createTempEventLogFile(t)
 
 	req := BOSDiscoverRequest{
-		LogPath:   "/path/to/log.xes",
+		LogPath:   logPath,
 		Algorithm: "inductive_miner",
 	}
 
@@ -256,9 +283,10 @@ func TestConformanceRealPM4Py_Success(t *testing.T) {
 	defer mockServer.Close()
 
 	handler, router := setupPM4PyGatewayTest(t, mockServer.URL)
+	logPath := createTempEventLogFile(t)
 
 	req := BOSConformanceRequest{
-		LogPath: "/path/to/log.xes",
+		LogPath: logPath,
 		ModelID: "petri_net_abc123",
 	}
 
@@ -292,9 +320,10 @@ func TestConformanceRealPM4Py_AllMetricsPopulated(t *testing.T) {
 	defer mockServer.Close()
 
 	_, router := setupPM4PyGatewayTest(t, mockServer.URL)
+	logPath := createTempEventLogFile(t)
 
 	req := BOSConformanceRequest{
-		LogPath: "/path/to/log.xes",
+		LogPath: logPath,
 		ModelID: "model_xyz",
 	}
 
@@ -320,9 +349,10 @@ func TestConformanceRealPM4Py_ReportsAccurateFitnessMetrics(t *testing.T) {
 	defer mockServer.Close()
 
 	_, router := setupPM4PyGatewayTest(t, mockServer.URL)
+	logPath := createTempEventLogFile(t)
 
 	req := BOSConformanceRequest{
-		LogPath: "/path/to/log.xes",
+		LogPath: logPath,
 		ModelID: "model_123",
 	}
 
@@ -351,9 +381,10 @@ func TestStatisticsRealPM4Py_Success(t *testing.T) {
 	defer mockServer.Close()
 
 	handler, router := setupPM4PyGatewayTest(t, mockServer.URL)
+	logPath := createTempEventLogFile(t)
 
 	req := BOSStatisticsRequest{
-		LogPath: "/path/to/log.xes",
+		LogPath: logPath,
 	}
 
 	body, _ := json.Marshal(req)
@@ -388,9 +419,10 @@ func TestStatisticsRealPM4Py_ActivityFrequencyFromPM4Py(t *testing.T) {
 	defer mockServer.Close()
 
 	_, router := setupPM4PyGatewayTest(t, mockServer.URL)
+	logPath := createTempEventLogFile(t)
 
 	req := BOSStatisticsRequest{
-		LogPath: "/path/to/log.xes",
+		LogPath: logPath,
 	}
 
 	body, _ := json.Marshal(req)
@@ -414,9 +446,10 @@ func TestStatisticsRealPM4Py_CaseDurationFromPM4Py(t *testing.T) {
 	defer mockServer.Close()
 
 	_, router := setupPM4PyGatewayTest(t, mockServer.URL)
+	logPath := createTempEventLogFile(t)
 
 	req := BOSStatisticsRequest{
-		LogPath: "/path/to/log.xes",
+		LogPath: logPath,
 	}
 
 	body, _ := json.Marshal(req)
@@ -443,9 +476,10 @@ func TestStatisticsRealPM4Py_CaseDurationFromPM4Py(t *testing.T) {
 func TestPM4PyNetworkFailure_Discover_Returns503(t *testing.T) {
 	// Use a URL that will fail to connect
 	handler, router := setupPM4PyGatewayTest(t, "http://localhost:9999")
+	logPath := createTempEventLogFile(t)
 
 	req := BOSDiscoverRequest{
-		LogPath:   "/path/to/log.xes",
+		LogPath:   logPath,
 		Algorithm: "inductive_miner",
 	}
 
@@ -466,9 +500,10 @@ func TestPM4PyNetworkFailure_Discover_Returns503(t *testing.T) {
 
 func TestPM4PyNetworkFailure_Conformance_Returns503(t *testing.T) {
 	handler, router := setupPM4PyGatewayTest(t, "http://localhost:9999")
+	logPath := createTempEventLogFile(t)
 
 	req := BOSConformanceRequest{
-		LogPath: "/path/to/log.xes",
+		LogPath: logPath,
 		ModelID: "model_123",
 	}
 
@@ -485,9 +520,10 @@ func TestPM4PyNetworkFailure_Conformance_Returns503(t *testing.T) {
 
 func TestPM4PyNetworkFailure_Statistics_Returns503(t *testing.T) {
 	handler, router := setupPM4PyGatewayTest(t, "http://localhost:9999")
+	logPath := createTempEventLogFile(t)
 
 	req := BOSStatisticsRequest{
-		LogPath: "/path/to/log.xes",
+		LogPath: logPath,
 	}
 
 	body, _ := json.Marshal(req)
@@ -506,18 +542,24 @@ func TestPM4PyNetworkFailure_Statistics_Returns503(t *testing.T) {
 // ============================================================================
 
 func TestPM4PyTimeout_Discover(t *testing.T) {
-	// Create a server that delays longer than the timeout
+	// Create a server that delays longer than the timeout.
+	// Uses select to stop when the client disconnects (avoids blocking server.Close).
 	slowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(10 * time.Second) // Longer than 5s timeout
-		w.WriteHeader(http.StatusOK)
+		select {
+		case <-r.Context().Done():
+			// Client disconnected (timeout) — stop immediately.
+		case <-time.After(10 * time.Second):
+			w.WriteHeader(http.StatusOK)
+		}
 	}))
 	defer slowServer.Close()
 
 	handler, router := setupPM4PyGatewayTest(t, slowServer.URL)
 	handler.httpClient.Timeout = 100 * time.Millisecond // Very short timeout for test
+	logPath := createTempEventLogFile(t)
 
 	req := BOSDiscoverRequest{
-		LogPath:   "/path/to/log.xes",
+		LogPath:   logPath,
 		Algorithm: "inductive_miner",
 	}
 
@@ -546,7 +588,7 @@ func TestPM4PyURLFromEnv(t *testing.T) {
 func TestPM4PyURLDefaultValue(t *testing.T) {
 	// Handler should have default pm4py URL
 	gin.SetMode(gin.TestMode)
-	logger := slog.New(slog.NewTextHandler(nil, nil))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := NewBOSGatewayHandler(nil, logger)
 
 	// Default should be empty or configurable

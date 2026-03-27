@@ -352,6 +352,7 @@ dependencies = [
  "miette",
  "owo-colors",
  "pm4py",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "tokio",

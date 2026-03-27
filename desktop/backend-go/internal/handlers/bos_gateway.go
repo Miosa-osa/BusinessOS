@@ -101,8 +101,9 @@ type BOSDiscoverResponse struct {
 
 // BOSConformanceRequest represents a conformance check request.
 type BOSConformanceRequest struct {
-	LogPath string `json:"log_path" binding:"required"`
-	ModelID string `json:"model_id" binding:"required"`
+	LogPath   string `json:"log_path" binding:"required"`
+	ModelID   string `json:"model_id" binding:"required"`
+	ModelPath string `json:"model_path,omitempty"`
 }
 
 // BOSConformanceResponse represents conformance check results.
@@ -187,12 +188,34 @@ func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 		"algorithm", req.Algorithm,
 	)
 
-	// Call pm4py-rust HTTP API
-	pm4pyReq := map[string]string{
-		"log_path":  req.LogPath,
-		"algorithm": req.Algorithm,
+	// Read event log file and validate JSON before forwarding to pm4py-rust.
+	// pm4py-rust expects {event_log: <JSON content>, variant: <string>}.
+	eventLog, err := readEventLog(req.LogPath)
+	if err != nil {
+		h.logger.Warn("discover: failed to read event log file",
+			"log_path", req.LogPath,
+			"error", err.Error(),
+		)
+		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to read event log: %v", err)})
+		return
 	}
-	pm4pyReqBody, _ := json.Marshal(pm4pyReq)
+
+	// Call pm4py-rust HTTP API with event log content (not file path).
+	pm4pyPayload := struct {
+		EventLog json.RawMessage `json:"event_log"`
+		Variant  string          `json:"variant"`
+	}{
+		EventLog: eventLog,
+		Variant:  req.Algorithm,
+	}
+	pm4pyReqBody, err := json.Marshal(pm4pyPayload)
+	if err != nil {
+		h.logger.Error("discover: failed to marshal pm4py request", "error", err.Error())
+		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build pm4py-rust request"})
+		return
+	}
 
 	httpReq, _ := http.NewRequestWithContext(c.Request.Context(), "POST",
 		h.pm4pyURL+"/discover", bytes.NewReader(pm4pyReqBody))
@@ -304,12 +327,63 @@ func (h *BOSGatewayHandler) CheckConformance(c *gin.Context) {
 		"model_id", req.ModelID,
 	)
 
-	// Call pm4py-rust HTTP API
-	pm4pyReq := map[string]string{
-		"log_path": req.LogPath,
-		"model_id": req.ModelID,
+	// Read event log file and validate JSON before forwarding to pm4py-rust.
+	eventLog, err := readEventLog(req.LogPath)
+	if err != nil {
+		h.logger.Warn("conformance: failed to read event log file",
+			"log_path", req.LogPath,
+			"error", err.Error(),
+		)
+		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to read event log: %v", err)})
+		return
 	}
-	pm4pyReqBody, _ := json.Marshal(pm4pyReq)
+
+	// Resolve Petri net: prefer model_path file if provided, otherwise recover from WAL.
+	var petriNetRaw json.RawMessage
+	if req.ModelPath != "" {
+		petriNetRaw, err = readEventLog(req.ModelPath)
+		if err != nil {
+			h.logger.Warn("conformance: failed to read model path file",
+				"model_path", req.ModelPath,
+				"error", err.Error(),
+			)
+			h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to read model file: %v", err)})
+			return
+		}
+	} else {
+		// Attempt to recover from WAL using model_id.
+		walResult, walErr := h.recoverFromWAL(req.ModelID)
+		if walErr == nil && walResult != nil && len(walResult.ModelData) > 0 {
+			// Extract petri_net from the stored discovery response model data.
+			var modelMap map[string]json.RawMessage
+			if jsonErr := json.Unmarshal(walResult.ModelData, &modelMap); jsonErr == nil {
+				if pn, ok := modelMap["petri_net"]; ok {
+					petriNetRaw = pn
+				}
+			}
+		}
+	}
+
+	// Build conformance payload for pm4py-rust.
+	// pm4py-rust expects {event_log: <JSON content>, petri_net: <petri net>, method: "token_replay"}.
+	conformancePayload := struct {
+		EventLog json.RawMessage `json:"event_log"`
+		PetriNet json.RawMessage `json:"petri_net,omitempty"`
+		Method   string          `json:"method"`
+	}{
+		EventLog: eventLog,
+		PetriNet: petriNetRaw,
+		Method:   "token_replay",
+	}
+	pm4pyReqBody, err := json.Marshal(conformancePayload)
+	if err != nil {
+		h.logger.Error("conformance: failed to marshal pm4py request", "error", err.Error())
+		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build pm4py-rust request"})
+		return
+	}
 
 	httpReq, _ := http.NewRequestWithContext(c.Request.Context(), "POST",
 		h.pm4pyURL+"/conformance", bytes.NewReader(pm4pyReqBody))
@@ -404,11 +478,38 @@ func (h *BOSGatewayHandler) GetStatistics(c *gin.Context) {
 
 	h.logger.Info("statistics: processing request", "log_path", req.LogPath)
 
-	// Call pm4py-rust HTTP API
-	pm4pyReq := map[string]string{
-		"log_path": req.LogPath,
+	// Read event log file and validate JSON before forwarding to pm4py-rust.
+	eventLog, err := readEventLog(req.LogPath)
+	if err != nil {
+		h.logger.Warn("statistics: failed to read event log file",
+			"log_path", req.LogPath,
+			"error", err.Error(),
+		)
+		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to read event log: %v", err)})
+		return
 	}
-	pm4pyReqBody, _ := json.Marshal(pm4pyReq)
+
+	// Call pm4py-rust HTTP API with event log content (not file path).
+	// pm4py-rust expects {event_log: <JSON content>, include_variants: bool, ...}.
+	statisticsPayload := struct {
+		EventLog               json.RawMessage `json:"event_log"`
+		IncludeVariants        bool            `json:"include_variants"`
+		IncludeResourceMetrics bool            `json:"include_resource_metrics"`
+		IncludeBottlenecks     bool            `json:"include_bottlenecks"`
+	}{
+		EventLog:               eventLog,
+		IncludeVariants:        true,
+		IncludeResourceMetrics: true,
+		IncludeBottlenecks:     true,
+	}
+	pm4pyReqBody, err := json.Marshal(statisticsPayload)
+	if err != nil {
+		h.logger.Error("statistics: failed to marshal pm4py request", "error", err.Error())
+		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build pm4py-rust request"})
+		return
+	}
 
 	httpReq, _ := http.NewRequestWithContext(c.Request.Context(), "POST",
 		h.pm4pyURL+"/statistics", bytes.NewReader(pm4pyReqBody))
@@ -585,6 +686,23 @@ func (h *BOSGatewayHandler) GetStatus(c *gin.Context) {
 // ============================================================================
 // INTERNAL HELPERS
 // ============================================================================
+
+// readEventLog reads a file at logPath, validates it is valid JSON, and returns
+// the raw JSON bytes. Returns an error if the file cannot be read or is not
+// valid JSON. This is used before forwarding event log content to pm4py-rust.
+func readEventLog(logPath string) (json.RawMessage, error) {
+	if logPath == "" {
+		return nil, fmt.Errorf("log_path is empty")
+	}
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		return nil, fmt.Errorf("read event log file %q: %w", logPath, err)
+	}
+	if !json.Valid(data) {
+		return nil, fmt.Errorf("event log file %q is not valid JSON", logPath)
+	}
+	return json.RawMessage(data), nil
+}
 
 // checkDatabase verifies database connectivity.
 func (h *BOSGatewayHandler) checkDatabase(ctx context.Context) bool {

@@ -60,7 +60,7 @@ pub struct AnalysisOutput {
     pub case_duration: CaseDurationStat,
 }
 
-// Helper to compute analysis statistics
+// Helper to compute analysis statistics (local engine path)
 fn compute_analysis_stats(
     source: &str,
 ) -> anyhow::Result<AnalysisOutput> {
@@ -146,6 +146,163 @@ fn compute_analysis_stats(
     })
 }
 
+/// Gateway routing: POST discover request to BusinessOS gateway.
+///
+/// Cloud mode: routes through BusinessOS (http) instead of local pm4py-rust engine.
+/// WvdA: 30-second timeout enforces bounded execution.
+/// Armstrong: non-2xx responses bail immediately with a clear error message.
+fn discover_via_gateway(
+    gw_url: &str,
+    log_path: &str,
+    algorithm: &str,
+) -> anyhow::Result<ModelDiscovered> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build HTTP client: {}", e))?;
+
+    let payload = serde_json::json!({
+        "log_path": log_path,
+        "algorithm": algorithm
+    });
+
+    let resp = client
+        .post(format!("{}/api/bos/discover", gw_url))
+        .json(&payload)
+        .send()
+        .map_err(|e| anyhow::anyhow!("Gateway request failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().unwrap_or_default();
+        anyhow::bail!("Gateway returned {}: {}", status, body);
+    }
+
+    let gw_resp: serde_json::Value = resp
+        .json()
+        .map_err(|e| anyhow::anyhow!("Failed to parse gateway response: {}", e))?;
+
+    Ok(ModelDiscovered {
+        algorithm: gw_resp["algorithm"].as_str().unwrap_or(algorithm).to_string(),
+        places: gw_resp["places"].as_u64().unwrap_or(0) as usize,
+        transitions: gw_resp["transitions"].as_u64().unwrap_or(0) as usize,
+        arcs: gw_resp["arcs"].as_u64().unwrap_or(0) as usize,
+    })
+}
+
+/// Gateway routing: POST conform request to BusinessOS gateway.
+///
+/// Cloud mode: routes through BusinessOS (http) instead of local pm4py-rust engine.
+/// WvdA: 30-second timeout enforces bounded execution.
+/// Armstrong: non-2xx responses bail immediately with a clear error message.
+fn conform_via_gateway(
+    gw_url: &str,
+    log_path: &str,
+    model_id: &str,
+) -> anyhow::Result<ConformanceChecked> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build HTTP client: {}", e))?;
+
+    let payload = serde_json::json!({
+        "log_path": log_path,
+        "model_id": model_id
+    });
+
+    let resp = client
+        .post(format!("{}/api/bos/conformance", gw_url))
+        .json(&payload)
+        .send()
+        .map_err(|e| anyhow::anyhow!("Gateway request failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().unwrap_or_default();
+        anyhow::bail!("Gateway returned {}: {}", status, body);
+    }
+
+    let gw_resp: serde_json::Value = resp
+        .json()
+        .map_err(|e| anyhow::anyhow!("Failed to parse gateway response: {}", e))?;
+
+    let total = gw_resp["traces_checked"].as_u64().unwrap_or(0) as usize;
+    let fitness = gw_resp["fitness"].as_f64().unwrap_or(0.0);
+
+    Ok(ConformanceChecked {
+        traces_checked: total,
+        fitting_traces: gw_resp["fitting_traces"].as_u64().unwrap_or_else(|| (total as f64 * fitness) as u64) as usize,
+        fitness,
+    })
+}
+
+/// Gateway routing: POST analyze request to BusinessOS gateway.
+///
+/// Cloud mode: routes through BusinessOS (http) instead of local pm4py-rust engine.
+/// WvdA: 30-second timeout enforces bounded execution.
+/// Armstrong: non-2xx responses bail immediately with a clear error message.
+fn analyze_via_gateway(
+    gw_url: &str,
+    log_path: &str,
+) -> anyhow::Result<AnalysisOutput> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build HTTP client: {}", e))?;
+
+    let payload = serde_json::json!({
+        "log_path": log_path
+    });
+
+    let resp = client
+        .post(format!("{}/api/bos/statistics", gw_url))
+        .json(&payload)
+        .send()
+        .map_err(|e| anyhow::anyhow!("Gateway request failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().unwrap_or_default();
+        anyhow::bail!("Gateway returned {}: {}", status, body);
+    }
+
+    let gw_resp: serde_json::Value = resp
+        .json()
+        .map_err(|e| anyhow::anyhow!("Failed to parse gateway response: {}", e))?;
+
+    let activity_frequency: Vec<ActivityStat> = gw_resp["activity_frequency"]
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .map(|a| ActivityStat {
+            activity: a["activity"].as_str().unwrap_or("").to_string(),
+            frequency: a["frequency"].as_u64().unwrap_or(0) as usize,
+            percentage: a["percentage"].as_f64().unwrap_or(0.0),
+        })
+        .collect();
+
+    let cd = &gw_resp["case_duration"];
+    let case_duration = CaseDurationStat {
+        min_seconds: cd["min_seconds"].as_i64().unwrap_or(0),
+        max_seconds: cd["max_seconds"].as_i64().unwrap_or(0),
+        avg_seconds: cd["avg_seconds"].as_f64().unwrap_or(0.0),
+        median_seconds: cd["median_seconds"].as_f64().unwrap_or(0.0),
+    };
+
+    Ok(AnalysisOutput {
+        log_name: gw_resp["log_name"].as_str().unwrap_or(log_path).to_string(),
+        num_traces: gw_resp["num_traces"].as_u64().unwrap_or(0) as usize,
+        num_events: gw_resp["num_events"].as_u64().unwrap_or(0) as usize,
+        num_unique_activities: gw_resp["num_unique_activities"].as_u64().unwrap_or(0) as usize,
+        num_variants: gw_resp["num_variants"].as_u64().unwrap_or(0) as usize,
+        avg_trace_length: gw_resp["avg_trace_length"].as_f64().unwrap_or(0.0),
+        min_trace_length: gw_resp["min_trace_length"].as_u64().unwrap_or(0) as usize,
+        max_trace_length: gw_resp["max_trace_length"].as_u64().unwrap_or(0) as usize,
+        activity_frequency,
+        case_duration,
+    })
+}
+
 #[noun("pm4py", "Process mining with pm4py-rust — discover, analyze, and check conformance of business processes")]
 
 /// Load an event log from file
@@ -177,11 +334,25 @@ fn load(source: String) -> Result<LogLoaded> {
 
 /// Discover a process model from an event log
 ///
+/// Routes through BusinessOS gateway when --gateway / BOS_GATEWAY_URL is set (cloud mode).
+/// Falls back to local pm4py-rust engine when not configured.
+///
 /// # Arguments
 /// * `source` - Path to event log file
 /// * `algorithm` - Discovery algorithm (alpha, inductive, heuristic, dfg) [default: alpha]
+/// * `gateway` - BusinessOS gateway URL (cloud mode) [env: BOS_GATEWAY_URL]
 #[verb("discover")]
-fn discover(source: String, algorithm: Option<String>) -> Result<ModelDiscovered> {
+fn discover(
+    source: String,
+    algorithm: Option<String>,
+    gateway: Option<String>,
+) -> Result<ModelDiscovered> {
+    if let Some(ref gw_url) = gateway {
+        let algo = algorithm.as_deref().unwrap_or("alpha");
+        return discover_via_gateway(gw_url, &source, algo)
+            .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()));
+    }
+
     use bos_core::process::ProcessMiningEngine;
 
     let engine = ProcessMiningEngine::new();
@@ -216,11 +387,25 @@ fn discover(source: String, algorithm: Option<String>) -> Result<ModelDiscovered
 
 /// Check conformance of log against model
 ///
+/// Routes through BusinessOS gateway when --gateway / BOS_GATEWAY_URL is set (cloud mode).
+/// Falls back to local pm4py-rust engine when not configured.
+///
 /// # Arguments
 /// * `log` - Path to event log file
 /// * `model` - Path to model file (optional, will discover if not provided)
+/// * `gateway` - BusinessOS gateway URL (cloud mode) [env: BOS_GATEWAY_URL]
 #[verb("conform")]
-fn conform(log: String, model: Option<String>) -> Result<ConformanceChecked> {
+fn conform(
+    log: String,
+    model: Option<String>,
+    gateway: Option<String>,
+) -> Result<ConformanceChecked> {
+    if let Some(ref gw_url) = gateway {
+        let model_id = model.as_deref().unwrap_or("auto");
+        return conform_via_gateway(gw_url, &log, model_id)
+            .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()));
+    }
+
     use bos_core::process::ProcessMiningEngine;
     use pm4py::conformance::TokenReplay;
 
@@ -250,10 +435,21 @@ fn conform(log: String, model: Option<String>) -> Result<ConformanceChecked> {
 
 /// Analyze event log statistics
 ///
+/// Routes through BusinessOS gateway when --gateway / BOS_GATEWAY_URL is set (cloud mode).
+/// Falls back to local pm4py-rust engine when not configured.
+///
 /// # Arguments
 /// * `source` - Path to event log file
+/// * `gateway` - BusinessOS gateway URL (cloud mode) [env: BOS_GATEWAY_URL]
 #[verb("analyze")]
-fn analyze(source: String) -> Result<AnalysisOutput> {
+fn analyze(
+    source: String,
+    gateway: Option<String>,
+) -> Result<AnalysisOutput> {
+    if let Some(ref gw_url) = gateway {
+        return analyze_via_gateway(gw_url, &source)
+            .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()));
+    }
     compute_analysis_stats(&source)
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))
 }

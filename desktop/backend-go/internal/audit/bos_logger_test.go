@@ -3,6 +3,7 @@ package audit
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -193,8 +194,8 @@ func TestRetentionCalculation(t *testing.T) {
 	diff := retentionExpires.Sub(now)
 	expectedDiff := 365 * 7 * 24 * time.Hour
 
-	// Allow 1 day tolerance for leap years
-	tolerance := 24 * time.Hour
+	// Allow 3 day tolerance for leap years (7 years may span up to 2 leap years)
+	tolerance := 3 * 24 * time.Hour
 	assert.True(t, diff > expectedDiff-tolerance && diff < expectedDiff+tolerance)
 }
 
@@ -332,9 +333,7 @@ func TestAuditEventDefaults(t *testing.T) {
 
 // Unmarshal JSON bytes for testing
 func jsonUnmarshal(data []byte, v interface{}) error {
-	// Simple unmarshal for testing
-	// In production, use encoding/json.Unmarshal
-	return nil // Placeholder for test structure
+	return json.Unmarshal(data, v)
 }
 
 // TestAuditChainSequencing verifies sequence numbers increment properly.

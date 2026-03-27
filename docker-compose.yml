@@ -63,6 +63,35 @@ services:
       - businessos-network
 
   # ---------------------------------------------------------------------------
+  # pm4py-rust Process Mining Engine (port 8090)
+  # Built from pm4py-rust/ at the repo root. Provides discovery, conformance,
+  # and statistics endpoints consumed by the BusinessOS gateway.
+  # ---------------------------------------------------------------------------
+  pm4py-rust:
+    build:
+      context: ../../pm4py-rust
+      dockerfile: Dockerfile
+    image: pm4py-rust:local
+    container_name: businessos-pm4py-rust
+    restart: unless-stopped
+    ports:
+      - "${PM4PY_RUST_PORT:-8090}:8090"
+    environment:
+      PM4PY_RUST_PORT: "8090"
+      PM4PY_RUST_BUSINESSOS_URL: "http://backend:8001"
+      RUST_LOG: "${RUST_LOG:-info}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_SERVICE_NAME: "pm4py-rust"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8090/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - businessos-network
+
+  # ---------------------------------------------------------------------------
   # BusinessOS Backend (Go)
   # Dockerfile: desktop/backend-go/Dockerfile (multi-stage, alpine final image)
   # Health probes: GET /healthz (liveness), GET /readyz (readiness)
@@ -140,6 +169,9 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
 
+      # ── pm4py-rust Integration ────────────────────────────────────────────
+      PM4PY_RUST_URL: "http://pm4py-rust:8090"
+
       # ── Feature flags ─────────────────────────────────────────────────────
       ENABLE_LOCAL_MODELS: ${ENABLE_LOCAL_MODELS:-true}
       NATS_ENABLED: "false"
@@ -149,6 +181,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      pm4py-rust:
         condition: service_healthy
     volumes:
       # Docker socket — only needed for sandbox/container management features.
