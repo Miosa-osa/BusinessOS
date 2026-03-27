@@ -6,6 +6,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
@@ -46,6 +47,14 @@ func InitTracer(ctx context.Context, otelEndpoint string) (*trace.TracerProvider
 
 	// Set as global tracer provider
 	otel.SetTracerProvider(tp)
+
+	// Register W3C TraceContext + Baggage propagators so that traceparent headers
+	// are extracted from inbound requests and injected into outbound requests.
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
+
 	slog.Info("OpenTelemetry tracer initialized", "endpoint", otelEndpoint)
 
 	return tp, nil

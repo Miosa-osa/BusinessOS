@@ -14,6 +14,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+
+	semconv "github.com/rhl/businessos-backend/internal/semconv"
 )
 
 // BOSGatewayHandler handles BOS CLI ↔ BusinessOS API gateway operations.
@@ -57,12 +63,14 @@ func NewBOSGatewayHandler(pool *pgxpool.Pool, logger *slog.Logger) *BOSGatewayHa
 			LatencyValues: make([]uint64, 0),
 		},
 		pm4pyURL: pm4pyURL,
-		// ## Backpressure: HTTP Client Timeout
-		// 10-second timeout prevents unbounded hangs to pm4py-rust.
-		// If pm4py-rust stalls (discovery timeout), connection drops after 10s.
-		// Client should implement retry-with-backoff in caller (not here).
+		// ## Backpressure: HTTP Client Timeout (WvdA deadlock-free)
+		// 30-second timeout prevents unbounded hangs to pm4py-rust.
+		// otelhttp.NewTransport wraps the default transport so that outbound
+		// requests automatically carry W3C traceparent + tracestate headers,
+		// enabling distributed trace propagation to pm4py-rust.
 		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+			Timeout:   30 * time.Second,
 		},
 	}
 }
@@ -171,10 +179,23 @@ type BOSStatusResponse struct {
 // Triggers process model discovery on the given event log.
 func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 	startTime := time.Now()
+
+	// Start OTEL span for the gateway discover operation.
+	gatewayTracer := otel.Tracer("businessos-gateway")
+	ctx, span := gatewayTracer.Start(c.Request.Context(), semconv.BosGatewayDiscoverSpan)
+	defer span.End()
+	c.Request = c.Request.WithContext(ctx)
+
+	// Attach correlation_id attribute if present.
+	if correlationID := c.Request.Header.Get("X-Correlation-ID"); correlationID != "" {
+		span.SetAttributes(attribute.String(string(semconv.ChatmangptRunCorrelationIdKey), correlationID))
+	}
+
 	var req BOSDiscoverRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warn("discover: invalid request", "error", err.Error())
+		span.SetStatus(codes.Error, "invalid request")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -220,6 +241,10 @@ func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 	httpReq, _ := http.NewRequestWithContext(c.Request.Context(), "POST",
 		h.pm4pyURL+"/discover", bytes.NewReader(pm4pyReqBody))
 	httpReq.Header.Set("Content-Type", "application/json")
+	// Forward correlation_id to pm4py-rust so the full chain shares one ID.
+	if correlationID := c.Request.Header.Get("X-Correlation-ID"); correlationID != "" {
+		httpReq.Header.Set("X-Correlation-ID", correlationID)
+	}
 
 	httpResp, err := h.httpClient.Do(httpReq)
 	if err != nil {
@@ -227,6 +252,8 @@ func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 			"pm4py_url", h.pm4pyURL,
 			"error", err.Error(),
 		)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "pm4py-rust unavailable")
 		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "pm4py-rust unavailable"})
 		return
@@ -237,6 +264,7 @@ func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 		h.logger.Warn("discover: pm4py-rust error",
 			"status_code", httpResp.StatusCode,
 		)
+		span.SetStatus(codes.Error, fmt.Sprintf("pm4py-rust returned %d", httpResp.StatusCode))
 		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "pm4py-rust error"})
 		return
@@ -288,6 +316,12 @@ func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 	}
 
 	h.recordRequest(true, response.LatencyMs)
+	span.SetAttributes(
+		attribute.String("bos.model_id", response.ModelID),
+		attribute.String("bos.algorithm", response.Algorithm),
+		attribute.Int64("bos.latency_ms", int64(response.LatencyMs)),
+	)
+	span.SetStatus(codes.Ok, "")
 	h.logger.Info("discover: completed successfully",
 		"model_id", response.ModelID,
 		"latency_ms", response.LatencyMs,
@@ -314,10 +348,22 @@ func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 // Checks if an event log conforms to a given process model.
 func (h *BOSGatewayHandler) CheckConformance(c *gin.Context) {
 	startTime := time.Now()
+
+	// Start OTEL span for the gateway conformance operation.
+	gatewayTracer := otel.Tracer("businessos-gateway")
+	ctx, span := gatewayTracer.Start(c.Request.Context(), semconv.BosGatewayConformanceSpan)
+	defer span.End()
+	c.Request = c.Request.WithContext(ctx)
+
+	if correlationID := c.Request.Header.Get("X-Correlation-ID"); correlationID != "" {
+		span.SetAttributes(attribute.String(string(semconv.ChatmangptRunCorrelationIdKey), correlationID))
+	}
+
 	var req BOSConformanceRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warn("conformance: invalid request", "error", err.Error())
+		span.SetStatus(codes.Error, "invalid request")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -388,6 +434,9 @@ func (h *BOSGatewayHandler) CheckConformance(c *gin.Context) {
 	httpReq, _ := http.NewRequestWithContext(c.Request.Context(), "POST",
 		h.pm4pyURL+"/conformance", bytes.NewReader(pm4pyReqBody))
 	httpReq.Header.Set("Content-Type", "application/json")
+	if correlationID := c.Request.Header.Get("X-Correlation-ID"); correlationID != "" {
+		httpReq.Header.Set("X-Correlation-ID", correlationID)
+	}
 
 	httpResp, err := h.httpClient.Do(httpReq)
 	if err != nil {
@@ -395,6 +444,8 @@ func (h *BOSGatewayHandler) CheckConformance(c *gin.Context) {
 			"pm4py_url", h.pm4pyURL,
 			"error", err.Error(),
 		)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "pm4py-rust unavailable")
 		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "pm4py-rust unavailable"})
 		return
@@ -405,6 +456,7 @@ func (h *BOSGatewayHandler) CheckConformance(c *gin.Context) {
 		h.logger.Warn("conformance: pm4py-rust error",
 			"status_code", httpResp.StatusCode,
 		)
+		span.SetStatus(codes.Error, fmt.Sprintf("pm4py-rust returned %d", httpResp.StatusCode))
 		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "pm4py-rust error"})
 		return
@@ -456,6 +508,11 @@ func (h *BOSGatewayHandler) CheckConformance(c *gin.Context) {
 	}
 
 	h.recordRequest(true, response.LatencyMs)
+	span.SetAttributes(
+		attribute.Float64("bos.fitness", response.Fitness),
+		attribute.Int64("bos.latency_ms", int64(response.LatencyMs)),
+	)
+	span.SetStatus(codes.Ok, "")
 	h.logger.Info("conformance: completed successfully",
 		"fitness", response.Fitness,
 		"latency_ms", response.LatencyMs,
@@ -468,10 +525,22 @@ func (h *BOSGatewayHandler) CheckConformance(c *gin.Context) {
 // Extracts statistics from an event log.
 func (h *BOSGatewayHandler) GetStatistics(c *gin.Context) {
 	startTime := time.Now()
+
+	// Start OTEL span for the gateway statistics operation.
+	gatewayTracer := otel.Tracer("businessos-gateway")
+	ctx, span := gatewayTracer.Start(c.Request.Context(), semconv.BosGatewayStatisticsSpan)
+	defer span.End()
+	c.Request = c.Request.WithContext(ctx)
+
+	if correlationID := c.Request.Header.Get("X-Correlation-ID"); correlationID != "" {
+		span.SetAttributes(attribute.String(string(semconv.ChatmangptRunCorrelationIdKey), correlationID))
+	}
+
 	var req BOSStatisticsRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Warn("statistics: invalid request", "error", err.Error())
+		span.SetStatus(codes.Error, "invalid request")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -514,6 +583,9 @@ func (h *BOSGatewayHandler) GetStatistics(c *gin.Context) {
 	httpReq, _ := http.NewRequestWithContext(c.Request.Context(), "POST",
 		h.pm4pyURL+"/statistics", bytes.NewReader(pm4pyReqBody))
 	httpReq.Header.Set("Content-Type", "application/json")
+	if correlationID := c.Request.Header.Get("X-Correlation-ID"); correlationID != "" {
+		httpReq.Header.Set("X-Correlation-ID", correlationID)
+	}
 
 	httpResp, err := h.httpClient.Do(httpReq)
 	if err != nil {
@@ -521,6 +593,8 @@ func (h *BOSGatewayHandler) GetStatistics(c *gin.Context) {
 			"pm4py_url", h.pm4pyURL,
 			"error", err.Error(),
 		)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "pm4py-rust unavailable")
 		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "pm4py-rust unavailable"})
 		return
@@ -531,6 +605,7 @@ func (h *BOSGatewayHandler) GetStatistics(c *gin.Context) {
 		h.logger.Warn("statistics: pm4py-rust error",
 			"status_code", httpResp.StatusCode,
 		)
+		span.SetStatus(codes.Error, fmt.Sprintf("pm4py-rust returned %d", httpResp.StatusCode))
 		h.recordRequest(false, uint64(time.Since(startTime).Milliseconds()))
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "pm4py-rust error"})
 		return
@@ -642,6 +717,11 @@ func (h *BOSGatewayHandler) GetStatistics(c *gin.Context) {
 	}
 
 	h.recordRequest(true, response.LatencyMs)
+	span.SetAttributes(
+		attribute.Int("bos.num_traces", response.NumTraces),
+		attribute.Int64("bos.latency_ms", int64(response.LatencyMs)),
+	)
+	span.SetStatus(codes.Ok, "")
 	h.logger.Info("statistics: completed successfully",
 		"num_traces", response.NumTraces,
 		"latency_ms", response.LatencyMs,
