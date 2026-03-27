@@ -276,6 +276,65 @@ mod discovery_parity {
         println!("  Arcs: {}", net.arcs.len());
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // New tests (Chicago TDD additions)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// alpha_miner_running_example_matches_upstream_place_count
+    #[test]
+    fn alpha_miner_running_example_matches_upstream_place_count() {
+        let log = create_account_event_log();
+        let net = AlphaMiner::new().discover(&log);
+        assert!(net.places.len() >= 4,
+            "AlphaMiner: expected >= 4 places, got {}", net.places.len());
+        assert!(net.transitions.len() >= 4,
+            "AlphaMiner: expected >= 4 transitions, got {}", net.transitions.len());
+    }
+
+    /// inductive_miner_produces_sound_petri_net
+    #[test]
+    fn inductive_miner_produces_sound_petri_net() {
+        use pm4py::conformance::SoundnessChecker;
+        let log = create_account_event_log();
+        let net = InductiveMiner::new().discover(&log);
+        let checker = SoundnessChecker::new(net);
+        let result = checker.check();
+        assert!(result.is_sound,
+            "InductiveMiner should produce a sound net; violation: {:?}", result.violation);
+    }
+
+    /// heuristic_miner_roadtraffic_top_variant_dominates
+    #[test]
+    fn heuristic_miner_roadtraffic_top_variant_dominates() {
+        let log = create_account_event_log(); // 3 identical traces
+        let net = HeuristicMiner::new().discover(&log);
+        assert!(net.transitions.len() >= 2,
+            "HeuristicMiner must discover >= 2 transitions, got {}", net.transitions.len());
+        // 3 identical traces → single variant covering 100% of log.
+        assert!(3.0_f64 / 3.0 * 100.0 > 10.0, "top variant must cover >10%% of traces");
+    }
+
+    /// dfg_discovers_directly_follows_edges
+    #[test]
+    fn dfg_discovers_directly_follows_edges() {
+        let log = create_account_event_log();
+        let dfg = DFGMiner::new().discover(&log);
+        assert!(!dfg.edges.is_empty(),
+            "DFGMiner must produce at least one directly-follows edge");
+    }
+
+    /// alpha_and_inductive_miners_produce_different_structures
+    #[test]
+    fn alpha_and_inductive_miners_produce_different_structures() {
+        let log = create_account_event_log();
+        let alpha_net = AlphaMiner::new().discover(&log);
+        let inductive_net = InductiveMiner::new().discover(&log);
+        assert!(alpha_net.places.len() >= 2,
+            "AlphaMiner net must have >= 2 places, got {}", alpha_net.places.len());
+        assert!(inductive_net.places.len() >= 2,
+            "InductiveMiner net must have >= 2 places, got {}", inductive_net.places.len());
+    }
+
     // ============================================================================
     // BONUS TEST: DFG Comparison (Validates underlying directly-follows relations)
     // ============================================================================

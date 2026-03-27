@@ -368,6 +368,68 @@ mod conformance_parity {
         );
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // New tests (Chicago TDD additions)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// token_replay_running_example_fitness_high — fitness >= 0.80 for a well-fitting log.
+    #[test]
+    fn token_replay_running_example_fitness_high() {
+        let log = create_perfect_fit_account_log();
+        let net = AlphaMiner::new().discover(&log);
+        let result = TokenReplay::new().check(&log, &net);
+        assert!(result.fitness >= 0.80,
+            "Token-replay fitness for a well-fitting log should be >= 0.80, got {}", result.fitness);
+    }
+
+    /// conformance_detects_deviating_trace — deviating log yields is_conformant==false OR fitness < 1.0.
+    #[test]
+    fn conformance_detects_deviating_trace() {
+        let log = create_non_conformant_account_log();
+        let strict_net = AlphaMiner::new().discover(&create_perfect_fit_account_log());
+        let result = TokenReplay::new().check(&log, &strict_net);
+        let detected = !result.is_conformant || result.fitness < 1.0;
+        assert!(detected,
+            "Deviating log must yield is_conformant=false OR fitness < 1.0; fitness={}, is_conformant={}",
+            result.fitness, result.is_conformant);
+    }
+
+    /// footprints_conformance_produces_result — result must have fitness in [0,1].
+    #[test]
+    fn footprints_conformance_produces_result() {
+        use pm4py::FootprintsConformanceChecker;
+        use pm4py::Footprints;
+        let log = create_perfect_fit_account_log();
+        let net = AlphaMiner::new().discover(&log);
+        let model_fp = FootprintsConformanceChecker::footprints_from_petri_net(&net);
+        let log_fp = Footprints::from_log(&log);
+        let result = FootprintsConformanceChecker::compare_footprints(&log_fp, &model_fp);
+        assert!((0.0..=1.0).contains(&result.fitness),
+            "FootprintsConformanceChecker must return fitness in [0,1], got {}", result.fitness);
+    }
+
+    /// precision_is_bounded — Precision::calculate must return a value in [0.0, 1.0].
+    #[test]
+    fn precision_is_bounded() {
+        use pm4py::Precision;
+        let log = create_perfect_fit_account_log();
+        let net = AlphaMiner::new().discover(&log);
+        let precision = Precision::calculate(&log, &net);
+        assert!((0.0..=1.0).contains(&precision),
+            "Precision must be in [0.0, 1.0], got {}", precision);
+    }
+
+    /// generalization_is_bounded — Generalization::calculate must return a value in [0.0, 1.0].
+    #[test]
+    fn generalization_is_bounded() {
+        use pm4py::Generalization;
+        let log = create_perfect_fit_account_log();
+        let net = AlphaMiner::new().discover(&log);
+        let gen = Generalization::calculate(&log, &net, 3);
+        assert!((0.0..=1.0).contains(&gen),
+            "Generalization must be in [0.0, 1.0], got {}", gen);
+    }
+
     #[test]
     fn test_alignments_parity() {
         use pm4py::conformance::AlignmentChecker;

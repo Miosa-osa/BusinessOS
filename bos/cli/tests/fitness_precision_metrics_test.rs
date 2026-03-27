@@ -453,6 +453,164 @@ mod fitness_precision_metrics {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════
+    // New tests (Chicago TDD additions)
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    /// fitness_in_range_for_perfect_log
+    ///
+    /// Discover net from log then replay same log: 0.0 <= fitness <= 1.0.
+    #[test]
+    fn fitness_in_range_for_perfect_log() {
+        let log = create_perfect_fit_log();
+        let net = AlphaMiner::new().discover(&log);
+        let result = TokenReplay::new().check(&log, &net);
+
+        assert!(
+            (0.0..=1.0).contains(&result.fitness),
+            "fitness must be in [0.0, 1.0], got {}",
+            result.fitness
+        );
+    }
+
+    /// precision_in_range
+    ///
+    /// Precision::calculate must return a value in [0.0, 1.0].
+    #[test]
+    fn precision_in_range() {
+        let log = create_perfect_fit_log();
+        let net = AlphaMiner::new().discover(&log);
+        let p = Precision::calculate(&log, &net);
+
+        assert!(
+            (0.0..=1.0).contains(&p),
+            "Precision must be in [0.0, 1.0], got {}",
+            p
+        );
+    }
+
+    /// four_spectrum_produces_all_metrics
+    ///
+    /// FourSpectrum::calculate must produce fitness, precision, generalization, and
+    /// simplicity all in [0.0, 1.0].
+    #[test]
+    fn four_spectrum_produces_all_metrics() {
+        use pm4py::conformance::FourSpectrum;
+
+        let log = create_perfect_fit_log();
+        let net = AlphaMiner::new().discover(&log);
+        let result = FourSpectrum::calculate(&log, &net);
+
+        assert!(
+            (0.0..=1.0).contains(&result.fitness),
+            "FourSpectrum fitness must be in [0,1], got {}",
+            result.fitness
+        );
+        assert!(
+            (0.0..=1.0).contains(&result.precision),
+            "FourSpectrum precision must be in [0,1], got {}",
+            result.precision
+        );
+        assert!(
+            (0.0..=1.0).contains(&result.generalization),
+            "FourSpectrum generalization must be in [0,1], got {}",
+            result.generalization
+        );
+        assert!(
+            (0.0..=1.0).contains(&result.simplicity),
+            "FourSpectrum simplicity must be in [0,1], got {}",
+            result.simplicity
+        );
+    }
+
+    /// generalization_with_more_data_not_worse
+    ///
+    /// A log with 20 identical traces should have generalization >= the same log with 5 traces
+    /// (allowing 0.05 floating-point slack).
+    #[test]
+    fn generalization_with_more_data_not_worse() {
+        let now = Utc::now();
+
+        let mut log5 = EventLog::new();
+        for i in 0..5_usize {
+            let mut t = Trace::new(format!("T{}", i));
+            t.add_event(Event::new("create", now));
+            t.add_event(Event::new("validate", now));
+            t.add_event(Event::new("approve", now));
+            t.add_event(Event::new("finalize", now));
+            log5.add_trace(t);
+        }
+
+        let mut log20 = EventLog::new();
+        for i in 0..20_usize {
+            let mut t = Trace::new(format!("T{}", i));
+            t.add_event(Event::new("create", now));
+            t.add_event(Event::new("validate", now));
+            t.add_event(Event::new("approve", now));
+            t.add_event(Event::new("finalize", now));
+            log20.add_trace(t);
+        }
+
+        let net5  = AlphaMiner::new().discover(&log5);
+        let net20 = AlphaMiner::new().discover(&log20);
+
+        let g5  = Generalization::calculate(&log5,  &net5,  3);
+        let g20 = Generalization::calculate(&log20, &net20, 3);
+
+        assert!(
+            g20 >= g5 - 0.05,
+            "Generalization with 20 traces ({}) should be >= with 5 traces ({}) minus 0.05",
+            g20, g5
+        );
+    }
+
+    /// simplicity_decreases_with_complexity
+    ///
+    /// A simple 3-activity net should have higher (or equal) simplicity than an 8-activity net.
+    #[test]
+    fn simplicity_decreases_with_complexity() {
+        use pm4py::conformance::Simplicity;
+
+        let now = Utc::now();
+
+        // Simple 3-activity sequential log.
+        let mut simple_log = EventLog::new();
+        for i in 0..3_usize {
+            let mut t = Trace::new(format!("S{}", i));
+            t.add_event(Event::new("a", now));
+            t.add_event(Event::new("b", now));
+            t.add_event(Event::new("c", now));
+            simple_log.add_trace(t);
+        }
+
+        // Complex 8-activity log with multiple variants.
+        let activities_variants: &[&[&str]] = &[
+            &["a", "b", "c", "d", "e", "f", "g", "h"],
+            &["a", "c", "b", "d", "f", "e", "g", "h"],
+            &["a", "b", "d", "c", "e", "g", "f", "h"],
+        ];
+        let mut complex_log = EventLog::new();
+        for (i, seq) in activities_variants.iter().enumerate() {
+            let mut t = Trace::new(format!("C{}", i));
+            for act in *seq {
+                t.add_event(Event::new(*act, now));
+            }
+            complex_log.add_trace(t);
+        }
+
+        let simple_net  = AlphaMiner::new().discover(&simple_log);
+        let complex_net = AlphaMiner::new().discover(&complex_log);
+
+        let s_simple  = Simplicity::calculate(&simple_net);
+        let s_complex = Simplicity::calculate(&complex_net);
+
+        assert!(
+            s_simple >= s_complex - 0.05,
+            "Simple net simplicity ({}) should be >= complex net simplicity ({}) minus 0.05",
+            s_simple, s_complex
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
     // SUMMARY TEST
     // ═══════════════════════════════════════════════════════════════════════════════
 

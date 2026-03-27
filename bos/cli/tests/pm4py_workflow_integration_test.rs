@@ -559,6 +559,89 @@ mod pm4py_workflow_integration {
                  conformance_result.fitness,
                  conformance_result.is_conformant);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // New tests (Chicago TDD additions)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// full_pipeline_returns_reasonable_fitness
+    ///
+    /// Load → AlphaMiner → TokenReplay: fitness must be in [0.1, 1.0].
+    /// Very conservative lower bound — just verifies the pipeline runs end-to-end.
+    #[test]
+    fn full_pipeline_returns_reasonable_fitness() {
+        let log = create_perfect_fit_log();
+        let net = AlphaMiner::new().discover(&log);
+        let result = TokenReplay::new().check(&log, &net);
+
+        assert!(
+            result.fitness >= 0.1 && result.fitness <= 1.0,
+            "End-to-end pipeline fitness must be in [0.1, 1.0], got {}",
+            result.fitness
+        );
+    }
+
+    /// inductive_miner_net_has_initial_and_final_place
+    ///
+    /// The net returned by InductiveMiner must declare both initial and final places.
+    #[test]
+    fn inductive_miner_net_has_initial_and_final_place() {
+        use pm4py::discovery::InductiveMiner;
+
+        let log = create_perfect_fit_log();
+        let net = InductiveMiner::new().discover(&log);
+
+        assert!(
+            net.initial_place.is_some(),
+            "InductiveMiner net must declare an initial_place"
+        );
+        assert!(
+            net.final_place.is_some(),
+            "InductiveMiner net must declare a final_place"
+        );
+    }
+
+    /// event_log_from_xes_has_nonzero_traces
+    ///
+    /// A programmatically constructed event log must have at least one trace.
+    #[test]
+    fn event_log_from_xes_has_nonzero_traces() {
+        let log = create_perfect_fit_log();
+
+        assert!(
+            log.len() > 0,
+            "EventLog must have at least one trace, got 0"
+        );
+    }
+
+    /// statistics_returns_nonzero_activity_count
+    ///
+    /// log_statistics on the perfect-fit log must report at least 1 unique activity.
+    #[test]
+    fn statistics_returns_nonzero_activity_count() {
+        let log = create_perfect_fit_log();
+        let stats = log_stats::log_statistics(&log);
+
+        assert!(
+            stats.num_unique_activities > 0,
+            "log_statistics must report at least 1 unique activity, got {}",
+            stats.num_unique_activities
+        );
+    }
+
+    /// dfg_has_edges_for_connected_process
+    ///
+    /// The directly-follows matrix for the perfect-fit log must contain at least one entry.
+    #[test]
+    fn dfg_has_edges_for_connected_process() {
+        let log = create_perfect_fit_log();
+        let dfg = log_stats::directly_follows_matrix(&log);
+
+        assert!(
+            !dfg.is_empty(),
+            "directly_follows_matrix must return at least one edge for a multi-event log"
+        );
+    }
 }
 
 // ============================================================

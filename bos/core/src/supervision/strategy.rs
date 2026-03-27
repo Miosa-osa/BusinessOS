@@ -72,7 +72,9 @@ impl RestartPolicy {
             return Duration::from_millis(self.initial_backoff_ms);
         }
 
-        let backoff = self.initial_backoff_ms * 2_u64.saturating_pow(attempt as u32);
+        let backoff = self
+            .initial_backoff_ms
+            .saturating_mul(2_u64.saturating_pow(attempt as u32));
         let capped = backoff.min(self.max_backoff_ms);
         Duration::from_millis(capped)
     }
