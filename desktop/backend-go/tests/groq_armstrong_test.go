@@ -270,13 +270,14 @@ func TestGroqArmstrong_TimeoutBudget(t *testing.T) {
 	}
 	svc := services.NewGroqService(cfg, "openai/gpt-oss-20b")
 
-	// Access unexported "client" field via reflect + unsafe
-	// This is the correct Go idiom for structural validation from outside-package tests
+	// Access unexported "client" field via reflect + unsafe.
+	// GroqService.client is a *http.Client, so UnsafeAddr returns the address
+	// of the pointer slot (**http.Client). Dereference once to get the *http.Client.
 	val := reflect.ValueOf(svc).Elem()
 	clientField := val.FieldByName("client")
 	require.True(t, clientField.IsValid(), "GroqService has no 'client' field — struct changed?")
 
-	clientPtr := (*http.Client)(unsafe.Pointer(clientField.UnsafeAddr()))
+	clientPtr := *(**http.Client)(unsafe.Pointer(clientField.UnsafeAddr()))
 	require.NotNil(t, clientPtr, "GroqService.client is nil — HTTP client not initialized")
 
 	timeout := clientPtr.Timeout

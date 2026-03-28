@@ -13,16 +13,4 @@ const (
 	// Kind: internal
 	// Stability: development
 	ProcessMiningDeclareCheckSpan = "process.mining.declare.check"
-	// process_mining_prediction_make is the span name for "process.mining.prediction.make".
-	//
-	// Span emitted when predictive analytics (next activity, remaining time, outcome) is computed
-	// Kind: internal
-	// Stability: development
-	ProcessMiningPredictionMakeSpan = "process.mining.prediction.make"
-	// process_mining_social_network_analyze is the span name for "process.mining.social_network.analyze".
-	//
-	// Span emitted when organizational/social network analysis is performed
-	// Kind: internal
-	// Stability: development
-	ProcessMiningSocialNetworkAnalyzeSpan = "process.mining.social_network.analyze"
 )

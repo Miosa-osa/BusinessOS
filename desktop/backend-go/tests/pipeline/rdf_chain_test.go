@@ -7,6 +7,7 @@
 package pipeline_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +24,7 @@ import (
 func TestRdfChain_CorrelationIdPropagatesOnSpan(t *testing.T) {
 	sr := tracetest.NewSpanRecorder()
 	tp := trace.NewTracerProvider(trace.WithSpanProcessor(sr))
-	defer func() { _ = tp.Shutdown(nil) }()
+	defer func() { _ = tp.Shutdown(context.Background()) }()
 
 	// Fire a health request with a correlation header to verify middleware picks it up.
 	gin.SetMode(gin.TestMode)

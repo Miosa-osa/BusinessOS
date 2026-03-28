@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -54,6 +55,7 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	h.registerPM4PyDashboardRoutes(api, optionalAuth)
 	h.registerVisionRoutes(api)
 	h.registerYawlRoutes(api, auth)
+	h.registerJWTMeRoute(api, jwtAuth)
 }
 
 // registerOntologyRoutes wires /api/ontology routes via bos CLI bridge.
@@ -121,4 +123,26 @@ func (h *Handlers) registerFIBODealsRoutes(api *gin.RouterGroup, auth gin.Handle
 	}
 	fiboHandler := NewFIBODealsHandler(h.fiboDealsService)
 	RegisterFIBODealsRoutes(api, fiboHandler, auth)
+}
+
+// registerJWTMeRoute wires GET /api/me (JWT Bearer auth).
+// Returns the calling service's JWT claims as user identity.
+// Returns 401 when no Authorization header is present or the token is invalid.
+// This endpoint is used for API-to-API identity verification (e.g., OSA ↔ BusinessOS handshake).
+func (h *Handlers) registerJWTMeRoute(api *gin.RouterGroup, jwtAuth gin.HandlerFunc) {
+	api.GET("/me", jwtAuth, func(c *gin.Context) {
+		claims := middleware.GetJWTClaims(c)
+		if claims == nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Authentication required",
+				"code":  "UNAUTHENTICATED",
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"user_id": claims.UserID,
+			"email":   claims.Email,
+			"sub":     claims.Subject,
+		})
+	})
 }

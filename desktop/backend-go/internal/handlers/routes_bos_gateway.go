@@ -22,6 +22,13 @@ func (h *Handlers) registerBOSGatewayRoutes(api *gin.RouterGroup) {
 	bosGroup.POST("/conformance", bosHandler.CheckConformance)
 	bosGroup.POST("/statistics", bosHandler.GetStatistics)
 	bosGroup.GET("/status", bosHandler.GetStatus)
+
+	// Schema management endpoints (BOS CLI ↔ BusinessOS round-trip).
+	schema := bosGroup.Group("/schema")
+	schema.POST("/import", bosHandler.SchemaImport)
+	schema.GET("/export/:schema_id", bosHandler.SchemaExport)
+	schema.POST("/validate/:schema_id", bosHandler.SchemaValidate)
+	schema.POST("/update", bosHandler.SchemaUpdate)
 }
 
 // registerLinkedInRoutes wires /api/linkedin routes for ICP scoring and outreach.
