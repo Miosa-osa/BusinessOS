@@ -46,6 +46,8 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	h.registerTransactionRoutes(api, auth)
 	h.registerMeshRoutes(api, auth)
 	h.registerBOSProgressRoutes(api, jwtAuth)
+	h.registerBOSGatewayRoutes(api)
+	h.registerLinkedInRoutes(api, auth)
 	h.registerBoardRoutes(api)
 	h.registerPM4PyDashboardRoutes(api)
 }

@@ -743,3 +743,132 @@ func TestConformanceResponse_AllFieldsPopulated(t *testing.T) {
 	assert.True(t, resp.Simplicity > 0)
 	assert.True(t, resp.LatencyMs >= 0)
 }
+
+// ============================================================================
+// CANOPY WEBHOOK TESTS
+// ============================================================================
+
+func TestDiscover_CanopyWebhook_FiresOnSuccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	logPath := bosCreateTempEventLogFile(t)
+	pm4pyMock := bosMockPM4PyServer(t)
+	t.Cleanup(pm4pyMock.Close)
+
+	webhookReceived := make(chan struct{})
+	var capturedPayload map[string]interface{}
+
+	canopyMock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&capturedPayload)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"ok": "true"})
+		close(webhookReceived)
+	}))
+	t.Cleanup(canopyMock.Close)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	handler := NewBOSGatewayHandler(nil, logger)
+	handler.pm4pyURL = pm4pyMock.URL
+	handler.canopyWebhookURL = canopyMock.URL
+
+	router := gin.New()
+	api := router.Group("/api")
+	RegisterBOSGatewayRoutes(api, handler)
+
+	body := bosMustMarshal(t, BOSDiscoverRequest{LogPath: logPath, Algorithm: "inductive_miner"})
+	httpReq := httptest.NewRequest("POST", "/api/bos/discover", bytes.NewBufferString(body))
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httpReq)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	select {
+	case <-webhookReceived:
+		// success
+	case <-time.After(2 * time.Second):
+		t.Fatal("canopy webhook not received within 2s")
+	}
+
+	assert.NotEmpty(t, capturedPayload["model_id"])
+	assert.NotEmpty(t, capturedPayload["algorithm"])
+	assert.NotNil(t, capturedPayload["activities_count"])
+	assert.Equal(t, float64(0), capturedPayload["fitness_score"])
+}
+
+func TestDiscover_CanopyWebhook_SkippedWhenURLEmpty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	logPath := bosCreateTempEventLogFile(t)
+	pm4pyMock := bosMockPM4PyServer(t)
+	t.Cleanup(pm4pyMock.Close)
+
+	canopyHits := 0
+	canopyMock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		canopyHits++
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(canopyMock.Close)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	handler := NewBOSGatewayHandler(nil, logger)
+	handler.pm4pyURL = pm4pyMock.URL
+	// canopyWebhookURL intentionally left empty
+
+	router := gin.New()
+	api := router.Group("/api")
+	RegisterBOSGatewayRoutes(api, handler)
+
+	body := bosMustMarshal(t, BOSDiscoverRequest{LogPath: logPath, Algorithm: "inductive_miner"})
+	httpReq := httptest.NewRequest("POST", "/api/bos/discover", bytes.NewBufferString(body))
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httpReq)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, 0, canopyHits)
+}
+
+func TestDiscover_CanopyWebhook_FailureDoesNotAffectAPIResponse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	logPath := bosCreateTempEventLogFile(t)
+	pm4pyMock := bosMockPM4PyServer(t)
+	t.Cleanup(pm4pyMock.Close)
+
+	webhookReceived := make(chan struct{})
+	canopyMock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		close(webhookReceived)
+	}))
+	t.Cleanup(canopyMock.Close)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	handler := NewBOSGatewayHandler(nil, logger)
+	handler.pm4pyURL = pm4pyMock.URL
+	handler.canopyWebhookURL = canopyMock.URL
+
+	router := gin.New()
+	api := router.Group("/api")
+	RegisterBOSGatewayRoutes(api, handler)
+
+	body := bosMustMarshal(t, BOSDiscoverRequest{LogPath: logPath, Algorithm: "inductive_miner"})
+	httpReq := httptest.NewRequest("POST", "/api/bos/discover", bytes.NewBufferString(body))
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httpReq)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	select {
+	case <-webhookReceived:
+		// correct
+	case <-time.After(2 * time.Second):
+		t.Fatal("canopy webhook goroutine did not run within 2s")
+	}
+}

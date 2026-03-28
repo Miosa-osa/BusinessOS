@@ -46,6 +46,10 @@ func buildCSRFConfig(cfg *config.Config) middleware.CSRFConfig {
 			strings.HasPrefix(path, "/api/v1/internal/osa/") {
 			return true
 		}
+		if strings.HasPrefix(path, "/api/bos/") ||
+			strings.HasPrefix(path, "/api/v1/bos/") {
+			return true
+		}
 		if path == "/health" || path == "/ready" || path == "/health/detailed" ||
 			path == "/healthz" || path == "/readyz" {
 			return true

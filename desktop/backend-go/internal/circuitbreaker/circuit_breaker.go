@@ -30,22 +30,22 @@ type CircuitBreaker struct {
 	halfOpenMaxCalls int
 
 	// State
-	state           State
-	lastFailure      time.Time
+	state               State
+	lastFailure         time.Time
 	consecutiveFailures int
-	successCount     int
+	successCount        int
 
 	// Callbacks
-	onStateChange    func(oldState, newState State)
-	onFailure        func(error)
-	onSuccess        func()
-	onTimeout        func()
+	onStateChange func(oldState, newState State)
+	onFailure     func(error)
+	onSuccess     func()
+	onTimeout     func()
 
 	// Monitoring
-	totalCalls       int64
-	successfulCalls  int64
-	failedCalls      int64
-	timeoutCalls     int64
+	totalCalls      int64
+	successfulCalls int64
+	failedCalls     int64
+	timeoutCalls    int64
 }
 
 // Config holds circuit breaker configuration
@@ -81,12 +81,12 @@ func NewCircuitBreaker(config Config) *CircuitBreaker {
 
 	return &CircuitBreaker{
 		maxAttempts:      config.MaxAttempts,
-		baseDelay:       config.BaseDelay,
-		maxDelay:        config.MaxDelay,
-		timeoutDuration: config.TimeoutDuration,
-		cooldownPeriod:  config.CooldownPeriod,
+		baseDelay:        config.BaseDelay,
+		maxDelay:         config.MaxDelay,
+		timeoutDuration:  config.TimeoutDuration,
+		cooldownPeriod:   config.CooldownPeriod,
 		halfOpenMaxCalls: config.HalfOpenMaxCalls,
-		state:          StateClosed,
+		state:            StateClosed,
 	}
 }
 
@@ -237,13 +237,13 @@ func (cb *CircuitBreaker) GetStats() Stats {
 	}
 
 	return Stats{
-		TotalCalls:       cb.totalCalls,
-		SuccessfulCalls: cb.successfulCalls,
-		FailedCalls:      cb.failedCalls,
-		TimeoutCalls:     cb.timeoutCalls,
-		SuccessRate:      successRate,
-		State:           cb.state,
-		LastFailure:      cb.lastFailure,
+		TotalCalls:          cb.totalCalls,
+		SuccessfulCalls:     cb.successfulCalls,
+		FailedCalls:         cb.failedCalls,
+		TimeoutCalls:        cb.timeoutCalls,
+		SuccessRate:         successRate,
+		State:               cb.state,
+		LastFailure:         cb.lastFailure,
 		ConsecutiveFailures: cb.consecutiveFailures,
 	}
 }
@@ -305,13 +305,13 @@ func (cb *CircuitBreaker) GetNextRetryDelay() time.Duration {
 
 // Stats contains circuit breaker statistics
 type Stats struct {
-	TotalCalls         int64
-	SuccessfulCalls    int64
-	FailedCalls        int64
-	TimeoutCalls       int64
-	SuccessRate        float64
-	State             State
-	LastFailure        time.Time
+	TotalCalls          int64
+	SuccessfulCalls     int64
+	FailedCalls         int64
+	TimeoutCalls        int64
+	SuccessRate         float64
+	State               State
+	LastFailure         time.Time
 	ConsecutiveFailures int
 }
 
@@ -404,23 +404,23 @@ func (b *CircuitBreakerBuilder) Build() *CircuitBreaker {
 // ComplianceServiceConfig returns circuit breaker config for compliance service
 func ComplianceServiceConfig() Config {
 	return Config{
-		MaxAttempts:      3,  // Fewer attempts for compliance (critical service)
-		BaseDelay:       1 * time.Second,
-		MaxDelay:        30 * time.Second,
-		TimeoutDuration: 5 * time.Second,  // OSA call timeout
-		CooldownPeriod:  60 * time.Second,
-		HalfOpenMaxCalls: 1,  // Only try once in half-open state
+		MaxAttempts:      3, // Fewer attempts for compliance (critical service)
+		BaseDelay:        1 * time.Second,
+		MaxDelay:         30 * time.Second,
+		TimeoutDuration:  5 * time.Second, // OSA call timeout
+		CooldownPeriod:   60 * time.Second,
+		HalfOpenMaxCalls: 1, // Only try once in half-open state
 	}
 }
 
 // DatabaseConfig returns circuit breaker config for database operations
 func DatabaseConfig() Config {
 	return Config{
-		MaxAttempts:      5,  // Standard database retry
-		BaseDelay:       100 * time.Millisecond,
-		MaxDelay:        5 * time.Second,
-		TimeoutDuration: 2 * time.Second,
-		CooldownPeriod:  10 * time.Second,
+		MaxAttempts:      5, // Standard database retry
+		BaseDelay:        100 * time.Millisecond,
+		MaxDelay:         5 * time.Second,
+		TimeoutDuration:  2 * time.Second,
+		CooldownPeriod:   10 * time.Second,
 		HalfOpenMaxCalls: 3,
 	}
 }
@@ -429,10 +429,10 @@ func DatabaseConfig() Config {
 func ExternalAPIConfig() Config {
 	return Config{
 		MaxAttempts:      5,
-		BaseDelay:       200 * time.Millisecond,
-		MaxDelay:        10 * time.Second,
-		TimeoutDuration: 10 * time.Second,
-		CooldownPeriod:  30 * time.Second,
+		BaseDelay:        200 * time.Millisecond,
+		MaxDelay:         10 * time.Second,
+		TimeoutDuration:  10 * time.Second,
+		CooldownPeriod:   30 * time.Second,
 		HalfOpenMaxCalls: 2,
 	}
 }

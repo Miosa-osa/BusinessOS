@@ -47,6 +47,9 @@ func (h *Handlers) registerComplianceRoutes(api *gin.RouterGroup, auth gin.Handl
 	}
 	slog.Info("Compliance routes registered at /api/compliance/*")
 
+	// Alias: Canopy adapter calls /api/bos/compliance/verify (documented in CLAUDE.md)
+	api.POST("/bos/compliance/verify", auth, complianceH.VerifyCompliance)
+
 	// Register Compliance REST API routes (Agent 27: Compliance REST API)
 	h.registerComplianceAPIRoutes(api, auth)
 }
@@ -117,7 +120,7 @@ func (h *ComplianceHandler) GetAuditTrail(c *gin.Context) {
 		if strings.Contains(err.Error(), "OSA unavailable") {
 			h.logger.Warn("OSA unavailable, returning 503", "session_id", sessionID, "error", err)
 			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"error": "OSA audit trail service unavailable",
+				"error":   "OSA audit trail service unavailable",
 				"details": err.Error(),
 			})
 			return

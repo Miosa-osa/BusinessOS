@@ -125,7 +125,7 @@ func NewHandlers(pool *pgxpool.Pool, cfg *config.Config, containerMgr *container
 func initComplianceService() *services.ComplianceService {
 	osaBaseURL := os.Getenv("OSA_BASE_URL")
 	if osaBaseURL == "" {
-		osaBaseURL = "http://localhost:9089"
+		osaBaseURL = "http://localhost:8089"
 	}
 	return services.NewComplianceService(osaBaseURL, slog.Default())
 }

@@ -24,12 +24,13 @@ import (
 
 // BOSGatewayHandler handles BOS CLI ↔ BusinessOS API gateway operations.
 type BOSGatewayHandler struct {
-	pool       *pgxpool.Pool
-	logger     *slog.Logger
-	stats      *GatewayStatistics
-	mu         sync.RWMutex
-	pm4pyURL   string
-	httpClient *http.Client
+	pool             *pgxpool.Pool
+	logger           *slog.Logger
+	stats            *GatewayStatistics
+	mu               sync.RWMutex
+	pm4pyURL         string
+	canopyWebhookURL string
+	httpClient       *http.Client
 }
 
 // GatewayStatistics tracks gateway metrics.
@@ -55,6 +56,9 @@ func NewBOSGatewayHandler(pool *pgxpool.Pool, logger *slog.Logger) *BOSGatewayHa
 		pm4pyURL = envURL
 	}
 
+	canopyWebhookURL := os.Getenv("CANOPY_WEBHOOK_URL")
+	// No default — empty string disables the feature
+
 	return &BOSGatewayHandler{
 		pool:   pool,
 		logger: logger,
@@ -62,7 +66,8 @@ func NewBOSGatewayHandler(pool *pgxpool.Pool, logger *slog.Logger) *BOSGatewayHa
 			StartedAt:     time.Now(),
 			LatencyValues: make([]uint64, 0),
 		},
-		pm4pyURL: pm4pyURL,
+		pm4pyURL:         pm4pyURL,
+		canopyWebhookURL: canopyWebhookURL,
 		// ## Backpressure: HTTP Client Timeout (WvdA deadlock-free)
 		// 30-second timeout prevents unbounded hangs to pm4py-rust.
 		// otelhttp.NewTransport wraps the default transport so that outbound
@@ -343,6 +348,11 @@ func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 		case <-ctx.Done():
 		}
 	}(c.Request.Context())
+
+	// Fire-and-forget: Canopy discovery webhook (WvdA: bounded, no leak)
+	if h.canopyWebhookURL != "" {
+		go h.sendCanopyWebhook(response.ModelID, response.Algorithm, response.Transitions)
+	}
 
 	c.JSON(http.StatusOK, response)
 }
@@ -769,6 +779,65 @@ func (h *BOSGatewayHandler) GetStatus(c *gin.Context) {
 // ============================================================================
 // INTERNAL HELPERS
 // ============================================================================
+
+// sendCanopyWebhook fires a POST to the Canopy discovery webhook.
+// Called as a goroutine. Owns its own 10s context deadline — always exits.
+// Failure is logged but not propagated; this is an advisory notification.
+func (h *BOSGatewayHandler) sendCanopyWebhook(modelID, algorithm string, activitiesCount int) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	payload := map[string]interface{}{
+		"model_id":         modelID,
+		"algorithm":        algorithm,
+		"activities_count": activitiesCount,
+		"fitness_score":    0.0,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		h.logger.Error("canopy webhook: failed to marshal payload",
+			"model_id", modelID,
+			"error", err.Error(),
+		)
+		return
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		h.canopyWebhookURL, bytes.NewReader(body))
+	if err != nil {
+		h.logger.Error("canopy webhook: failed to build request",
+			"model_id", modelID,
+			"error", err.Error(),
+		)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := h.httpClient.Do(req)
+	if err != nil {
+		h.logger.Warn("canopy webhook: POST failed (non-fatal)",
+			"model_id", modelID,
+			"canopy_url", h.canopyWebhookURL,
+			"error", err.Error(),
+		)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		h.logger.Warn("canopy webhook: non-2xx response (non-fatal)",
+			"model_id", modelID,
+			"status", resp.StatusCode,
+		)
+		return
+	}
+
+	h.logger.Info("canopy webhook: delivery confirmed",
+		"model_id", modelID,
+		"status", resp.StatusCode,
+	)
+}
 
 // readEventLog reads a file at logPath, validates it is valid JSON, and returns
 // the raw JSON bytes. Returns an error if the file cannot be read or is not
