@@ -49,8 +49,8 @@ setup: ## First-time setup: copy .env files, pull images, start stack
 		printf '  $(GREEN)Created$(RESET) desktop/backend-go/.env\n' || \
 		printf '  desktop/backend-go/.env already exists — skipping\n'
 	@echo ""
-	@printf '$(BOLD)Pulling base images...$(RESET)\n'
-	@docker compose pull postgres redis
+	@printf '$(BOLD)Pulling base images (DB, cache, observability)...$(RESET)\n'
+	@docker compose pull postgres redis otel-collector jaeger
 	@echo ""
 	@printf '$(BOLD)Starting infrastructure services...$(RESET)\n'
 	@docker compose up -d postgres redis

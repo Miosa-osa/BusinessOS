@@ -94,10 +94,12 @@ type Handlers struct {
 	complianceService *services.ComplianceService // Compliance status, audit trail, gap analysis
 	// 2-Phase Commit Transaction Management
 	transactionHandler *BOSTransactionHandler // 2PC transaction coordinator (prepare, commit, abort)
+	// FIBO Deal Management
+	fiboDealsService *services.FIBODealsService // FIBO ontology deal management
 }
 
 // NewHandlers creates a new Handlers instance
-func NewHandlers(pool *pgxpool.Pool, cfg *config.Config, containerMgr *container.ContainerManager, sessionCache *middleware.SessionCache, terminalPubSub *terminal.TerminalPubSub, embeddingService *services.EmbeddingService, contextBuilder *services.ContextBuilder, tieredContextService *services.TieredContextService, notificationService *services.NotificationService, osaClient *osa.ResilientClient, osaSyncService *services.OSASyncService) *Handlers {
+func NewHandlers(pool *pgxpool.Pool, cfg *config.Config, containerMgr *container.ContainerManager, sessionCache *middleware.SessionCache, terminalPubSub *terminal.TerminalPubSub, embeddingService *services.EmbeddingService, contextBuilder *services.ContextBuilder, tieredContextService *services.TieredContextService, notificationService *services.NotificationService, osaClient *osa.ResilientClient, osaSyncService *services.OSASyncService, fiboDealsService *services.FIBODealsService) *Handlers {
 	var notifTriggers *services.NotificationTriggers
 	if notificationService != nil {
 		notifTriggers = services.NewNotificationTriggers(notificationService)
@@ -118,6 +120,7 @@ func NewHandlers(pool *pgxpool.Pool, cfg *config.Config, containerMgr *container
 		osaSyncService:       osaSyncService,
 		complianceService:    initComplianceService(),
 		transactionHandler:   NewBOSTransactionHandler(pool, slog.Default()),
+		fiboDealsService:     fiboDealsService,
 	}
 }
 

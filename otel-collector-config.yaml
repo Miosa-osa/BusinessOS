@@ -26,10 +26,13 @@ exporters:
   # Export a copy of all spans to Weaver live-check for semantic convention
   # validation. Weaver listens on gRPC port 4316 inside the Docker network.
   # Validation results appear in weaver container logs and /reports/ volume.
+  # Weaver live-check gRPC server does not accept gzip-compressed OTLP payloads
+  # (collector default compression causes: "Content is compressed with gzip which isn't supported").
   otlp/weaver:
     endpoint: weaver-live-check:4316
     tls:
       insecure: true
+    compression: none
 
   # Debug logging — useful during development to verify spans are flowing.
   debug:

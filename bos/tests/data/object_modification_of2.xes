@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<log xes.version="1.0" xes.features="nested-attributes" xmlns="http://www.xes-standard.org/">
+  <extension name="Concept" prefix="concept" uri="http://www.xes-standard.org/concept.xesext"/>
+  <extension name="Time" prefix="time" uri="http://www.xes-standard.org/time.xesext"/>
+  <extension name="Object" prefix="obj" uri="http://www.xes-standard.org/object.xesext"/>
+  <global scope="trace">
+    <string key="concept:name" value="case id"/>
+  </global>
+  <global scope="event">
+    <string key="concept:name" value="activity"/>
+    <date key="time:timestamp" value="timestamp"/>
+  </global>
+  <trace>
+    <string key="concept:name" value="order_001"/>
+    <event>
+      <string key="concept:name" value="read_order"/>
+      <date key="time:timestamp" value="2024-01-01T09:00:00.000Z"/>
+      <string key="obj:object_id" value="ord_001"/>
+      <string key="obj:object_type" value="order"/>
+      <string key="obj:state" value="pending"/>
+    </event>
+    <event>
+      <string key="concept:name" value="process_payment"/>
+      <date key="time:timestamp" value="2024-01-01T09:15:00.000Z"/>
+      <string key="obj:object_id" value="ord_001"/>
+      <string key="obj:state_before" value="pending"/>
+      <string key="obj:state_after" value="paid"/>
+      <string key="obj:modification_type" value="status_update"/>
+    </event>
+    <event>
+      <string key="concept:name" value="update_inventory"/>
+      <date key="time:timestamp" value="2024-01-01T09:30:00.000Z"/>
+      <string key="obj:object_id" value="ord_001"/>
+      <string key="obj:state_before" value="paid"/>
+      <string key="obj:state_after" value="fulfilled"/>
+      <string key="obj:modification_type" value="status_update"/>
+    </event>
+    <event>
+      <string key="concept:name" value="write_order"/>
+      <date key="time:timestamp" value="2024-01-01T09:45:00.000Z"/>
+      <string key="obj:object_id" value="ord_001"/>
+      <string key="obj:final_state" value="fulfilled"/>
+    </event>
+  </trace>
+</log>

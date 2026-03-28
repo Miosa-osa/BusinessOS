@@ -75,7 +75,7 @@ services:
   # ---------------------------------------------------------------------------
   pm4py-rust:
     build:
-      context: ../../pm4py-rust
+      context: ../pm4py-rust
       dockerfile: Dockerfile
     image: pm4py-rust:local
     container_name: businessos-pm4py-rust
@@ -430,8 +430,3 @@ volumes:
 networks:
   businessos-network:
     driver: bridge
-    ipam:
-      config:
-        # /24 (256 IPs) is sufficient and avoids collisions with common Docker ranges.
-        # The previous /16 (65k IPs) at 172.20.x.x frequently collided with other networks.
-        - subnet: 172.28.0.0/24

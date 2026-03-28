@@ -121,7 +121,7 @@ func TestBOSProgressHandlerConcurrentSessions(t *testing.T) {
 	})
 
 	server := httptest.NewServer(router)
-	defer server.Close()
+	// Note: server.Close() called explicitly below after checking active sessions
 
 	// Connect all sessions concurrently
 	done := make(chan bool, len(sessionIDs))
@@ -155,11 +155,21 @@ func TestBOSProgressHandlerConcurrentSessions(t *testing.T) {
 		t.Errorf("Expected %d sessions, got %d", len(sessionIDs), len(activeSessions))
 	}
 
-	// Verify all sessions received completion signals
+	// Close server to terminate SSE connections and unblock goroutines
+	server.Close()
+
+	// Drain done channel with timeout — goroutines send when connection closes
 	connected := 0
-	for done := range done {
-		if done {
-			connected++
+	timeout := time.After(3 * time.Second)
+	for i := 0; i < len(sessionIDs); i++ {
+		select {
+		case result := <-done:
+			if result {
+				connected++
+			}
+		case <-timeout:
+			t.Logf("Timeout waiting for session goroutines to finish")
+			break
 		}
 	}
 
@@ -346,9 +356,15 @@ func TestBOSProgressHandlerSessionCancellation(t *testing.T) {
 	handler := NewBOSProgressHandler(streamService, logger)
 
 	sessionID := uuid.New()
+	userID := uuid.New()
+
+	// Create a session by subscribing to it
+	ctx := context.Background()
+	subscriber := streamService.Subscribe(ctx, userID, sessionID)
+	defer streamService.Unsubscribe(subscriber.ID)
 
 	router := gin.New()
-	router.POST("/session/:session_id/cancel", func(c *gin.Context) {
+	router.POST("/api/bos/session/:session_id/cancel", func(c *gin.Context) {
 		handler.CancelSession(c)
 	})
 
@@ -356,7 +372,7 @@ func TestBOSProgressHandlerSessionCancellation(t *testing.T) {
 	defer server.Close()
 
 	// Cancel session
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/session/%s/cancel", server.URL, sessionID.String()), nil)
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/bos/session/%s/cancel", server.URL, sessionID.String()), nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}

@@ -145,7 +145,11 @@ func TestVerifyConsentData_MissingPatientID(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	var result map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &result)
-	assert.Equal(t, "missing_patient_id", result["error"])
+	// Validation error from struct binding - check nested structure
+	assert.Contains(t, result, "error")
+	errorMap := result["error"].(map[string]interface{})
+	assert.Contains(t, errorMap, "code")
+	assert.Equal(t, "BAD_REQUEST", errorMap["code"])
 }
 
 func TestDeleteHealthcareData_Success(t *testing.T) {

@@ -408,6 +408,10 @@ func (s *BOSStreamingService) updateSessionMetrics(sessionID uuid.UUID, event *B
 		storeFloat64(&metrics.PeakThroughputEPS, event.Metrics.PeakThroughputEPS)
 		metrics.VariantsFound.Store(event.Metrics.VariantsFound)
 		metrics.ViolationsFound.Store(event.Metrics.ViolationsFound)
+		// Aggregate TotalProcessed from metrics events
+		if event.Metrics.TotalProcessed > 0 {
+			metrics.EventsProcessed.Store(event.Metrics.TotalProcessed)
+		}
 	}
 
 	if event.Error != nil {

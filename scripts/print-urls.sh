@@ -13,6 +13,7 @@ fi
 
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 BACKEND_PORT="${BACKEND_PORT:-8001}"
+POSTGRES_PORT="${POSTGRES_PORT:-5433}"
 
 BOLD='\033[1m'
 GREEN='\033[0;32m'
@@ -28,6 +29,7 @@ printf "  ${GREEN}Frontend${RESET}   ${CYAN}http://localhost:${FRONTEND_PORT}${R
 printf "  ${GREEN}Backend${RESET}    ${CYAN}http://localhost:${BACKEND_PORT}${RESET}\n"
 printf "  ${GREEN}Health${RESET}     ${CYAN}http://localhost:${BACKEND_PORT}/healthz${RESET}\n"
 printf "  ${GREEN}Readiness${RESET}  ${CYAN}http://localhost:${BACKEND_PORT}/readyz${RESET}\n"
+printf "  ${GREEN}PostgreSQL${RESET} ${CYAN}localhost:${POSTGRES_PORT}${RESET} (host → container 5432)\n"
 printf "\n"
 printf "  Logs:       ${BOLD}docker compose logs -f${RESET}\n"
 printf "  Stop:       ${BOLD}docker compose down${RESET}\n"

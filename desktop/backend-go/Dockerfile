@@ -2,17 +2,13 @@
 # BusinessOS Backend — Go server + optional OpenTelemetry Weaver (semconv MCP)
 # =============================================================================
 
-# Weaver CLI (glibc) — used for `weaver registry mcp` stdio bridge to semconv
-FROM rust:bookworm AS weaver
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config libssl-dev ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-RUN cargo install weaver@0.22.1
+# Weaver CLI — official multi-arch image (source builds require a prebuilt UI tree).
+FROM otel/weaver:latest AS weaver
 
 # ---------------------------------------------------------------------------
 # Stage: Go build (static binary)
 # ---------------------------------------------------------------------------
-FROM golang:1.24-bookworm AS builder
+FROM golang:1.25-bookworm AS builder
 
 WORKDIR /app
 
@@ -20,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
     && rm -rf /var/lib/apt/lists/*
 
 COPY go.mod go.sum ./
+COPY internal/osasdk ./internal/osasdk/
 RUN go mod download && go mod verify
 
 COPY cmd/ ./cmd/
@@ -32,7 +29,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /server ./cmd/server
 
 # ---------------------------------------------------------------------------
-# Stage: Runtime (Debian — matches glibc-linked weaver binary)
+# Stage: Runtime
 # ---------------------------------------------------------------------------
 FROM debian:bookworm-slim
 
@@ -44,7 +41,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY --from=builder /server /app/server
-COPY --from=weaver /usr/local/cargo/bin/weaver /usr/local/bin/weaver
+COPY --from=weaver /weaver/weaver /usr/local/bin/weaver
 
 RUN chown -R appuser:appgroup /app && chmod +x /usr/local/bin/weaver
 

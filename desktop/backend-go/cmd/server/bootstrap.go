@@ -690,8 +690,16 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 
 	app.osaQueueWorker = osaQueueWorker
 
+	// ===== FIBO DEALS SERVICE =====
+	oxigraphURL := os.Getenv("OXIGRAPH_URL")
+	if oxigraphURL == "" {
+		oxigraphURL = "http://localhost:7878"
+	}
+	fiboDealsService := services.NewFIBODealsService(oxigraphURL)
+	slog.Info("FIBO deals service initialized", "oxigraph_url", oxigraphURL)
+
 	// ===== HANDLERS =====
-	h := handlers.NewHandlers(app.pool, cfg, app.containerMgr, sessionCache, terminalPubSub, embeddingService, contextBuilder, tieredContextService, notificationService, osaClient, osaSyncService)
+	h := handlers.NewHandlers(app.pool, cfg, app.containerMgr, sessionCache, terminalPubSub, embeddingService, contextBuilder, tieredContextService, notificationService, osaClient, osaSyncService, fiboDealsService)
 	app.handlers = h
 
 	if webPushService != nil {

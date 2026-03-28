@@ -46,6 +46,7 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	h.registerComplianceRoutes(api, auth)
 	h.registerTransactionRoutes(api, auth)
 	h.registerMeshRoutes(api, auth)
+	h.registerFIBODealsRoutes(api, auth)
 	h.registerBOSProgressRoutes(api, jwtAuth)
 	h.registerBOSGatewayRoutes(api)
 	h.registerLinkedInRoutes(api, auth)
@@ -111,4 +112,13 @@ func (h *Handlers) registerBOSProgressRoutes(api *gin.RouterGroup, jwtAuth gin.H
 	// POST /api/bos/progress — receives progress events from pm4py-rust
 	// Requires JWT Bearer token in Authorization header to prevent unauthorized progress injection
 	api.POST("/bos/progress", jwtAuth, ReceiveExternalProgressEventHandler)
+}
+
+// registerFIBODealsRoutes wires /api/deals routes for FIBO deal management.
+func (h *Handlers) registerFIBODealsRoutes(api *gin.RouterGroup, auth gin.HandlerFunc) {
+	if h.fiboDealsService == nil {
+		return // FIBO deals not configured — skip
+	}
+	fiboHandler := NewFIBODealsHandler(h.fiboDealsService)
+	RegisterFIBODealsRoutes(api, fiboHandler, auth)
 }

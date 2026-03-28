@@ -9,7 +9,7 @@ services:
     container_name: businessos-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
@@ -199,6 +199,3 @@ volumes:
 networks:
   businessos-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
