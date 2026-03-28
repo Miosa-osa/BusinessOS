@@ -17,7 +17,12 @@ export * from "./calendar";
 export * from "./team";
 export * from "./dashboard";
 export * from "./nodes";
-export * from "./deals";
+// deals.ts (FIBO deals module) — skip wildcard export to avoid conflicts with clients module types
+// (DealResponse, createDeal, updateDeal are also exported from ./clients with different shapes)
+// Import FIBO deal types directly: import { type Deal, listDeals } from '$lib/api/deals'
+export type { DealStatus, ComplianceStatus, DealDomain, DealListResponse } from "./deals";
+export { listDeals, getDeal, deleteDeal, verifyCompliance, loadDeals, dealsStore } from "./deals";
+export type { Deal as FIBODeal, CreateDealRequest as FIBOCreateDealRequest, UpdateDealRequest as FIBOUpdateDealRequest } from "./deals";
 export * from "./daily";
 export * from "./settings";
 export * from "./artifacts";
@@ -189,9 +194,9 @@ export const api = {
   getNodeChildren: nodesApi.getNodeChildren,
   reorderNode: nodesApi.reorderNode,
 
-  // Deals
-  getAllDeals: dealsApi.getAllDeals,
-  updateDealStage: dealsApi.updateDealStage,
+  // Deals (pipeline-level operations, keyed to clients module)
+  getAllDeals: clientsApi.getAllDeals,
+  updateDealStage: clientsApi.updateDealStage,
 
   // Daily Logs
   getDailyLogs: dailyApi.getDailyLogs,

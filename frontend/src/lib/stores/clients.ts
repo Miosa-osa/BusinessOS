@@ -17,7 +17,7 @@ import {
 	type CreateDealData,
 	type UpdateDealData
 } from '$lib/api/clients';
-import { getAllDeals, updateDealStage } from '$lib/api/deals';
+import { getAllDeals, updateDealStage } from '$lib/api/clients';
 
 export type ViewMode = 'table' | 'cards' | 'kanban';
 

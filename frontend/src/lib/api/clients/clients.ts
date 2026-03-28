@@ -93,4 +93,21 @@ export async function updateDeal(clientId: string, dealId: string, data: UpdateD
   return request<DealResponse>(`/clients/${clientId}/deals/${dealId}`, { method: 'PUT', body: data });
 }
 
-// Note: Standalone pipeline deal operations (getAllDeals, updateDealStage) are in the deals module
+// Standalone pipeline deal operations (across all clients)
+export async function getAllDeals(stage?: import('./types').DealStage) {
+  const params = new URLSearchParams();
+  if (stage) params.set('stage', stage);
+  const query = params.toString();
+  const raw = await request<Record<string, unknown>>(`/clients/deals${query ? `?${query}` : ''}`);
+  if (raw && typeof raw === 'object' && 'data' in raw && Array.isArray(raw.data)) {
+    return raw.data as DealResponse[];
+  }
+  if (Array.isArray(raw)) {
+    return raw as unknown as DealResponse[];
+  }
+  return [];
+}
+
+export async function updateDealStage(dealId: string, stage: import('./types').DealStage) {
+  return request<DealResponse>(`/clients/deals/${dealId}/stage`, { method: 'PATCH', body: { stage } });
+}
