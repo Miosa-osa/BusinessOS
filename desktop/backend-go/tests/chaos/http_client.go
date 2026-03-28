@@ -1,6 +1,7 @@
 package chaos
 
 import (
+	"bytes"
 	"net/http"
 	"time"
 )
@@ -28,7 +29,7 @@ func (c *httpClient) Get(url string) (*http.Response, error) {
 
 // Post performs an HTTP POST request
 func (c *httpClient) Post(url, contentType string, body []byte) (*http.Response, error) {
-	return c.client.Post(url, contentType, nil)
+	return c.client.Post(url, contentType, bytes.NewReader(body))
 }
 
 // Head performs an HTTP HEAD request

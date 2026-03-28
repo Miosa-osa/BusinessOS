@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -214,10 +215,13 @@ type readCloser struct {
 
 func (r *readCloser) Read(p []byte) (n int, err error) {
 	if r.offset >= len(r.body) {
-		return 0, nil
+		return 0, io.EOF
 	}
 	n = copy(p, r.body[r.offset:])
 	r.offset += n
+	if r.offset >= len(r.body) {
+		return n, io.EOF
+	}
 	return n, nil
 }
 

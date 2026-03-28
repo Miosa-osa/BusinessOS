@@ -4,6 +4,7 @@ package concurrency
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -61,7 +62,7 @@ func (s *Semaphore) Acquire(ctx context.Context) error {
 	// Record attempt
 	if s.telemetry != nil {
 		s.telemetry.RecordMetric("semaphore.acquire.attempts", 1, map[string]string{
-			"max_slots": string(rune(s.maxSlots)),
+			"max_slots": fmt.Sprint(s.maxSlots),
 		}, "counter")
 	}
 
