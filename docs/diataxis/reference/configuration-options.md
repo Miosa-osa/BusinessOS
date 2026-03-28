@@ -161,7 +161,7 @@ openssl rand -base64 32
 | Variable | Type | Default | Purpose |
 |----------|------|---------|---------|
 | `GROQ_API_KEY` | string | (empty) | Groq API key |
-| `GROQ_MODEL` | string | `mixtral-8x7b-32768` | Model name |
+| `GROQ_MODEL` | string | `openai/gpt-oss-20b` | Model name |
 
 ### OpenAI
 

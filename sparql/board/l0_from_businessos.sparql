@@ -4,12 +4,16 @@
 # Run BEFORE l1_process_metrics.sparql.
 #
 # Source: BusinessOS cases table, handoffs table, org hierarchy
-# Target: Oxigraph named graph <http://businessos.local/l0>
+# Target: Oxigraph named graph <https://chatmangpt.com/ontology/businessos/l0>
 #
 # WvdA: L0 = ground truth event log. All higher levels derive from this.
 # Armstrong: no transformation logic here — only projection of facts.
+#
+# Canonical namespace: https://chatmangpt.com/ontology/businessos/
 
-PREFIX bos: <http://businessos.local/ontology#>
+PREFIX bos: <https://chatmangpt.com/ontology/businessos/>
+PREFIX org: <http://www.w3.org/ns/org#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 PREFIX prov: <http://www.w3.org/ns/prov#>

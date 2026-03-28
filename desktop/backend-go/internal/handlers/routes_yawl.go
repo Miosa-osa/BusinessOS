@@ -17,11 +17,14 @@ func (h *Handlers) registerYawlRoutes(api *gin.RouterGroup, auth gin.HandlerFunc
 	yawlHandler := NewYawlHandler(slog.Default())
 	yawlGroup := api.Group("/yawl")
 
+	// When YAWLV6_API_TOKEN is set, use static bearer auth for service-to-service calls.
+	// When not set, fall back to JWT auth (browser / session-based callers).
 	token := os.Getenv("YAWLV6_API_TOKEN")
 	if token != "" {
 		yawlGroup.Use(middleware.StaticBearerAuth(token))
+	} else {
+		yawlGroup.Use(auth)
 	}
-	yawlGroup.Use(auth)
 
 	yawlGroup.GET("/health", yawlHandler.GetHealth)
 	yawlGroup.POST("/conformance", yawlHandler.CheckConformance)

@@ -11,15 +11,15 @@ func normalizeModelName(model string) string {
 	// Common mappings from display names to API IDs
 	modelMappings := map[string]string{
 		// Groq models - fix spaces and case issues
-		"llama 3.3 70b":           "llama-3.3-70b-versatile",
-		"llama 3.3 70b versatile": "llama-3.3-70b-versatile",
+		"llama 3.3 70b":           "openai/gpt-oss-20b",
+		"llama 3.3 70b versatile": "openai/gpt-oss-20b",
 		"llama 3.1 70b":           "llama-3.1-70b-versatile",
 		"llama 3.1 70b versatile": "llama-3.1-70b-versatile",
-		"llama 3.1 8b":            "llama-3.1-8b-instant",
-		"llama 3.1 8b instant":    "llama-3.1-8b-instant",
-		"llama 3 70b":             "llama3-70b-8192",
+		"llama 3.1 8b":            "openai/gpt-oss-20b",
+		"llama 3.1 8b instant":    "openai/gpt-oss-20b",
+		"llama 3 70b":             "openai/gpt-oss-20b",
 		"llama 3 8b":              "llama3-8b-8192",
-		"mixtral 8x7b":            "mixtral-8x7b-32768",
+		"mixtral 8x7b":            "openai/gpt-oss-20b",
 		"gemma 2 9b":              "gemma2-9b-it",
 		"gemma2 9b":               "gemma2-9b-it",
 	}

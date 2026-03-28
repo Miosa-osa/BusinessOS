@@ -55,6 +55,21 @@ const (
 	// BosGapStatusKey is the OTel attribute key for bos.gap.status.
 	// The current status of a compliance gap.
 	BosGapStatusKey = attribute.Key("bos.gap.status")
+	// BosGatewayAlgorithmKey is the OTel attribute key for bos.gateway.algorithm.
+	// Process discovery algorithm requested by BOS CLI.
+	BosGatewayAlgorithmKey = attribute.Key("bos.gateway.algorithm")
+	// BosGatewayFitnessKey is the OTel attribute key for bos.gateway.fitness.
+	// Conformance fitness score [0.0, 1.0] from pm4py-rust.
+	BosGatewayFitnessKey = attribute.Key("bos.gateway.fitness")
+	// BosGatewayLatencyMsKey is the OTel attribute key for bos.gateway.latency_ms.
+	// Wall-clock latency in milliseconds for the gateway round-trip.
+	BosGatewayLatencyMsKey = attribute.Key("bos.gateway.latency_ms")
+	// BosGatewayModelIdKey is the OTel attribute key for bos.gateway.model_id.
+	// Identifier of the process model returned by pm4py-rust.
+	BosGatewayModelIdKey = attribute.Key("bos.gateway.model_id")
+	// BosGatewayNumTracesKey is the OTel attribute key for bos.gateway.num_traces.
+	// Number of process traces in the event log.
+	BosGatewayNumTracesKey = attribute.Key("bos.gateway.num_traces")
 	// BosPolicyVersionKey is the OTel attribute key for bos.policy.version.
 	// Version of the compliance policy rule set applied.
 	BosPolicyVersionKey = attribute.Key("bos.policy.version")
@@ -239,6 +254,42 @@ var BosGapStatusValues = struct {
 	InRemediation: "in_remediation",
 	Resolved: "resolved",
 	AcceptedRisk: "accepted_risk",
+}
+
+// BosGatewayAlgorithm returns an attribute KeyValue for bos.gateway.algorithm.
+func BosGatewayAlgorithm(val string) attribute.KeyValue {
+	return BosGatewayAlgorithmKey.String(val)
+}
+
+// BosGatewayAlgorithmValues contains the known enum values for bos.gateway.algorithm.
+var BosGatewayAlgorithmValues = struct {
+	InductiveMiner string
+	AlphaMiner string
+	HeuristicsMiner string
+}{
+	InductiveMiner: "inductive_miner",
+	AlphaMiner: "alpha_miner",
+	HeuristicsMiner: "heuristics_miner",
+}
+
+// BosGatewayFitness returns an attribute KeyValue for bos.gateway.fitness.
+func BosGatewayFitness(val float64) attribute.KeyValue {
+	return BosGatewayFitnessKey.Float64(val)
+}
+
+// BosGatewayLatencyMs returns an attribute KeyValue for bos.gateway.latency_ms.
+func BosGatewayLatencyMs(val int64) attribute.KeyValue {
+	return BosGatewayLatencyMsKey.Int64(val)
+}
+
+// BosGatewayModelId returns an attribute KeyValue for bos.gateway.model_id.
+func BosGatewayModelId(val string) attribute.KeyValue {
+	return BosGatewayModelIdKey.String(val)
+}
+
+// BosGatewayNumTraces returns an attribute KeyValue for bos.gateway.num_traces.
+func BosGatewayNumTraces(val int64) attribute.KeyValue {
+	return BosGatewayNumTracesKey.Int64(val)
 }
 
 // BosPolicyVersion returns an attribute KeyValue for bos.policy.version.

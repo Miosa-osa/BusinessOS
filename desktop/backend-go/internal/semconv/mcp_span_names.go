@@ -43,6 +43,12 @@ const (
 	// Kind: internal
 	// Stability: development
 	McpServerMetricsCollectSpan = "mcp.server.metrics.collect"
+	// mcp_session_create is the span name for "mcp.session.create".
+	//
+	// New MCP session allocation by the StreamableHttpService server.
+	// Kind: server
+	// Stability: development
+	McpSessionCreateSpan = "mcp.session.create"
 	// mcp_tool_analytics_record is the span name for "mcp.tool.analytics.record".
 	//
 	// MCP tool analytics recording — capturing tool usage statistics for performance monitoring and capacity planning.

@@ -139,7 +139,7 @@ func NewOnboardingAIService() *OnboardingAIService {
 	} else if apiKey := os.Getenv("GROQ_API_KEY"); apiKey != "" {
 		service.provider = "groq"
 		service.apiKey = apiKey
-		service.model = getEnvOrDefault("GROQ_MODEL", "llama-3.3-70b-versatile")
+		service.model = getEnvOrDefault("GROQ_MODEL", "openai/gpt-oss-20b")
 		service.baseURL = "https://api.groq.com/openai/v1"
 	}
 

@@ -44,7 +44,7 @@ func (c *Config) GetActiveModel() string {
 		if c.GroqModel != "" {
 			return c.GroqModel
 		}
-		return "llama-3.3-70b-versatile"
+		return "openai/gpt-oss-20b"
 	case "anthropic":
 		if c.AnthropicModel != "" {
 			return c.AnthropicModel

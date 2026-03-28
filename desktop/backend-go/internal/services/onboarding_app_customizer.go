@@ -60,7 +60,7 @@ var coreModules = []CoreModule{
 
 func NewAppCustomizerAgent(cfg *config.Config) *AppCustomizerAgent {
 	return &AppCustomizerAgent{
-		llmService: NewGroqService(cfg, "llama-3.3-70b-versatile"),
+		llmService: NewGroqService(cfg, "openai/gpt-oss-20b"),
 		cfg:        cfg,
 	}
 }

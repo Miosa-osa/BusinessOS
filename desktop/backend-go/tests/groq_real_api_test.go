@@ -86,7 +86,7 @@ func getGroqAPIKey(t *testing.T) string {
 func getGroqModel() string {
 	m := os.Getenv("GROQ_MODEL")
 	if m == "" {
-		return "llama-3.3-70b-versatile"
+		return "openai/gpt-oss-20b"
 	}
 	return m
 }

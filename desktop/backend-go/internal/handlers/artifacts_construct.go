@@ -10,12 +10,20 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	semconv "github.com/rhl/businessos-backend/internal/semconv"
 	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/tools"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
+
+var artifactConstructTracer = otel.Tracer("businessos.artifacts")
 
 // ArtifactConstructHandler handles artifact creation via SPARQL CONSTRUCT
 type ArtifactConstructHandler struct {
@@ -86,6 +94,19 @@ func (h *ArtifactConstructHandler) CreateArtifactViaConstruct(c *gin.Context) {
 		return
 	}
 
+	// Start OTEL span for the CONSTRUCT operation
+	spanCtx, span := artifactConstructTracer.Start(c.Request.Context(), semconv.RdfConstructSpan,
+		trace.WithSpanKind(trace.SpanKindClient),
+	)
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String(string(semconv.RdfSparqlQueryTypeKey), semconv.RdfSparqlQueryTypeValues.Construct),
+	)
+	if corrID := c.GetHeader("X-Correlation-ID"); corrID != "" {
+		span.SetAttributes(semconv.ChatmangptRunCorrelationId(corrID))
+	}
+
 	// Generate artifact UUID
 	artifactID := uuid.New()
 
@@ -115,7 +136,7 @@ func (h *ArtifactConstructHandler) CreateArtifactViaConstruct(c *gin.Context) {
 	slog.Debug("Executing artifact CONSTRUCT", "artifact_id", artifactID, "title", req.Title)
 
 	// Execute CONSTRUCT via bos CLI (returns N-Triples)
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(spanCtx, 15*time.Second)
 	defer cancel()
 
 	// For now, we'll simulate CONSTRUCT execution (in production, use bosOntologyService)
@@ -124,6 +145,8 @@ func (h *ArtifactConstructHandler) CreateArtifactViaConstruct(c *gin.Context) {
 	rdfNTriples, err := h.executeConstructViaArtifactTable(ctx, params)
 	if err != nil {
 		slog.Error("CONSTRUCT execution failed", "artifact_id", artifactID, "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "CONSTRUCT execution failed"})
 		return
 	}
@@ -143,6 +166,8 @@ func (h *ArtifactConstructHandler) CreateArtifactViaConstruct(c *gin.Context) {
 	})
 	if err != nil {
 		slog.Error("Failed to store artifact in PostgreSQL", "artifact_id", artifactID, "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store artifact"})
 		return
 	}
@@ -158,6 +183,8 @@ func (h *ArtifactConstructHandler) CreateArtifactViaConstruct(c *gin.Context) {
 		RDFJSONLD:  rdfNTriples, // Would be converted to JSON-LD format
 		StoredInDB: true,
 	}
+
+	span.SetStatus(codes.Ok, "")
 
 	// Content negotiation: return based on Accept header
 	acceptHeader := c.GetHeader("Accept")

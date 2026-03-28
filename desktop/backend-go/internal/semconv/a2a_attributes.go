@@ -10,6 +10,12 @@ const (
 	// A2aAgentIdKey is the OTel attribute key for a2a.agent.id.
 	// Identifier of the target agent in an A2A call.
 	A2aAgentIdKey = attribute.Key("a2a.agent.id")
+	// A2aAgentNameKey is the OTel attribute key for a2a.agent.name.
+	// Human-readable name of the A2A agent serving the request.
+	A2aAgentNameKey = attribute.Key("a2a.agent.name")
+	// A2aArtifactCountKey is the OTel attribute key for a2a.artifact.count.
+	// Number of output artifacts produced by a completed A2A task.
+	A2aArtifactCountKey = attribute.Key("a2a.artifact.count")
 	// A2aAuctionBidCountKey is the OTel attribute key for a2a.auction.bid_count.
 	// Number of bids received in the A2A auction.
 	A2aAuctionBidCountKey = attribute.Key("a2a.auction.bid_count")
@@ -172,6 +178,9 @@ const (
 	// A2aMessagePriorityKey is the OTel attribute key for a2a.message.priority.
 	// Priority level of the A2A message.
 	A2aMessagePriorityKey = attribute.Key("a2a.message.priority")
+	// A2aMessageRoleKey is the OTel attribute key for a2a.message.role.
+	// Role of the sender of an A2A message.
+	A2aMessageRoleKey = attribute.Key("a2a.message.role")
 	// A2aMessageSizeBytesKey is the OTel attribute key for a2a.message.size_bytes.
 	// Size of the A2A message payload in bytes.
 	A2aMessageSizeBytesKey = attribute.Key("a2a.message.size_bytes")
@@ -250,6 +259,9 @@ const (
 	// A2aRoutingStrategyKey is the OTel attribute key for a2a.routing.strategy.
 	// The strategy used to route A2A requests to available agents.
 	A2aRoutingStrategyKey = attribute.Key("a2a.routing.strategy")
+	// A2aSkillIdKey is the OTel attribute key for a2a.skill.id.
+	// Identifier of the A2A skill being invoked, matching the AgentCard skill list.
+	A2aSkillIdKey = attribute.Key("a2a.skill.id")
 	// A2aSlaBreachKey is the OTel attribute key for a2a.sla.breach.
 	// Whether the A2A operation violated its SLA deadline.
 	A2aSlaBreachKey = attribute.Key("a2a.sla.breach")
@@ -283,6 +295,12 @@ const (
 	// A2aTaskPriorityKey is the OTel attribute key for a2a.task.priority.
 	// Priority level of a delegated A2A task.
 	A2aTaskPriorityKey = attribute.Key("a2a.task.priority")
+	// A2aTaskStateKey is the OTel attribute key for a2a.task.state.
+	// Lifecycle state of an A2A task.
+	A2aTaskStateKey = attribute.Key("a2a.task.state")
+	// A2aTransportKey is the OTel attribute key for a2a.transport.
+	// Transport protocol used for the A2A exchange.
+	A2aTransportKey = attribute.Key("a2a.transport")
 	// A2aTrustConsensusThresholdKey is the OTel attribute key for a2a.trust.consensus_threshold.
 	// Minimum fraction of peers required to reach trust consensus, range [0.0, 1.0].
 	A2aTrustConsensusThresholdKey = attribute.Key("a2a.trust.consensus_threshold")
@@ -309,6 +327,16 @@ const (
 // A2aAgentId returns an attribute KeyValue for a2a.agent.id.
 func A2aAgentId(val string) attribute.KeyValue {
 	return A2aAgentIdKey.String(val)
+}
+
+// A2aAgentName returns an attribute KeyValue for a2a.agent.name.
+func A2aAgentName(val string) attribute.KeyValue {
+	return A2aAgentNameKey.String(val)
+}
+
+// A2aArtifactCount returns an attribute KeyValue for a2a.artifact.count.
+func A2aArtifactCount(val int64) attribute.KeyValue {
+	return A2aArtifactCountKey.Int64(val)
 }
 
 // A2aAuctionBidCount returns an attribute KeyValue for a2a.auction.bid_count.
@@ -770,6 +798,20 @@ var A2aMessagePriorityValues = struct {
 	Low: "low",
 }
 
+// A2aMessageRole returns an attribute KeyValue for a2a.message.role.
+func A2aMessageRole(val string) attribute.KeyValue {
+	return A2aMessageRoleKey.String(val)
+}
+
+// A2aMessageRoleValues contains the known enum values for a2a.message.role.
+var A2aMessageRoleValues = struct {
+	User string
+	Agent string
+}{
+	User: "user",
+	Agent: "agent",
+}
+
 // A2aMessageSizeBytes returns an attribute KeyValue for a2a.message.size_bytes.
 func A2aMessageSizeBytes(val int64) attribute.KeyValue {
 	return A2aMessageSizeBytesKey.Int64(val)
@@ -984,6 +1026,11 @@ var A2aRoutingStrategyValues = struct {
 	PriorityQueue: "priority_queue",
 }
 
+// A2aSkillId returns an attribute KeyValue for a2a.skill.id.
+func A2aSkillId(val string) attribute.KeyValue {
+	return A2aSkillIdKey.String(val)
+}
+
 // A2aSlaBreach returns an attribute KeyValue for a2a.sla.breach.
 func A2aSlaBreach(val bool) attribute.KeyValue {
 	return A2aSlaBreachKey.Bool(val)
@@ -1050,6 +1097,40 @@ var A2aTaskPriorityValues = struct {
 	High: "high",
 	Normal: "normal",
 	Low: "low",
+}
+
+// A2aTaskState returns an attribute KeyValue for a2a.task.state.
+func A2aTaskState(val string) attribute.KeyValue {
+	return A2aTaskStateKey.String(val)
+}
+
+// A2aTaskStateValues contains the known enum values for a2a.task.state.
+var A2aTaskStateValues = struct {
+	Submitted string
+	Working string
+	Completed string
+	Failed string
+	Canceled string
+}{
+	Submitted: "submitted",
+	Working: "working",
+	Completed: "completed",
+	Failed: "failed",
+	Canceled: "canceled",
+}
+
+// A2aTransport returns an attribute KeyValue for a2a.transport.
+func A2aTransport(val string) attribute.KeyValue {
+	return A2aTransportKey.String(val)
+}
+
+// A2aTransportValues contains the known enum values for a2a.transport.
+var A2aTransportValues = struct {
+	Http string
+	Websocket string
+}{
+	Http: "http",
+	Websocket: "websocket",
 }
 
 // A2aTrustConsensusThreshold returns an attribute KeyValue for a2a.trust.consensus_threshold.

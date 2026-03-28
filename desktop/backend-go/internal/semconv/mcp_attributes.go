@@ -197,10 +197,12 @@ var McpConnectionTransportValues = struct {
 	Stdio string
 	Http string
 	Sse string
+	StreamableHttp string
 }{
 	Stdio: "stdio",
 	Http: "http",
 	Sse: "sse",
+	StreamableHttp: "streamable-http",
 }
 
 // McpProtocol returns an attribute KeyValue for mcp.protocol.
@@ -213,10 +215,12 @@ var McpProtocolValues = struct {
 	Stdio string
 	Http string
 	Sse string
+	StreamableHttp string
 }{
 	Stdio: "stdio",
 	Http: "http",
 	Sse: "sse",
+	StreamableHttp: "streamable-http",
 }
 
 // McpProtocolVersion returns an attribute KeyValue for mcp.protocol.version.
@@ -482,10 +486,12 @@ var McpTransportTypeValues = struct {
 	Http string
 	Sse string
 	Websocket string
+	StreamableHttp string
 }{
 	Stdio: "stdio",
 	Http: "http",
 	Sse: "sse",
 	Websocket: "websocket",
+	StreamableHttp: "streamable-http",
 }
 

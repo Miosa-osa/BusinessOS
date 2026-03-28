@@ -184,9 +184,7 @@ func CalculateEstimatedCost(provider, model string, inputTokens, outputTokens in
 			"claude-3-haiku-20240307":    {input: 0.00025, output: 0.00125},
 		},
 		"groq": {
-			"llama-3.3-70b-versatile": {input: 0.00059, output: 0.00079},
-			"llama-3.1-8b-instant":    {input: 0.00005, output: 0.00008},
-			"mixtral-8x7b-32768":      {input: 0.00024, output: 0.00024},
+			"openai/gpt-oss-20b": {input: 0.00059, output: 0.00079},
 		},
 		"ollama": {
 			// Local models are free

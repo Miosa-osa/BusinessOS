@@ -31,6 +31,9 @@ const (
 	// YawlTokenProducedKey is the OTel attribute key for yawl.token.produced.
 	// Number of tokens produced to output conditions after this task fires.
 	YawlTokenProducedKey = attribute.Key("yawl.token.produced")
+	// YawlWcpPatternKey is the OTel attribute key for yawl.wcp_pattern.
+	// YAWL Workflow Control-flow Pattern identifier being exercised.
+	YawlWcpPatternKey = attribute.Key("yawl.wcp_pattern")
 	// YawlWorkItemIdKey is the OTel attribute key for yawl.work_item.id.
 	// YAWL work item unique identifier in caseID:taskID:uniqueID format.
 	YawlWorkItemIdKey = attribute.Key("yawl.work_item.id")
@@ -93,6 +96,11 @@ func YawlTokenConsumed(val int64) attribute.KeyValue {
 // YawlTokenProduced returns an attribute KeyValue for yawl.token.produced.
 func YawlTokenProduced(val int64) attribute.KeyValue {
 	return YawlTokenProducedKey.Int64(val)
+}
+
+// YawlWcpPattern returns an attribute KeyValue for yawl.wcp_pattern.
+func YawlWcpPattern(val string) attribute.KeyValue {
+	return YawlWcpPatternKey.String(val)
 }
 
 // YawlWorkItemId returns an attribute KeyValue for yawl.work_item.id.

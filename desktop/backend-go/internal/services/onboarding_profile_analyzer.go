@@ -47,7 +47,7 @@ type ProfileAnalysisResult struct {
 
 func NewProfileAnalyzerAgent(cfg *config.Config) *ProfileAnalyzerAgent {
 	return &ProfileAnalyzerAgent{
-		llmService: NewGroqService(cfg, "llama-3.3-70b-versatile"), // Use Llama 3.3 70B for better reasoning
+		llmService: NewGroqService(cfg, "openai/gpt-oss-20b"), // Use Llama 3.3 70B for better reasoning
 		cfg:        cfg,
 	}
 }

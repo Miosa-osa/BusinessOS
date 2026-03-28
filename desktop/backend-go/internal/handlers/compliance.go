@@ -32,6 +32,12 @@ func (h *Handlers) registerComplianceRoutes(api *gin.RouterGroup, auth gin.Handl
 		slog.Debug("Skipping compliance routes, service not initialized")
 		return
 	}
+	// Skip when called from the /v1 group: the legacy /compliance/* routes live on /api only.
+	// The /api/v1/compliance/* routes are registered by registerComplianceAPIRoutes (called below
+	// when !v1) to prevent duplicate registration when RegisterRoutes is invoked for both prefixes.
+	if strings.Contains(api.BasePath(), "/v1") {
+		return
+	}
 
 	complianceH := NewComplianceHandler(h.complianceService, slog.Default())
 	compliance := api.Group("/compliance")
@@ -51,7 +57,11 @@ func (h *Handlers) registerComplianceRoutes(api *gin.RouterGroup, auth gin.Handl
 	api.POST("/bos/compliance/verify", auth, complianceH.VerifyCompliance)
 
 	// Register Compliance REST API routes (Agent 27: Compliance REST API)
-	h.registerComplianceAPIRoutes(api, auth)
+	// Guard: only register the /v1/compliance sub-group when the parent is NOT already /v1
+	// to prevent duplicate registration when RegisterRoutes is called for both /api and /api/v1.
+	if !strings.Contains(api.BasePath(), "/v1") {
+		h.registerComplianceAPIRoutes(api, auth)
+	}
 }
 
 // GetComplianceStatus handles GET /api/compliance/status.

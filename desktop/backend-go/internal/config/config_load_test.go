@@ -155,8 +155,8 @@ func TestLoad_DefaultGroqModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.GroqModel != "llama-3.3-70b-versatile" {
-		t.Errorf("GroqModel default = %q, want %q", cfg.GroqModel, "llama-3.3-70b-versatile")
+	if cfg.GroqModel != "openai/gpt-oss-20b" {
+		t.Errorf("GroqModel default = %q, want %q", cfg.GroqModel, "openai/gpt-oss-20b")
 	}
 }
 

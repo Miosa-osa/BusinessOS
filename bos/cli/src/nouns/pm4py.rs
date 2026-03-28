@@ -146,6 +146,13 @@ fn compute_analysis_stats(
     })
 }
 
+/// Returns the X-Correlation-ID to inject on gateway requests.
+/// Reads BOS_CORRELATION_ID env var or generates a fresh UUID v4.
+fn correlation_id() -> String {
+    std::env::var("BOS_CORRELATION_ID")
+        .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string())
+}
+
 /// Gateway routing: POST discover request to BusinessOS gateway.
 ///
 /// Cloud mode: routes through BusinessOS (http) instead of local pm4py-rust engine.
@@ -166,8 +173,11 @@ fn discover_via_gateway(
         "algorithm": algorithm
     });
 
+    let corr_id = correlation_id();
+    tracing::info!(correlation_id = %corr_id, gateway = %gw_url, verb = "discover", "gateway request");
     let resp = client
         .post(format!("{}/api/bos/discover", gw_url))
+        .header("X-Correlation-ID", &corr_id)
         .json(&payload)
         .send()
         .map_err(|e| anyhow::anyhow!("Gateway request failed: {}", e))?;
@@ -210,8 +220,11 @@ fn conform_via_gateway(
         "model_id": model_id
     });
 
+    let corr_id = correlation_id();
+    tracing::info!(correlation_id = %corr_id, gateway = %gw_url, verb = "conformance", "gateway request");
     let resp = client
         .post(format!("{}/api/bos/conformance", gw_url))
+        .header("X-Correlation-ID", &corr_id)
         .json(&payload)
         .send()
         .map_err(|e| anyhow::anyhow!("Gateway request failed: {}", e))?;
@@ -254,8 +267,11 @@ fn analyze_via_gateway(
         "log_path": log_path
     });
 
+    let corr_id = correlation_id();
+    tracing::info!(correlation_id = %corr_id, gateway = %gw_url, verb = "statistics", "gateway request");
     let resp = client
         .post(format!("{}/api/bos/statistics", gw_url))
+        .header("X-Correlation-ID", &corr_id)
         .json(&payload)
         .send()
         .map_err(|e| anyhow::anyhow!("Gateway request failed: {}", e))?;

@@ -92,15 +92,15 @@ func TestGetActiveModel_OllamaCloudCustomModel(t *testing.T) {
 
 func TestGetActiveModel_GroqDefaultModel(t *testing.T) {
 	cfg := &Config{AIProvider: "groq", GroqAPIKey: "gsk-test"}
-	if got := cfg.GetActiveModel(); got != "llama-3.3-70b-versatile" {
-		t.Errorf("GetActiveModel() = %q, want %q", got, "llama-3.3-70b-versatile")
+	if got := cfg.GetActiveModel(); got != "openai/gpt-oss-20b" {
+		t.Errorf("GetActiveModel() = %q, want %q", got, "openai/gpt-oss-20b")
 	}
 }
 
 func TestGetActiveModel_GroqCustomModel(t *testing.T) {
-	cfg := &Config{AIProvider: "groq", GroqAPIKey: "gsk-test", GroqModel: "llama-3.1-8b-instant"}
-	if got := cfg.GetActiveModel(); got != "llama-3.1-8b-instant" {
-		t.Errorf("GetActiveModel() = %q, want %q", got, "llama-3.1-8b-instant")
+	cfg := &Config{AIProvider: "groq", GroqAPIKey: "gsk-test", GroqModel: "openai/gpt-oss-20b"}
+	if got := cfg.GetActiveModel(); got != "openai/gpt-oss-20b" {
+		t.Errorf("GetActiveModel() = %q, want %q", got, "openai/gpt-oss-20b")
 	}
 }
 

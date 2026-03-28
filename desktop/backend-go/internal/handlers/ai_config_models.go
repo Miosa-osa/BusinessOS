@@ -150,21 +150,21 @@ func (h *AIConfigHandler) GetAllModels(c *gin.Context) {
 	if h.cfg.GroqAPIKey != "" {
 		groqModels := []LLMModel{
 			{
-				ID:          "llama-3.3-70b-versatile",
+				ID:          "openai/gpt-oss-20b",
 				Name:        "Llama 3.3 70B Versatile",
 				Provider:    "groq",
 				Description: "Fast 70B model for general tasks",
 				Family:      "llama",
 			},
 			{
-				ID:          "llama-3.1-8b-instant",
+				ID:          "openai/gpt-oss-20b",
 				Name:        "Llama 3.1 8B Instant",
 				Provider:    "groq",
 				Description: "Ultra-fast 8B model",
 				Family:      "llama",
 			},
 			{
-				ID:          "mixtral-8x7b-32768",
+				ID:          "openai/gpt-oss-20b",
 				Name:        "Mixtral 8x7B",
 				Provider:    "groq",
 				Description: "Mixtral MoE model with 32k context",

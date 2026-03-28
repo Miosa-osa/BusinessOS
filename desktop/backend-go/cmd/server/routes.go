@@ -50,6 +50,13 @@ func buildCSRFConfig(cfg *config.Config) middleware.CSRFConfig {
 			strings.HasPrefix(path, "/api/v1/bos/") {
 			return true
 		}
+		// YAWL and pm4py API endpoints use Bearer auth — CSRF protection not needed
+		if strings.HasPrefix(path, "/api/yawl/") ||
+			strings.HasPrefix(path, "/api/v1/yawl/") ||
+			strings.HasPrefix(path, "/api/pm4py/") ||
+			strings.HasPrefix(path, "/api/v1/pm4py/") {
+			return true
+		}
 		if path == "/health" || path == "/ready" || path == "/health/detailed" ||
 			path == "/healthz" || path == "/readyz" {
 			return true

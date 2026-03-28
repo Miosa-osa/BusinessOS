@@ -308,8 +308,10 @@ services:
       - ./otel-collector-config.yaml:/etc/otel-collector/config.yaml:ro
     command: [--config=/etc/otel-collector/config.yaml]
     depends_on:
-      - jaeger
-      - weaver-live-check
+      jaeger:
+        condition: service_started
+      weaver-live-check:
+        condition: service_healthy
     networks:
       - businessos-network
 
@@ -358,6 +360,12 @@ services:
       - --diagnostic-stdout
       - --inactivity-timeout
       - "86400"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4320/ 2>/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - businessos-network
 

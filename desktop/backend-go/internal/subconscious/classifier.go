@@ -21,7 +21,7 @@ type ClassificationResult struct {
 }
 
 // SignalClassifier classifies user messages into Signal Theory genres and weights.
-// Uses a cheap LLM (llama-3.1-8b-instant via Groq) for classification.
+// Uses a cheap LLM (openai/gpt-oss-20b via Groq) for classification.
 // Includes a circuit breaker: after 5 consecutive failures, skips for 5 minutes.
 type SignalClassifier struct {
 	cfg    *config.Config
@@ -35,7 +35,7 @@ type SignalClassifier struct {
 }
 
 const (
-	classifierModel       = "llama-3.1-8b-instant"
+	classifierModel       = "openai/gpt-oss-20b"
 	classifierMaxFails    = 5
 	classifierCooldown    = 5 * time.Minute
 	classifierMaxTokens   = 50

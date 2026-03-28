@@ -27,7 +27,7 @@ func TestGroqLiveChatComplete_WithInferenceSpan(t *testing.T) {
 	}
 	model := os.Getenv("GROQ_MODEL")
 	if model == "" {
-		model = "llama-3.1-8b-instant"
+		model = "openai/gpt-oss-20b"
 	}
 
 	rec := tracetest.NewSpanRecorder()

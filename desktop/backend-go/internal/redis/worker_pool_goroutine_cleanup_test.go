@@ -449,10 +449,20 @@ func (p *WorkerPool) Submit(task func()) bool {
 		return false
 	}
 
+	// Check context cancellation first (deterministic, not random select)
+	select {
+	case <-p.ctx.Done():
+		p.shuttingDown = true
+		return false
+	default:
+	}
+
+	// Try non-blocking send to queue
 	select {
 	case p.taskQueue <- task:
 		return true
 	case <-p.ctx.Done():
+		p.shuttingDown = true
 		return false
 	default:
 		return false

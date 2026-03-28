@@ -46,9 +46,21 @@ const (
 	// BoardHealingsTriggeredKey is the OTel attribute key for board.healings_triggered.
 	// Number of conformance_violation healing events emitted
 	BoardHealingsTriggeredKey = attribute.Key("board.healings_triggered")
+	// BoardIntelligenceReceivedAtKey is the OTel attribute key for board.intelligence_received_at.
+	// ISO 8601 timestamp when Canopy received the intelligence from BusinessOS.
+	BoardIntelligenceReceivedAtKey = attribute.Key("board.intelligence_received_at")
+	// BoardIntelligenceSourceKey is the OTel attribute key for board.intelligence_source.
+	// Origin system that produced the board intelligence payload.
+	BoardIntelligenceSourceKey = attribute.Key("board.intelligence_source")
 	// BoardIsViolationKey is the OTel attribute key for board.is_violation.
 	// Whether a Conway violation was detected (boundary time > 40% of cycle time)
 	BoardIsViolationKey = attribute.Key("board.is_violation")
+	// BoardL0SyncCaseCountKey is the OTel attribute key for board.l0_sync.case_count.
+	// Number of active cases synced to Oxigraph in this L0 sync run.
+	BoardL0SyncCaseCountKey = attribute.Key("board.l0_sync.case_count")
+	// BoardL0SyncHandoffCountKey is the OTel attribute key for board.l0_sync.handoff_count.
+	// Number of handoff events synced to Oxigraph in this L0 sync run.
+	BoardL0SyncHandoffCountKey = attribute.Key("board.l0_sync.handoff_count")
 	// BoardLittlesLawAlertCountKey is the OTel attribute key for board.littles_law_alert_count.
 	// Number of departments with Little's Law queue violations
 	BoardLittlesLawAlertCountKey = attribute.Key("board.littles_law_alert_count")
@@ -135,9 +147,29 @@ func BoardHealingsTriggered(val int64) attribute.KeyValue {
 	return BoardHealingsTriggeredKey.Int64(val)
 }
 
+// BoardIntelligenceReceivedAt returns an attribute KeyValue for board.intelligence_received_at.
+func BoardIntelligenceReceivedAt(val string) attribute.KeyValue {
+	return BoardIntelligenceReceivedAtKey.String(val)
+}
+
+// BoardIntelligenceSource returns an attribute KeyValue for board.intelligence_source.
+func BoardIntelligenceSource(val string) attribute.KeyValue {
+	return BoardIntelligenceSourceKey.String(val)
+}
+
 // BoardIsViolation returns an attribute KeyValue for board.is_violation.
 func BoardIsViolation(val bool) attribute.KeyValue {
 	return BoardIsViolationKey.Bool(val)
+}
+
+// BoardL0SyncCaseCount returns an attribute KeyValue for board.l0_sync.case_count.
+func BoardL0SyncCaseCount(val int64) attribute.KeyValue {
+	return BoardL0SyncCaseCountKey.Int64(val)
+}
+
+// BoardL0SyncHandoffCount returns an attribute KeyValue for board.l0_sync.handoff_count.
+func BoardL0SyncHandoffCount(val int64) attribute.KeyValue {
+	return BoardL0SyncHandoffCountKey.Int64(val)
 }
 
 // BoardLittlesLawAlertCount returns an attribute KeyValue for board.littles_law_alert_count.

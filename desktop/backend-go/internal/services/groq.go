@@ -115,7 +115,7 @@ func NewGroqService(cfg *config.Config, model string) *GroqService {
 		model = cfg.GroqModel
 	}
 	if model == "" {
-		model = "llama-3.3-70b-versatile" // Default Groq model
+		model = "openai/gpt-oss-20b" // Default Groq model
 	}
 
 	return &GroqService{

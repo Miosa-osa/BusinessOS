@@ -59,7 +59,7 @@ func Load() (*Config, error) {
 
 	// Groq
 	viper.SetDefault("GROQ_API_KEY", "")
-	viper.SetDefault("GROQ_MODEL", "llama-3.3-70b-versatile")
+	viper.SetDefault("GROQ_MODEL", "openai/gpt-oss-20b")
 
 	// Legacy
 	viper.SetDefault("OLLAMA_MODE", "cloud")

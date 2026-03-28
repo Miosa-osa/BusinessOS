@@ -43,6 +43,42 @@ const (
 	// Kind: internal
 	// Stability: development
 	BosGapDetectSpan = "bos.gap.detect"
+	// bos_gateway_conformance is the span name for "bos.gateway.conformance".
+	//
+	// BOS gateway conformance — forwards conformance check to pm4py-rust.
+	// Kind: server
+	// Stability: development
+	BosGatewayConformanceSpan = "bos.gateway.conformance"
+	// bos_gateway_discover is the span name for "bos.gateway.discover".
+	//
+	// BOS gateway discovery — forwards event-log discovery request to pm4py-rust.
+	// Kind: server
+	// Stability: development
+	BosGatewayDiscoverSpan = "bos.gateway.discover"
+	// bos_gateway_statistics is the span name for "bos.gateway.statistics".
+	//
+	// BOS gateway statistics — forwards log-statistics extraction to pm4py-rust.
+	// Kind: server
+	// Stability: development
+	BosGatewayStatisticsSpan = "bos.gateway.statistics"
+	// bos_ontology_execute is the span name for "bos.ontology.execute".
+	//
+	// bos CLI SPARQL CONSTRUCT pipeline — loads PostgreSQL rows as RDF triples and writes to Oxigraph.
+	// Kind: internal
+	// Stability: development
+	BosOntologyExecuteSpan = "bos.ontology.execute"
+	// bos_rdf_query is the span name for "bos.rdf.query".
+	//
+	// bos CLI SPARQL query — proxies SELECT or CONSTRUCT to Oxigraph /query endpoint.
+	// Kind: client
+	// Stability: development
+	BosRdfQuerySpan = "bos.rdf.query"
+	// bos_rdf_write is the span name for "bos.rdf.write".
+	//
+	// bos CLI RDF write — forwards Turtle or N-Triples to Oxigraph /store via HTTP proxy.
+	// Kind: client
+	// Stability: development
+	BosRdfWriteSpan = "bos.rdf.write"
 	// bos_workspace_operation is the span name for "bos.workspace.operation".
 	//
 	// An operation performed against a BusinessOS workspace (create, update, query).

@@ -343,11 +343,19 @@ func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 		)
 	}
 
+	// Persist discovery result to process_discovery_results (non-fatal — WAL is durability guarantee)
+	if err := h.persistDiscoveryResult(c.Request.Context(), modelID, algo, &response); err != nil {
+		h.logger.Warn("discover: DB persist failed (non-fatal, WAL has the record)",
+			"model_id", modelID,
+			"error", err.Error(),
+		)
+	}
+
 	h.recordRequest(true, response.LatencyMs)
 	span.SetAttributes(
-		attribute.String("bos.model_id", response.ModelID),
-		attribute.String("bos.algorithm", response.Algorithm),
-		attribute.Int64("bos.latency_ms", int64(response.LatencyMs)),
+		semconv.BosGatewayModelId(response.ModelID),
+		semconv.BosGatewayAlgorithm(response.Algorithm),
+		semconv.BosGatewayLatencyMs(int64(response.LatencyMs)),
 	)
 	span.SetStatus(codes.Ok, "")
 	h.logger.Info("discover: completed successfully",
@@ -545,10 +553,21 @@ func (h *BOSGatewayHandler) CheckConformance(c *gin.Context) {
 		LatencyMs:      uint64(time.Since(startTime).Milliseconds()),
 	}
 
+	// Update fitness in process_discovery_results (non-fatal — model_id may not exist yet)
+	if req.ModelID != "" {
+		if err := h.updateDiscoveryFitness(c.Request.Context(), req.ModelID, fitness, 0.0); err != nil {
+			h.logger.Warn("conformance: DB fitness update failed (non-fatal)",
+				"model_id", req.ModelID,
+				"error", err.Error(),
+			)
+		}
+	}
+
 	h.recordRequest(true, response.LatencyMs)
 	span.SetAttributes(
-		attribute.Float64("bos.fitness", response.Fitness),
-		attribute.Int64("bos.latency_ms", int64(response.LatencyMs)),
+		semconv.BosGatewayFitness(response.Fitness),
+		semconv.BosGatewayNumTraces(int64(response.TracesChecked)),
+		semconv.BosGatewayLatencyMs(int64(response.LatencyMs)),
 	)
 	span.SetStatus(codes.Ok, "")
 	h.logger.Info("conformance: completed successfully",
@@ -771,8 +790,8 @@ func (h *BOSGatewayHandler) GetStatistics(c *gin.Context) {
 
 	h.recordRequest(true, response.LatencyMs)
 	span.SetAttributes(
-		attribute.Int("bos.num_traces", response.NumTraces),
-		attribute.Int64("bos.latency_ms", int64(response.LatencyMs)),
+		semconv.BosGatewayNumTraces(int64(response.NumTraces)),
+		semconv.BosGatewayLatencyMs(int64(response.LatencyMs)),
 	)
 	span.SetStatus(codes.Ok, "")
 	h.logger.Info("statistics: completed successfully",
@@ -831,7 +850,7 @@ func (h *BOSGatewayHandler) sendCanopyWebhook(modelID, algorithm string, activit
 		"model_id":         modelID,
 		"algorithm":        algorithm,
 		"activities_count": activitiesCount,
-		"fitness_score":    0.0,
+		"fitness_score":    -1.0, // -1.0 = not-yet-computed sentinel; updated after conformance check
 	}
 
 	body, err := json.Marshal(payload)
@@ -1066,5 +1085,68 @@ func (h *BOSGatewayHandler) cleanupWAL(modelID string) error {
 		return fmt.Errorf("cleanup WAL file: %w", err)
 	}
 	h.logger.Debug("cleaned up WAL entry", "model_id", modelID)
+	return nil
+}
+
+// ============================================================================
+// PROCESS DISCOVERY RESULTS — DB PERSISTENCE (Phase 4c)
+// ============================================================================
+
+// persistDiscoveryResult inserts a new row into process_discovery_results with
+// fitness=-1.0 (the "not-yet-computed" sentinel). Called after WAL write in Discover.
+// Uses workspace_id=00000000-0000-0000-0000-000000000000 as a default placeholder;
+// ON CONFLICT DO NOTHING makes it idempotent for retried requests.
+// WvdA: 5s timeout — non-fatal, WAL is the durability guarantee.
+func (h *BOSGatewayHandler) persistDiscoveryResult(ctx context.Context, modelID, algo string, resp *BOSDiscoverResponse) error {
+	if h.pool == nil {
+		return fmt.Errorf("database pool unavailable")
+	}
+	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	rawResult, _ := json.Marshal(map[string]interface{}{
+		"model_id":    resp.ModelID,
+		"algorithm":   resp.Algorithm,
+		"places":      resp.Places,
+		"transitions": resp.Transitions,
+		"arcs":        resp.Arcs,
+		"latency_ms":  resp.LatencyMs,
+	})
+
+	_, err := h.pool.Exec(dbCtx, `
+		INSERT INTO process_discovery_results
+		    (workspace_id, model_id, algorithm, activities_count, fitness, raw_result)
+		VALUES
+		    ('00000000-0000-0000-0000-000000000000'::uuid, $1, $2, $3, -1.0, $4)
+		ON CONFLICT (workspace_id, model_id) DO NOTHING
+	`, modelID, algo, resp.Transitions, json.RawMessage(rawResult))
+	if err != nil {
+		return fmt.Errorf("persist discovery result: %w", err)
+	}
+	h.logger.Debug("discovery result persisted", "model_id", modelID, "algo", algo)
+	return nil
+}
+
+// updateDiscoveryFitness updates the fitness score for a model after conformance check.
+// fitness is in [0.0, 1.0]. avgCycleTimeHours is set to 0.0 when not available from
+// conformance response (the L0 sync job will fill it in from process_cases later).
+// WvdA: 5s timeout — non-fatal, conformance response is returned regardless.
+func (h *BOSGatewayHandler) updateDiscoveryFitness(ctx context.Context, modelID string, fitness, avgCycleTimeHours float64) error {
+	if h.pool == nil {
+		return fmt.Errorf("database pool unavailable")
+	}
+	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	_, err := h.pool.Exec(dbCtx, `
+		UPDATE process_discovery_results
+		SET fitness = $1, avg_cycle_time_hours = $2
+		WHERE workspace_id = '00000000-0000-0000-0000-000000000000'::uuid
+		  AND model_id = $3
+	`, fitness, avgCycleTimeHours, modelID)
+	if err != nil {
+		return fmt.Errorf("update discovery fitness: %w", err)
+	}
+	h.logger.Debug("discovery fitness updated", "model_id", modelID, "fitness", fitness)
 	return nil
 }
