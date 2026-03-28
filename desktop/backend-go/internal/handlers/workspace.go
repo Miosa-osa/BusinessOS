@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -513,15 +515,63 @@ func (h *WorkspaceHandler) UpdateWorkspaceProfile(c *gin.Context) {
 		return
 	}
 
-	_, err := uuid.Parse(c.Param("id"))
+	workspaceID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		utils.RespondInvalidID(c, slog.Default(), "workspace_id")
 		return
 	}
 
-	// Profile updates not yet implemented.
-	// This would typically update user_workspace_profiles table.
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Profile updates not yet implemented"})
+	var req struct {
+		DisplayName  *string `json:"display_name"`
+		Title        *string `json:"title"`
+		Department   *string `json:"department"`
+		AvatarURL    *string `json:"avatar_url"`
+		WorkEmail    *string `json:"work_email"`
+		Phone        *string `json:"phone"`
+		Timezone     *string `json:"timezone"`
+		Bio          *string `json:"bio"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	// Upsert the user's workspace profile.
+	_, err = h.pool.Exec(ctx,
+		`INSERT INTO user_workspace_profiles
+			(user_id, workspace_id, display_name, title, department, avatar_url, work_email, phone, timezone, bio, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+			ON CONFLICT (user_id, workspace_id) DO UPDATE SET
+				display_name  = COALESCE(EXCLUDED.display_name, user_workspace_profiles.display_name),
+				title         = COALESCE(EXCLUDED.title, user_workspace_profiles.title),
+				department    = COALESCE(EXCLUDED.department, user_workspace_profiles.department),
+				avatar_url    = COALESCE(EXCLUDED.avatar_url, user_workspace_profiles.avatar_url),
+				work_email    = COALESCE(EXCLUDED.work_email, user_workspace_profiles.work_email),
+				phone         = COALESCE(EXCLUDED.phone, user_workspace_profiles.phone),
+				timezone      = COALESCE(EXCLUDED.timezone, user_workspace_profiles.timezone),
+				bio           = COALESCE(EXCLUDED.bio, user_workspace_profiles.bio),
+				updated_at    = NOW()`,
+		user.ID,
+		workspaceID,
+		req.DisplayName,
+		req.Title,
+		req.Department,
+		req.AvatarURL,
+		req.WorkEmail,
+		req.Phone,
+		req.Timezone,
+		req.Bio,
+	)
+	if err != nil {
+		slog.Error("failed to update workspace profile", "user_id", user.ID, "workspace_id", workspaceID, "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 }
 
 // GetUserRoleContext gets the current user's role context (permissions) in the workspace.

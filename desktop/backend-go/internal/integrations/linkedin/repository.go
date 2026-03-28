@@ -172,6 +172,70 @@ func (r *Repository) GetQualifiedContacts(minScore float64, limit int) ([]*Conta
 	return contacts, nil
 }
 
+// GetQualifiedContactsPaginated retrieves contacts with ICP score >= minScore,
+// with offset-based pagination support.
+func (r *Repository) GetQualifiedContactsPaginated(minScore float64, limit, offset int) ([]*Contact, error) {
+	query := `
+		SELECT id, linkedin_id, name, title, company, industry, connection_date,
+		       icp_score, icp_scored_at, raw_csv, created_at, updated_at
+		FROM linkedin_contacts
+		WHERE icp_score >= $1
+		ORDER BY icp_score DESC, created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := r.db.Query(query, minScore, limit, offset)
+	if err != nil {
+		r.logger.Error("GetQualifiedContactsPaginated failed", "error", err)
+		return nil, fmt.Errorf("get qualified contacts paginated failed: %w", err)
+	}
+	defer rows.Close()
+
+	var contacts []*Contact
+	for rows.Next() {
+		contact := &Contact{}
+		if err := rows.Scan(
+			&contact.ID,
+			&contact.LinkedInID,
+			&contact.Name,
+			&contact.Title,
+			&contact.Company,
+			&contact.Industry,
+			&contact.ConnectionDate,
+			&contact.ICPScore,
+			&contact.ICPScoredAt,
+			&contact.RawCSV,
+			&contact.CreatedAt,
+			&contact.UpdatedAt,
+		); err != nil {
+			r.logger.Error("Row scan failed", "error", err)
+			return nil, fmt.Errorf("row scan failed: %w", err)
+		}
+		contacts = append(contacts, contact)
+	}
+
+	if err = rows.Err(); err != nil {
+		r.logger.Error("GetQualifiedContactsPaginated iteration failed", "error", err)
+		return nil, fmt.Errorf("iteration failed: %w", err)
+	}
+
+	return contacts, nil
+}
+
+// CountQualifiedContacts returns the total count of contacts with ICP score >= minScore.
+func (r *Repository) CountQualifiedContacts(minScore float64) (int64, error) {
+	var count int64
+	err := r.db.QueryRow(
+		"SELECT COUNT(*) FROM linkedin_contacts WHERE icp_score >= $1",
+		minScore,
+	).Scan(&count)
+	if err != nil {
+		r.logger.Error("CountQualifiedContacts failed", "error", err)
+		return 0, fmt.Errorf("count qualified contacts failed: %w", err)
+	}
+	return count, nil
+}
+
 // CreateMessage inserts a message into the queue.
 func (r *Repository) CreateMessage(msg *LinkedInMessageQueue) error {
 	query := `

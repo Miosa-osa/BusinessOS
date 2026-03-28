@@ -53,8 +53,8 @@ func (h *ClientHandler) ListClientDeals(c *gin.Context) {
 }
 
 // CreateClientDeal creates a new deal for a client by inserting into the deals
-// table via CreateCRMDeal. The request stage string is resolved to a
-// pipeline_stage UUID via the user's default pipeline.
+// table via the CreateClientDeal SQLC query. The SQL auto-resolves the
+// user's default pipeline and matches the stage by name.
 func (h *ClientHandler) CreateClientDeal(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	if user == nil {
@@ -93,21 +93,6 @@ func (h *ClientHandler) CreateClientDeal(c *gin.Context) {
 		return
 	}
 
-	// Resolve pipeline and stage: get the user's default pipeline, then find
-	// the stage by name within that pipeline.
-	pipeline, err := queries.GetDefaultPipeline(c.Request.Context(), user.ID)
-	if err != nil {
-		slog.Error("no default pipeline found for user", "user_id", user.ID, "error", err)
-		utils.RespondInternalError(c, slog.Default(), "resolve pipeline", nil)
-		return
-	}
-
-	stageID, err := resolveStageID(c, queries, pipeline.ID, req.Stage)
-	if err != nil {
-		utils.RespondInternalError(c, slog.Default(), "resolve stage", nil)
-		return
-	}
-
 	// Parse expected close date
 	var expectedCloseDate pgtype.Date
 	if req.ExpectedCloseDate != nil {
@@ -119,31 +104,21 @@ func (h *ClientHandler) CreateClientDeal(c *gin.Context) {
 	// Convert value to pgtype.Numeric (maps to "amount" in the deals table)
 	amount := crmToNumeric(&req.Value)
 
-	// Insert into the deals table using CreateCRMDeal.
-	// TODO(sqlc-migration): Once CreateClientDeal SQLC query is regenerated to
-	// target the deals table, switch from CreateCRMDeal to CreateClientDeal
-	// with the new params struct.
-	openStatus := "open"
-	deal, err := queries.CreateCRMDeal(c.Request.Context(), sqlc.CreateCRMDealParams{
-		UserID:            user.ID,
-		PipelineID:        pipeline.ID,
-		StageID:           stageID,
+	// Insert into the deals table using CreateClientDeal (SQLC-generated query
+	// that auto-resolves pipeline_id and stage_id from the client's owner and
+	// the provided stage name).
+	stageName := ""
+	if req.Stage != nil {
+		stageName = *req.Stage
+	}
+	deal, err := queries.CreateClientDeal(c.Request.Context(), sqlc.CreateClientDealParams{
+		ClientID:          pgtype.UUID{Bytes: clientID, Valid: true},
 		Name:              req.Name,
-		Description:       req.Notes,
 		Amount:            amount,
+		Name_2:            stageName,
 		Probability:       req.Probability,
 		ExpectedCloseDate: expectedCloseDate,
-		// RESOLVED: clientID refers to the "clients" table (simple contacts),
-		// while CompanyID refers to the "crm_companies" table (CRM entities).
-		// These are separate domain concepts: a client may or may not have a
-		// corresponding CRM company. Passing an empty UUID is correct here
-		// because the deal is associated with the client via the deals.client_id
-		// column (set below in the SQL query). The CompanyID field should only
-		// be populated if the user explicitly links the deal to a CRM company.
-		// Future enhancement: accept an optional company_id in the request body.
-		CompanyID:    pgtype.UUID{},
-		Status:       &openStatus,
-		CustomFields: []byte("{}"),
+		Description:       req.Notes,
 	})
 	if err != nil {
 		slog.Error("failed to create client deal", "error", err)
@@ -154,7 +129,8 @@ func (h *ClientHandler) CreateClientDeal(c *gin.Context) {
 	c.JSON(http.StatusCreated, transformClientDealFromDeal(deal, clientID))
 }
 
-// UpdateClientDeal updates a client deal in the deals table via UpdateCRMDeal.
+// UpdateClientDeal updates a client deal in the deals table via the UpdateClientDeal
+// SQLC query. Stage changes require a separate call to UpdateCRMDealStage.
 func (h *ClientHandler) UpdateClientDeal(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	if user == nil {
@@ -210,24 +186,18 @@ func (h *ClientHandler) UpdateClientDeal(c *gin.Context) {
 	// Convert value to pgtype.Numeric (maps to "amount" in the deals table)
 	amount := crmToNumeric(&req.Value)
 
-	// Update the deals table using UpdateCRMDeal.
-	// TODO(sqlc-migration): Once UpdateClientDeal SQLC query is regenerated to
-	// target the deals table, switch from UpdateCRMDeal to UpdateClientDeal
-	// with the new params struct.
-	deal, err := queries.UpdateCRMDeal(c.Request.Context(), sqlc.UpdateCRMDealParams{
+	// Update the deals table using UpdateClientDeal (SQLC-generated query).
+	// Note: stage changes require a separate call to UpdateCRMDealStage because
+	// UpdateClientDeal does not update the stage_id column.
+	var status *string
+	deal, err := queries.UpdateClientDeal(c.Request.Context(), sqlc.UpdateClientDealParams{
 		ID:                pgtype.UUID{Bytes: dealID, Valid: true},
 		Name:              req.Name,
-		Description:       req.Notes,
 		Amount:            amount,
+		Status:            status,
 		Probability:       req.Probability,
 		ExpectedCloseDate: expectedCloseDate,
-		// RESOLVED: Same as CreateClientDeal -- clientID (clients table) and
-		// CompanyID (crm_companies table) are separate domain concepts. The empty
-		// UUID preserves the existing company association (UpdateCRMDeal does
-		// not overwrite non-zero values when passed zero). Future enhancement:
-		// accept an optional company_id in the update request body.
-		CompanyID:    pgtype.UUID{},
-		CustomFields: []byte("{}"),
+		Description:       req.Notes,
 	})
 	if err != nil {
 		slog.Error("failed to update client deal", "error", err)

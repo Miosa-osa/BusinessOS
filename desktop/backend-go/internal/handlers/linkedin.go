@@ -3,6 +3,7 @@ package handlers
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/integrations/linkedin"
@@ -71,16 +72,22 @@ func (h *LinkedInHandler) ImportCSV(c *gin.Context) {
 func (h *LinkedInHandler) GetContacts(c *gin.Context) {
 	page := 1
 	if p := c.Query("page"); p != "" {
-		_, _ = parseIntParam(p) // TODO: implement pagination
+		if v, err := strconv.Atoi(p); err == nil && v > 0 {
+			page = v
+		}
 	}
 
 	pageSize := 50
 	if ps := c.Query("page_size"); ps != "" {
-		_, _ = parseIntParam(ps)
+		if v, err := strconv.Atoi(ps); err == nil && v > 0 && v <= 200 {
+			pageSize = v
+		}
 	}
 
-	// Get qualified contacts (placeholder: all contacts)
-	contacts, err := h.repo.GetQualifiedContacts(0.0, pageSize)
+	offset := (page - 1) * pageSize
+
+	// Get qualified contacts with pagination (minScore=0.0 returns all contacts)
+	contacts, err := h.repo.GetQualifiedContactsPaginated(0.0, pageSize, offset)
 	if err != nil {
 		h.logger.Error("Failed to fetch contacts", "error", err)
 		utils.RespondInternalError(c, h.logger, "fetch LinkedIn contacts", err)
@@ -89,6 +96,13 @@ func (h *LinkedInHandler) GetContacts(c *gin.Context) {
 
 	if contacts == nil {
 		contacts = []*linkedin.Contact{}
+	}
+
+	// Get total count for pagination metadata
+	total, err := h.repo.CountQualifiedContacts(0.0)
+	if err != nil {
+		h.logger.Error("Failed to count contacts", "error", err)
+		total = int64(len(contacts))
 	}
 
 	// Convert pointers to values for response
@@ -101,10 +115,10 @@ func (h *LinkedInHandler) GetContacts(c *gin.Context) {
 
 	c.JSON(http.StatusOK, linkedin.ContactListResponse{
 		Contacts: contactValues,
-		Total:    int64(len(contacts)),
+		Total:    total,
 		Page:     page,
 		PageSize: pageSize,
-		HasMore:  false,
+		HasMore:  int64(offset+pageSize) < total,
 	})
 }
 
@@ -213,6 +227,5 @@ func (h *LinkedInHandler) EnrollOutreach(c *gin.Context) {
 // Helper functions
 
 func parseFloatParam(s string) (float64, error) {
-	// TODO: implement float parsing
-	return 0.7, nil
+	return strconv.ParseFloat(s, 64)
 }
