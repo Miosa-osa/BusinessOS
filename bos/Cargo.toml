@@ -27,6 +27,7 @@ miette = { version = "7.2", features = ["fancy"] }
 # Async
 tokio = { version = "1", features = ["full"] }
 futures-util = "0.3"
+async-trait = "0.1"
 
 # HTTP client
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }

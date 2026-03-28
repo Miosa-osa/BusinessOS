@@ -33,7 +33,7 @@ pub use ontology::select::{SemanticSearch, SelectResult};
 pub use ontology::serve::{ServeConfig, serve as serve_ontology};
 pub use rdf::store::{TripleStore, Triple};
 pub use supervision::{SupervisorConfig, SupervisorHandle, Worker, WorkerConfig, WorkerHandle, WorkerState};
-pub use distributed::{DistributedPM, RaftCoordinator, DistributedWorker, ConsensusProtocol, ModelMerger, FaultRecovery};
+pub use distributed::{DistributedPM, RaftCoordinator, PeerTransport, HttpPeerTransport, DistributedWorker, ConsensusProtocol, ModelMerger, FaultRecovery};
 pub use streaming::{
     StreamingCoordinator, StreamingSessionHandle, StreamEvent, StreamEventType,
     ProgressEvent, MetricsEvent, PartialResultEvent, ErrorEvent,

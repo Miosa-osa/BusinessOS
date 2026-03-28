@@ -11,7 +11,7 @@ pub mod merger;
 pub mod recovery;
 pub mod types;
 
-pub use coordinator::RaftCoordinator;
+pub use coordinator::{RaftCoordinator, PeerTransport, HttpPeerTransport};
 pub use worker::DistributedWorker;
 pub use consensus::ConsensusProtocol;
 pub use merger::ModelMerger;

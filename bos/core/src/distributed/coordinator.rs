@@ -3,12 +3,50 @@
 use super::types::{Term, NodeState, Vote, Heartbeat, LogEntry, LogCommand};
 use super::consensus::ConsensusProtocol;
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::time::{Duration, Instant};
 
+/// Transport abstraction for sending heartbeats to peers.
+#[async_trait::async_trait]
+pub trait PeerTransport: Send + Sync {
+    async fn send(&self, peer_addr: &str, heartbeat: &Heartbeat) -> Result<()>;
+}
+
+/// HTTP-based peer transport: POSTs heartbeat JSON to `http://{peer_addr}/raft/heartbeat`.
+pub struct HttpPeerTransport {
+    client: reqwest::Client,
+}
+
+impl HttpPeerTransport {
+    pub fn new() -> Self {
+        Self {
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+impl Default for HttpPeerTransport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait::async_trait]
+impl PeerTransport for HttpPeerTransport {
+    async fn send(&self, peer_addr: &str, heartbeat: &Heartbeat) -> Result<()> {
+        let url = format!("http://{}/raft/heartbeat", peer_addr);
+        self.client
+            .post(&url)
+            .json(heartbeat)
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("heartbeat send failed to {}: {}", peer_addr, e))?;
+        Ok(())
+    }
+}
+
 /// Raft coordinator managing leader election and log replication
-#[derive(Debug, Clone)]
 pub struct RaftCoordinator {
     pub node_id: String,
     pub state: NodeState,
@@ -21,11 +59,18 @@ pub struct RaftCoordinator {
     pub next_index: HashMap<String, u64>,
     pub match_index: HashMap<String, u64>,
     pub last_heartbeat: Instant,
+    pub transport: Arc<dyn PeerTransport>,
 }
 
 impl RaftCoordinator {
-    /// Create a new coordinator with given node ID and peer list
+    /// Create a new coordinator with given node ID and peer list.
+    /// Uses `HttpPeerTransport` by default.
     pub fn new(node_id: String, peers: Vec<String>) -> Self {
+        Self::with_transport(node_id, peers, Arc::new(HttpPeerTransport::new()))
+    }
+
+    /// Create a new coordinator with a custom transport (useful for testing).
+    pub fn with_transport(node_id: String, peers: Vec<String>, transport: Arc<dyn PeerTransport>) -> Self {
         let mut next_index = HashMap::new();
         let mut match_index = HashMap::new();
         for peer in &peers {
@@ -45,6 +90,7 @@ impl RaftCoordinator {
             next_index,
             match_index,
             last_heartbeat: Instant::now(),
+            transport,
         }
     }
 
@@ -170,15 +216,15 @@ impl RaftCoordinator {
         })
     }
 
-    /// Send heartbeat to all followers
+    /// Send heartbeat to all followers via the configured transport.
     pub async fn send_heartbeat(&self) -> Result<()> {
         if self.state != NodeState::Leader {
             return Ok(());
         }
 
         for peer in &self.peers {
-            if let Some(_heartbeat) = self.build_heartbeat(peer) {
-                // In real implementation, send heartbeat to peer
+            if let Some(heartbeat) = self.build_heartbeat(peer) {
+                self.transport.send(peer, &heartbeat).await?;
             }
         }
         Ok(())

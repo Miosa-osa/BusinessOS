@@ -106,7 +106,7 @@ pub fn generate_construct_query(
             construct_obj = construct_obj
         ));
 
-        where_clauses.push(build_where_clause(prop, &var_name));
+        where_clauses.push(build_where_clause(prop, &var_name, &subject_var));
     }
 
     // WHERE clause: primary key variable, subject bind, activity bind, source bind, property clauses
@@ -199,7 +199,8 @@ fn build_construct_object(prop: &PropertyMapping, var_name: &str) -> String {
 }
 
 /// Build the WHERE clause for a property.
-fn build_where_clause(prop: &PropertyMapping, var_name: &str) -> String {
+/// `subject_var` is the SPARQL variable name for the subject URI (e.g. `invoices_uri`).
+fn build_where_clause(prop: &PropertyMapping, var_name: &str, subject_var: &str) -> String {
     // Foreign key reference
     if prop.object_type.as_deref() == Some("uri") {
         if let Some(target) = &prop.target_table {
@@ -216,7 +217,7 @@ fn build_where_clause(prop: &PropertyMapping, var_name: &str) -> String {
         return format!(
             "# FK: {column}\n?{subject} <{pred}> ?{var}_uri",
             column = prop.column,
-            subject = "subject", // placeholder
+            subject = subject_var,
             pred = prop.predicate,
             var = var_name
         );
@@ -224,7 +225,7 @@ fn build_where_clause(prop: &PropertyMapping, var_name: &str) -> String {
 
     // Value map
     if !prop.value_map.is_empty() {
-        return build_value_map_where(prop, var_name);
+        return build_value_map_where(prop, var_name, subject_var);
     }
 
     // Typed literal
@@ -233,7 +234,7 @@ fn build_where_clause(prop: &PropertyMapping, var_name: &str) -> String {
         format!(
             "# Property: {column}\n?{subject} <{pred}> ?{var}",
             column = prop.column,
-            subject = "subject",
+            subject = subject_var,
             pred = prop.predicate,
             var = var_name
         )
@@ -248,18 +249,19 @@ fn build_where_clause(prop: &PropertyMapping, var_name: &str) -> String {
 
 /// Build a CONSTRUCT template object using IF() chains for value maps.
 fn build_value_map_construct(prop: &PropertyMapping) -> String {
+    let var_name = sanitize_var_name(&prop.column);
     let mut chain = String::new();
     let entries: Vec<_> = prop.value_map.iter().collect();
     for (i, (value, uri)) in entries.iter().enumerate() {
         let next = if i < entries.len() - 1 {
-            build_value_map_construct_inner(&entries[i + 1..])
+            build_value_map_construct_inner(&entries[i + 1..], &var_name)
         } else {
             "UNDEF".to_string()
         };
         if chain.is_empty() {
             chain = format!(
                 "IF(?{var} = \"{val}\", <{uri}>, {next})",
-                var = sanitize_var_name(&prop.column),
+                var = var_name,
                 val = value,
                 uri = uri,
                 next = next
@@ -269,26 +271,27 @@ fn build_value_map_construct(prop: &PropertyMapping) -> String {
     chain
 }
 
-fn build_value_map_construct_inner(entries: &[(&String, &String)]) -> String {
+fn build_value_map_construct_inner(entries: &[(&String, &String)], var_name: &str) -> String {
     if entries.is_empty() {
         return "UNDEF".to_string();
     }
     let (value, uri) = &entries[0];
     format!(
         "IF(?{var} = \"{val}\", <{uri}>, {next})",
-        var = "col", // placeholder, actual var from outer call
+        var = var_name,
         val = value,
         uri = uri,
-        next = build_value_map_construct_inner(&entries[1..])
+        next = build_value_map_construct_inner(&entries[1..], var_name)
     )
 }
 
 /// Build a WHERE clause for value-mapped properties.
-fn build_value_map_where(prop: &PropertyMapping, var_name: &str) -> String {
+/// `subject_var` is the SPARQL variable name for the subject URI.
+fn build_value_map_where(prop: &PropertyMapping, var_name: &str, subject_var: &str) -> String {
     format!(
         "# Value map: {column}\n?{subject} <{pred}> ?{var}",
         column = prop.column,
-        subject = "subject",
+        subject = subject_var,
         pred = prop.predicate,
         var = var_name
     )

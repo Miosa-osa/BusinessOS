@@ -567,17 +567,62 @@ fn generate_fingerprint(
         .map_err(|e| clap_noun_verb::NounVerbError::execution_error(e.to_string()))?;
 
     let algo = algorithm.unwrap_or_else(|| "entropy".to_string());
-    let num_unique_variants = event_log.traces.len();
+    let entropy = compute_log_entropy(&event_log);
+    let variance_in_duration = compute_duration_variance(&event_log);
+    let num_unique_variants = count_unique_variants(&event_log);
 
-    tracing::info!("Generating {} fingerprint for log with {} traces", algo, num_unique_variants);
+    tracing::info!("Generating {} fingerprint for log with {} traces, entropy={:.4}", algo, event_log.traces.len(), entropy);
 
     Ok(FingerprintResult {
         trace_fingerprint: format!("fp_{:x}", fxhash::hash64(&log)),
         num_variants: num_unique_variants,
-        entropy: 3.14,
-        variance_in_duration: 0.28,
+        entropy,
+        variance_in_duration,
         similarity_to_baseline: 0.91,
     })
+}
+
+/// Compute Shannon entropy H = -Σ p(a) * log2(p(a)) over activity frequencies.
+fn compute_log_entropy(event_log: &pm4py::EventLog) -> f64 {
+    let mut freq: HashMap<String, usize> = HashMap::new();
+    let mut total = 0usize;
+    for trace in &event_log.traces {
+        for event in &trace.events {
+            *freq.entry(event.activity.clone()).or_insert(0) += 1;
+            total += 1;
+        }
+    }
+    if total == 0 {
+        return 0.0;
+    }
+    let n = total as f64;
+    freq.values().fold(0.0f64, |acc, &count| {
+        let p = count as f64 / n;
+        if p > 0.0 { acc - p * p.log2() } else { acc }
+    })
+}
+
+/// Compute variance of trace durations (seconds from first to last event per trace).
+fn compute_duration_variance(event_log: &pm4py::EventLog) -> f64 {
+    let durations: Vec<f64> = event_log.traces.iter().filter_map(|trace| {
+        if trace.events.len() < 2 { return None; }
+        let first = trace.events.iter().map(|e| e.timestamp).min()?;
+        let last = trace.events.iter().map(|e| e.timestamp).max()?;
+        Some((last - first).num_seconds() as f64)
+    }).collect();
+    if durations.is_empty() {
+        return 0.0;
+    }
+    let mean = durations.iter().sum::<f64>() / durations.len() as f64;
+    durations.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / durations.len() as f64
+}
+
+/// Count distinct activity sequences (variants) across all traces.
+fn count_unique_variants(event_log: &pm4py::EventLog) -> usize {
+    event_log.traces.iter()
+        .map(|trace| trace.events.iter().map(|e| e.activity.as_str()).collect::<Vec<_>>().join("->"))
+        .collect::<std::collections::HashSet<_>>()
+        .len()
 }
 
 /// Analyze organizational process evolution
@@ -675,14 +720,66 @@ fn workspace_stats(path: Option<String>) -> Result<WorkspaceStats> {
 
     tracing::info!("Computing workspace statistics for: {}", workspace_path);
 
+    let counts = count_workspace_files(&workspace_path);
+
     Ok(WorkspaceStats {
         workspace_path,
-        total_tables: 28,
-        total_relationships: 45,
-        total_entities: 156,
-        ontology_size_kb: 2340,
+        total_tables: counts.yaml_files,
+        total_relationships: counts.json_files,
+        total_entities: counts.total_files,
+        ontology_size_kb: counts.ttl_size_kb,
         last_updated: get_timestamp(),
     })
+}
+
+/// File counts from walking a workspace directory.
+struct WorkspaceFileCounts {
+    yaml_files: usize,
+    json_files: usize,
+    ttl_size_kb: usize,
+    total_files: usize,
+}
+
+/// Walk the workspace directory and count .yaml, .ttl, .json files.
+fn count_workspace_files(workspace_path: &str) -> WorkspaceFileCounts {
+    let mut yaml_files = 0usize;
+    let mut json_files = 0usize;
+    let mut ttl_bytes = 0u64;
+    let mut total_files = 0usize;
+
+    if let Ok(entries) = std::fs::read_dir(workspace_path) {
+        let mut stack: Vec<std::path::PathBuf> = entries
+            .flatten()
+            .map(|e| e.path())
+            .collect();
+
+        while let Some(path) = stack.pop() {
+            if path.is_dir() {
+                if let Ok(children) = std::fs::read_dir(&path) {
+                    stack.extend(children.flatten().map(|e| e.path()));
+                }
+            } else if path.is_file() {
+                total_files += 1;
+                match path.extension().and_then(|e| e.to_str()) {
+                    Some("yaml") | Some("yml") => yaml_files += 1,
+                    Some("json") => json_files += 1,
+                    Some("ttl") => {
+                        if let Ok(meta) = path.metadata() {
+                            ttl_bytes += meta.len();
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    WorkspaceFileCounts {
+        yaml_files,
+        json_files,
+        ttl_size_kb: (ttl_bytes / 1024) as usize,
+        total_files,
+    }
 }
 
 /// Refresh workspace indexes and caches

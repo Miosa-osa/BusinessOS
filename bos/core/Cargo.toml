@@ -36,5 +36,10 @@ pm4py = { path = "/Users/sac/chatmangpt/pm4py-rust" }
 # HTTP client for BusinessOS gateway
 reqwest = { workspace = true, features = ["json"] }
 
+# Async trait objects (PeerTransport)
+async-trait = { workspace = true }
+
 [dev-dependencies]
 tempfile = "3"
+async-trait = { workspace = true }
+tokio = { workspace = true }
