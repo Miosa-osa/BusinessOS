@@ -74,9 +74,11 @@ func (s *CachedWebSearchService) SearchWithCache(ctx context.Context, query stri
 	if err == nil && cached != nil {
 		slog.Debug("Web search cache hit", "queryHash", queryHash, "hitCount", cached.HitCount)
 
-		// Increment hit count asynchronously
+		// Increment hit count asynchronously with bounded context.
 		go func() {
-			_, _ = s.pool.Exec(context.Background(),
+			tctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_, _ = s.pool.Exec(tctx,
 				"UPDATE web_search_results SET hit_count = hit_count + 1, last_hit_at = NOW() WHERE id = $1",
 				cached.ID)
 		}()
@@ -101,9 +103,11 @@ func (s *CachedWebSearchService) SearchWithCache(ctx context.Context, query stri
 		return nil, err
 	}
 
-	// Save to cache asynchronously
+	// Save to cache asynchronously with bounded context.
 	go func() {
-		s.saveToCache(context.Background(), query, response, userID, conversationID)
+		tctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		s.saveToCache(tctx, query, response, userID, conversationID)
 	}()
 
 	return response, nil

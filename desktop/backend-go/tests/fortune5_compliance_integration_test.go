@@ -59,9 +59,9 @@ var (
 	pm4pyURL         = os.Getenv("PM4PY_URL")
 
 	// Test data
-	fiboTestData   string
-	hipaaTestData  string
-	shaclShapes    string
+	fiboTestData   []byte
+	hipaaTestData  []byte
+	shaclShapes    []byte
 )
 
 func init() {

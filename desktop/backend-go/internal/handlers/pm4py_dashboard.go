@@ -82,6 +82,16 @@ func NewPM4PyDashboardHandler(client *pm4py_rust.Client) *PM4PyDashboardHandler 
 	}
 }
 
+// NewPM4PyDashboardHandlerWithTimeout constructs a handler with a caller-supplied timeout.
+// Use this in tests or when the deployment environment requires a non-default deadline.
+func NewPM4PyDashboardHandlerWithTimeout(client *pm4py_rust.Client, timeout time.Duration) *PM4PyDashboardHandler {
+	return &PM4PyDashboardHandler{
+		client:  client,
+		logger:  slog.Default(),
+		timeout: timeout,
+	}
+}
+
 // GetDashboardKPI handles POST /api/pm4py/dashboard-kpi.
 // It fans out to pm4py-rust statistics + conformance concurrently, then merges results.
 func (h *PM4PyDashboardHandler) GetDashboardKPI(c *gin.Context) {

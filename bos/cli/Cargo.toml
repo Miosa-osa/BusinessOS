@@ -44,3 +44,5 @@ uuid = { workspace = true }
 [dev-dependencies]
 # For CLI integration testing
 assert_cmd = "2.0"
+tempfile = "3"
+predicates = "3"

@@ -71,19 +71,19 @@ mod cli_pm4py_breakage_tests {
 
         // THEN: Should report actual statistics, not zeros
         assert!(
-            stdout.contains("\"traces\":5"),
+            stdout.contains("\"num_traces\":5"),
             "analyze should report 5 traces, got: {}",
             stdout
         );
 
         assert!(
-            stdout.contains("\"total_events\":15"),
+            stdout.contains("\"num_events\":15"),
             "analyze should report 15 events, got: {}",
             stdout
         );
 
         assert!(
-            stdout.contains("\"unique_activities\":3"),
+            stdout.contains("\"num_unique_activities\":3"),
             "analyze should report 3 activities, got: {}",
             stdout
         );

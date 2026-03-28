@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/integrations/pm4py_rust"
@@ -161,4 +162,47 @@ func TestPM4PyDashboardKPI_BuildResponse_NilInputsReturnEmptySlices(t *testing.T
 	assert.NotEmpty(t, resp.FetchedAt)
 	assert.False(t, resp.IsConformant)
 	assert.Equal(t, 0.0, resp.ConformanceFitness)
+}
+
+// TestPM4PyDashboardKPI_30sTimeout_DoesNotBlock verifies that a slow pm4py-rust
+// service does not block the handler beyond the configured timeout.
+func TestPM4PyDashboardKPI_30sTimeout_DoesNotBlock(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// Start a mock server that delays every response by 500ms.
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(500 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer mockServer.Close()
+
+	client := pm4py_rust.NewClient(mockServer.URL)
+	handler := NewPM4PyDashboardHandlerWithTimeout(client, 100*time.Millisecond)
+
+	body, err := json.Marshal(map[string]interface{}{
+		"event_log": map[string]interface{}{
+			"traces": []interface{}{},
+		},
+	})
+	assert.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request, _ = http.NewRequest(http.MethodPost, "/api/pm4py/dashboard-kpi", bytes.NewBuffer(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	start := time.Now()
+	handler.GetDashboardKPI(c)
+	elapsed := time.Since(start)
+
+	// Handler must return before the mock's 500ms delay.
+	assert.Less(t, elapsed, 200*time.Millisecond,
+		"handler blocked for %v; expected to return within 200ms on 100ms timeout", elapsed)
+
+	// A timed-out statistics call surfaces as 502 Bad Gateway.
+	assert.Equal(t, http.StatusBadGateway, w.Code)
+
+	var respBody map[string]interface{}
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &respBody))
+	assert.Contains(t, respBody, "error")
 }

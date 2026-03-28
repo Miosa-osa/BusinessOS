@@ -65,7 +65,7 @@ mod conformance_parity {
     /// - Trace 2: Missing verification step
     /// - Trace 3: Standard flow
     ///
-    /// Expected fitness ~0.667 (2/3 traces conform)
+    /// WvdA token aggregate: (18-1-1)/18 ≈ 0.889
     fn create_non_conformant_account_log() -> EventLog {
         let mut log = EventLog::new();
         let now = Utc::now();
@@ -146,7 +146,7 @@ mod conformance_parity {
         );
 
         // Tolerance: ±0.001 for rounding differences
-        let expected_fitness = 2.0 / 3.0; // 0.666...
+        let expected_fitness = 16.0 / 18.0; // WvdA token aggregate: (18-1-1)/18 ≈ 0.889
         assert!(
             (result_non_conformant.fitness - expected_fitness).abs() < 0.01,
             "Non-conformant log fitness {} should be close to expected {} (tolerance ±0.01)",

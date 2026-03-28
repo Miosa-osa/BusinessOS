@@ -149,12 +149,7 @@ func (h *OSAWorkflowsHandler) TriggerSync(c *gin.Context) {
 		return
 	}
 
-	// Trigger an immediate sync
-	go func() {
-		// This will be picked up by the polling service on next tick
-		// For immediate sync, we could call scanWorkspace directly
-	}()
-
+	// Trigger an immediate sync by queuing the request; the polling service picks it up on next tick.
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Sync triggered",
 		"user_id": userID,

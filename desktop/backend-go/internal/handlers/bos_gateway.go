@@ -330,16 +330,19 @@ func (h *BOSGatewayHandler) Discover(c *gin.Context) {
 	// ## Asynchronous Cleanup
 	// Schedule WAL cleanup after response is sent (5s delay allows client to confirm receipt).
 	// Non-blocking cleanup: if deletion fails, it's non-critical (duplicate results acceptable).
-	// Schedule WAL cleanup after response is sent
-	go func() {
-		time.Sleep(5 * time.Second)
-		if err := h.cleanupWAL(modelID); err != nil {
-			h.logger.Debug("discover: WAL cleanup failed (non-critical)",
-				"model_id", modelID,
-				"error", err.Error(),
-			)
+	// Schedule WAL cleanup after response is sent; context bounds goroutine lifetime.
+	go func(ctx context.Context) {
+		select {
+		case <-time.After(5 * time.Second):
+			if err := h.cleanupWAL(modelID); err != nil {
+				h.logger.Debug("discover: WAL cleanup failed (non-critical)",
+					"model_id", modelID,
+					"error", err.Error(),
+				)
+			}
+		case <-ctx.Done():
 		}
-	}()
+	}(c.Request.Context())
 
 	c.JSON(http.StatusOK, response)
 }
