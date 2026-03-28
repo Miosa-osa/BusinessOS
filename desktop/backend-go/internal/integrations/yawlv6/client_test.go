@@ -183,3 +183,85 @@ func TestLoadSpec_MissingFile_ReturnsError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
+
+// TestListPatterns_ReturnsAllSpecs verifies that ListPatterns discovers all XML files
+// in wcp-patterns/* subdirectories, parsing ID and name from filenames.
+func TestListPatterns_ReturnsAllSpecs(t *testing.T) {
+	specsDir := t.TempDir()
+	catDir := specsDir + "/wcp-patterns/basic"
+	require.NoError(t, os.MkdirAll(catDir, 0o755))
+	require.NoError(t, os.WriteFile(catDir+"/WCP01_Sequence.xml", []byte("<spec/>"), 0o644))
+	require.NoError(t, os.WriteFile(catDir+"/WCP02_ParallelSplit.xml", []byte("<spec/>"), 0o644))
+
+	t.Setenv("YAWLV6_SPECS_PATH", specsDir)
+	c := yawlv6.NewClient()
+
+	entries, err := c.ListPatterns()
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	assert.Equal(t, "WCP-1", entries[0].ID)
+	assert.Equal(t, "Sequence", entries[0].Name)
+	assert.Equal(t, "basic", entries[0].Category)
+	assert.Equal(t, "WCP-2", entries[1].ID)
+}
+
+// TestListPatterns_EmptyDir_ReturnsEmpty verifies that ListPatterns returns an empty
+// slice when no wcp-patterns directories exist.
+func TestListPatterns_EmptyDir_ReturnsEmpty(t *testing.T) {
+	specsDir := t.TempDir()
+	t.Setenv("YAWLV6_SPECS_PATH", specsDir)
+	c := yawlv6.NewClient()
+
+	entries, err := c.ListPatterns()
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+// TestLoadRealData_ValidFile_ReturnsXML verifies that LoadRealData reads a real-data spec.
+func TestLoadRealData_ValidFile_ReturnsXML(t *testing.T) {
+	specsDir := t.TempDir()
+	realDir := specsDir + "/real-data"
+	require.NoError(t, os.MkdirAll(realDir, 0o755))
+	content := `<?xml version="1.0"?><specificationSet><specification uri="RepairProcess"/></specificationSet>`
+	require.NoError(t, os.WriteFile(realDir+"/RepairProcess.yawl.xml", []byte(content), 0o644))
+
+	t.Setenv("YAWLV6_SPECS_PATH", specsDir)
+	c := yawlv6.NewClient()
+
+	xml, err := c.LoadRealData("repair-process")
+	require.NoError(t, err)
+	assert.Contains(t, xml, "RepairProcess")
+}
+
+// TestLoadRealData_UnknownName_ReturnsError verifies that LoadRealData rejects unknown names.
+func TestLoadRealData_UnknownName_ReturnsError(t *testing.T) {
+	specsDir := t.TempDir()
+	t.Setenv("YAWLV6_SPECS_PATH", specsDir)
+	c := yawlv6.NewClient()
+
+	_, err := c.LoadRealData("unknown-dataset")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown real-data dataset")
+}
+
+// TestListRealData_ValidDir_ReturnsEntries verifies that ListRealData discovers
+// all known real-data files present on disk.
+func TestListRealData_ValidDir_ReturnsEntries(t *testing.T) {
+	specsDir := t.TempDir()
+	realDir := specsDir + "/real-data"
+	require.NoError(t, os.MkdirAll(realDir, 0o755))
+	require.NoError(t, os.WriteFile(realDir+"/OrderManagement.yawl.xml", []byte("<spec/>"), 0o644))
+	require.NoError(t, os.WriteFile(realDir+"/RepairProcess.yawl.xml", []byte("<spec/>"), 0o644))
+
+	t.Setenv("YAWLV6_SPECS_PATH", specsDir)
+	c := yawlv6.NewClient()
+
+	entries, err := c.ListRealData()
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	names := make([]string, len(entries))
+	for i, e := range entries {
+		names[i] = e.Name
+	}
+	assert.ElementsMatch(t, []string{"order-management", "repair-process"}, names)
+}

@@ -185,3 +185,63 @@ func (h *YawlHandler) LoadSpec(c *gin.Context) {
 	span.SetStatus(codes.Ok, "")
 	c.Data(http.StatusOK, "application/xml; charset=utf-8", []byte(xml))
 }
+
+// ListSpecs handles GET /api/yawl/specs.
+// Returns JSON array of all WCP pattern specs found in exampleSpecs/wcp-patterns/.
+func (h *YawlHandler) ListSpecs(c *gin.Context) {
+	_, span := h.tracer.Start(c.Request.Context(), semconv.YawlCaseSpan)
+	defer span.End()
+
+	entries, err := h.client.ListPatterns()
+	if err != nil {
+		h.logger.Error("yawl list specs: scan failed", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list specs failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list WCP pattern specs"})
+		return
+	}
+
+	span.SetStatus(codes.Ok, "")
+	c.JSON(http.StatusOK, gin.H{"specs": entries, "count": len(entries)})
+}
+
+// ListRealData handles GET /api/yawl/real-data.
+// Returns JSON array of available real-world process spec datasets.
+func (h *YawlHandler) ListRealData(c *gin.Context) {
+	_, span := h.tracer.Start(c.Request.Context(), semconv.YawlCaseSpan)
+	defer span.End()
+
+	entries, err := h.client.ListRealData()
+	if err != nil {
+		h.logger.Error("yawl list real-data: scan failed", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list real-data failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list real-data specs"})
+		return
+	}
+
+	span.SetStatus(codes.Ok, "")
+	c.JSON(http.StatusOK, gin.H{"datasets": entries, "count": len(entries)})
+}
+
+// GetRealData handles GET /api/yawl/real-data/:name.
+// Returns the raw YAWL spec XML for a named real-world dataset.
+func (h *YawlHandler) GetRealData(c *gin.Context) {
+	_, span := h.tracer.Start(c.Request.Context(), semconv.YawlCaseSpan)
+	defer span.End()
+
+	name := c.Param("name")
+	span.SetAttributes(semconv.YawlSpecUri(name))
+
+	xml, err := h.client.LoadRealData(name)
+	if err != nil {
+		h.logger.Warn("yawl get real-data: not found", "name", name, "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "real-data spec not found")
+		c.JSON(http.StatusNotFound, gin.H{"error": "real-data spec not found: " + name})
+		return
+	}
+
+	span.SetStatus(codes.Ok, "")
+	c.Data(http.StatusOK, "application/xml; charset=utf-8", []byte(xml))
+}

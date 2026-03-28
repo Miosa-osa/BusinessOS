@@ -129,7 +129,7 @@ func (c *Client) LoadSpec(patternID string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("cannot determine home directory: %w", err)
 		}
-		specsPath = filepath.Join(home, "yawlv6", "exampleSpecs")
+		specsPath = filepath.Join(home, "chatmangpt", "yawlv6", "exampleSpecs")
 	}
 
 	normalized := normalizePatternID(patternID)
@@ -154,6 +154,150 @@ func (c *Client) LoadSpec(patternID string) (string, error) {
 	}
 
 	return "", fmt.Errorf("spec %q not found in %s", patternID, specsPath)
+}
+
+// PatternEntry describes one WCP pattern spec found on disk.
+type PatternEntry struct {
+	ID       string `json:"id"`       // e.g. "WCP-1"
+	Name     string `json:"name"`     // e.g. "Sequence"
+	Category string `json:"category"` // e.g. "basic"
+	Path     string `json:"path"`     // absolute path to XML file
+}
+
+// RealDataEntry describes one real-world process spec dataset.
+type RealDataEntry struct {
+	Name string `json:"name"` // canonical name, e.g. "order-management"
+	Path string `json:"path"` // absolute path to XML file
+}
+
+// realDataNames maps canonical dataset names to their filename stems (case-insensitive prefix).
+var realDataNames = map[string]string{
+	"order-management":         "OrderManagement",
+	"repair-process":           "RepairProcess",
+	"traffic-fine-management":  "TrafficFineManagement",
+}
+
+// specsBasePath returns the resolved exampleSpecs base directory.
+func specsBasePath() (string, error) {
+	if p := os.Getenv("YAWLV6_SPECS_PATH"); p != "" {
+		return p, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot determine home directory: %w", err)
+	}
+	return filepath.Join(home, "chatmangpt", "yawlv6", "exampleSpecs"), nil
+}
+
+// ListPatterns scans all wcp-patterns/* subdirectories and returns a sorted
+// slice of all WCP pattern specs found on disk.
+func (c *Client) ListPatterns() ([]PatternEntry, error) {
+	base, err := specsBasePath()
+	if err != nil {
+		return nil, err
+	}
+	patternsDir := filepath.Join(base, "wcp-patterns")
+
+	var entries []PatternEntry
+	for _, cat := range wcpCategories {
+		catDir := filepath.Join(patternsDir, cat)
+		files, err := os.ReadDir(catDir)
+		if err != nil {
+			continue
+		}
+		for _, f := range files {
+			name := f.Name()
+			if !strings.HasSuffix(name, ".xml") {
+				continue
+			}
+			id, label := parsePatternFilename(name)
+			entries = append(entries, PatternEntry{
+				ID:       id,
+				Name:     label,
+				Category: cat,
+				Path:     filepath.Join(catDir, name),
+			})
+		}
+	}
+	return entries, nil
+}
+
+// ListRealData returns all known real-data specs found on disk under real-data/.
+func (c *Client) ListRealData() ([]RealDataEntry, error) {
+	base, err := specsBasePath()
+	if err != nil {
+		return nil, err
+	}
+	realDir := filepath.Join(base, "real-data")
+
+	files, err := os.ReadDir(realDir)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read real-data directory: %w", err)
+	}
+	fileNames := make([]string, 0, len(files))
+	for _, f := range files {
+		fileNames = append(fileNames, f.Name())
+	}
+
+	var entries []RealDataEntry
+	for canonical, stem := range realDataNames {
+		for _, fn := range fileNames {
+			if strings.HasPrefix(strings.ToLower(fn), strings.ToLower(stem)) && strings.HasSuffix(fn, ".xml") {
+				entries = append(entries, RealDataEntry{
+					Name: canonical,
+					Path: filepath.Join(realDir, fn),
+				})
+				break
+			}
+		}
+	}
+	return entries, nil
+}
+
+// LoadRealData reads a real-world process spec XML by canonical dataset name.
+// Known names: "order-management", "repair-process", "traffic-fine-management".
+func (c *Client) LoadRealData(name string) (string, error) {
+	base, err := specsBasePath()
+	if err != nil {
+		return "", err
+	}
+	stem, ok := realDataNames[strings.ToLower(name)]
+	if !ok {
+		return "", fmt.Errorf("unknown real-data dataset %q", name)
+	}
+	realDir := filepath.Join(base, "real-data")
+	files, err := os.ReadDir(realDir)
+	if err != nil {
+		return "", fmt.Errorf("cannot read real-data directory: %w", err)
+	}
+	for _, f := range files {
+		fn := f.Name()
+		if strings.HasPrefix(strings.ToLower(fn), strings.ToLower(stem)) && strings.HasSuffix(fn, ".xml") {
+			data, err := os.ReadFile(filepath.Join(realDir, fn))
+			if err != nil {
+				return "", fmt.Errorf("cannot read spec %q: %w", fn, err)
+			}
+			return string(data), nil
+		}
+	}
+	return "", fmt.Errorf("real-data spec %q not found in %s", name, realDir)
+}
+
+// parsePatternFilename converts "WCP01_Sequence.xml" → ("WCP-1", "Sequence").
+func parsePatternFilename(filename string) (id, name string) {
+	base := strings.TrimSuffix(filename, ".xml")
+	re := regexp.MustCompile(`(?i)^WCP(\d+)_(.+)$`)
+	m := re.FindStringSubmatch(base)
+	if len(m) != 3 {
+		return base, base
+	}
+	n := strings.TrimLeft(m[1], "0")
+	if n == "" {
+		n = "0"
+	}
+	label := regexp.MustCompile(`([a-z])([A-Z])`).ReplaceAllString(
+		strings.ReplaceAll(m[2], "_", " "), "$1 $2")
+	return "WCP-" + n, label
 }
 
 // normalizePatternID converts any supported pattern ID format to the zero-padded

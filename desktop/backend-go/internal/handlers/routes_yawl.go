@@ -27,4 +27,7 @@ func (h *Handlers) registerYawlRoutes(api *gin.RouterGroup, auth gin.HandlerFunc
 	yawlGroup.POST("/conformance", yawlHandler.CheckConformance)
 	yawlGroup.POST("/spec", yawlHandler.BuildSpec)
 	yawlGroup.GET("/spec/load", yawlHandler.LoadSpec)
+	yawlGroup.GET("/specs", yawlHandler.ListSpecs)
+	yawlGroup.GET("/real-data", yawlHandler.ListRealData)
+	yawlGroup.GET("/real-data/:name", yawlHandler.GetRealData)
 }
