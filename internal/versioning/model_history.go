@@ -624,9 +624,127 @@ func (s *ModelHistoryService) determineVersion(
 }
 
 func (s *ModelHistoryService) computeDelta(current, previous json.RawMessage) json.RawMessage {
-	// Simplified delta: just return empty for now
-	// In production, compute actual differences
-	return json.RawMessage(`{}`)
+	// Compute RFC 6902 JSON Patch format differences
+	// Simple array-based diff for nodes/edges in process models
+
+	var currentModel, previousModel map[string]interface{}
+	if err := json.Unmarshal(current, &currentModel); err != nil {
+		return json.RawMessage(`[]`)
+	}
+	if err := json.Unmarshal(previous, &previousModel); err != nil {
+		return json.RawMessage(`[]`)
+	}
+
+	patches := []map[string]interface{}{}
+
+	// Extract nodes and edges from both models
+	currentNodes, _ := currentModel["nodes"].([]interface{})
+	previousNodes, _ := previousModel["nodes"].([]interface{})
+	currentEdges, _ := currentModel["edges"].([]interface{})
+	previousEdges, _ := previousModel["edges"].([]interface{})
+
+	// Build ID maps for efficient lookup
+	prevNodeMap := make(map[string]interface{})
+	for _, node := range previousNodes {
+		if nodeMap, ok := node.(map[string]interface{}); ok {
+			if id, ok := nodeMap["id"].(string); ok {
+				prevNodeMap[id] = nodeMap
+			}
+		}
+	}
+
+	prevEdgeMap := make(map[string]interface{})
+	for _, edge := range previousEdges {
+		if edgeMap, ok := edge.(map[string]interface{}); ok {
+			if id, ok := edgeMap["id"].(string); ok {
+				prevEdgeMap[id] = edgeMap
+			}
+		}
+	}
+
+	// Detect added nodes
+	for _, node := range currentNodes {
+		if nodeMap, ok := node.(map[string]interface{}); ok {
+			if id, ok := nodeMap["id"].(string); ok {
+				if _, exists := prevNodeMap[id]; !exists {
+					patches = append(patches, map[string]interface{}{
+						"op":    "add",
+						"path":  fmt.Sprintf("/nodes/%s", id),
+						"value": nodeMap,
+					})
+				}
+			}
+		}
+	}
+
+	// Detect removed nodes
+	for _, node := range previousNodes {
+		if nodeMap, ok := node.(map[string]interface{}); ok {
+			if id, ok := nodeMap["id"].(string); ok {
+				if _, exists := currentModel["nodes"].([]interface{}); !exists {
+					continue
+				}
+				found := false
+				for _, currNode := range currentNodes {
+					if currNodeMap, ok := currNode.(map[string]interface{}); ok {
+						if currID, ok := currNodeMap["id"].(string); ok && currID == id {
+							found = true
+							break
+						}
+					}
+				}
+				if !found {
+					patches = append(patches, map[string]interface{}{
+						"op":    "remove",
+						"path":  fmt.Sprintf("/nodes/%s", id),
+						"value": nodeMap,
+					})
+				}
+			}
+		}
+	}
+
+	// Detect added edges
+	for _, edge := range currentEdges {
+		if edgeMap, ok := edge.(map[string]interface{}); ok {
+			if id, ok := edgeMap["id"].(string); ok {
+				if _, exists := prevEdgeMap[id]; !exists {
+					patches = append(patches, map[string]interface{}{
+						"op":    "add",
+						"path":  fmt.Sprintf("/edges/%s", id),
+						"value": edgeMap,
+					})
+				}
+			}
+		}
+	}
+
+	// Detect removed edges
+	for _, edge := range previousEdges {
+		if edgeMap, ok := edge.(map[string]interface{}); ok {
+			if id, ok := edgeMap["id"].(string); ok {
+				found := false
+				for _, currEdge := range currentEdges {
+					if currEdgeMap, ok := currEdge.(map[string]interface{}); ok {
+						if currID, ok := currEdgeMap["id"].(string); ok && currID == id {
+							found = true
+							break
+						}
+					}
+				}
+				if !found {
+					patches = append(patches, map[string]interface{}{
+						"op":    "remove",
+						"path":  fmt.Sprintf("/edges/%s", id),
+						"value": edgeMap,
+					})
+				}
+			}
+		}
+	}
+
+	result, _ := json.Marshal(patches)
+	return json.RawMessage(result)
 }
 
 // Utility functions
@@ -641,14 +759,135 @@ func computeStructuralDiff(
 	from map[string]interface{},
 	to map[string]interface{},
 ) StructuralDiff {
-	// Simplified structural comparison
-	// In production, parse BPMN/Petri net structures
-	return StructuralDiff{
+	// Compute structural differences between two process model versions
+	// Handles both BPMN and Petri net structures
+
+	diff := StructuralDiff{
 		NodesAdded:   []NodeChange{},
 		NodesRemoved: []NodeChange{},
 		EdgesAdded:   []EdgeChange{},
 		EdgesRemoved: []EdgeChange{},
 	}
+
+	// Extract nodes from both versions
+	fromNodes, fromHasNodes := from["nodes"].([]interface{})
+	toNodes, toHasNodes := to["nodes"].([]interface{})
+
+	if !fromHasNodes || !toHasNodes {
+		return diff
+	}
+
+	// Build ID maps for efficient lookup
+	fromNodeMap := make(map[string]map[string]interface{})
+	for _, node := range fromNodes {
+		if nodeMap, ok := node.(map[string]interface{}); ok {
+			if id, ok := nodeMap["id"].(string); ok {
+				fromNodeMap[id] = nodeMap
+			}
+		}
+	}
+
+	toNodeMap := make(map[string]map[string]interface{})
+	for _, node := range toNodes {
+		if nodeMap, ok := node.(map[string]interface{}); ok {
+			if id, ok := nodeMap["id"].(string); ok {
+				toNodeMap[id] = nodeMap
+			}
+		}
+	}
+
+	// Detect added nodes
+	for id, nodeMap := range toNodeMap {
+		if _, exists := fromNodeMap[id]; !exists {
+			change := NodeChange{
+				ID:    id,
+				Type:  getStringField(nodeMap, "type", "unknown"),
+				Label: getStringField(nodeMap, "label", ""),
+			}
+			diff.NodesAdded = append(diff.NodesAdded, change)
+		}
+	}
+
+	// Detect removed nodes
+	for id, nodeMap := range fromNodeMap {
+		if _, exists := toNodeMap[id]; !exists {
+			change := NodeChange{
+				ID:    id,
+				Type:  getStringField(nodeMap, "type", "unknown"),
+				Label: getStringField(nodeMap, "label", ""),
+			}
+			diff.NodesRemoved = append(diff.NodesRemoved, change)
+		}
+	}
+
+	// Extract edges from both versions
+	fromEdges, fromHasEdges := from["edges"].([]interface{})
+	toEdges, toHasEdges := to["edges"].([]interface{})
+
+	if !fromHasEdges || !toHasEdges {
+		return diff
+	}
+
+	// Build edge ID maps
+	fromEdgeMap := make(map[string]map[string]interface{})
+	for _, edge := range fromEdges {
+		if edgeMap, ok := edge.(map[string]interface{}); ok {
+			if id, ok := edgeMap["id"].(string); ok {
+				fromEdgeMap[id] = edgeMap
+			}
+		}
+	}
+
+	toEdgeMap := make(map[string]map[string]interface{})
+	for _, edge := range toEdges {
+		if edgeMap, ok := edge.(map[string]interface{}); ok {
+			if id, ok := edgeMap["id"].(string); ok {
+				toEdgeMap[id] = edgeMap
+			}
+		}
+	}
+
+	// Detect added edges
+	for id, edgeMap := range toEdgeMap {
+		if _, exists := fromEdgeMap[id]; !exists {
+			change := EdgeChange{
+				ID:     id,
+				Source: getStringField(edgeMap, "source", ""),
+				Target: getStringField(edgeMap, "target", ""),
+			}
+			if label, ok := edgeMap["label"].(string); ok && label != "" {
+				change.Label = &label
+			}
+			diff.EdgesAdded = append(diff.EdgesAdded, change)
+		}
+	}
+
+	// Detect removed edges
+	for id, edgeMap := range fromEdgeMap {
+		if _, exists := toEdgeMap[id]; !exists {
+			change := EdgeChange{
+				ID:     id,
+				Source: getStringField(edgeMap, "source", ""),
+				Target: getStringField(edgeMap, "target", ""),
+			}
+			if label, ok := edgeMap["label"].(string); ok && label != "" {
+				change.Label = &label
+			}
+			diff.EdgesRemoved = append(diff.EdgesRemoved, change)
+		}
+	}
+
+	return diff
+}
+
+// getStringField safely extracts a string field from a map with default value
+func getStringField(m map[string]interface{}, key string, defaultValue string) string {
+	if val, ok := m[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return defaultValue
 }
 
 func identifyBreakingChanges(changeType string, summary ChangeSummary) []string {

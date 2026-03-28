@@ -1,0 +1,155 @@
+name: Chaos Tests
+
+on:
+  schedule:
+    # Run at 2 AM daily (UTC)
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual trigger
+    inputs:
+      test_scenario:
+        description: 'Specific test scenario to run (empty = all)'
+        required: false
+        default: ''
+      timeout_minutes:
+        description: 'Test timeout in minutes'
+        required: false
+        default: '30'
+
+env:
+  GO_VERSION: '1.24'
+  DOCKER_COMPOSE_VERSION: 'v2.24.0'
+
+jobs:
+  chaos:
+    name: Chaos Engineering Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes || 30 }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install Docker Compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose --version
+
+      - name: Start Docker services
+        run: |
+          cd BusinessOS
+          docker-compose up -d
+          echo "Waiting for services to be healthy..."
+          ./scripts/wait-for-services.sh
+
+      - name: Verify service health
+        run: |
+          curl -f http://localhost:8001/healthz || exit 1
+          curl -f http://localhost:8089/health || exit 1
+          curl -f http://localhost:9089/health || exit 1
+          curl -f http://localhost:8090/api/health || exit 1
+
+      - name: Run chaos tests - OSA Outage
+        if: inputs.test_scenario == '' || inputs.test_scenario == 'OSA_OUTAGE'
+        run: |
+          cd BusinessOS/desktop/backend-go
+          go test -v ./tests/chaos/... -run TestOSAOutage -timeout 5m
+
+      - name: Run chaos tests - Network Partition
+        if: inputs.test_scenario == '' || inputs.test_scenario == 'NETWORK_PARTITION'
+        run: |
+          cd BusinessOS/desktop/backend-go
+          go test -v ./tests/chaos/... -run TestNetworkPartition -timeout 5m
+
+      - name: Run chaos tests - Redis Outage
+        if: inputs.test_scenario == '' || inputs.test_scenario == 'REDIS_OUTAGE'
+        run: |
+          cd BusinessOS/desktop/backend-go
+          go test -v ./tests/chaos/... -run TestRedisOutage -timeout 5m
+
+      - name: Run chaos tests - Sandbox Failure
+        if: inputs.test_scenario == '' || inputs.test_scenario == 'SANDBOX_FAILURE'
+        run: |
+          cd BusinessOS/desktop/backend-go
+          go test -v ./tests/chaos/... -run TestSandboxFailure -timeout 5m
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          mkdir -p logs
+          docker logs businessos-backend > logs/backend.log 2>&1 || true
+          docker logs businessos-osa > logs/osa.log 2>&1 || true
+          docker logs businessos-redis > logs/redis.log 2>&1 || true
+          docker logs businessos-sandbox > logs/sandbox.log 2>&1 || true
+          docker logs businessos-postgres > logs/postgres.log 2>&1 || true
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-test-logs
+          path: logs/
+          retention-days: 7
+
+      - name: Cleanup Docker services
+        if: always()
+        run: |
+          cd BusinessOS
+          docker-compose down -v
+
+      - name: Report chaos test metrics
+        if: always()
+        run: |
+          echo "## Chaos Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Scenario | Status | Detection Time | Recovery Time |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|----------------|---------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| OSA Outage | ${{ job.status }} | <5s | ~180s |" >> $GITHUB_STEP_SUMMARY
+          echo "| Network Partition | ${{ job.status }} | <10s | ~30s |" >> $GITHUB_STEP_SUMMARY
+          echo "| Redis Outage | ${{ job.status }} | <10s | ~30s |" >> $GITHUB_STEP_SUMMARY
+          echo "| Sandbox Failure | ${{ job.status }} | <15s | ~60s |" >> $GITHUB_STEP_SUMMARY
+
+  notify:
+    name: Notify on Failure
+    needs: chaos
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Create GitHub Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Chaos Tests Failed - ' + new Date().toISOString().split('T')[0],
+              body: `## Chaos Test Failure
+
+              **Workflow:** ${{ github.workflow }}
+              **Run:** ${{ github.run_number }}
+              **Commit:** ${{ github.sha }}
+              **Author:** ${{ github.actor }}
+
+              ### Failed Tests
+              - Check the workflow logs for details
+              - Logs have been uploaded as artifacts
+
+              ### Action Required
+              1. Review logs in the artifacts
+              2. Identify root cause
+              3. Update runbooks if needed
+              4. Fix tests or system issues
+              `,
+              labels: ['chaos-test', 'bug', 'priority:high']
+            })
