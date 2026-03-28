@@ -133,12 +133,6 @@ const (
 	// Kind: internal
 	// Stability: development
 	ProcessMiningModelQualitySpan = "process.mining.model.quality"
-	// process_mining_prediction_make is the span name for "process.mining.prediction.make".
-	//
-	// Process outcome prediction — forecasting future trace completion, bottlenecks, or deviations using a predictive model.
-	// Kind: internal
-	// Stability: development
-	ProcessMiningPredictionMakeSpan = "process.mining.prediction.make"
 	// process_mining_replay_alignment is the span name for "process.mining.replay.alignment".
 	//
 	// Alignment-based conformance checking — computing optimal alignments between log and model.
@@ -169,12 +163,6 @@ const (
 	// Kind: internal
 	// Stability: development
 	ProcessMiningSimulationRunSpan = "process.mining.simulation.run"
-	// process_mining_social_network_analyze is the span name for "process.mining.social_network.analyze".
-	//
-	// Social network analysis of a process log — discovering collaboration patterns, handover-of-work, and resource roles.
-	// Kind: internal
-	// Stability: development
-	ProcessMiningSocialNetworkAnalyzeSpan = "process.mining.social_network.analyze"
 	// process_mining_streaming_ingest is the span name for "process.mining.streaming.ingest".
 	//
 	// Ingesting an event batch into the streaming process mining window.

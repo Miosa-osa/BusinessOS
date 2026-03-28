@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/idempotency"
@@ -55,11 +56,24 @@ type A2AHandler struct {
 }
 
 // NewA2AHandler creates a new A2A handler.
+// Starts a background goroutine to clean up expired idempotency entries hourly.
 func NewA2AHandler(a2aClient *services.A2AClient) *A2AHandler {
-	return &A2AHandler{
+	store := idempotency.New()
+	h := &A2AHandler{
 		a2aClient:      a2aClient,
-		idempotencyKey: idempotency.New(),
+		idempotencyKey: store,
 	}
+	// WvdA: bounded cleanup — stops when process exits; ticker prevents unbounded memory growth
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			if n := store.Cleanup(); n > 0 {
+				slog.Info("idempotency cache cleanup", "deleted_keys", n)
+			}
+		}
+	}()
+	return h
 }
 
 // DiscoverAgent handles POST /api/integrations/a2a/agents/discover
