@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,15 +32,24 @@ func Connect(cfg *config.Config) (*pgxpool.Pool, error) {
 		poolConfig.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 	}
 
+	// Get max connections from environment variable with intelligent defaults
+	// Production: 100 connections for high concurrency
+	// Development: 25 connections for local testing
+	maxConns := getEnvInt("PG_MAX_CONNECTIONS", 25)
+	if env := os.Getenv("ENVIRONMENT"); env == "production" {
+		maxConns = getEnvInt("PG_MAX_CONNECTIONS", 100)
+	}
+
 	// Pool settings optimized for multi-agent concurrency
-	poolConfig.MaxConns = 25                       // Support higher concurrency (up from 10)
+	poolConfig.MaxConns = int32(maxConns)          // Scale via PG_MAX_CONNECTIONS (default: 25 dev, 100 prod)
 	poolConfig.MinConns = 5                        // Faster warm start, maintain ready connections
 	poolConfig.MaxConnLifetime = 1 * time.Hour     // Reduce reconnection overhead (up from 15min)
 	poolConfig.MaxConnIdleTime = 30 * time.Minute  // Better connection reuse (up from 5min)
 	poolConfig.HealthCheckPeriod = 1 * time.Minute // Less frequent checks, reduce overhead (down from 30s)
 
 	// Performance optimization notes:
-	// - MaxConns=25: Supports ~200 req/sec (5x improvement from 40 req/sec)
+	// - MaxConns=100 (prod): Supports ~800 req/sec with proper connection pooling
+	// - MaxConns=25 (dev): Supports ~200 req/sec for local testing
 	// - MinConns=5: Eliminates cold start latency for first requests
 	// - MaxConnLifetime=1h: Reduces connection churn by 75%
 	// - HealthCheckPeriod=1min: Reduces unnecessary ping traffic by 50%
@@ -65,4 +76,14 @@ func Close() {
 	if Pool != nil {
 		Pool.Close()
 	}
+}
+
+// getEnvInt retrieves an integer environment variable with a fallback default
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intVal, err := strconv.Atoi(value); err == nil {
+			return intVal
+		}
+	}
+	return defaultValue
 }

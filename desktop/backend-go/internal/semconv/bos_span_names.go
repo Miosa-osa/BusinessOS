@@ -1,6 +1,24 @@
 package semconv
 
 const (
+	// bos_gateway_discover is the span name for "bos.gateway.discover".
+	//
+	// BOS gateway forwarding a process discovery request to pm4py-rust.
+	// Kind: server
+	// Stability: development
+	BosGatewayDiscoverSpan = "bos.gateway.discover"
+	// bos_gateway_conformance is the span name for "bos.gateway.conformance".
+	//
+	// BOS gateway forwarding a conformance checking request to pm4py-rust.
+	// Kind: server
+	// Stability: development
+	BosGatewayConformanceSpan = "bos.gateway.conformance"
+	// bos_gateway_statistics is the span name for "bos.gateway.statistics".
+	//
+	// BOS gateway forwarding a statistics request to pm4py-rust.
+	// Kind: server
+	// Stability: development
+	BosGatewayStatisticsSpan = "bos.gateway.statistics"
 	// bos_audit_config_change is the span name for "bos.audit.config_change".
 	//
 	// Audit record for configuration change operation.

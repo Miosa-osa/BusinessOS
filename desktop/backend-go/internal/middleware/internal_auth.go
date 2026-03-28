@@ -297,9 +297,16 @@ func NewInternalAuthConfigFromEnv() *InternalAuthConfig {
 	allowedIPs := ParseAllowedIPs(os.Getenv(InternalAllowedIPsEnv))
 	env := os.Getenv("ENVIRONMENT")
 
-	return &InternalAuthConfig{
-		Secret:                secret,
-		AllowedIPs:            allowedIPs,
-		SkipAuthInDevelopment: env == "development" && secret == "" && len(allowedIPs) == 0,
+	cfg := &InternalAuthConfig{
+		Secret:     secret,
+		AllowedIPs: allowedIPs,
 	}
+
+	// Only skip auth when explicitly in development AND no other auth configured.
+	if env == "development" && secret == "" && len(allowedIPs) == 0 {
+		cfg.SkipAuthInDevelopment = true
+		slog.Warn("INTERNAL_API_SECRET not set — internal API auth disabled, NOT SAFE for production exposure")
+	}
+
+	return cfg
 }

@@ -111,6 +111,11 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 		return nil, fmt.Errorf("SECURITY ERROR: %w", err)
 	}
 
+	// Harden: reject unsigned webhooks in production
+	if os.Getenv("OSA_ALLOW_UNSIGNED_WEBHOOKS") == "true" && os.Getenv("ENVIRONMENT") == "production" {
+		slog.Error("SECURITY: OSA_ALLOW_UNSIGNED_WEBHOOKS=true is not allowed in production. Webhook signature verification is mandatory.")
+	}
+
 	if cfg.TokenEncryptionKey != "" {
 		if err := security.InitGlobalEncryption(cfg.TokenEncryptionKey); err != nil {
 			return nil, fmt.Errorf("failed to initialize token encryption: %w", err)
@@ -355,6 +360,16 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 	globalRateLimiter := middleware.GetGlobalHTTPRateLimiter()
 	router.Use(middleware.RateLimitMiddleware(globalRateLimiter))
 	slog.Info("Rate limiting enabled (100 req/s per IP, 200 req/s per user)")
+
+	// ===== GLOBAL CONCURRENCY CONTROL =====
+	maxConcurrent := cfg.GlobalMaxConcurrent
+	if maxConcurrent <= 0 {
+		maxConcurrent = 200 // Default to 200 if not set
+		slog.Info("Global concurrency limit not configured, using default", "default", 200)
+	}
+	middleware.InitGlobalSemaphore(maxConcurrent, nil) // nil: no telemetry instance yet
+	router.Use(middleware.ConcurrencyLimitMiddleware())
+	slog.Info("Global concurrency control enabled", "max_concurrent", maxConcurrent)
 
 	// ===== SERVICES (require DB) =====
 	// These are only initialized when DB is available. If not, we return early

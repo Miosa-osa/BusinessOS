@@ -7,6 +7,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -35,13 +37,21 @@ type Config struct {
 
 // DefaultConfig returns production-ready default configuration
 func DefaultConfig() *Config {
+	// Get pool size from environment variable with intelligent defaults
+	// Production: 100 connections for high concurrency
+	// Development: 50 connections for local testing
+	poolSize := getEnvInt("REDIS_POOL_SIZE", 50)
+	if env := os.Getenv("ENVIRONMENT"); env == "production" {
+		poolSize = getEnvInt("REDIS_POOL_SIZE", 100)
+	}
+
 	return &Config{
 		URL:             "redis://localhost:6379/0",
 		Password:        "",
 		TLSEnabled:      false,
 		TLSInsecure:     false, // Always verify certificates in production
 		MaxRetries:      3,
-		PoolSize:        50,
+		PoolSize:        poolSize,                   // Scale via REDIS_POOL_SIZE (default: 50 dev, 100 prod)
 		MinIdleConns:    10,
 		ConnMaxIdleTime: 5 * time.Minute,
 		ConnMaxLifetime: 30 * time.Minute,
@@ -224,4 +234,14 @@ func (h *HealthStatus) MarshalJSON() ([]byte, error) {
 		h.Latency.Milliseconds(),
 		h.PoolStats,
 	)), nil
+}
+
+// getEnvInt retrieves an integer environment variable with a fallback default
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intVal, err := strconv.Atoi(value); err == nil {
+			return intVal
+		}
+	}
+	return defaultValue
 }

@@ -30,15 +30,15 @@ trap cleanup EXIT INT TERM
 
 # Kill existing processes
 echo "Cleaning up existing processes..."
-pkill -f "backend.exe" 2>/dev/null || true
-pkill -f "npm.*dev" 2>/dev/null || true
+pkill -f "bin/backend" 2>/dev/null || true
+pkill -f "pnpm.*dev" 2>/dev/null || true
 
 # Backend
 echo -e "\n${GREEN}Starting Backend...${NC}"
 cd $BACKEND_DIR
 export DATABASE_URL="$DATABASE_URL"
-go build -o backend.exe ./cmd/server
-./backend.exe > backend.log 2>&1 &
+go build -o bin/backend ./cmd/server
+./bin/backend > backend.log 2>&1 &
 BACKEND_PID=$!
 echo -e "${GREEN}Backend started (PID: $BACKEND_PID)${NC}"
 
@@ -47,12 +47,12 @@ sleep 2
 # Frontend
 echo -e "\n${GREEN}Starting Frontend...${NC}"
 cd ../../$FRONTEND_DIR
-[ ! -d "node_modules" ] && npm install
-npm run dev > ../frontend.log 2>&1 &
+[ ! -d "node_modules" ] && pnpm install
+pnpm dev > ../frontend.log 2>&1 &
 FRONTEND_PID=$!
 echo -e "${GREEN}Frontend started (PID: $FRONTEND_PID)${NC}"
 
-echo -e "\n${GREEN}Ready! Backend: :8080 | Frontend: :5173${NC}"
+echo -e "\n${GREEN}Ready! Backend: :8001 | Frontend: :5173${NC}"
 echo -e "${YELLOW}Press Ctrl+C to stop${NC}"
 
 wait

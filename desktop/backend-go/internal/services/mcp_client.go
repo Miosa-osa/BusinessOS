@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -33,6 +34,14 @@ type MCPClient struct {
 
 // NewMCPClient creates a new MCP client for connecting to an external MCP server
 func NewMCPClient(serverURL, authType, authToken string, customHeaders map[string]string) *MCPClient {
+	// Get max connections from environment variable with intelligent defaults
+	// Production: 20 connections per host for high concurrency
+	// Development: 5 connections per host for local testing
+	maxConnsPerHost := getEnvInt("MCP_MAX_CONNS", 5)
+	if env := os.Getenv("ENVIRONMENT"); env == "production" {
+		maxConnsPerHost = getEnvInt("MCP_MAX_CONNS", 20)
+	}
+
 	return &MCPClient{
 		serverURL: strings.TrimRight(serverURL, "/"),
 		authType:  authType,
@@ -44,8 +53,8 @@ func NewMCPClient(serverURL, authType, authToken string, customHeaders map[strin
 				MaxIdleConns:        10,
 				IdleConnTimeout:     5 * time.Minute,
 				DisableCompression:  false,
-				MaxConnsPerHost:     5,
-				MaxIdleConnsPerHost: 5,
+				MaxConnsPerHost:     maxConnsPerHost, // Scale via MCP_MAX_CONNS (default: 5 dev, 20 prod)
+				MaxIdleConnsPerHost: maxConnsPerHost,
 			},
 		},
 	}

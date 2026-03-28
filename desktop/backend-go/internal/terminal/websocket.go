@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -14,12 +15,29 @@ import (
 	"github.com/rhl/businessos-backend/internal/logging"
 )
 
-// AllowedOrigins contains the list of allowed origins for WebSocket connections
-var AllowedOrigins = []string{
+// defaultAllowedOrigins is the fallback list when ALLOWED_ORIGINS is not set.
+var defaultAllowedOrigins = []string{
 	"http://localhost:5173",      // Vite dev server
 	"http://localhost:3000",      // Alternative dev server
 	"https://localhost:5173",     // HTTPS dev server
 	"https://app.businessos.com", // Production domain (update as needed)
+}
+
+// AllowedOrigins contains the list of allowed origins for WebSocket connections.
+// Populated from the ALLOWED_ORIGINS environment variable (comma-separated) at startup,
+// falling back to defaultAllowedOrigins when the variable is empty or unset.
+var AllowedOrigins []string
+
+func init() {
+	if origins := os.Getenv("ALLOWED_ORIGINS"); origins != "" {
+		parsed := strings.Split(origins, ",")
+		for i, o := range parsed {
+			parsed[i] = strings.TrimSpace(o)
+		}
+		AllowedOrigins = parsed
+		return
+	}
+	AllowedOrigins = defaultAllowedOrigins
 }
 
 var upgrader = websocket.Upgrader{

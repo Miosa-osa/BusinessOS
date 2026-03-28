@@ -3,7 +3,7 @@
 # =============================================================================
 
 # Weaver CLI — official multi-arch image (source builds require a prebuilt UI tree).
-FROM otel/weaver:latest AS weaver
+FROM otel/weaver:v0.14.0 AS weaver
 
 # ---------------------------------------------------------------------------
 # Stage: Go build (static binary)

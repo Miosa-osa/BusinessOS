@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -79,6 +80,14 @@ type A2AClient struct {
 
 // NewA2AClient creates a new A2A client with sensible defaults.
 func NewA2AClient() *A2AClient {
+	// Get max connections from environment variable with intelligent defaults
+	// Production: 20 connections per host for high concurrency
+	// Development: 5 connections per host for local testing
+	maxConnsPerHost := getEnvInt("A2A_MAX_CONNS", 5)
+	if env := os.Getenv("ENVIRONMENT"); env == "production" {
+		maxConnsPerHost = getEnvInt("A2A_MAX_CONNS", 20)
+	}
+
 	return &A2AClient{
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
@@ -86,8 +95,8 @@ func NewA2AClient() *A2AClient {
 				MaxIdleConns:        10,
 				IdleConnTimeout:     5 * time.Minute,
 				DisableCompression:  false,
-				MaxConnsPerHost:     5,
-				MaxIdleConnsPerHost: 5,
+				MaxConnsPerHost:     maxConnsPerHost, // Scale via A2A_MAX_CONNS (default: 5 dev, 20 prod)
+				MaxIdleConnsPerHost: maxConnsPerHost,
 			},
 		},
 		agents: make(map[string]*AgentConnection),
@@ -407,3 +416,4 @@ func ValidateA2AAgentURL(rawURL string) error {
 
 	return nil
 }
+

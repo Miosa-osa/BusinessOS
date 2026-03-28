@@ -192,6 +192,10 @@ type Config struct {
 	OSAMode       string `mapstructure:"OSA_MODE"`        // "local" | "cloud" (default: "local")
 	MIOSAAPIKey   string `mapstructure:"MIOSA_API_KEY"`   // MIOSA Cloud API key
 	MIOSACloudURL string `mapstructure:"MIOSA_CLOUD_URL"` // Override cloud endpoint (default: https://api.miosa.ai)
+
+	// Global Concurrency Control (admission control)
+	// Maximum concurrent HTTP requests allowed globally (default: 200)
+	GlobalMaxConcurrent int `mapstructure:"GLOBAL_MAX_CONCURRENT"`
 }
 
 // AppConfig is the global singleton set by Load().
