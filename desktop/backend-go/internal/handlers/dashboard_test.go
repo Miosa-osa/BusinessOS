@@ -544,7 +544,12 @@ func TestShareUserDashboard_ValidVisibilityValues(t *testing.T) {
 
 			// Wrap handler in recover so nil-pool panic doesn't fail the test run.
 			r.POST("/user-dashboards/:id/share", func(c *gin.Context) {
-				defer func() { recover() }() //nolint:errcheck
+				defer func() {
+					if p := recover(); p != nil {
+						// Expected: nil DB pool causes a panic on the DB path.
+						_ = p
+					}
+				}()
 				h.ShareUserDashboard(c)
 			})
 
@@ -594,7 +599,12 @@ func TestGetWidgetSchema_NilPoolReachesDB(t *testing.T) {
 	r := gin.New()
 	gin.SetMode(gin.TestMode)
 	r.GET("/widgets/:type/schema", func(c *gin.Context) {
-		defer func() { recover() }() //nolint:errcheck
+		defer func() {
+			if p := recover(); p != nil {
+				// Expected: nil DB pool causes a panic on the DB path.
+				_ = p
+			}
+		}()
 		h.GetWidgetSchema(c)
 	})
 

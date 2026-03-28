@@ -35,7 +35,8 @@ func main() {
 		}
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Bootstrap all services. Fatal on hard failures; degraded mode on soft ones.
 	app, err := bootstrap(ctx)
