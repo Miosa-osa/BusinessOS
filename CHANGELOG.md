@@ -5,6 +5,17 @@ All notable changes to BusinessOS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Process Mining Dashboard & CLI (feat/weaver-automation)
+
+### Added
+- **ProcessMapViewer.svelte** — BFS DAG layout, SVG Petri net rendering, HSL performance overlay, bottleneck pulse animation, pan/zoom
+- **KPI Dashboard Widgets** — ConformanceScore, VariantDistribution, BottleneckHeatmap, CycleTimeTrend — wired to live pm4py-rust API
+- **bos-commands crate** (`BusinessOS/bos/src/`) — proper Cargo workspace member with zero file moves
+  - `bosctl` binary — 20 clap subcommands
+  - 3 gateway commands (discover/conformance/statistics) via async-to-sync Tokio bridge
+  - 16 local commands; 3 deferred (require model registry)
+  - 11 unit tests pass
+
 ## [Unreleased] — Signal Theory 7-Layer Optimal System (d33a890, feat/sprint-3b-4-osa-modules)
 
 ### Added

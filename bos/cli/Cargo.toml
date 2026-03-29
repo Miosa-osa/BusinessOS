@@ -21,8 +21,8 @@ bos-core = { path = "../core" }
 bos-ingest = { path = "../ingest" }
 bos-config = { path = "../config" }
 
-# Process Mining
-pm4py = { path = "/Users/sac/chatmangpt/pm4py-rust" }
+# Process Mining (pm4py-rs)
+pm4py-rs = "2026.3.28"
 
 clap = { workspace = true }
 clap_complete = { workspace = true }

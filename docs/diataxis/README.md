@@ -88,6 +88,7 @@ BusinessOS is a self-hosted AI business OS built on the MIOSA four-layer stack. 
 | [FIBO Deal Quick Reference](./reference/fibo-deal-quick-reference.md) | FIBO deal types, attributes, and mappings | Cheat sheet |
 | [HIPAA Compliance Validator](./reference/hipaa-compliance-validator.md) | HIPAA rule identifiers and validation logic | Rule table |
 | [Circuit Breaker Configuration](./reference/circuit-breaker-configuration.md) | Circuit breaker states, thresholds, and compliance integration | Configuration reference |
+| [YAWL v6 Integration](./reference/yawl-integration.md) | YAWL engine endpoints, auth, configuration, and health.jsp workaround | API reference |
 | [Genre Catalog](../../docs/diataxis/reference/genre-catalog.md) | All Signal Theory genres | Usage guide |
 
 ---

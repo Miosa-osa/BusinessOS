@@ -79,6 +79,7 @@ These ship with every BusinessOS instance. They're the tools your agents (and yo
 | **Terminal** | Real PTY terminal with Docker sandboxing. OSA agent runs here — type natural language, get actions |
 | **Desktop** | The window environment itself — drag, snap, 3D, dock, wallpapers |
 | **OSA** | AI agent orchestration — multi-agent pipelines, app generation, Signal Theory routing |
+| **bosctl CLI** | Command-line interface for process mining operations — 20 subcommands for discovery, conformance, statistics, and more |
 
 ### Modules are extensible
 
@@ -180,9 +181,11 @@ More at [miosa.ai](https://miosa.ai).
 
 ### What every OS ships with
 
-- **[OSA](osa/)** — The Optimal System Agent. Multi-agent orchestration with Signal Theory for intelligent routing, noise filtering, and cost-optimized model selection
+- **[OSA](osa/)** — The Optimal System Agent. Multi-agent orchestration with Signal Theory for intelligent routing, noise filtering, and cost-optimized model selection (8,433 tests)
 - **[Foundation](https://github.com/Miosa-osa/foundation)** — 124-component design system. Dark glassmorphic UI with design tokens, accessibility, and theming
 - **Signal Theory** — Every message classified into a 5-tuple before processing. Noise filtered before it hits the LLM. Cheap models for simple tasks, powerful models for complex ones
+- **ProcessMapViewer** — Interactive DAG visualization with SVG Petri nets, performance overlays, bottleneck detection, and pan/zoom
+- **KPI Dashboard** — Real-time process mining metrics (ConformanceScore, VariantDistribution, BottleneckHeatmap, CycleTimeTrend)
 
 ```
 MIOSA

@@ -30,8 +30,8 @@ oxrdf = { workspace = true }
 postgres = { workspace = true }
 tokio-postgres = { workspace = true }
 
-# Process Mining (pm4py-rust)
-pm4py = { path = "/Users/sac/chatmangpt/pm4py-rust" }
+# Process Mining (pm4py-rs)
+pm4py-rs = "2026.3.28"
 
 # HTTP client for BusinessOS gateway
 reqwest = { workspace = true, features = ["json", "blocking"] }
