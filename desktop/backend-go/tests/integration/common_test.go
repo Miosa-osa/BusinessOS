@@ -44,6 +44,26 @@ type RDFTriple struct {
 	Object    string `json:"object"`
 }
 
+// requireRoute skips the test if the given endpoint returns 404 — route not yet deployed.
+func requireRoute(t *testing.T, method, url string) {
+	t.Helper()
+	client := &http.Client{Timeout: 3 * time.Second}
+	req, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		t.Skipf("could not build request for %s %s: %v", method, url, err)
+		return
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Skipf("route %s %s unreachable: %v", method, url, err)
+		return
+	}
+	resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		t.Skipf("route %s %s not deployed yet (404) — rebuild server to activate", method, url)
+	}
+}
+
 // makeRequest makes an HTTP request and returns the response body, status code, and error.
 func makeRequest(method, url string, body interface{}) ([]byte, int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)

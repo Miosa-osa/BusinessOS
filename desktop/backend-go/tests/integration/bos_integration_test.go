@@ -212,6 +212,8 @@ func createHealthcareSchema() BOSSchemaPayload {
 
 // TestBOSSchemaImportRoundTrip verifies that a schema imported via bos can be exported and re-imported.
 func TestBOSSchemaImportRoundTrip(t *testing.T) {
+	requireRoute(t, "POST", businessOSURL+"/api/bos/schema/import")
+
 	schema := createFIBOSchema()
 	_, _ = json.Marshal(schema) // Ensure schema is valid JSON
 

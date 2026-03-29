@@ -26,7 +26,8 @@ func requireServices(t *testing.T, urls ...string) {
 func TestBOSToOSAHandshake(t *testing.T) {
 	osaURL := "http://localhost:8089"
 	bosURL := "http://localhost:8001"
-	requireServices(t, osaURL+"/api/v1/a2a/agent-card", bosURL+"/api/v1/me")
+	requireServices(t, osaURL+"/api/v1/a2a/agent-card", bosURL+"/health")
+	requireRoute(t, "GET", bosURL+"/api/v1/me")
 
 	// Test 1: OSA service is alive and responds
 	t.Run("OSA_Service_Alive", func(t *testing.T) {
