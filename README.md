@@ -232,7 +232,7 @@ Self-hosted works out of the box. The platform is for when you need to orchestra
 - **Multi-Agent Orchestration** — Opus plans, specialized workers execute, results synthesized
 - **Bring any agent** — OSA, OpenClaw, NanoClaw, Claude Code, Codex, Cursor — anything that can receive instructions
 - **5-Mode System** — EXECUTE, BUILD, MONITOR, DESIGN, COMMUNICATE
-- **1,108 tests** — Elixir/OTP + Rust. Runs locally. Apache 2.0
+- **8,433 tests** — Elixir/OTP + Rust. Runs locally. Apache 2.0
 
 ---
 

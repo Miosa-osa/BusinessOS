@@ -1,8 +1,19 @@
-# OSA Architecture — Your Own Claude Code Inside Your OS
-
-> **How OSA (Optimal System Agent) integrates with CustomOS.**
-> OSA is not a chatbot feature. It's the operating system's brain — like having Claude Code
-> with full access to your entire system. This document defines how it's built, where it runs,
+> **DEPRECATED (2026-03-28):** This document predates Wave 9, the Board Chair Intelligence System, YAWL v6 integration, and Armstrong fault tolerance improvements.
+>
+> **See instead:**
+> - Architecture overview: `docs/ARCHITECTURE_INDEX.md`
+> - Visual diagrams: `docs/ARCHITECTURE_VISUAL.md`
+> - Board Chair system: `docs/diataxis/explanation/board-chair-intelligence-system.md`
+> - YAWL v6 integration: `docs/diataxis/how-to/yawl-conformance-checking-guide.md`
+> - Canopy ↔ BusinessOS: `docs/diataxis/how-to/canopy-businessos-integration-guide.md`
+>
+> ---
+>
+> # OSA Architecture — Your Own Claude Code Inside Your OS
+>
+> > **How OSA (Optimal System Agent) integrates with CustomOS.**
+> > OSA is not a chatbot feature. It's the operating system's brain — like having Claude Code
+> > with full access to your entire system. This document defines how it's built, where it runs,
 > and what it has access to.
 >
 > Created: 2026-02-23
