@@ -118,7 +118,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
       OTEL_SERVICE_NAME: "osa"
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8089/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8089/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -361,7 +361,7 @@ services:
       - --inactivity-timeout
       - "86400"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:4320/ 2>/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:4320/health 2>/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5

@@ -10,30 +10,29 @@ import (
 	"time"
 )
 
-// TestMain skips all chaos tests gracefully when the Docker environment is not
-// available or the osa service is not in a running state.  Chaos tests require
-// live containers on the businessos_businessos-network (created by `make dev`).
+// TestMain skips all chaos tests gracefully when the full Docker stack is not
+// available. Chaos tests require the businessos-backend container running inside
+// Docker so network-isolation faults actually affect it.
 // This matches the skip pattern used by tests/integration/common_test.go.
 func TestMain(m *testing.M) {
-	// Step 1: container state check — verify osa service is in "running" state
-	// (not just "exited" or "restarting").
-	cmd := exec.Command("docker", "compose", "ps", "--filter", "status=running", "-q", "osa")
+	// Require businessos-backend container running (not just a local binary).
+	// Network partition only affects containers on businessos_businessos-network.
+	cmd := exec.Command("docker", "compose", "ps", "--filter", "status=running", "-q", "backend")
 	cmd.Dir = "/Users/sac/chatmangpt/BusinessOS"
 	out, err := cmd.Output()
 	if err != nil || strings.TrimSpace(string(out)) == "" {
-		fmt.Println("SKIP chaos tests: osa service not running — run `make dev` and wait for osa to be healthy")
+		fmt.Println("SKIP chaos tests: businessos-backend container not running — run `make dev` first")
 		os.Exit(0)
 	}
-	// Step 2: actual HTTP health check — container running state alone is insufficient
-	// (crash-looping containers briefly show "running" before crashing again,
-	// causing 80-second test timeouts when the container dies mid-test).
+
+	// Sanity-check OSA health too (TestNetworkPartition targets it).
 	client := &http.Client{Timeout: 3 * time.Second}
 	resp, err := client.Get("http://localhost:8089/health")
 	if err != nil || resp.StatusCode >= 500 {
 		if resp != nil {
 			resp.Body.Close()
 		}
-		fmt.Println("SKIP chaos tests: osa health endpoint not responding — service may be crash-looping")
+		fmt.Println("SKIP chaos tests: osa health endpoint not responding — run `make dev` first")
 		os.Exit(0)
 	}
 	resp.Body.Close()
