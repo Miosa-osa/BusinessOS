@@ -17,9 +17,42 @@
 
 ## Last Benchmark Run
 
-**Status:** PENDING - awaiting automated benchmark infrastructure
-**Date:** [WILL BE UPDATED BY CI/CD]
-**Commit:** [WILL BE UPDATED BY CI/CD]
+**Status:** ✅ COMPLETE - Actual benchmark data captured
+**Date:** 2026-03-29
+**Git Commit:** 40f275951f207f9438e24face7ff9ccb3dfa5fc9
+**Hardware:** Apple M3 Max, 48GB RAM, macOS 26.2, Go 1.23.4
+
+### Cache Benchmarks
+
+| Benchmark | ns/op | B/op | allocs/op | Throughput |
+|-----------|-------|------|-----------|------------|
+| ConversationHistoryCaching | 163,817 | 20,019 | 221 | 6,104 ops/sec |
+| EmbeddingCaching | 441,138 | 49,586 | 43 | 2,265 ops/sec |
+
+### Container/Metrics Benchmarks
+
+| Benchmark | ns/op | B/op | allocs/op | Throughput |
+|-----------|-------|------|-----------|------------|
+| MetricsIncrement | 5.338 | 0 | 0 | 187M ops/sec |
+| MetricsToJSON | 556.7 | 384 | 5 | 1.8M ops/sec |
+| RegisterUnregister | 218.9 | 128 | 1 | 4.6M ops/sec |
+| UpdateActivity | 112.8 | 0 | 0 | 8.9M ops/sec |
+
+### Terminal/Sanitizer Benchmarks
+
+| Benchmark | ns/op | B/op | allocs/op | Throughput |
+|-----------|-------|------|-----------|------------|
+| MaskEmail | 108.1 | 48 | 2 | 9.2M ops/sec |
+| MaskSessionID | 96.49 | 24 | 2 | 10.4M ops/sec |
+| SanitizeURL | 1,103 | 394 | 7 | 906K ops/sec |
+| Sanitize | 30,708 | 1,205 | 25 | 32.6K ops/sec |
+| DetectAndRedactSecrets | 13,452 | 177 | 5 | 74.3K ops/sec |
+
+**Reproducibility Command:**
+```bash
+cd BusinessOS/desktop/backend-go
+go test -bench=. -benchmem ./internal/cache ./internal/compliance ./internal/terminal ./internal/container ./internal/streaming
+```
 
 ## Benchmark Reproducibility
 
