@@ -153,8 +153,8 @@
 			<button
 				onclick={onToggleProjectDropdown}
 				onkeydown={onProjectDropdownKeydown}
-				class="btn-pill btn-pill-icon {selectedProject ? 'btn-pill-secondary' : 'btn-pill-warning'}"
-				title={selectedProject ? selectedProject.name : 'Select Project (Required)'}
+				class="btn-pill btn-pill-icon btn-pill-secondary"
+				title={selectedProject ? selectedProject.name : 'Select a project'}
 			>
 				<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
@@ -163,23 +163,23 @@
 
 			{#if showProjectDropdown}
 				<div
-					class="absolute left-0 top-full mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-lg py-2 z-20 max-h-80 overflow-y-auto"
+					class="dropdown-panel absolute left-0 top-full mt-2 w-72 rounded-xl shadow-lg py-2 z-20 max-h-80 overflow-y-auto"
 					transition:fly={{ y: -10, duration: 200 }}
 					onkeydown={onProjectDropdownKeydown}
 					tabindex="-1"
 				>
 					<div class="px-3 py-1.5">
-						<span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Project</span>
+						<span class="dropdown-label text-xs font-semibold uppercase tracking-wider">Select Project</span>
 					</div>
 					{#if loadingProjects}
-						<div class="px-4 py-3 text-sm text-gray-500">Loading projects...</div>
+						<div class="px-4 py-3 text-sm text-secondary">Loading projects...</div>
 					{:else if projectsList.length === 0}
 						<div class="px-4 py-6 text-center">
-							<svg class="w-8 h-8 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg class="w-8 h-8 mx-auto text-tertiary mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
 							</svg>
-							<p class="text-sm text-gray-500">No projects yet</p>
-							<a href="/projects" class="text-sm text-blue-600 hover:underline">Create a project</a>
+							<p class="text-sm text-secondary">No projects yet</p>
+							<a href="/projects" class="text-sm text-primary-link hover:underline">Create a project</a>
 						</div>
 					{:else}
 						{#each projectsList as project, i (project.id)}
@@ -187,9 +187,9 @@
 							{@const isFocused = projectDropdownIndex === i}
 							<button
 								onclick={() => onSelectProject(project.id)}
-								class="w-full px-4 py-2 text-left transition-colors flex items-center gap-3 {isSelected ? 'bg-purple-50' : ''} {isFocused ? 'bg-blue-50 ring-2 ring-blue-400 ring-inset' : 'hover:bg-gray-50'}"
+								class="project-row w-full px-4 py-2 text-left transition-colors flex items-center gap-3 {isSelected ? 'project-row-selected' : ''} {isFocused ? 'project-row-focused' : 'project-row-default'}"
 							>
-								<div class="w-8 h-8 rounded-lg {isSelected ? 'bg-purple-500 text-white' : isFocused ? 'bg-blue-500 text-white' : 'bg-purple-100 text-purple-600'} flex items-center justify-center flex-shrink-0">
+								<div class="project-icon w-8 h-8 rounded-lg {isSelected ? 'project-icon-selected' : isFocused ? 'project-icon-focused' : 'project-icon-default'} flex items-center justify-center flex-shrink-0">
 									{#if isSelected}
 										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -201,28 +201,28 @@
 									{/if}
 								</div>
 								<div class="flex-1 min-w-0">
-									<div class="text-sm font-medium {isSelected ? 'text-purple-600' : isFocused ? 'text-blue-600' : 'text-gray-700'} truncate">{project.name}</div>
+									<div class="text-sm font-medium {isSelected ? 'text-active' : isFocused ? 'text-focused' : 'text-primary'} truncate">{project.name}</div>
 									{#if project.description}
-										<div class="text-xs text-gray-500 truncate">{project.description}</div>
+										<div class="text-xs text-secondary truncate">{project.description}</div>
 									{/if}
 								</div>
 							</button>
 						{/each}
 					{/if}
 					<!-- Create New Project Option -->
-					<div class="border-t border-gray-100 mt-1 pt-1">
+					<div class="dropdown-divider border-t mt-1 pt-1">
 						<button
 							onclick={onCreateNewProject}
 							class="w-full flex items-center gap-3 text-left btn-pill btn-pill-ghost btn-pill-sm {projectDropdownIndex === projectsList.length ? 'btn-pill-soft' : ''}"
 						>
-							<div class="w-8 h-8 rounded-lg {projectDropdownIndex === projectsList.length ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'} flex items-center justify-center flex-shrink-0">
+							<div class="new-project-icon w-8 h-8 rounded-lg {projectDropdownIndex === projectsList.length ? 'new-project-icon-focused' : 'new-project-icon-default'} flex items-center justify-center flex-shrink-0">
 								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 								</svg>
 							</div>
 							<div class="flex-1 min-w-0">
-								<div class="text-sm font-medium {projectDropdownIndex === projectsList.length ? 'text-gray-900' : 'text-gray-700'}">Create new project</div>
-								<div class="text-xs text-gray-500">Start a new project for this chat</div>
+								<div class="text-sm font-medium {projectDropdownIndex === projectsList.length ? 'text-primary' : 'text-primary'} truncate">Create new project</div>
+								<div class="text-xs text-secondary">Start a new project for this chat</div>
 							</div>
 						</button>
 					</div>
@@ -245,14 +245,14 @@
 
 				{#if showNodeDropdown}
 					<div
-						class="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg p-3 z-20"
+						class="dropdown-panel absolute right-0 top-full mt-2 w-64 rounded-xl shadow-lg p-3 z-20"
 						transition:fly={{ y: -10, duration: 200 }}
 					>
-						<div class="text-xs font-semibold text-gray-500 uppercase mb-2">Active Node</div>
+						<div class="text-xs font-semibold text-secondary uppercase mb-2">Active Node</div>
 						<div class="mb-3">
-							<p class="text-sm font-medium text-gray-900">{activeNode.name}</p>
+							<p class="text-sm font-medium text-primary">{activeNode.name}</p>
 							{#if activeNode.purpose}
-								<p class="text-xs text-gray-500 mt-1 line-clamp-2">{activeNode.purpose}</p>
+								<p class="text-xs text-secondary mt-1 line-clamp-2">{activeNode.purpose}</p>
 							{/if}
 						</div>
 						<div class="flex gap-2">
@@ -294,8 +294,92 @@
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
 			</svg>
 			{#if artifactsCount > 0}
-				<span class="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-blue-500 text-white text-[10px] font-medium flex items-center justify-center">{artifactsCount}</span>
+				<span class="artifacts-badge absolute -top-1 -right-1 h-4 w-4 rounded-full text-[10px] font-medium flex items-center justify-center">{artifactsCount}</span>
 			{/if}
 		</button>
 	</div>
 </div>
+
+<style>
+	/* Dropdown panels */
+	.dropdown-panel {
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
+	}
+
+	/* Dropdown section label */
+	.dropdown-label {
+		color: var(--dt3);
+	}
+
+	/* Dropdown divider */
+	.dropdown-divider {
+		border-color: var(--dbd);
+	}
+
+	/* Text helpers — used via class on elements */
+	.text-primary {
+		color: var(--dt);
+	}
+	.text-secondary {
+		color: var(--dt2);
+	}
+	.text-tertiary {
+		color: var(--dt3);
+	}
+	.text-active {
+		color: var(--dt);
+	}
+	.text-focused {
+		color: var(--dt2);
+	}
+	.text-primary-link {
+		color: var(--dt2);
+	}
+	.text-primary-link:hover {
+		color: var(--dt);
+	}
+
+	/* Project row states */
+	.project-row-selected {
+		background: var(--dbg2);
+	}
+	.project-row-focused {
+		background: var(--dbg2);
+		outline: 2px solid var(--dbd);
+		outline-offset: -2px;
+	}
+	.project-row-default:hover {
+		background: var(--dbg2);
+	}
+
+	/* Project icon badge states */
+	.project-icon-selected {
+		background: var(--dt);
+		color: var(--dbg);
+	}
+	.project-icon-focused {
+		background: var(--dt2);
+		color: var(--dbg);
+	}
+	.project-icon-default {
+		background: var(--dbg3);
+		color: var(--dt2);
+	}
+
+	/* New project icon badge states */
+	.new-project-icon-focused {
+		background: var(--dt);
+		color: var(--dbg);
+	}
+	.new-project-icon-default {
+		background: var(--dbg3);
+		color: var(--dt2);
+	}
+
+	/* Artifacts count badge */
+	.artifacts-badge {
+		background: var(--dt);
+		color: var(--dbg);
+	}
+</style>

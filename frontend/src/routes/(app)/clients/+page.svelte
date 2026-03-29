@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { clients, type ViewMode } from '$lib/stores/clients';
+	import { moduleEvents } from '$lib/stores/events';
 	import type { ClientListResponse, ClientStatus, ClientType, CreateClientData } from '$lib/api';
 	import {
 		ClientViewSwitcher,
@@ -36,15 +37,23 @@
 		}
 	});
 
+	// Reload when a client or deal is created from the chat slash command
+	$effect(() => {
+		const event = $moduleEvents;
+		if (event?.type === 'client:created' || event?.type === 'deal:created') {
+			clients.loadClients();
+		}
+	});
+
 	// Filtered clients based on local search (for immediate feedback)
-	const filteredClients = $derived(() => {
+	const filteredClients = $derived.by(() => {
 		if (!searchQuery) return clientsList;
 		const query = searchQuery.toLowerCase();
 		return clientsList.filter(
 			(c) =>
 				c.name.toLowerCase().includes(query) ||
 				(c.email && c.email.toLowerCase().includes(query)) ||
-				(c.phone && c.phone.toLowerCase().includes(query))
+				(c.phone && c.phone.includes(query))
 		);
 	});
 
@@ -99,7 +108,7 @@
 		</div>
 		<button
 			onclick={() => (showAddModal = true)}
-			class="btn-rounded btn-rounded-primary"
+			class="btn-cta"
 			aria-label="Add new client"
 		>
 			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,7 +180,7 @@
 				<p class="cr-page__center-text">Add your first client to get started</p>
 				<button
 					onclick={() => (showAddModal = true)}
-					class="btn-rounded btn-rounded-primary"
+					class="btn-cta"
 					aria-label="Add first client"
 				>
 					Add Client
@@ -182,15 +191,15 @@
 		<!-- Content -->
 		{#if viewMode === 'table'}
 			<ClientTableView
-				clients={filteredClients()}
+				clients={filteredClients}
 				onClientClick={handleClientClick}
 				onStatusChange={handleStatusChange}
 			/>
 		{:else if viewMode === 'cards'}
-			<ClientCardView clients={filteredClients()} onClientClick={handleClientClick} />
+			<ClientCardView clients={filteredClients} onClientClick={handleClientClick} />
 		{:else if viewMode === 'kanban'}
 			<ClientKanbanView
-				clients={filteredClients()}
+				clients={filteredClients}
 				onClientClick={handleClientClick}
 				onStatusChange={handleStatusChange}
 			/>

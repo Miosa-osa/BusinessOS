@@ -1,14 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { useSession } from '$lib/auth-client';
+	import { moduleEvents } from '$lib/stores/events';
 	import {
 		TaskListView,
 		TaskBoardView,
-		TaskCalendarView,
 		TasksToolbar,
 		TaskQuickFilters,
-		NewTaskModal,
-		TaskDetailSlideOver
+		NewTaskModal
+		// TaskDetailSlideOver is deprecated — task detail is now at /tasks/[id]
+		// TaskCalendarView is disconnected — calendar view removed (#57)
 	} from '$lib/components/tasks';
 	import { api, type Task as APITask, type Project as APIProject, type TaskStatus as APITaskStatus } from '$lib/api';
 
@@ -16,7 +19,7 @@
 
 	type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'done' | 'blocked';
 	type Priority = 'critical' | 'high' | 'medium' | 'low';
-	type ViewMode = 'list' | 'board' | 'calendar';
+	type ViewMode = 'list' | 'board';
 	type GroupBy = 'status' | 'priority' | 'project' | 'assignee' | 'none';
 	type QuickFilter = 'my-tasks' | 'all' | 'overdue' | 'today' | 'this-week' | 'blocked' | 'unassigned';
 
@@ -56,8 +59,6 @@
 	let searchQuery = $state('');
 	let quickFilter = $state<QuickFilter>('all');
 	let showNewTaskModal = $state(false);
-	let showTaskDetail = $state(false);
-	let selectedTask = $state<Task | null>(null);
 	let isLoading = $state(true);
 
 	// Data from API
@@ -66,7 +67,7 @@
 	let tasks = $state<Task[]>([]);
 
 	// Project colors for display
-	const projectColors = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4'];
+	const projectColors = ['var(--bos-status-info)', 'var(--bos-status-success)', 'var(--bos-category-ai)', 'var(--bos-status-warning)', 'var(--bos-status-error)', 'var(--bos-category-automation)'];
 
 	// Load data from API
 	async function loadData() {
@@ -142,6 +143,14 @@
 	// Load on mount
 	onMount(() => {
 		loadData();
+	});
+
+	// Reload when a task is created from the chat slash command
+	$effect(() => {
+		const event = $moduleEvents;
+		if (event?.type === 'task:created') {
+			loadData();
+		}
 	});
 
 	// Quick filter counts
@@ -222,17 +231,15 @@
 	});
 
 	function handleTaskClick(taskId: string) {
-		selectedTask = tasks.find(t => t.id === taskId) || null;
-		showTaskDetail = true;
+		// Navigate to the full task detail page instead of opening slide-over
+		const embedSuffix = $page.url.searchParams.get('embed') === 'true' ? '?embed=true' : '';
+		goto(`/tasks/${taskId}${embedSuffix}`);
 	}
 
 	async function handleTaskStatusChange(taskId: string, status: TaskStatus) {
 		try {
 			await api.updateTask(taskId, { status: mapStatusToApi(status) });
 			tasks = tasks.map(t => t.id === taskId ? { ...t, status } : t);
-			if (selectedTask?.id === taskId) {
-				selectedTask = { ...selectedTask, status };
-			}
 		} catch (error) {
 			console.error('Failed to update task status:', error);
 		}
@@ -280,10 +287,6 @@
 		try {
 			await api.deleteTask(taskId);
 			tasks = tasks.filter(t => t.id !== taskId);
-			if (selectedTask?.id === taskId) {
-				showTaskDetail = false;
-				selectedTask = null;
-			}
 		} catch (error) {
 			console.error('Failed to delete task:', error);
 		}
@@ -343,30 +346,12 @@
 </script>
 
 <div class="tb-page flex flex-col h-full overflow-hidden">
-	<!-- Header -->
-	<div class="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-4 tb-page-border-b">
-		<div class="min-w-0">
-			<h1 class="text-xl sm:text-2xl font-semibold tb-page-title truncate">Tasks</h1>
-			<p class="text-sm tb-page-subtitle mt-0.5 hidden sm:block">Manage and track all your work</p>
-		</div>
-		<button
-			onclick={() => showNewTaskModal = true}
-			class="btn-pill btn-pill-primary flex items-center gap-2 flex-shrink-0"
-		>
-			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-			</svg>
-			<span class="hidden xs:inline">New Task</span>
-			<span class="xs:hidden">New</span>
-		</button>
-	</div>
-
 	{#if isLoading}
 		<div class="flex-1 flex items-center justify-center">
 			<div class="animate-spin h-8 w-8 border-2 tb-page-spinner border-t-transparent rounded-full"></div>
 		</div>
 	{:else}
-		<!-- Toolbar -->
+		<!-- Toolbar (now includes New Task button) -->
 		<TasksToolbar
 			bind:view={viewMode}
 			bind:groupBy
@@ -374,6 +359,7 @@
 			onViewChange={(v) => viewMode = v}
 			onGroupByChange={(g) => groupBy = g}
 			onSearchChange={(q) => searchQuery = q}
+			onNewTask={() => showNewTaskModal = true}
 		/>
 
 		<!-- Quick Filters -->
@@ -402,11 +388,6 @@
 				onTaskStatusChange={handleTaskStatusChange}
 				onAddTask={handleAddTask}
 			/>
-		{:else if viewMode === 'calendar'}
-			<TaskCalendarView
-				tasks={filteredTasks()}
-				onTaskClick={handleTaskClick}
-			/>
 		{/if}
 	{/if}
 </div>
@@ -419,79 +400,13 @@
 	onCreate={handleCreateTask}
 />
 
-<!-- Task Detail Slide-over -->
-<TaskDetailSlideOver
-	bind:open={showTaskDetail}
-	task={selectedTask}
-	onClose={() => {
-		showTaskDetail = false;
-		selectedTask = null;
-	}}
-	onStatusChange={(status) => selectedTask && handleTaskStatusChange(selectedTask.id, status)}
-	onPriorityChange={(priority) => {
-		const task = selectedTask;
-		if (task) {
-			tasks = tasks.map(t => t.id === task.id ? { ...t, priority } : t);
-			selectedTask = { ...task, priority };
-		}
-	}}
-	onDescriptionChange={(description) => {
-		const task = selectedTask;
-		if (task) {
-			tasks = tasks.map(t => t.id === task.id ? { ...t, description } : t);
-			selectedTask = { ...task, description };
-		}
-	}}
-	onSubtaskToggle={(subtaskId) => {
-		const task = selectedTask;
-		if (task) {
-			const updatedSubtasks = task.subtasks?.map(s =>
-				s.id === subtaskId ? { ...s, completed: !s.completed } : s
-			);
-			tasks = tasks.map(t => t.id === task.id ? { ...t, subtasks: updatedSubtasks } : t);
-			selectedTask = { ...task, subtasks: updatedSubtasks };
-		}
-	}}
-	onSubtaskAdd={(title) => {
-		const task = selectedTask;
-		if (task) {
-			const newSubtask = { id: `sub-${Date.now()}`, title, completed: false };
-			const updatedSubtasks = [...(task.subtasks || []), newSubtask];
-			tasks = tasks.map(t => t.id === task.id ? { ...t, subtasks: updatedSubtasks } : t);
-			selectedTask = { ...task, subtasks: updatedSubtasks };
-		}
-	}}
-	onCommentAdd={(content) => {
-		const task = selectedTask;
-		if (task) {
-			const newComment = {
-				id: `com-${Date.now()}`,
-				authorId: 'user-1',
-				authorName: 'You',
-				content,
-				createdAt: new Date().toISOString()
-			};
-			const updatedComments = [...(task.comments || []), newComment];
-			tasks = tasks.map(t => t.id === task.id ? { ...t, comments: updatedComments } : t);
-			selectedTask = { ...task, comments: updatedComments };
-		}
-	}}
-/>
+<!-- Task Detail: navigates to /tasks/[id] (full page) — slide-over removed -->
 
 <style>
 	.tb-page {
-		background: var(--dbg, #fff);
-	}
-	.tb-page-border-b {
-		border-bottom: 1px solid var(--dbd, #e0e0e0);
-	}
-	.tb-page-title {
-		color: var(--dt, #111);
-	}
-	.tb-page-subtitle {
-		color: var(--dt2, #555);
+		background: var(--dbg);
 	}
 	.tb-page-spinner {
-		border-color: var(--dt, #111);
+		border-color: var(--dt);
 	}
 </style>

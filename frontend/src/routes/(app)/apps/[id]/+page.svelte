@@ -130,21 +130,24 @@
 	<title>{appData?.name || 'App Details'} | Business OS</title>
 </svelte:head>
 
-<div class="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+<div class="h-full flex flex-col" style="background: var(--dbg);">
 	<!-- Header -->
-	<header class="flex items-center gap-4 px-6 py-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+	<header class="flex items-center gap-4 px-6 py-4 border-b" style="background: var(--dbg2); border-color: var(--dbd);">
 		<button
 			onclick={() => goto('/apps')}
-			class="p-2 -ml-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+			class="p-2 -ml-2 rounded-lg transition-colors"
+			style="color: var(--dt3);"
+			onmouseenter={(e) => (e.currentTarget.style.background = 'var(--dbg3)')}
+			onmouseleave={(e) => (e.currentTarget.style.background = 'transparent')}
 		>
 			<ArrowLeft class="w-5 h-5" />
 		</button>
 		<div class="flex-1">
-			<h1 class="text-lg font-semibold text-gray-900 dark:text-white">
+			<h1 class="text-lg font-semibold" style="color: var(--dt);">
 				{appData?.name || 'App Details'}
 			</h1>
 			{#if appData?.description}
-				<p class="text-sm text-gray-500 dark:text-gray-400 truncate">{appData.description}</p>
+				<p class="text-sm truncate" style="color: var(--dt3);">{appData.description}</p>
 			{/if}
 		</div>
 	</header>
@@ -154,8 +157,8 @@
 		{#if appStatus === 'loading'}
 			<!-- Loading State -->
 			<div class="flex flex-col items-center">
-				<Loader2 class="w-10 h-10 text-gray-400 animate-spin mb-4" />
-				<p class="text-gray-600 dark:text-gray-400">Loading app details...</p>
+				<Loader2 class="w-10 h-10 animate-spin mb-4" style="color: var(--dt4);" />
+				<p style="color: var(--dt3);">Loading app details...</p>
 			</div>
 
 		{:else if appStatus === 'generating'}
@@ -165,10 +168,10 @@
 					<div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
 						<Sparkles class="w-10 h-10 text-white animate-pulse" />
 					</div>
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+					<h2 class="text-xl font-semibold mb-2" style="color: var(--dt);">
 						Building Your App
 					</h2>
-					<p class="text-gray-600 dark:text-gray-400">
+					<p style="color: var(--dt3);">
 						{statusMessage || 'AI is generating your application...'}
 					</p>
 				</div>
@@ -176,10 +179,10 @@
 				<!-- Progress Bar -->
 				<div class="mb-8">
 					<div class="flex justify-between text-sm mb-2">
-						<span class="text-gray-600 dark:text-gray-400">Progress</span>
-						<span class="font-medium text-gray-900 dark:text-white">{Math.round(progress)}%</span>
+						<span style="color: var(--dt3);">Progress</span>
+						<span class="font-medium" style="color: var(--dt);">{Math.round(progress)}%</span>
 					</div>
-					<div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+					<div class="h-2 rounded-full overflow-hidden" style="background: var(--dbg3);">
 						<div
 							class="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-500 ease-out"
 							style="width: {progress}%"
@@ -195,12 +198,18 @@
 						{@const isComplete = i < phaseIndex}
 						{@const isPending = i > phaseIndex}
 
-						<div class="flex items-center gap-3 p-3 rounded-xl transition-colors
-							{isActive ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' :
-							 isComplete ? 'bg-green-50 dark:bg-green-900/10' : 'bg-gray-50 dark:bg-gray-800/50'}">
-							<div class="w-8 h-8 rounded-lg flex items-center justify-center
-								{isActive ? 'bg-blue-500 text-white' :
-								 isComplete ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-400'}">
+						<div class="flex items-center gap-3 p-3 rounded-xl transition-colors"
+							style={isActive
+								? 'background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25);'
+								: isComplete
+									? 'background: rgba(34,197,94,0.06); border: 1px solid transparent;'
+									: `background: var(--dbg2); border: 1px solid var(--dbd2);`}>
+							<div class="w-8 h-8 rounded-lg flex items-center justify-center"
+								style={isActive
+									? 'background: #3b82f6; color: #fff;'
+									: isComplete
+										? 'background: #22c55e; color: #fff;'
+										: 'background: var(--dbg3); color: var(--dt4);'}>
 								{#if isComplete}
 									<CheckCircle class="w-4 h-4" />
 								{:else if isActive}
@@ -209,9 +218,12 @@
 									<svelte:component this={phase.icon} class="w-4 h-4" />
 								{/if}
 							</div>
-							<span class="text-sm font-medium
-								{isActive ? 'text-blue-700 dark:text-blue-300' :
-								 isComplete ? 'text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}">
+							<span class="text-sm font-medium"
+								style={isActive
+									? 'color: #3b82f6;'
+									: isComplete
+										? 'color: #22c55e;'
+										: 'color: var(--dt3);'}>
 								{phase.label}
 							</span>
 						</div>
@@ -225,10 +237,10 @@
 				<div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
 					<CheckCircle class="w-10 h-10 text-white" />
 				</div>
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+				<h2 class="text-xl font-semibold mb-2" style="color: var(--dt);">
 					App Ready!
 				</h2>
-				<p class="text-gray-600 dark:text-gray-400 mb-6">
+				<p class="mb-6" style="color: var(--dt3);">
 					Your app has been generated and is ready to use.
 				</p>
 
@@ -237,9 +249,8 @@
 						href={appData.deployment_url}
 						target="_blank"
 						rel="noopener noreferrer"
-						class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900
-							rounded-xl font-medium text-sm transition-all duration-150
-							hover:bg-gray-800 dark:hover:bg-gray-100"
+						class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-150"
+						style="background: var(--dt); color: var(--dbg);"
 					>
 						Open App
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,7 +258,7 @@
 						</svg>
 					</a>
 				{:else}
-					<div class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm text-gray-600 dark:text-gray-400">
+					<div class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm" style="background: var(--dbg3); color: var(--dt3);">
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 						</svg>
@@ -262,17 +273,16 @@
 				<div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center">
 					<XCircle class="w-10 h-10 text-white" />
 				</div>
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+				<h2 class="text-xl font-semibold mb-2" style="color: var(--dt);">
 					Generation Failed
 				</h2>
-				<p class="text-gray-600 dark:text-gray-400 mb-4">
+				<p class="mb-4" style="color: var(--dt3);">
 					{appData?.error_message || 'Something went wrong while generating your app.'}
 				</p>
 				<button
 					onclick={() => goto('/apps')}
-					class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900
-						rounded-xl font-medium text-sm transition-all duration-150
-						hover:bg-gray-800 dark:hover:bg-gray-100"
+					class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-150"
+						style="background: var(--dt); color: var(--dbg);"
 				>
 					<ArrowLeft class="w-4 h-4" />
 					Back to Apps
@@ -282,22 +292,21 @@
 		{:else}
 			<!-- Not Found -->
 			<div class="max-w-md text-center">
-				<div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-					<svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div class="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center" style="background: var(--dbg3);">
+					<svg class="w-10 h-10" style="color: var(--dt4);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 					</svg>
 				</div>
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+				<h2 class="text-xl font-semibold mb-2" style="color: var(--dt);">
 					App Not Found
 				</h2>
-				<p class="text-gray-600 dark:text-gray-400 mb-6">
+				<p class="mb-6" style="color: var(--dt3);">
 					The app you're looking for doesn't exist or has been deleted.
 				</p>
 				<button
 					onclick={() => goto('/apps')}
-					class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900
-						rounded-xl font-medium text-sm transition-all duration-150
-						hover:bg-gray-800 dark:hover:bg-gray-100"
+					class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-150"
+						style="background: var(--dt); color: var(--dbg);"
 				>
 					<ArrowLeft class="w-4 h-4" />
 					Back to Apps

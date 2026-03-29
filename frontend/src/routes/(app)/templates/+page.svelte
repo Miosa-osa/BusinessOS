@@ -47,9 +47,9 @@
 	}
 </script>
 
-<div class="flex flex-col h-full bg-white">
+<div class="flex flex-col h-full bg-white dark:bg-neutral-900">
 	<!-- Header -->
-	<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+	<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-800">
 		<div>
 			<h1 class="text-2xl font-semibold text-gray-900">App Templates</h1>
 			<p class="text-sm text-gray-500 mt-0.5">

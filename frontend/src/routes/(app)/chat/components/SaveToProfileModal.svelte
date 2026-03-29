@@ -37,11 +37,11 @@
 		></button>
 
 		<!-- Modal -->
-		<div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+		<div class="relative bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
 			<!-- Header -->
-			<div class="p-4 border-b border-gray-100">
+			<div class="p-4 border-b border-gray-100 dark:border-gray-700">
 				<div class="flex items-center justify-between">
-					<h3 class="text-lg font-semibold text-gray-900">Save Artifact to Profile</h3>
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Save Artifact to Profile</h3>
 					<button
 						onclick={onClose}
 						class="btn-pill btn-pill-ghost btn-pill-icon btn-pill-sm"

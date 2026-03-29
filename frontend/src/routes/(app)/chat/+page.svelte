@@ -9,7 +9,6 @@
 	import { useVoiceRecorder } from '$lib/hooks/useVoiceRecorder.svelte';
 
 	// ── Route-local components ───────────────────────────────────────────────
-	import ChatHeader from './components/ChatHeader.svelte';
 	import ChatMainArea from './components/ChatMainArea.svelte';
 	import ChatRightPanel from './components/ChatRightPanel.svelte';
 	import ChatPageModals from './components/ChatPageModals.svelte';
@@ -29,6 +28,7 @@
 	// ── Utilities ───────────────────────────────────────────────────────────
 	import { ChatStreamManager } from './ChatStreamManager';
 	import type { SignalClassifiedEvent } from '$lib/utils/chatSSEParser';
+	import { emitModuleEvent, type ModuleEventType } from '$lib/stores/events';
 	import {
 		renderMarkdown,
 		getArtifactIcon,
@@ -120,7 +120,7 @@
 	const streamManager = new ChatStreamManager();
 
 	// ── allArtifacts derived (from API + message artifacts) ──────────────────
-	let allArtifacts = $derived(() => computeAllArtifacts(ar, cs));
+	let allArtifacts = $derived.by(() => computeAllArtifacts(ar, cs));
 
 	// ── handleSendMessage (rewired to stores + ChatStreamManager) ────────────
 	async function handleSendMessage() {
@@ -183,6 +183,26 @@
 				getStreamingToolCalls: () => streamingToolCalls,
 			}),
 		);
+
+		// Notify sibling modules to refresh their data after a slash command
+		// that creates entities. The map covers all entity-creating commands.
+		if (command) {
+			const commandEventMap: Record<string, ModuleEventType> = {
+				task:    'task:created',
+				tasks:   'task:created',
+				todo:    'task:created',
+				project: 'project:created',
+				plan:    'project:created',
+				client:  'client:created',
+				crm:     'client:created',
+				deal:    'deal:created',
+				note:    'note:created',
+			};
+			const eventType = commandEventMap[command];
+			if (eventType) {
+				emitModuleEvent(eventType);
+			}
+		}
 	}
 
 	// ── Focus Mode submission ────────────────────────────────────────────────
@@ -323,13 +343,13 @@
 
 	// ── Derived values ───────────────────────────────────────────────────────
 
-	let totalConversationTokens = $derived(() => {
+	let totalConversationTokens = $derived.by(() => {
 		return cx.messageTokens(cs.messages) + cx.nodeContextTokens + cx.contextDocTokens;
 	});
 
-	let contextUsagePercent = $derived(() => {
+	let contextUsagePercent = $derived.by(() => {
 		const limit = ms.currentContextLimit;
-		const used = totalConversationTokens();
+		const used = totalConversationTokens;
 		return Math.min(100, Math.round((used / limit) * 100));
 	});
 </script>
@@ -365,49 +385,7 @@
 	/>
 
 	<!-- Main Chat Area -->
-	<div class="{ar.artifactsPanelOpen && ar.isArtifactFocused ? 'w-1/2' : 'flex-1'} flex flex-col min-w-0 h-full bg-gray-50">
-		<ChatHeader
-			chatSidebarOpen={ui.chatSidebarOpen}
-			onToggleSidebar={() => { ui.chatSidebarOpen = !ui.chatSidebarOpen; }}
-			selectedModel={ms.selectedModel}
-			currentModelName={ms.currentModelName}
-			warmingUpModel={ms.warmingUpModel}
-			installedModels={ms.installedModels}
-			ollamaCloudModels={ms.ollamaCloudModels}
-			configuredProviders={ms.configuredProviders}
-			loadingModels={ms.loadingModels}
-			onSelectModel={(id) => { ms.selectModel(id); showModelDropdown = false; }}
-			customAgents={ag.customAgents}
-			selectedAgentId={ag.selectedAgent?.id || null}
-			onSelectAgent={ag.handleAgentSelect}
-			selectedProject={cx.selectedProject}
-			projectsList={cx.projectsList}
-			loadingProjects={cx.loadingProjects}
-			showProjectDropdown={cx.showProjectDropdown}
-			projectDropdownIndex={cx.projectDropdownIndex}
-			inputHasValue={!!cs.inputValue.trim()}
-			onToggleProjectDropdown={() => {
-				if (!cx.showProjectDropdown) cx.projectDropdownIndex = 0;
-				cx.showProjectDropdown = !cx.showProjectDropdown;
-				cx.showHeaderContextDropdown = false;
-				cx.showNodeDropdown = false;
-			}}
-			onSelectProject={(id) => {
-				cx.selectedProjectId = id;
-				cx.showProjectDropdown = false;
-				if (cs.inputValue.trim()) setTimeout(() => handleSendMessage(), 50);
-			}}
-			onProjectDropdownKeydown={handleProjectDropdownKeydown}
-			onCreateNewProject={() => { cx.showProjectDropdown = false; cx.showNewProjectModal = true; }}
-			activeNode={cx.activeNode}
-			showNodeDropdown={cx.showNodeDropdown}
-			onToggleNodeDropdown={() => { cx.showNodeDropdown = !cx.showNodeDropdown; }}
-			onDeactivateNode={cx.handleDeactivateNode}
-			rightPanelOpen={ui.rightPanelOpen}
-			artifactsCount={ar.artifacts.length}
-			onTogglePanel={() => { ui.rightPanelOpen = !ui.rightPanelOpen; }}
-		/>
-
+	<div class="{ar.artifactsPanelOpen && ar.isArtifactFocused ? 'w-1/2' : 'flex-1'} flex flex-col min-w-0 h-full" style="background: var(--dbg, #fff);">
 		<ChatMainArea
 			bind:messagesContainer
 			bind:inputRef
@@ -447,7 +425,7 @@
 	<!-- Resizable Artifacts Panel -->
 	{#if ar.artifactsPanelOpen}
 		<ChatArtifactsPanel
-			allArtifacts={allArtifacts()}
+			{allArtifacts}
 			selectedArtifact={ar.selectedArtifact}
 			viewingArtifactFromMessage={ar.viewingArtifactFromMessage}
 			generatingArtifact={ar.generatingArtifact}
@@ -479,7 +457,7 @@
 			rightPanelWidth={ui.rightPanelWidth}
 			delegatedTasks={ui.delegatedTasks}
 			activeResources={ui.activeResources}
-			allArtifacts={allArtifacts()}
+			{allArtifacts}
 			availableContexts={cx.availableContexts.map(c => ({ id: c.id, name: c.name }))}
 			selectedContextIds={cx.selectedContextIds}
 			onTabChange={(tab) => { ui.rightPanelTab = tab as 'progress' | 'context' | 'artifacts'; }}
@@ -496,7 +474,7 @@
 <!-- Click outside to close dropdowns -->
 {#if cx.showContextDropdown || showModelDropdown || cx.showNodeDropdown || cx.showHeaderContextDropdown}
 	<button
-		class="fixed inset-0 z-[5] cursor-default"
+		class="fixed inset-0 z-5 cursor-default"
 		onclick={() => { cx.showContextDropdown = false; showModelDropdown = false; cx.showNodeDropdown = false; cx.showHeaderContextDropdown = false; }}
 		aria-label="Close dropdown"
 	></button>

@@ -296,6 +296,15 @@
 	background: transparent;
 }
 
+.chat-input-surface {
+	background: var(--dbg, #fff);
+	border: 1px solid var(--dbd, #e0e0e0);
+}
+/* dark mode handled via CSS vars on .chat-input-surface */
+.chat-input-surface:focus-within {
+	border-color: var(--accent, #007AFF);
+}
+
 .chat-input-box {
 	transition: all 0.2s ease;
 }
@@ -323,56 +332,51 @@
 	color: #6e6e73 !important;
 }
 
-/* Send button - BusinessOS2 pill gradient style */
-.send-btn-active {
-	background: linear-gradient(180deg, #1a1a1a 0%, #000000 100%);
-	color: white;
-	border-radius: 9999px;
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	box-shadow:
-		0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
-		0 4px 16px 0 rgba(0, 0, 0, 0.3),
-		0 8px 24px 0 rgba(0, 0, 0, 0.15);
+/* Textarea base — reset browser default border/outline */
+.chat-textarea {
+	border: none;
+	outline: none;
 }
 
+/* Textarea focus ring */
+.chat-textarea:focus {
+	outline: none;
+	box-shadow: none;
+}
+.chat-textarea::placeholder {
+	color: var(--dt3);
+}
+
+/* Send button */
+.send-btn-active {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: var(--dt);
+	color: var(--dbg);
+	border: none;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: opacity 0.15s;
+}
 .send-btn-active:hover {
-	transform: translateY(-1px);
-	background: linear-gradient(180deg, #2a2a2a 0%, #0a0a0a 100%);
-	box-shadow:
-		0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
-		0 6px 24px 0 rgba(0, 0, 0, 0.4),
-		0 12px 32px 0 rgba(0, 0, 0, 0.2);
+	opacity: 0.85;
 }
 
 .send-btn-disabled {
-	background: #e5e7eb;
-	color: #9ca3af;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: var(--dbg3);
+	color: var(--dt3);
+	border: none;
 	cursor: not-allowed;
-	border-radius: 9999px;
-}
-
-.dark .send-btn-active {
-	background: linear-gradient(180deg, #3a3a3c 0%, #1c1c1e 100%) !important;
-	color: white !important;
-	border-color: rgba(255, 255, 255, 0.15) !important;
-	box-shadow:
-		0 1px 0 0 rgba(255, 255, 255, 0.12) inset,
-		0 4px 16px 0 rgba(0, 0, 0, 0.5),
-		0 8px 24px 0 rgba(0, 0, 0, 0.3) !important;
-}
-
-.dark .send-btn-active:hover {
-	background: linear-gradient(180deg, #4a4a4c 0%, #2c2c2e 100%) !important;
-	box-shadow:
-		0 1px 0 0 rgba(255, 255, 255, 0.18) inset,
-		0 6px 24px 0 rgba(0, 0, 0, 0.6),
-		0 12px 32px 0 rgba(0, 0, 0, 0.4) !important;
-}
-
-.dark .send-btn-disabled {
-	background: #4b5563 !important;
-	color: #9ca3af !important;
-	cursor: not-allowed;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0.35;
 }
 
 /* Usage stats dark mode */

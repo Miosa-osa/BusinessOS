@@ -476,7 +476,7 @@
 		width: 36px;
 		height: 36px;
 		border-radius: 8px;
-		background: var(--accent-purple, #8b5cf6);
+		background: var(--bos-avatar-default);
 		color: #fff;
 		display: flex;
 		align-items: center;
@@ -558,7 +558,7 @@
 	}
 
 	.ch-chat-input:focus {
-		border-color: var(--accent-purple, #8b5cf6);
+		border-color: var(--bos-nav-active);
 	}
 
 	.ch-chat-input::placeholder {
@@ -572,7 +572,7 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 12px;
+		gap: 16px;
 		padding: 32px;
 		text-align: center;
 		color: var(--dt3);
@@ -590,7 +590,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: var(--accent-purple, #8b5cf6);
+		color: var(--bos-v2-icon-secondary);
 		margin-bottom: 8px;
 	}
 
@@ -639,6 +639,11 @@
 		border-radius: 8px;
 		border: 1px solid var(--dbd2);
 		color: var(--dt3);
+		transition: background 0.15s;
+	}
+
+	.ch-chat-preview__item:hover {
+		background: var(--bos-hover-color);
 	}
 
 	.ch-chat-preview__name {

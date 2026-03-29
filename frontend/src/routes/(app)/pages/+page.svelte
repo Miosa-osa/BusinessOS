@@ -160,7 +160,7 @@
 			<div class="kb-page__center">
 				<p class="kb-page__center-text">{error}</p>
 				<button
-					class="btn-compact btn-compact-secondary"
+					class="kb-page__btn"
 					aria-label="Retry loading documents"
 					onclick={() => { error = null; isLoading = true; fetchDocuments().finally(() => { isLoading = false; }) }}
 				>Retry</button>
@@ -185,7 +185,7 @@
 					<h1 class="kb-page__title">Pages</h1>
 					<div class="kb-page__actions">
 						<button
-						class="btn-compact btn-compact-ghost"
+							class="kb-page__btn kb-page__btn--search"
 							aria-label="Search documents"
 							onclick={handleOpenSearch}
 						>
@@ -193,7 +193,7 @@
 							Search
 						</button>
 						<button
-						class="btn-compact btn-compact-primary"
+							class="kb-page__btn kb-page__btn--primary"
 							aria-label="Create new page"
 							onclick={handleNewDocument}
 						>
@@ -207,39 +207,20 @@
 					<!-- Empty state -->
 					<div class="kb-page__empty">
 						<div class="kb-page__empty-icon">
-							<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="url(#emptyGrad)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-								<defs>
-									<linearGradient id="emptyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-										<stop offset="0%" stop-color="#1e96eb" />
-										<stop offset="100%" stop-color="#7c3aed" />
-									</linearGradient>
-								</defs>
+							<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
 								<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
 								<polyline points="14,2 14,8 20,8"/>
 								<line x1="16" y1="13" x2="8" y2="13"/>
 								<line x1="16" y1="17" x2="8" y2="17"/>
 							</svg>
 						</div>
-						<h2 class="kb-page__empty-title">Start your knowledge base</h2>
-						<p class="kb-page__empty-desc">Create pages to organize notes, docs, and ideas — all in one place.</p>
-						<div class="kb-page__empty-actions">
-							<button
-								class="btn-compact btn-compact-primary"
-								aria-label="Create first page"
-								onclick={handleNewDocument}
-							>
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-								New Page
-							</button>
-						</div>
-						<div class="kb-page__empty-hints">
-							<span class="kb-page__empty-hint">
-								<kbd>Ctrl</kbd>+<kbd>K</kbd> to search
-							</span>
-							<span class="kb-page__empty-hint">
-								<kbd>/</kbd> for commands inside pages
-							</span>
-						</div>
+						<h2 class="kb-page__empty-title">No pages yet</h2>
+						<p class="kb-page__empty-desc">Create your first page to start building your knowledge base.</p>
+						<button
+							class="kb-page__btn kb-page__btn--primary"
+							aria-label="Create first page"
+							onclick={handleNewDocument}
+						>Create New Page</button>
 					</div>
 				{:else}
 					<!-- Document grid -->
@@ -289,12 +270,12 @@
 </div>
 
 <style>
-	/* Foundation kb- page patterns with --dt/--dbg/--dbd tokens */
+	/* Foundation kb- page patterns with BOS v2 tokens */
 	.kb-page {
 		display: flex;
 		height: 100vh;
 		width: 100%;
-		background-color: var(--dbg);
+		background-color: var(--bos-v2-layer-background-primary, #ffffff);
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	}
 
@@ -303,14 +284,8 @@
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		background-color: var(--dbg);
+		background-color: var(--bos-v2-layer-background-primary, #ffffff);
 		overflow-y: auto;
-		-ms-overflow-style: none;
-		scrollbar-width: none;
-	}
-
-	.kb-page__main::-webkit-scrollbar {
-		display: none;
 	}
 
 	/* Center states (loading, error) */
@@ -321,7 +296,7 @@
 		justify-content: center;
 		height: 100%;
 		gap: 16px;
-		color: var(--dt2);
+		color: var(--bos-v2-text-secondary, #8e8d91);
 	}
 
 	.kb-page__center-text {
@@ -332,8 +307,8 @@
 	.kb-page__spinner {
 		width: 28px;
 		height: 28px;
-		border: 3px solid var(--dbd);
-		border-top-color: #1e96eb;
+		border: 3px solid var(--bos-v2-layer-insideBorder-border, rgba(0, 0, 0, 0.1));
+		border-top-color: var(--bos-brand-color, #1e96eb);
 		border-radius: 50%;
 		animation: kb-spin 0.8s linear infinite;
 	}
@@ -363,13 +338,55 @@
 	.kb-page__title {
 		font-size: 24px;
 		font-weight: 600;
-		color: var(--dt);
+		color: var(--bos-v2-text-primary, #121212);
 		margin: 0;
 	}
 
 	.kb-page__actions {
 		display: flex;
 		gap: 8px;
+	}
+
+	/* Buttons */
+	.kb-page__btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		height: 32px;
+		padding: 0 14px;
+		font-size: 13px;
+		font-weight: 500;
+		border-radius: 8px;
+		border: 1px solid var(--bos-v2-layer-insideBorder-border, rgba(0, 0, 0, 0.1));
+		background: var(--bos-v2-layer-background-secondary, #f4f4f5);
+		color: var(--bos-v2-text-primary, #121212);
+		cursor: pointer;
+		transition: background 0.15s, border-color 0.15s;
+	}
+
+	.kb-page__btn:hover {
+		background: var(--bos-v2-layer-background-tertiary, #eeeef0);
+	}
+
+	.kb-page__btn--primary {
+		background: var(--bos-v2-button-primary, #1e96eb);
+		color: var(--bos-v2-button-pureWhiteText, #ffffff);
+		border-color: transparent;
+	}
+
+	.kb-page__btn--primary:hover {
+		opacity: 0.9;
+	}
+
+	.kb-page__btn--search {
+		background: transparent;
+		border-color: var(--bos-v2-layer-insideBorder-border, rgba(0, 0, 0, 0.1));
+		color: var(--bos-v2-text-secondary, #8e8d91);
+	}
+
+	.kb-page__btn--search:hover {
+		color: var(--bos-v2-text-primary, #121212);
+		background: var(--bos-v2-layer-background-secondary, #f4f4f5);
 	}
 
 	/* Empty state */
@@ -390,21 +407,21 @@
 		width: 80px;
 		height: 80px;
 		margin-bottom: 20px;
-		background: var(--dbg2);
+		background: var(--bos-v2-layer-background-secondary, #f4f4f5);
 		border-radius: 50%;
-		color: var(--dt4);
+		color: var(--bos-v2-icon-secondary, #a9a9ad);
 	}
 
 	.kb-page__empty-title {
 		font-size: 20px;
 		font-weight: 600;
-		color: var(--dt);
+		color: var(--bos-v2-text-primary, #121212);
 		margin: 0 0 8px;
 	}
 
 	.kb-page__empty-desc {
 		font-size: 14px;
-		color: var(--dt2);
+		color: var(--bos-v2-text-secondary, #8e8d91);
 		margin: 0 0 24px;
 		max-width: 320px;
 		line-height: 1.5;
@@ -432,11 +449,11 @@
 	}
 
 	.kb-page__card:hover {
-		background: var(--dbg2);
+		background: var(--bos-v2-layer-background-hoverOverlay, rgba(0, 0, 0, 0.04));
 	}
 
 	.kb-page__card--active {
-		background: var(--dbg2);
+		background: var(--bos-v2-layer-background-secondary, #f4f4f5);
 	}
 
 	.kb-page__card-icon {
@@ -446,7 +463,7 @@
 		width: 28px;
 		height: 28px;
 		flex-shrink: 0;
-		color: var(--dt4);
+		color: var(--bos-v2-icon-secondary, #a9a9ad);
 	}
 
 	.kb-page__card-emoji {
@@ -465,7 +482,7 @@
 	.kb-page__card-title {
 		font-size: 14px;
 		font-weight: 500;
-		color: var(--dt);
+		color: var(--bos-v2-text-primary, #121212);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -476,15 +493,90 @@
 		align-items: center;
 		gap: 6px;
 		font-size: 12px;
-		color: var(--dt3);
+		color: var(--bos-v2-text-tertiary, #bfbfc3);
 	}
 
 	.kb-page__card-badge {
 		font-size: 11px;
 		padding: 2px 8px;
 		border-radius: 4px;
-		background: var(--dbg2);
-		color: var(--dt2);
+		background: var(--bos-v2-layer-background-secondary, #f4f4f5);
+		color: var(--bos-v2-text-secondary, #8e8d91);
 		text-transform: capitalize;
+	}
+
+	/* Dark mode */
+	:global(.dark) .kb-page {
+		background-color: var(--bos-v2-layer-background-primary, #1e1e1e);
+	}
+
+	:global(.dark) .kb-page__main {
+		background-color: var(--bos-v2-layer-background-primary, #1e1e1e);
+	}
+
+	:global(.dark) .kb-page__title {
+		color: var(--bos-v2-text-primary, #e6e6e6);
+	}
+
+	:global(.dark) .kb-page__spinner {
+		border-color: var(--bos-v2-layer-insideBorder-border, rgba(255, 255, 255, 0.1));
+		border-top-color: var(--bos-brand-color, #1e96eb);
+	}
+
+	:global(.dark) .kb-page__btn {
+		background: var(--bos-v2-layer-background-secondary, #2c2c2c);
+		color: var(--bos-v2-text-primary, #e6e6e6);
+		border-color: var(--bos-v2-layer-insideBorder-border, rgba(255, 255, 255, 0.1));
+	}
+
+	:global(.dark) .kb-page__btn:hover {
+		background: var(--bos-v2-layer-background-tertiary, #3a3a3a);
+	}
+
+	:global(.dark) .kb-page__btn--primary {
+		background: var(--bos-v2-button-primary, #1e96eb);
+		color: var(--bos-v2-button-pureWhiteText, #ffffff);
+		border-color: transparent;
+	}
+
+	:global(.dark) .kb-page__btn--search {
+		background: transparent;
+		color: var(--bos-v2-text-secondary, #8e8d91);
+	}
+
+	:global(.dark) .kb-page__empty-icon {
+		background: var(--bos-v2-layer-background-secondary, #2c2c2c);
+		color: var(--bos-v2-icon-secondary, #707076);
+	}
+
+	:global(.dark) .kb-page__empty-title {
+		color: var(--bos-v2-text-primary, #e6e6e6);
+	}
+
+	:global(.dark) .kb-page__card:hover {
+		background: var(--bos-v2-layer-background-hoverOverlay, rgba(255, 255, 255, 0.04));
+	}
+
+	:global(.dark) .kb-page__card--active {
+		background: var(--bos-v2-layer-background-secondary, #2c2c2c);
+	}
+
+	:global(.dark) .kb-page__card-title {
+		color: var(--bos-v2-text-primary, #e6e6e6);
+	}
+
+	:global(.dark) .kb-page__card-badge {
+		background: var(--bos-v2-layer-background-secondary, #2c2c2c);
+		color: var(--bos-v2-text-secondary, #8e8d91);
+	}
+
+	/* Hide scrollbar */
+	.kb-page__main::-webkit-scrollbar {
+		display: none;
+	}
+
+	.kb-page__main {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
 	}
 </style>

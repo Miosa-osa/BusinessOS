@@ -83,7 +83,7 @@
 		</div>
 
 		{#if error}
-			<div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400">
+			<div class="mb-6 p-4 rounded-lg text-sm" style="background: var(--bos-status-error-bg); border: 1px solid var(--bos-status-error); color: var(--bos-status-error)">
 				{error}
 			</div>
 		{/if}
@@ -97,7 +97,7 @@
 						Download a copy of all personal data we hold about you, including your profile, settings, conversation history, and activity. The export is provided as a JSON file.
 					</p>
 					{#if exportSuccess}
-						<p class="text-sm text-green-600 dark:text-green-400 mt-2 font-medium">Export downloaded successfully.</p>
+						<p class="text-sm mt-2 font-medium" style="color: var(--bos-status-success)">Export downloaded successfully.</p>
 					{/if}
 				</div>
 				<button
@@ -123,9 +123,9 @@
 		</section>
 
 		<!-- Danger Zone -->
-		<section class="p-6 border border-red-200 dark:border-red-800 rounded-xl bg-red-50 dark:bg-red-900/10">
-			<h2 class="text-base font-semibold text-red-700 dark:text-red-400 mb-1">Danger Zone</h2>
-			<p class="text-sm text-red-600 dark:text-red-500 mb-4">
+		<section class="p-6 rounded-xl" style="border: 1px solid var(--bos-status-error); background: var(--bos-status-error-bg)">
+			<h2 class="text-base font-semibold mb-1" style="color: var(--bos-status-error)">Danger Zone</h2>
+			<p class="text-sm mb-4" style="color: var(--bos-status-error)">
 				Deleting your account is permanent and cannot be undone. All your data — including conversation history, settings, and projects — will be erased within 30 days.
 			</p>
 
@@ -139,7 +139,7 @@
 				</button>
 			{:else}
 				<div class="space-y-4">
-					<p class="text-sm text-red-700 dark:text-red-400 font-medium">
+					<p class="text-sm font-medium" style="color: var(--bos-status-error)">
 						To confirm, type <strong>DELETE</strong> in the box below:
 					</p>
 					<input
@@ -182,25 +182,25 @@
 </div>
 
 <style>
-  :global(.st-page-bg) { background: var(--dbg, var(--bos-card, #fff)); }
-  :global(.st-title) { color: var(--dt, var(--bos-text-primary, #111)); }
-  :global(.st-muted) { color: var(--dt3, var(--bos-text-tertiary, #888)); }
+  :global(.st-page-bg) { background: var(--dbg); }
+  :global(.st-title) { color: var(--dt); }
+  :global(.st-muted) { color: var(--dt3); }
   :global(.st-back-link) {
-    color: var(--dt3, var(--bos-text-tertiary, #888));
+    color: var(--dt3);
   }
   :global(.st-back-link:hover) {
-    color: var(--dt2, var(--bos-text-secondary, #555));
+    color: var(--dt2);
   }
   :global(.st-acct-card) {
-    background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5));
-    border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
+    background: var(--dbg2);
+    border: 1px solid var(--dbd);
   }
   :global(.st-acct-danger-input) {
-    background: var(--dbg, var(--bos-card, #fff));
-    border: 1px solid #ef4444;
-    color: var(--dt, var(--bos-text-primary, #111));
+    background: var(--dbg);
+    border: 1px solid var(--bos-status-error);
+    color: var(--dt);
   }
   :global(.st-acct-danger-input::placeholder) {
-    color: var(--dt4, #bbb);
+    color: var(--dt4);
   }
 </style>

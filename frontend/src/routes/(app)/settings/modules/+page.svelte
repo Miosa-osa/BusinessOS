@@ -182,10 +182,14 @@
 		return isActive ? 'Installed' : 'Disabled';
 	}
 
-	function getStatusClasses(isActive: boolean): string {
+	function getStatusStyle(isActive: boolean): string {
 		return isActive
-			? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-			: 'st-mod-status-disabled';
+			? 'background: var(--bos-status-success-bg); color: var(--bos-status-success);'
+			: '';
+	}
+
+	function getStatusClasses(isActive: boolean): string {
+		return isActive ? '' : 'st-mod-status-disabled';
 	}
 
 	// ── Relative time ──────────────────────────────────────────────────────
@@ -457,7 +461,7 @@
 		</div>
 
 		{#if useMockData}
-			<div class="flex items-center gap-2 px-4 py-3 mb-6 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-sm">
+			<div class="flex items-center gap-2 px-4 py-3 mb-6 rounded-lg text-sm" style="background: var(--bos-status-warning-bg); border: 1px solid var(--bos-status-warning); color: var(--bos-status-warning)">
 				<AlertCircle class="w-4 h-4 flex-shrink-0" />
 				<span>Showing demo data. Module API is not connected yet.</span>
 			</div>
@@ -472,7 +476,7 @@
 
 		<!-- Error state -->
 		{:else if error}
-			<div class="flex flex-col items-center justify-center py-16 gap-3 text-red-500">
+			<div class="flex flex-col items-center justify-center py-16 gap-3" style="color: var(--bos-status-error)">
 				<AlertCircle class="w-8 h-8" />
 				<p>{error}</p>
 				<button
@@ -523,7 +527,10 @@
 								<span class="font-semibold st-title text-sm">
 									{mod?.name ?? view.installation.module_id}
 								</span>
-								<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {getStatusClasses(view.installation.is_active)}">
+								<span
+								class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {getStatusClasses(view.installation.is_active)}"
+								style="{getStatusStyle(view.installation.is_active)}"
+							>
 									{getStatusLabel(view.installation.is_active)}
 								</span>
 								{#if mod?.version}
@@ -591,7 +598,7 @@
 			</p>
 
 			{#if uninstallError}
-				<div class="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+				<div class="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-sm" style="background: var(--bos-status-error-bg); color: var(--bos-status-error)">
 					<AlertCircle class="w-4 h-4 flex-shrink-0" />
 					<span>{uninstallError}</span>
 				</div>
@@ -653,7 +660,7 @@
 				{/if}
 
 				{#if installError}
-					<div class="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+					<div class="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-sm" style="background: var(--bos-status-error-bg); color: var(--bos-status-error)">
 						<AlertCircle class="w-4 h-4 flex-shrink-0" />
 						<span>{installError}</span>
 					</div>
@@ -690,13 +697,16 @@
 						{@const isCurrent = stepIndex === currentIndex && installStep !== 'done'}
 						<div class="flex items-center gap-3">
 							{#if isComplete}
-								<CircleCheck class="w-5 h-5 text-emerald-500 flex-shrink-0" />
+								<CircleCheck class="w-5 h-5 flex-shrink-0" style="color: var(--bos-status-success)" />
 							{:else if isCurrent}
-								<Loader2 class="w-5 h-5 text-blue-500 animate-spin flex-shrink-0" />
+								<Loader2 class="w-5 h-5 animate-spin flex-shrink-0" style="color: var(--bos-status-info)" />
 							{:else}
 								<Circle class="w-5 h-5 st-icon flex-shrink-0" />
 							{/if}
-							<span class="text-sm {isComplete ? 'text-emerald-600 dark:text-emerald-400' : isCurrent ? 'st-title font-medium' : 'st-icon'}">
+							<span
+								class="text-sm {isCurrent ? 'st-title font-medium' : isComplete ? '' : 'st-icon'}"
+								style="{isComplete ? 'color: var(--bos-status-success)' : ''}"
+							>
 								{step.label}
 							</span>
 						</div>
@@ -704,7 +714,7 @@
 				</div>
 
 				{#if installError}
-					<div class="mt-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+					<div class="mt-4 flex items-center gap-2 px-3 py-2 rounded-lg text-sm" style="background: var(--bos-status-error-bg); color: var(--bos-status-error)">
 						<AlertCircle class="w-4 h-4 flex-shrink-0" />
 						<span>{installError}</span>
 					</div>
@@ -724,34 +734,34 @@
 {/if}
 
 <style>
-  :global(.st-page-bg) { background: var(--dbg, var(--bos-card, #fff)); }
-  :global(.st-title) { color: var(--dt, var(--bos-text-primary, #111)); }
-  :global(.st-muted) { color: var(--dt3, var(--bos-text-tertiary, #888)); }
-  :global(.st-icon) { color: var(--dt4, #bbb); }
-  :global(.st-back-link) { color: var(--dt3, var(--bos-text-tertiary, #888)); }
-  :global(.st-back-link:hover) { color: var(--dt2, var(--bos-text-secondary, #555)); }
+  :global(.st-page-bg) { background: var(--dbg); }
+  :global(.st-title) { color: var(--dt); }
+  :global(.st-muted) { color: var(--dt3); }
+  :global(.st-icon) { color: var(--dt4); }
+  :global(.st-back-link) { color: var(--dt3); }
+  :global(.st-back-link:hover) { color: var(--dt2); }
   :global(.st-mod-status-disabled) {
-    background: var(--dbg3, #eee);
-    color: var(--dt3, var(--bos-text-tertiary, #888));
+    background: var(--dbg3);
+    color: var(--dt3);
   }
   :global(.st-mod-empty-icon) {
-    background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5));
+    background: var(--dbg2);
   }
   :global(.st-mod-card) {
-    border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
-    background: var(--dbg, var(--bos-card, #fff));
+    border: 1px solid var(--dbd);
+    background: var(--dbg);
   }
   :global(.st-mod-card:hover) {
-    border-color: var(--dt4, #bbb);
+    border-color: var(--dt4);
   }
   :global(.st-mod-icon-bg) {
-    background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5));
+    background: var(--dbg2);
   }
   :global(.st-mod-icon) {
-    color: var(--dt2, var(--bos-text-secondary, #555));
+    color: var(--dt2);
   }
   :global(.st-mod-dialog) {
-    background: var(--dbg, var(--bos-card, #fff));
+    background: var(--dbg);
     box-shadow: var(--bos-shadow-2, 0 4px 24px rgba(0,0,0,.12));
   }
 </style>

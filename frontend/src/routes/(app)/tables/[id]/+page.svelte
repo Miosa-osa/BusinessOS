@@ -395,20 +395,20 @@
 	<title>{table?.name ?? 'Table'} | BusinessOS</title>
 </svelte:head>
 
-<div class="flex h-full flex-col bg-white">
+<div class="flex h-full flex-col" style="background: var(--dbg)">
 	{#if loading && !table}
 		<!-- Loading State -->
 		<div class="flex h-full flex-col items-center justify-center">
-			<Loader2 class="mb-4 h-8 w-8 animate-spin text-blue-600" />
-			<p class="text-sm text-gray-500">Loading table...</p>
+			<Loader2 class="mb-4 h-8 w-8 animate-spin" style="color: var(--bos-status-info)" />
+			<p class="text-sm" style="color: var(--dt3)">Loading table...</p>
 		</div>
 	{:else if error && !table}
 		<!-- Error State -->
 		<div class="flex h-full flex-col items-center justify-center p-6">
-			<div class="flex flex-col items-center rounded-lg border border-red-200 bg-red-50 p-8">
-				<AlertCircle class="mb-3 h-10 w-10 text-red-500" />
-				<h2 class="mb-2 text-lg font-semibold text-red-900">Failed to load table</h2>
-				<p class="mb-4 text-sm text-red-700">{error}</p>
+			<div class="flex flex-col items-center rounded-lg border p-8" style="border-color: var(--bos-status-error); background: var(--dbg2)">
+				<AlertCircle class="mb-3 h-10 w-10" style="color: var(--bos-status-error)" />
+				<h2 class="mb-2 text-lg font-semibold" style="color: var(--dt)">Failed to load table</h2>
+				<p class="mb-4 text-sm" style="color: var(--dt2)">{error}</p>
 				<div class="flex gap-3">
 					<button
 						type="button"
@@ -470,7 +470,7 @@
 		<div class="flex-1 overflow-hidden">
 			{#if loadingRows && rows.length === 0}
 				<div class="flex h-full items-center justify-center">
-					<Loader2 class="h-6 w-6 animate-spin text-gray-400" />
+					<Loader2 class="h-6 w-6 animate-spin" style="color: var(--dt4)" />
 				</div>
 			{:else if viewType === 'grid'}
 				<GridView
@@ -526,24 +526,24 @@
 		</div>
 
 		<!-- Status Bar -->
-		<div class="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-500">
+		<div class="flex items-center justify-between border-t px-4 py-2 text-sm" style="border-color: var(--dbd); background: var(--dbg2); color: var(--dt3)">
 			<div class="flex items-center gap-4">
 				<span>{table.row_count.toLocaleString()} rows</span>
 				{#if selectedRowIds.size > 0}
-					<span class="text-blue-600">{selectedRowIds.size} selected</span>
+					<span style="color: var(--bos-status-info)">{selectedRowIds.size} selected</span>
 				{/if}
 				{#if activeFilters.length > 0}
-					<span class="text-orange-600">{activeFilters.length} filter{activeFilters.length !== 1 ? 's' : ''}</span>
+					<span style="color: var(--bos-status-warning)">{activeFilters.length} filter{activeFilters.length !== 1 ? 's' : ''}</span>
 				{/if}
 				{#if activeSorts.length > 0}
-					<span class="text-purple-600">{activeSorts.length} sort{activeSorts.length !== 1 ? 's' : ''}</span>
+					<span style="color: var(--bos-category-ai)">{activeSorts.length} sort{activeSorts.length !== 1 ? 's' : ''}</span>
 				{/if}
 				{#if hiddenColumns.length > 0}
-					<span class="text-gray-500">{hiddenColumns.length} hidden</span>
+					<span style="color: var(--dt3)">{hiddenColumns.length} hidden</span>
 				{/if}
 			</div>
 			<div class="flex items-center gap-3">
-				<span class="text-xs text-gray-400 capitalize">{viewType} view</span>
+				<span class="text-xs capitalize" style="color: var(--dt4)">{viewType} view</span>
 				{#if loadingRows}
 					<span class="flex items-center gap-1">
 						<Loader2 class="h-3 w-3 animate-spin" />

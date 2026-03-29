@@ -50,7 +50,7 @@
 		flex-wrap: wrap;
 		gap: 20px;
 		padding-bottom: 24px;
-		border-bottom: 1px solid var(--color-border, #e5e7eb);
+		border-bottom: 1px solid var(--color-border);
 	}
 
 	:global(.dark) .page-header {
@@ -67,7 +67,7 @@
 		width: 48px;
 		height: 48px;
 		border-radius: 12px;
-		background: linear-gradient(135deg, #6366f1, #8b5cf6);
+		background: linear-gradient(135deg, var(--bos-category-productivity), var(--bos-category-ai));
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -104,14 +104,14 @@
 	/* Period Selector */
 	.period-selector {
 		display: flex;
-		background: var(--color-bg-secondary, #f3f4f6);
+		background: var(--color-bg-secondary);
 		border-radius: 12px;
 		padding: 4px;
 		gap: 4px;
 	}
 
 	:global(.dark) .period-selector {
-		background: #1f1f1f;
+		background: var(--dbg2);
 	}
 
 	.period-btn {
@@ -139,13 +139,13 @@
 	}
 
 	.period-btn.active {
-		background: white;
+		background: var(--color-bg, white);
 		color: var(--color-text, #111827);
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 	}
 
 	:global(.dark) .period-btn.active {
-		background: #2c2c2e;
+		background: var(--dbg, #2c2c2e);
 		color: #f9fafb;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 	}
@@ -168,15 +168,15 @@
 	.loading-spinner {
 		width: 40px;
 		height: 40px;
-		border: 3px solid var(--color-border, #e5e7eb);
-		border-top-color: #6366f1;
+		border: 3px solid var(--color-border);
+		border-top-color: var(--bos-category-productivity);
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
 	}
 
 	:global(.dark) .loading-spinner {
 		border-color: rgba(255, 255, 255, 0.1);
-		border-top-color: #6366f1;
+		border-top-color: var(--bos-category-productivity);
 	}
 
 	@keyframes spin {

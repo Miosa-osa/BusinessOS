@@ -96,40 +96,31 @@
 			googleStatus = { connected: false };
 		}
 	}
-
-	function isActive(tabId: TabId): boolean {
-		return activeTab === tabId;
-	}
-
-	function tabClass(tabId: TabId): string {
-		return isActive(tabId)
-			? 'st-tab-active border-b-2 -mb-px'
-			: 'st-tab-inactive';
-	}
 </script>
 
 <div class="h-full flex flex-col st-page-bg">
 	<!-- Header -->
-	<div class="px-6 py-4 st-page-header">
-		<h1 class="text-xl font-semibold st-title">Settings</h1>
-		<p class="text-sm st-muted mt-0.5">Manage your account and preferences</p>
+	<div class="px-6 py-3 st-page-header">
+		<h1 class="st-title">Settings</h1>
+		<p class="st-muted mt-0">Manage your account and preferences</p>
 	</div>
 
 	{#if isLoading}
 		<div class="flex-1 flex items-center justify-center">
-			<div class="animate-spin h-8 w-8 border-2 st-spinner border-t-transparent rounded-full"></div>
+			<div class="animate-spin h-8 w-8 border-2 st-spinner rounded-full"></div>
 		</div>
 	{:else}
 		<div class="flex-1 overflow-y-auto">
-			<div class="max-w-4xl mx-auto p-6">
+			<div class="max-w-3xl mx-auto px-6 py-4">
 				<!-- Tab Navigation -->
-				<div class="relative mb-6">
-					<div class="flex gap-1 overflow-x-auto scrollbar-hide pb-px st-tab-border">
+				<div class="mb-4">
+					<div class="st-tab-row">
 						{#each tabs as tab}
 							{#if !tab.desktopOnly || isDesktop}
 								<button
 									onclick={() => (activeTab = tab.id)}
-									class="btn-pill btn-pill-ghost btn-pill-sm whitespace-nowrap flex-shrink-0 {tabClass(tab.id)}"
+									class="st-tab"
+									class:st-tab--active={activeTab === tab.id}
 								>
 									{tab.label}
 								</button>
@@ -138,14 +129,12 @@
 						{#each externalTabs as extTab}
 							<button
 								onclick={() => goto(extTab.href)}
-								class="btn-pill btn-pill-ghost btn-pill-sm whitespace-nowrap flex-shrink-0"
+								class="st-tab"
 							>
 								{extTab.label}
 							</button>
 						{/each}
 					</div>
-					<!-- Scroll fade -->
-					<div class="absolute right-0 top-0 bottom-px w-8 st-fade-gradient pointer-events-none"></div>
 				</div>
 
 				<!-- Tab Panels -->
@@ -199,23 +188,55 @@
 </div>
 
 <style>
-  :global(.st-page-bg) { background: var(--dbg, #fff); }
-  :global(.st-page-header) { border-bottom: 1px solid var(--dbd2, #f0f0f0); }
-  :global(.st-title) { color: var(--dt, #111); }
-  :global(.st-muted) { color: var(--dt3, #888); }
-  :global(.st-spinner) { border-color: var(--dt, #111); }
-  :global(.st-tab-border) { border-bottom: 1px solid var(--dbd, #e0e0e0); }
-  :global(.st-tab-active) {
-    color: var(--dt, #111);
-    border-color: var(--dt, #111);
+  :global(.st-page-bg) { background: var(--dbg); }
+  :global(.st-page-header) { border-bottom: 1px solid var(--dbd); }
+  :global(.st-title) {
+    color: var(--dt);
+    font-size: 1.25rem;
+    font-weight: var(--font-semibold);
   }
-  :global(.st-tab-inactive) {
-    color: var(--dt3, #888);
+  :global(.st-muted) {
+    color: var(--dt3);
+    font-size: var(--text-sm);
   }
-  :global(.st-tab-inactive:hover) {
-    color: var(--dt2, #555);
+  :global(.st-spinner) {
+    border-color: var(--dbd);
+    border-top-color: var(--dt);
   }
-  :global(.st-fade-gradient) {
-    background: linear-gradient(to left, var(--dbg, #fff), transparent);
+
+  .st-tab-row {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--dbd);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .st-tab-row::-webkit-scrollbar { display: none; }
+
+  .st-tab {
+    padding: 8px 14px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--dt3);
+    border-bottom: 2px solid transparent;
+    transition: all var(--bos-transition-fast);
+    cursor: pointer;
+    white-space: nowrap;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    flex-shrink: 0;
+    margin-bottom: -1px;
+  }
+  .st-tab:hover {
+    color: var(--dt2);
+    background: var(--bos-hover-color);
+    border-radius: 6px 6px 0 0;
+  }
+  .st-tab--active {
+    color: var(--dt);
+    font-weight: 600;
+    border-bottom-color: var(--dt);
   }
 </style>

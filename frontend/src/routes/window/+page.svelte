@@ -297,7 +297,7 @@
 				background-position: center center;
 				background-repeat: no-repeat;
 				background-attachment: fixed;
-				background-color: #1a1a1a;
+				background-color: var(--dbg);
 			`;
 		} else if (bgCSS.backgroundSize) {
 			return `background: ${bgCSS.background}; background-size: ${bgCSS.backgroundSize};`;

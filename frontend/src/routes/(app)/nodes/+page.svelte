@@ -241,7 +241,7 @@
 			</div>
 			<button
 				onclick={() => showNewNodeModal = true}
-				class="btn-pill btn-pill-primary btn-pill-sm"
+				class="btn-cta"
 			>
 				<svg class="ng-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -414,7 +414,7 @@
 	{#if $nodes.activeNode}
 		<div class="ng-active-banner" transition:slide>
 			<div class="ng-active-banner__left">
-				<svg class="w-5 h-5" style="color: #3b82f6" fill="currentColor" viewBox="0 0 24 24">
+				<svg class="w-5 h-5" style="color: var(--bos-primary-color)" fill="currentColor" viewBox="0 0 24 24">
 					<path d="M13 10V3L4 14h7v7l9-11h-7z" />
 				</svg>
 				<span class="ng-active-banner__text">
@@ -446,7 +446,7 @@
 			</div>
 		{:else if error}
 			<div class="ng-empty">
-				<p style="color: #ef4444; margin-bottom: 12px;">{error}</p>
+				<p style="color: var(--bos-error-color); margin-bottom: 12px;">{error}</p>
 				<button onclick={loadData} class="btn-pill btn-pill-primary">
 					Retry
 				</button>
@@ -858,13 +858,13 @@
 		border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt); width: 14rem; transition: border-color 0.15s;
 	}
 	.ng-search-input::placeholder { color: var(--dt4); }
-	.ng-search-input:focus { outline: none; border-color: #3b82f6; }
+	.ng-search-input:focus { outline: none; border-color: var(--bos-primary-color); }
 
 	/* ── Filter ── */
 	.ng-filter-wrap { position: relative; }
 	.ng-filter-indicator {
 		position: absolute; top: -0.25rem; right: -0.25rem; width: 0.5rem; height: 0.5rem;
-		border-radius: 50%; background: #3b82f6;
+		border-radius: 50%; background: var(--bos-primary-color);
 	}
 	.ng-filter-panel {
 		position: absolute; right: 0; top: 100%; margin-top: 0.5rem; width: 18rem;
@@ -879,17 +879,17 @@
 		border: 1px solid var(--dbd); background: transparent; color: var(--dt3); cursor: pointer; transition: all 0.15s; text-transform: capitalize;
 	}
 	.ng-filter-panel__option:hover { border-color: var(--dt3); color: var(--dt); }
-	.ng-filter-panel__option--active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+	.ng-filter-panel__option--active { background: var(--bos-primary-color); border-color: var(--bos-primary-color); color: #fff; }
 	.ng-filter-panel__footer { display: flex; justify-content: space-between; padding-top: 0.75rem; border-top: 1px solid var(--dbd); }
 	.ng-filter-panel__clear { font-size: 0.75rem; color: var(--dt3); background: none; border: none; cursor: pointer; padding: 0; }
 	.ng-filter-panel__clear:hover { color: var(--dt); }
-	.ng-filter-panel__apply { font-size: 0.75rem; font-weight: 600; color: #3b82f6; background: none; border: none; cursor: pointer; padding: 0; }
+	.ng-filter-panel__apply { font-size: 0.75rem; font-weight: 600; color: var(--bos-primary-color); background: none; border: none; cursor: pointer; padding: 0; }
 
 	/* ── Active Banner ── */
 	.ng-active-banner {
 		display: flex; align-items: center; justify-content: space-between;
 		margin: 0 1.5rem 0.75rem; padding: 0.75rem 1rem; border-radius: 0.5rem;
-		background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.25);
+		background: var(--bos-status-info-bg); border: 1px solid color-mix(in srgb, var(--bos-status-info) 25%, transparent);
 	}
 	.ng-active-banner__left { display: flex; align-items: center; gap: 0.5rem; }
 	.ng-active-banner__right { display: flex; align-items: center; gap: 0.5rem; }
@@ -897,7 +897,7 @@
 
 	/* ── Content Area ── */
 	.ng-content { flex: 1; overflow-y: auto; padding: 0 1.5rem 1.5rem; }
-	.ng-spinner { width: 2rem; height: 2rem; border: 3px solid var(--dbd); border-top-color: #3b82f6; border-radius: 50%; animation: ng-spin 0.8s linear infinite; margin: 3rem auto; display: block; }
+	.ng-spinner { width: 2rem; height: 2rem; border: 3px solid var(--dbd); border-top-color: var(--bos-primary-color); border-radius: 50%; animation: ng-spin 0.8s linear infinite; margin: 3rem auto; display: block; }
 	@keyframes ng-spin { to { transform: rotate(360deg); } }
 	.ng-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 1rem; text-align: center; }
 	.ng-empty__icon-wrap { width: 3rem; height: 3rem; border-radius: 50%; background: var(--dbg2); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; color: var(--dt4); }
@@ -914,34 +914,34 @@
 	.ng-tree-item__expand { width: 1.25rem; height: 1.25rem; display: flex; align-items: center; justify-content: center; color: var(--dt4); background: none; border: none; cursor: pointer; flex-shrink: 0; transition: transform 0.15s; }
 	.ng-tree-item__chevron--open { transform: rotate(90deg); }
 	.ng-tree-item__name { font-size: 0.875rem; font-weight: 500; color: var(--dt); text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-	.ng-tree-item__name:hover { color: #3b82f6; }
+	.ng-tree-item__name:hover { color: var(--bos-primary-color); }
 	.ng-tree-item__actions { display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.15s; }
 	.ng-tree-item:hover .ng-tree-item__actions { opacity: 1; }
 	.ng-tree-item__action-btn { padding: 0.25rem; color: var(--dt4); background: none; border: none; cursor: pointer; border-radius: 0.25rem; transition: color 0.15s; }
-	.ng-tree-item__action-btn:hover { color: #3b82f6; }
-	.ng-tree-item__action-btn--danger:hover { color: #ef4444; }
+	.ng-tree-item__action-btn:hover { color: var(--bos-primary-color); }
+	.ng-tree-item__action-btn--danger:hover { color: var(--bos-error-color); }
 
 	/* ── Type Icon ── */
 	.ng-type-icon {
 		width: 2rem; height: 2rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 	}
 	.ng-type-icon--lg { width: 2.5rem; height: 2.5rem; }
-	.ng-type-icon--business { background: rgba(59,130,246,.15); color: #3b82f6; }
-	.ng-type-icon--project { background: rgba(168,85,247,.15); color: #a855f7; }
-	.ng-type-icon--learning { background: rgba(34,197,94,.15); color: #22c55e; }
-	.ng-type-icon--operational { background: rgba(245,158,11,.15); color: #f59e0b; }
+	.ng-type-icon--business { background: color-mix(in srgb, var(--bos-status-info) 15%, transparent); color: var(--bos-primary-color); }
+	.ng-type-icon--project { background: color-mix(in srgb, var(--bos-category-ai) 15%, transparent); color: var(--bos-category-ai); }
+	.ng-type-icon--learning { background: var(--bos-status-success-bg); color: var(--bos-status-success); }
+	.ng-type-icon--operational { background: var(--bos-status-warning-bg); color: var(--bos-status-warning); }
 
 	/* ── Health Dot ── */
 	.ng-health-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; flex-shrink: 0; display: inline-block; }
-	.ng-health-dot--healthy { background: #22c55e; }
-	.ng-health-dot--attention { background: #f59e0b; }
-	.ng-health-dot--critical { background: #ef4444; }
+	.ng-health-dot--healthy { background: var(--bos-success-color); }
+	.ng-health-dot--attention { background: var(--bos-warning-color); }
+	.ng-health-dot--critical { background: var(--bos-error-color); }
 	.ng-health-dot--not-started { background: #9ca3af; }
 
 	/* ── Active Tag ── */
 	.ng-active-tag {
 		display: inline-block; padding: 0.125rem 0.5rem; font-size: 0.6875rem; font-weight: 600;
-		background: rgba(59,130,246,.15); color: #3b82f6; border-radius: 9999px;
+		background: rgba(30,150,235,.15); color: var(--bos-primary-color); border-radius: 9999px;
 	}
 
 	/* ── Table (List View) ── */
@@ -972,7 +972,7 @@
 	.ng-card__info { flex: 1; min-width: 0; }
 	.ng-card__name { font-size: 0.875rem; font-weight: 600; color: var(--dt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.ng-card__health { display: flex; align-items: center; gap: 0.375rem; margin-top: 0.375rem; font-size: 0.8125rem; color: var(--dt3); }
-	.ng-card__active-icon { width: 1.25rem; height: 1.25rem; color: #3b82f6; flex-shrink: 0; }
+	.ng-card__active-icon { width: 1.25rem; height: 1.25rem; color: var(--bos-status-info); flex-shrink: 0; }
 	.ng-card__focus { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--dbd); }
 	.ng-card__focus-label { font-size: 0.6875rem; font-weight: 600; color: var(--dt4); margin-bottom: 0.25rem; }
 	.ng-card__focus-text { font-size: 0.8125rem; color: var(--dt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1004,12 +1004,12 @@
 	/* ── Form Controls ── */
 	.ng-input-group { display: flex; flex-direction: column; gap: 0.25rem; }
 	.ng-label { font-size: 0.8125rem; font-weight: 500; color: var(--dt2); }
-	.ng-label__req { color: #ef4444; }
+	.ng-label__req { color: var(--bos-status-error); }
 	.ng-input {
 		width: 100%; padding: 0.5rem 0.75rem; font-size: 0.875rem; border-radius: 0.5rem;
 		border: 1px solid var(--dbd); background: var(--dbg); color: var(--dt); transition: border-color 0.15s;
 	}
-	.ng-input:focus { outline: none; border-color: #3b82f6; }
+	.ng-input:focus { outline: none; border-color: var(--bos-status-info); }
 	.ng-input--textarea { resize: none; }
 
 	/* ── Type Selector Grid ── */
@@ -1020,7 +1020,7 @@
 		background: transparent; color: var(--dt3); cursor: pointer; transition: all 0.15s;
 	}
 	.ng-type-option:hover { border-color: var(--dt3); }
-	.ng-type-option--selected { border-color: #3b82f6; background: rgba(59,130,246,.1); color: #3b82f6; }
+	.ng-type-option--selected { border-color: var(--bos-status-info); background: var(--bos-status-info-bg); color: var(--bos-status-info); }
 	.ng-type-option__label { font-size: 0.6875rem; font-weight: 500; }
 
 	/* ── Utility ── */

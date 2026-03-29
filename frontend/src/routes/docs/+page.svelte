@@ -251,8 +251,9 @@
 						</div>
 					</div>
 
-					<div class="relative" in:fly={{ y: 20, duration: 500, delay: 250 }}>
-						<!-- Chat mock - matches actual desktop chat -->
+					<!-- Chat mock wrapper — forced dark context so classes resolve correctly in both light and dark app themes -->
+					<div class="dark relative" in:fly={{ y: 20, duration: 500, delay: 250 }}>
+						<!-- Chat mock - intentionally dark UI demo -->
 						<div class="bg-[#1a1a1a] rounded-xl overflow-hidden shadow-2xl border border-gray-800">
 							<!-- Window header -->
 							<div class="flex items-center gap-2 px-4 py-3 bg-[#252525] border-b border-gray-800">

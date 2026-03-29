@@ -361,7 +361,7 @@
 
 	.thinking-settings-page {
 		height: 100%;
-		background: #f9fafb;
+		background: var(--bos-settings-card-bg);
 		overflow-y: auto;
 		overflow-x: hidden;
 		display: flex;
@@ -369,8 +369,8 @@
 	}
 
 	.settings-header {
-		background: white;
-		border-bottom: 1px solid #e5e7eb;
+		background: var(--dbg);
+		border-bottom: 1px solid var(--dbd);
 		padding: 1.5rem 2rem;
 		flex-shrink: 0;
 	}
@@ -390,12 +390,12 @@
 	.header-title h1 {
 		font-size: 1.5rem;
 		font-weight: 600;
-		color: #111827;
+		color: var(--dt);
 		margin: 0;
 	}
 
 	.header-subtitle {
-		color: #6b7280;
+		color: var(--dt3);
 		font-size: 0.875rem;
 		margin: 0;
 	}
@@ -408,12 +408,12 @@
 		justify-content: center;
 		padding: 4rem 2rem;
 		gap: 1rem;
-		color: #6b7280;
+		color: var(--dt3);
 		flex: 1;
 	}
 
 	.error-state {
-		color: #dc2626;
+		color: var(--bos-status-error);
 	}
 
 	.retry-btn {
@@ -421,8 +421,8 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 1rem;
-		background: #3b82f6;
-		color: white;
+		background: var(--bos-nav-active);
+		color: var(--bos-surface-on-color);
 		border: none;
 		border-radius: 0.375rem;
 		cursor: pointer;
@@ -431,7 +431,7 @@
 	}
 
 	.retry-btn:hover {
-		background: #2563eb;
+		background: var(--bos-nav-active);
 	}
 
 	.settings-container {
@@ -446,11 +446,11 @@
 
 	/* Info Section */
 	.info-section {
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		background: linear-gradient(135deg, var(--bos-category-productivity) 0%, var(--bos-category-ai) 100%);
 		border-radius: 0.75rem;
 		padding: 2rem;
 		margin-bottom: 2rem;
-		color: white;
+		color: var(--bos-surface-on-color);
 		box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 		width: 100%;
 		max-width: 100%;
@@ -517,7 +517,7 @@
 		width: 2rem;
 		height: 2rem;
 		background: rgba(255, 255, 255, 0.9);
-		color: #667eea;
+		color: var(--bos-category-productivity);
 		font-weight: 700;
 		font-size: 1rem;
 		border-radius: 50%;
@@ -552,8 +552,8 @@
 	}
 
 	.section {
-		background: white;
-		border: 1px solid #e5e7eb;
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
 		border-radius: 0.5rem;
 		padding: 1.5rem;
 		margin-bottom: 1.5rem;
@@ -568,13 +568,13 @@
 	.section-header h2 {
 		font-size: 1.125rem;
 		font-weight: 600;
-		color: #111827;
+		color: var(--dt);
 		margin: 0 0 0.25rem 0;
 	}
 
 	.subtitle {
 		font-size: 0.875rem;
-		color: #6b7280;
+		color: var(--dt3);
 	}
 
 	.settings-grid {
@@ -584,9 +584,9 @@
 
 	.setting-card {
 		padding: 1rem;
-		background: #f9fafb;
-		border: 1px solid #e5e7eb;
-		border-radius: 0.375rem;
+		background: var(--bos-settings-card-bg);
+		border: 1px solid var(--bos-settings-card-border);
+		border-radius: var(--bos-settings-card-radius);
 	}
 
 	.setting-header {
@@ -599,24 +599,24 @@
 	.setting-header label {
 		font-size: 0.875rem;
 		font-weight: 500;
-		color: #111827;
+		color: var(--dt);
 	}
 
 	.setting-value {
 		font-size: 0.875rem;
 		font-weight: 600;
-		color: #3b82f6;
+		color: var(--bos-nav-active);
 	}
 
 	.setting-desc {
 		font-size: 0.875rem;
-		color: #6b7280;
+		color: var(--dt3);
 		margin: 0;
 		line-height: 1.5;
 	}
 
 	.warning-text {
-		color: #d97706;
+		color: var(--bos-status-warning);
 		font-weight: 500;
 	}
 
@@ -625,7 +625,7 @@
 		position: relative;
 		width: 44px;
 		height: 24px;
-		background: #d1d5db;
+		background: var(--dbd);
 		border: none;
 		border-radius: 12px;
 		cursor: pointer;
@@ -633,15 +633,15 @@
 	}
 
 	.toggle:hover:not(.disabled) {
-		background: #9ca3af;
+		background: var(--dt3);
 	}
 
 	.toggle.on {
-		background: #3b82f6;
+		background: var(--bos-nav-active);
 	}
 
 	.toggle.on:hover:not(.disabled) {
-		background: #2563eb;
+		background: var(--bos-nav-active);
 	}
 
 	.toggle.disabled {
@@ -655,7 +655,7 @@
 		left: 2px;
 		width: 20px;
 		height: 20px;
-		background: white;
+		background: var(--dbg);
 		border-radius: 50%;
 		transition: transform 0.2s;
 		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
@@ -669,7 +669,7 @@
 	input[type="range"] {
 		width: 100%;
 		height: 6px;
-		background: #e5e7eb;
+		background: var(--dbg3);
 		border-radius: 3px;
 		outline: none;
 		margin-bottom: 0.75rem;
@@ -679,7 +679,7 @@
 		appearance: none;
 		width: 18px;
 		height: 18px;
-		background: #3b82f6;
+		background: var(--dt);
 		border-radius: 50%;
 		cursor: pointer;
 	}
@@ -687,7 +687,7 @@
 	input[type="range"]::-moz-range-thumb {
 		width: 18px;
 		height: 18px;
-		background: #3b82f6;
+		background: var(--dt);
 		border: none;
 		border-radius: 50%;
 		cursor: pointer;
@@ -710,11 +710,11 @@
 	.template-select {
 		width: 100%;
 		padding: 0.5rem 0.75rem;
-		background: white;
-		border: 1px solid #d1d5db;
+		background: var(--bos-settings-input-bg);
+		border: 1px solid var(--bos-settings-card-border);
 		border-radius: 0.375rem;
 		font-size: 0.875rem;
-		color: #111827;
+		color: var(--dt);
 		cursor: pointer;
 		margin-bottom: 0.5rem;
 	}
@@ -722,20 +722,21 @@
 	.template-select:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
-		background: #f3f4f6;
+		background: var(--bos-settings-input-bg);
 	}
 
 	.template-select:focus {
 		outline: none;
-		border-color: #3b82f6;
+		border-color: var(--bos-nav-active);
 		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 	}
 
 	.template-description {
 		font-size: 0.8125rem;
-		color: #6b7280;
+		color: var(--dt3);
 		padding: 0.5rem;
-		background: #f3f4f6;
+		background: var(--bos-settings-input-bg);
+		border: 1px solid var(--bos-settings-card-border);
 		border-radius: 0.25rem;
 		margin-bottom: 0.75rem;
 	}
@@ -745,13 +746,13 @@
 		align-items: center;
 		gap: 0.375rem;
 		font-size: 0.875rem;
-		color: #3b82f6;
+		color: var(--bos-nav-active);
 		text-decoration: none;
 		margin-top: 0.75rem;
 	}
 
 	.manage-link:hover {
-		color: #2563eb;
+		color: var(--bos-nav-active);
 		text-decoration: underline;
 	}
 
@@ -762,12 +763,12 @@
 		align-items: center;
 		padding: 2rem;
 		gap: 0.5rem;
-		color: #9ca3af;
+		color: var(--dt3);
 	}
 
 	.empty-hint {
 		font-size: 0.875rem;
-		color: #6b7280;
+		color: var(--dt3);
 	}
 
 	/* Action Buttons */
@@ -775,8 +776,8 @@
 		display: flex;
 		gap: 1rem;
 		padding: 1.5rem 2rem;
-		border-top: 1px solid #e5e7eb;
-		background: white;
+		border-top: 1px solid var(--dbd);
+		background: var(--dbg);
 		position: sticky;
 		bottom: 0;
 		z-index: 10;
@@ -793,10 +794,10 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.625rem 1.25rem;
-		border: 1px solid #d1d5db;
+		border: 1px solid var(--dbd);
 		border-radius: 0.375rem;
-		background: white;
-		color: #374151;
+		background: var(--dbg);
+		color: var(--dt);
 		font-size: 0.875rem;
 		font-weight: 500;
 		cursor: pointer;
@@ -804,19 +805,19 @@
 	}
 
 	.action-btn:hover:not(:disabled) {
-		background: #f9fafb;
-		border-color: #9ca3af;
+		background: var(--dbg2);
+		border-color: var(--dt3);
 	}
 
 	.action-btn.primary {
-		background: #3b82f6;
-		color: white;
-		border-color: #3b82f6;
+		background: var(--bos-nav-active);
+		color: var(--bos-surface-on-color);
+		border-color: var(--bos-nav-active);
 	}
 
 	.action-btn.primary:hover:not(:disabled) {
-		background: #2563eb;
-		border-color: #2563eb;
+		background: var(--bos-nav-active);
+		border-color: var(--bos-nav-active);
 	}
 
 	.action-btn:disabled {
@@ -828,8 +829,8 @@
 	.save-success {
 		margin-top: 1rem;
 		padding: 0.75rem 1rem;
-		background: #d1fae5;
-		color: #065f46;
+		background: var(--bos-status-success-bg, #d1fae5);
+		color: var(--bos-status-success, #065f46);
 		border-radius: 0.375rem;
 		font-size: 0.875rem;
 		text-align: center;
@@ -842,90 +843,11 @@
 		gap: 0.5rem;
 		margin-top: 1rem;
 		padding: 0.75rem 1rem;
-		background: #fee2e2;
-		color: #991b1b;
+		background: var(--bos-status-error-bg);
+		color: var(--bos-status-error);
 		border-radius: 0.375rem;
 		font-size: 0.875rem;
 	}
 
-	/* Dark Mode */
-	:global(.dark) .thinking-settings-page {
-		background: #111827;
-	}
-
-	:global(.dark) .settings-header {
-		background: #1f2937;
-		border-bottom-color: #374151;
-	}
-
-	:global(.dark) .header-title h1 {
-		color: #f9fafb;
-	}
-
-	:global(.dark) .header-subtitle {
-		color: #9ca3af;
-	}
-
-	:global(.dark) .section {
-		background: #1f2937;
-		border-color: #374151;
-	}
-
-	:global(.dark) .section-header h2 {
-		color: #f9fafb;
-	}
-
-	:global(.dark) .setting-card {
-		background: #111827;
-		border-color: #374151;
-	}
-
-	:global(.dark) .setting-header label {
-		color: #f9fafb;
-	}
-
-	:global(.dark) .setting-desc {
-		color: #9ca3af;
-	}
-
-	:global(.dark) .template-select {
-		background: #111827;
-		border-color: #4b5563;
-		color: #f9fafb;
-	}
-
-	:global(.dark) .template-select:disabled {
-		background: #1f2937;
-	}
-
-	:global(.dark) .template-description {
-		background: #1f2937;
-		color: #9ca3af;
-	}
-
-	:global(.dark) .action-btn {
-		background: #1f2937;
-		color: #f9fafb;
-		border-color: #4b5563;
-	}
-
-	:global(.dark) .action-btn:hover:not(:disabled) {
-		background: #374151;
-	}
-
-	:global(.dark) .action-btn.primary {
-		background: #3b82f6;
-		border-color: #3b82f6;
-	}
-
-	/* Dark mode - Info Section */
-	:global(.dark) .info-section {
-		background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%);
-	}
-
-	:global(.dark) .settings-actions {
-		background: #1f2937;
-		border-top-color: #374151;
-		box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.3);
-	}
+	/* Dark Mode - all colors now use CSS variables, no overrides needed */
 </style>

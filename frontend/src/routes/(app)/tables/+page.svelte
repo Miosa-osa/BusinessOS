@@ -205,7 +205,7 @@
 	<title>Tables | BusinessOS</title>
 </svelte:head>
 
-<div class="flex h-full bg-gray-50">
+<div class="flex h-full" style="background: var(--dbg);">
 	<!-- Sidebar -->
 	{#if !sidebarCollapsed}
 		<TablesSidebar
@@ -221,7 +221,7 @@
 	<!-- Main Content -->
 	<div class="flex flex-1 flex-col overflow-hidden">
 		<!-- Header -->
-		<div class="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+		<div class="flex items-center justify-between px-6 py-4" style="border-bottom: 1px solid var(--dbd); background: var(--dbg);">
 			<div class="flex items-center gap-4">
 				<!-- Sidebar Toggle -->
 				<button
@@ -238,8 +238,8 @@
 				</button>
 
 				<div>
-					<h1 class="text-xl font-semibold text-gray-900">Tables</h1>
-					<p class="text-sm text-gray-500">
+					<h1 class="text-xl font-semibold" style="color: var(--dt);">Tables</h1>
+					<p class="text-sm" style="color: var(--dt3);">
 						{tablesList.length} table{tablesList.length !== 1 ? 's' : ''}
 						{#if favorites.length > 0}
 							 | {favorites.length} favorite{favorites.length !== 1 ? 's' : ''}
@@ -251,23 +251,21 @@
 			<div class="flex items-center gap-3">
 				<!-- Search -->
 				<div class="relative">
-					<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+					<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style="color: var(--dt4);" />
 					<input
 						type="text"
 						placeholder="Search tables..."
 						value={searchQuery}
 						oninput={(e) => handleSearchChange((e.target as HTMLInputElement).value)}
-						class="w-64 rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+						class="dt2-search-input"
 					/>
 				</div>
 
 				<!-- View Switcher -->
-				<div class="flex items-center rounded-lg border border-gray-200 bg-white p-1">
+				<div class="flex items-center rounded-lg p-1" style="border: 1px solid var(--dbd); background: var(--dbg);">
 					<button
 						type="button"
-						class="rounded p-1.5 transition-colors {viewMode === 'card'
-							? 'bg-gray-100 text-gray-900'
-							: 'text-gray-400 hover:text-gray-600'}"
+						class="dt2-view-btn {viewMode === 'card' ? 'dt2-view-btn--active' : ''}"
 						onclick={() => handleViewChange('card')}
 						title="Card view"
 					>
@@ -275,9 +273,7 @@
 					</button>
 					<button
 						type="button"
-						class="rounded p-1.5 transition-colors {viewMode === 'list'
-							? 'bg-gray-100 text-gray-900'
-							: 'text-gray-400 hover:text-gray-600'}"
+						class="dt2-view-btn {viewMode === 'list' ? 'dt2-view-btn--active' : ''}"
 						onclick={() => handleViewChange('list')}
 						title="List view"
 					>
@@ -288,7 +284,7 @@
 				<!-- Actions -->
 				<button
 					type="button"
-					class="btn-pill btn-pill-secondary btn-pill-sm flex items-center gap-2"
+					class="btn-cta flex items-center gap-2"
 					onclick={() => (showImportModal = true)}
 				>
 					<Upload class="h-4 w-4" />
@@ -297,7 +293,7 @@
 
 				<button
 					type="button"
-					class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2"
+					class="btn-cta"
 					onclick={() => (showTemplateGallery = true)}
 				>
 					<Plus class="h-4 w-4" />
@@ -308,21 +304,17 @@
 
 		<!-- Source Filter Tabs -->
 		{#if tablesList.length > 0 || searchQuery}
-			<div class="flex items-center gap-2 border-b border-gray-200 bg-white px-6 py-2">
+			<div class="flex items-center gap-2 px-6 py-2" style="border-bottom: 1px solid var(--dbd); background: var(--dbg);">
 				<button
 					type="button"
-					class="rounded-full px-3 py-1 text-sm font-medium transition-colors {sourceFilter === null
-						? 'bg-blue-100 text-blue-700'
-						: 'text-gray-500 hover:bg-gray-100'}"
+					class="dt2-filter-pill {sourceFilter === null ? 'dt2-filter-pill--active' : ''}"
 					onclick={() => handleSourceFilter(null)}
 				>
 					All
 				</button>
 				<button
 					type="button"
-					class="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors {sourceFilter === 'custom'
-						? 'bg-blue-100 text-blue-700'
-						: 'text-gray-500 hover:bg-gray-100'}"
+					class="dt2-filter-pill {sourceFilter === 'custom' ? 'dt2-filter-pill--active' : ''} flex items-center gap-1.5"
 					onclick={() => handleSourceFilter('custom')}
 				>
 					<Database class="h-3.5 w-3.5" />
@@ -330,9 +322,7 @@
 				</button>
 				<button
 					type="button"
-					class="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors {sourceFilter === 'import'
-						? 'bg-orange-100 text-orange-700'
-						: 'text-gray-500 hover:bg-gray-100'}"
+					class="dt2-filter-pill {sourceFilter === 'import' ? 'dt2-filter-pill--active dt2-filter-pill--orange' : ''} flex items-center gap-1.5"
 					onclick={() => handleSourceFilter('import')}
 				>
 					<Upload class="h-3.5 w-3.5" />
@@ -340,9 +330,7 @@
 				</button>
 				<button
 					type="button"
-					class="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors {sourceFilter === 'integration'
-						? 'bg-green-100 text-green-700'
-						: 'text-gray-500 hover:bg-gray-100'}"
+					class="dt2-filter-pill {sourceFilter === 'integration' ? 'dt2-filter-pill--active dt2-filter-pill--green' : ''} flex items-center gap-1.5"
 					onclick={() => handleSourceFilter('integration')}
 				>
 					<Sparkles class="h-3.5 w-3.5" />
@@ -355,12 +343,12 @@
 		<div class="flex-1 overflow-auto">
 			{#if loading}
 				<div class="flex h-full flex-col items-center justify-center">
-					<Loader2 class="mb-4 h-8 w-8 animate-spin text-blue-600" />
-					<p class="text-sm text-gray-500">Loading tables...</p>
+					<Loader2 class="mb-4 h-8 w-8 animate-spin" style="color: var(--accent-blue);" />
+					<p class="text-sm" style="color: var(--dt3);">Loading tables...</p>
 				</div>
 			{:else if error}
-				<div class="m-6 rounded-lg border border-red-200 bg-red-50 p-4">
-					<p class="text-sm text-red-600">{error}</p>
+				<div class="m-6 rounded-lg p-4" style="border: 1px solid var(--bos-status-error); background: color-mix(in srgb, var(--bos-status-error) 8%, var(--dbg));">
+					<p class="text-sm" style="color: var(--bos-status-error-text);">{error}</p>
 					<button
 						type="button"
 						class="btn-pill btn-pill-ghost btn-pill-sm mt-2"
@@ -375,11 +363,11 @@
 					<div class="mx-auto max-w-5xl px-6 py-12">
 						<!-- Welcome Header -->
 						<div class="mb-8 text-center">
-							<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-								<Database class="h-8 w-8 text-blue-600" />
-							</div>
-							<h2 class="text-2xl font-bold text-gray-900">Welcome to Tables</h2>
-							<p class="mt-2 text-gray-500">
+						<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full" style="background: color-mix(in srgb, var(--accent-blue) 15%, var(--dbg));">
+							<Database class="h-8 w-8" style="color: var(--accent-blue);" />
+						</div>
+						<h2 class="text-2xl font-bold" style="color: var(--dt);">Welcome to Tables</h2>
+						<p class="mt-2" style="color: var(--dt2);">
 								Your central hub for managing all structured data. Start with a template or create from scratch.
 							</p>
 						</div>
@@ -388,49 +376,49 @@
 						<div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
 							<button
 								type="button"
-								class="btn-pill btn-pill-secondary flex items-center gap-4 p-4 text-left"
+								class="btn-cta flex items-center gap-4 p-4 text-left"
 								onclick={() => (showAddModal = true)}
 							>
-								<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
-									<Plus class="h-6 w-6 text-blue-600" />
+								<div class="flex h-12 w-12 items-center justify-center rounded-lg" style="background: color-mix(in srgb, var(--accent-blue) 15%, var(--dbg));">
+									<Plus class="h-6 w-6" style="color: var(--accent-blue);" />
 								</div>
 								<div>
-									<h3 class="font-medium text-gray-900">Create Table</h3>
-									<p class="text-sm text-gray-500">Start from scratch</p>
+									<h3 class="font-medium" style="color: var(--dt);">Create Table</h3>
+									<p class="text-sm" style="color: var(--dt2);">Start from scratch</p>
 								</div>
 							</button>
 
 							<button
 								type="button"
-								class="btn-pill btn-pill-secondary flex items-center gap-4 p-4 text-left"
+								class="btn-cta flex items-center gap-4 p-4 text-left"
 								onclick={() => (showImportModal = true)}
 							>
-								<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100">
-									<Upload class="h-6 w-6 text-orange-600" />
+								<div class="flex h-12 w-12 items-center justify-center rounded-lg" style="background: color-mix(in srgb, var(--accent-orange) 15%, var(--dbg));">
+									<Upload class="h-6 w-6" style="color: var(--accent-orange);" />
 								</div>
 								<div>
-									<h3 class="font-medium text-gray-900">Import Data</h3>
-									<p class="text-sm text-gray-500">CSV or Excel file</p>
+									<h3 class="font-medium" style="color: var(--dt);">Import Data</h3>
+									<p class="text-sm" style="color: var(--dt2);">CSV or Excel file</p>
 								</div>
 							</button>
 
 							<button
 								type="button"
-								class="btn-pill btn-pill-secondary flex items-center gap-4 p-4 text-left"
+								class="btn-cta flex items-center gap-4 p-4 text-left"
 								onclick={() => (showTemplateGallery = true)}
 							>
-								<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
-									<Sparkles class="h-6 w-6 text-green-600" />
+								<div class="flex h-12 w-12 items-center justify-center rounded-lg" style="background: color-mix(in srgb, var(--accent-green) 15%, var(--dbg));">
+									<Sparkles class="h-6 w-6" style="color: var(--accent-green);" />
 								</div>
 								<div>
-									<h3 class="font-medium text-gray-900">Use Template</h3>
-									<p class="text-sm text-gray-500">Pre-built templates</p>
+									<h3 class="font-medium" style="color: var(--dt);">Use Template</h3>
+									<p class="text-sm" style="color: var(--dt2);">Pre-built templates</p>
 								</div>
 							</button>
 						</div>
 
 						<!-- Inline Template Preview -->
-						<div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+						<div class="rounded-xl" style="border: 1px solid var(--dbd); background: var(--dbg); box-shadow: var(--shadow-sm);">
 							<TemplateGallery
 								onSelectTemplate={handleSelectTemplate}
 								onStartBlank={() => (showAddModal = true)}
@@ -441,11 +429,11 @@
 			{:else if tablesList.length === 0}
 				<!-- No Results Empty State -->
 				<div class="flex h-full flex-col items-center justify-center">
-					<div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-						<Search class="h-8 w-8 text-gray-400" />
+					<div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style="background: var(--dbg2);">
+						<Search class="h-8 w-8" style="color: var(--dt4);" />
 					</div>
-					<h3 class="mb-1 text-lg font-medium text-gray-900">No tables found</h3>
-					<p class="mb-4 text-sm text-gray-500">
+					<h3 class="mb-1 text-lg font-medium" style="color: var(--dt);">No tables found</h3>
+					<p class="mb-4 text-sm" style="color: var(--dt2);">
 						{#if searchQuery}
 							No tables match "{searchQuery}"
 						{:else}
@@ -482,44 +470,44 @@
 						</div>
 					{:else}
 						<!-- List View -->
-						<div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
+						<div class="overflow-hidden rounded-xl" style="border: 1px solid var(--dbd); background: var(--dbg);">
 							<table class="w-full text-sm">
-								<thead class="bg-gray-50">
+								<thead style="background: var(--dbg2);">
 									<tr>
-										<th class="px-4 py-3 text-left font-medium text-gray-600">Name</th>
-										<th class="px-4 py-3 text-left font-medium text-gray-600">Rows</th>
-										<th class="px-4 py-3 text-left font-medium text-gray-600">Columns</th>
-										<th class="px-4 py-3 text-left font-medium text-gray-600">Source</th>
-										<th class="px-4 py-3 text-left font-medium text-gray-600">Updated</th>
+										<th class="px-4 py-3 text-left font-medium" style="color: var(--dt2);">Name</th>
+										<th class="px-4 py-3 text-left font-medium" style="color: var(--dt2);">Rows</th>
+										<th class="px-4 py-3 text-left font-medium" style="color: var(--dt2);">Columns</th>
+										<th class="px-4 py-3 text-left font-medium" style="color: var(--dt2);">Source</th>
+										<th class="px-4 py-3 text-left font-medium" style="color: var(--dt2);">Updated</th>
 										<th class="w-10"></th>
 									</tr>
 								</thead>
-								<tbody class="divide-y divide-gray-100">
+								<tbody class="dt2-tbody">
 									{#each tablesList as table (table.id)}
 										<tr
-											class="cursor-pointer hover:bg-gray-50"
+											class="dt2-row"
 											onclick={() => handleTableClick(table.id)}
 										>
 											<td class="px-4 py-3">
 												<div class="flex items-center gap-3">
-													<Table2 class="h-5 w-5 text-gray-400" />
-													<span class="font-medium text-gray-900">{table.name}</span>
+													<Table2 class="h-5 w-5" style="color: var(--dt4);" />
+													<span class="font-medium" style="color: var(--dt);">{table.name}</span>
 												</div>
 											</td>
-											<td class="px-4 py-3 text-gray-500">{table.row_count}</td>
-											<td class="px-4 py-3 text-gray-500">{table.columns?.length || 0}</td>
+											<td class="px-4 py-3" style="color: var(--dt2);">{table.row_count}</td>
+											<td class="px-4 py-3" style="color: var(--dt2);">{table.columns?.length || 0}</td>
 											<td class="px-4 py-3">
 												<span
-													class="rounded-full px-2 py-0.5 text-xs font-medium {table.source === 'import'
-														? 'bg-orange-100 text-orange-700'
+													class="dt2-source-badge {table.source === 'import'
+														? 'dt2-source-badge--orange'
 														: table.source === 'integration'
-															? 'bg-green-100 text-green-700'
-															: 'bg-blue-100 text-blue-700'}"
+															? 'dt2-source-badge--green'
+															: 'dt2-source-badge--blue'}"
 												>
 													{table.source}
 												</span>
 											</td>
-											<td class="px-4 py-3 text-gray-500">
+											<td class="px-4 py-3" style="color: var(--dt3);">
 												{new Date(table.updated_at).toLocaleDateString()}
 											</td>
 											<td class="px-4 py-3">
@@ -532,7 +520,7 @@
 													}}
 												>
 													{#if favorites.some((f) => f.id === table.id)}
-														<svg class="h-4 w-4 fill-amber-400 text-amber-400" viewBox="0 0 24 24">
+														<svg class="h-4 w-4" style="fill: var(--bos-status-warning); color: var(--bos-status-warning)" viewBox="0 0 24 24">
 															<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
 														</svg>
 													{:else}
@@ -570,13 +558,14 @@
 
 <!-- Template Gallery Modal -->
 {#if showTemplateGallery && !showWelcome}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+	<div class="fixed inset-0 z-50 flex items-center justify-center" style="background: var(--bos-modal-backdrop)" onclick={() => (showTemplateGallery = false)}>
 		<div
-			class="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-white shadow-2xl"
+			class="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl"
+			style="background: var(--dbg); box-shadow: var(--shadow-xl);"
 			onclick={(e) => e.stopPropagation()}
 		>
-			<div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-				<h2 class="text-lg font-semibold text-gray-900">Choose a Template</h2>
+			<div class="flex items-center justify-between px-6 py-4" style="border-bottom: 1px solid var(--dbd);">
+				<h2 class="text-lg font-semibold" style="color: var(--dt);">Choose a Template</h2>
 				<button
 					type="button"
 					class="btn-pill btn-pill-ghost btn-pill-icon"
@@ -599,3 +588,110 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	/* ── Tables Page Foundation Styles (dt2- prefix) ── */
+
+	/* Search input */
+	.dt2-search-input {
+		width: 16rem;
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--dbd);
+		background: var(--dbg2);
+		padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+		font-size: var(--text-sm);
+		color: var(--dt);
+		outline: none;
+		transition: all 200ms ease;
+	}
+	.dt2-search-input::placeholder {
+		color: var(--dt4);
+	}
+	.dt2-search-input:focus {
+		border-color: var(--accent-blue);
+		background: var(--dbg);
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-blue) 20%, transparent);
+	}
+
+	/* View mode toggle buttons */
+	.dt2-view-btn {
+		border-radius: var(--radius-xs);
+		padding: 0.375rem;
+		transition: all 200ms ease;
+		color: var(--dt4);
+		background: none;
+		border: none;
+		cursor: pointer;
+	}
+	.dt2-view-btn:hover {
+		color: var(--dt2);
+	}
+	.dt2-view-btn--active {
+		background: var(--dbg2);
+		color: var(--dt);
+	}
+
+	/* Filter pills */
+	.dt2-filter-pill {
+		border-radius: 9999px;
+		padding: 0.25rem 0.75rem;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		transition: all 200ms ease;
+		color: var(--dt3);
+		background: none;
+		border: none;
+		cursor: pointer;
+	}
+	.dt2-filter-pill:hover {
+		background: var(--dbg2);
+		color: var(--dt2);
+	}
+	.dt2-filter-pill--active {
+		background: color-mix(in srgb, var(--accent-blue) 15%, var(--dbg));
+		color: var(--accent-blue);
+	}
+	.dt2-filter-pill--active.dt2-filter-pill--orange {
+		background: color-mix(in srgb, var(--accent-orange) 15%, var(--dbg));
+		color: var(--accent-orange);
+	}
+	.dt2-filter-pill--active.dt2-filter-pill--green {
+		background: color-mix(in srgb, var(--accent-green) 15%, var(--dbg));
+		color: var(--accent-green);
+	}
+
+	/* Table list view rows */
+	:global(.dt2-tbody) {
+		border-top: 1px solid var(--dbd2);
+	}
+	:global(.dt2-tbody > tr + tr) {
+		border-top: 1px solid var(--dbd2);
+	}
+	.dt2-row {
+		cursor: pointer;
+		transition: background 150ms ease;
+	}
+	.dt2-row:hover {
+		background: var(--dbg2);
+	}
+
+	/* Source badges */
+	.dt2-source-badge {
+		border-radius: 9999px;
+		padding: 0.125rem 0.5rem;
+		font-size: 0.75rem;
+		font-weight: 500;
+	}
+	.dt2-source-badge--blue {
+		background: color-mix(in srgb, var(--accent-blue) 15%, var(--dbg));
+		color: var(--accent-blue);
+	}
+	.dt2-source-badge--orange {
+		background: color-mix(in srgb, var(--accent-orange) 15%, var(--dbg));
+		color: var(--accent-orange);
+	}
+	.dt2-source-badge--green {
+		background: color-mix(in srgb, var(--accent-green) 15%, var(--dbg));
+		color: var(--accent-green);
+	}
+</style>

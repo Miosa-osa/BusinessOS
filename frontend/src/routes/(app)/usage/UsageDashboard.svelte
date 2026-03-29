@@ -103,7 +103,7 @@
 
 	.stat-card {
 		background: white;
-		border: 1px solid var(--color-border, #e5e7eb);
+		border: 1px solid var(--color-border);
 		border-radius: 16px;
 		padding: 24px;
 		display: flex;
@@ -131,15 +131,15 @@
 		height: 28px;
 	}
 
-	.stat-card.requests .stat-icon { background: #dbeafe; color: #2563eb; }
-	.stat-card.tokens .stat-icon { background: #f3e8ff; color: #9333ea; }
-	.stat-card.input .stat-icon { background: #dcfce7; color: #16a34a; }
-	.stat-card.output .stat-icon { background: #fef3c7; color: #d97706; }
+	.stat-card.requests .stat-icon { background: var(--bos-status-info-bg); color: var(--bos-status-info); }
+	.stat-card.tokens .stat-icon { background: color-mix(in srgb, var(--bos-category-ai) 15%, transparent); color: var(--bos-category-ai); }
+	.stat-card.input .stat-icon { background: var(--bos-status-success-bg); color: var(--bos-status-success); }
+	.stat-card.output .stat-icon { background: var(--bos-status-warning-bg); color: var(--bos-status-warning); }
 
-	:global(.dark) .stat-card.requests .stat-icon { background: rgba(37, 99, 235, 0.2); }
-	:global(.dark) .stat-card.tokens .stat-icon { background: rgba(147, 51, 234, 0.2); }
-	:global(.dark) .stat-card.input .stat-icon { background: rgba(22, 163, 74, 0.2); }
-	:global(.dark) .stat-card.output .stat-icon { background: rgba(217, 119, 6, 0.2); }
+	:global(.dark) .stat-card.requests .stat-icon { background: color-mix(in srgb, var(--bos-status-info) 20%, transparent); }
+	:global(.dark) .stat-card.tokens .stat-icon { background: color-mix(in srgb, var(--bos-category-ai) 20%, transparent); }
+	:global(.dark) .stat-card.input .stat-icon { background: color-mix(in srgb, var(--bos-status-success) 20%, transparent); }
+	:global(.dark) .stat-card.output .stat-icon { background: color-mix(in srgb, var(--bos-status-warning) 20%, transparent); }
 
 	.stat-content {
 		display: flex;
@@ -182,7 +182,7 @@
 
 	.cost-card {
 		background: white;
-		border: 1px solid var(--color-border, #e5e7eb);
+		border: 1px solid var(--color-border);
 		border-radius: 16px;
 		padding: 24px;
 	}
@@ -193,11 +193,11 @@
 	}
 
 	.cost-card.spent {
-		border-left: 4px solid #6366f1;
+		border-left: 4px solid var(--bos-category-productivity);
 	}
 
 	.cost-card.saved {
-		border-left: 4px solid #10b981;
+		border-left: 4px solid var(--bos-status-success);
 	}
 
 	.cost-header {
@@ -223,23 +223,23 @@
 		letter-spacing: 0.5px;
 		padding: 4px 8px;
 		border-radius: 4px;
-		background: #e0e7ff;
-		color: #4338ca;
+		background: color-mix(in srgb, var(--bos-category-productivity) 15%, transparent);
+		color: var(--bos-category-productivity);
 	}
 
 	.cost-badge.saved {
-		background: #d1fae5;
-		color: #047857;
+		background: var(--bos-status-success-bg);
+		color: var(--bos-status-success);
 	}
 
 	:global(.dark) .cost-badge {
-		background: rgba(99, 102, 241, 0.2);
-		color: #a5b4fc;
+		background: color-mix(in srgb, var(--bos-category-productivity) 20%, transparent);
+		color: var(--bos-category-productivity);
 	}
 
 	:global(.dark) .cost-badge.saved {
-		background: rgba(16, 185, 129, 0.2);
-		color: #6ee7b7;
+		background: color-mix(in srgb, var(--bos-status-success) 20%, transparent);
+		color: var(--bos-status-success);
 	}
 
 	.cost-value {
@@ -254,7 +254,7 @@
 	}
 
 	.cost-card.saved .cost-value {
-		color: #10b981;
+		color: var(--bos-status-success);
 	}
 
 	.cost-note {

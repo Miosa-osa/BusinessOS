@@ -28,7 +28,9 @@
 						class:ch-layout__tab--active={isActiveTab(tab.href)}
 						aria-label="{tab.label} tab"
 					>
-						<tab.icon size={18} strokeWidth={1.5} />
+						<span class="ch-layout__tab-icon">
+							<tab.icon size={16} strokeWidth={1.5} />
+						</span>
 						{tab.label}
 					</a>
 				{/each}
@@ -68,32 +70,46 @@
 
 	.ch-layout__tabs {
 		display: flex;
-		gap: var(--space-1);
+		gap: var(--space-2);
 	}
 
 	.ch-layout__tab {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		padding: var(--space-2) var(--space-4);
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		border-bottom: 2px solid transparent;
-		border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+		padding: 6px var(--space-4);
+		font-size: 13px;
+		font-weight: 500;
 		color: var(--dt3);
 		text-decoration: none;
-		transition: all 200ms ease;
+		border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+		border-bottom: 2px solid transparent;
+		position: relative;
+		transition: color 150ms ease, background 150ms ease;
+		/* pull bottom of pill flush with header border */
+		margin-bottom: -1px;
+	}
+
+	.ch-layout__tab-icon {
+		display: flex;
+		align-items: center;
+		flex-shrink: 0;
 	}
 
 	.ch-layout__tab:hover {
 		color: var(--dt2);
-		background: var(--dbg2);
+		background: var(--dbg3);
 	}
 
 	.ch-layout__tab--active {
-		color: var(--accent-blue);
-		border-bottom-color: var(--accent-blue);
-		background: rgba(59, 130, 246, 0.06);
+		color: var(--bos-nav-active);
+		background: var(--bos-nav-active-bg);
+		border-bottom-color: var(--bos-nav-active);
+	}
+
+	.ch-layout__tab--active:hover {
+		background: var(--bos-nav-active-bg);
+		color: var(--bos-nav-active);
 	}
 
 	.ch-layout__content {

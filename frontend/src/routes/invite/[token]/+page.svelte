@@ -52,9 +52,9 @@
 	<title>Accept Invitation | BusinessOS</title>
 </svelte:head>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#1c1c1e] p-4">
-	<div 
-		class="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[var(--bos-background-primary-color)] p-4">
+	<div
+		class="bg-white dark:bg-[var(--bos-background-secondary-color)] rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
 		in:fly={{ y: 20, duration: 400 }}
 	>
 		<!-- Header -->

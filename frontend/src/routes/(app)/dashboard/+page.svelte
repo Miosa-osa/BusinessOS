@@ -11,10 +11,11 @@
 		ActiveProjectsWidget,
 		MyTasksWidget,
 		RecentActivityWidget,
-		AnalyticsSidepanel,
-		SignalHealthWidget
+		SignalHealthWidget,
+		AnalyticsOverviewWidget,
+		DashboardRightPanel,
+		DashboardEditToolbar
 	} from '$lib/components/dashboard';
-	import { NotificationDropdown } from '$lib/components/notifications';
 
 	// ── Stores ────────────────────────────────────────────────────────────────────
 	import { dashboardLayoutStore } from '$lib/stores/dashboard/dashboardLayoutStore.svelte';
@@ -62,506 +63,398 @@
 				break;
 		}
 	}
+
+	function toggleRightPanel(): void {
+		layout.showRightPanel = !layout.showRightPanel;
+	}
+
+	function openWidgetPickerInPanel(): void {
+		layout.showRightPanel = true;
+		// The right panel's widget tab auto-activates in edit mode via $effect
+	}
 </script>
 
 <svelte:window onkeydown={(e) => layout.handleKeydown(e)} />
 
-<div class="dw-page h-full flex flex-col relative">
+<div class="dw-page">
 
 	{#if data.isLoading}
-		<div class="flex-1 flex items-center justify-center" in:fade>
-			<div class="flex flex-col items-center gap-3">
-				<div class="dw-page-spinner animate-spin h-8 w-8 border-2 border-t-transparent rounded-full"></div>
-				<p class="dw-page-muted text-sm">Loading dashboard...</p>
+		<div class="dw-page-center" in:fade>
+			<div class="dw-page-loader">
+				<div class="dw-page-spinner animate-spin"></div>
+				<p class="dw-page-muted">Loading dashboard...</p>
 			</div>
 		</div>
 	{:else if data.error}
-		<div class="flex-1 flex items-center justify-center" in:fade>
-			<div class="dw-page-card text-center p-8 rounded-2xl shadow-sm border max-w-md">
-				<div class="dw-page-error-icon">
+		<div class="dw-page-center" in:fade>
+			<div class="dw-page-error-card">
+				<div class="dw-page-error-icon" aria-hidden="true">
 					<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
 					</svg>
 				</div>
-				<p class="dw-page-muted mb-4">{data.error}</p>
-				<button onclick={() => data.loadDashboard()} class="dw-page-btn-primary inline-flex items-center justify-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-colors">
+				<p class="dw-page-muted">{data.error}</p>
+				<button onclick={() => data.loadDashboard()} class="dw-page-btn-primary">
 					Try Again
 				</button>
 			</div>
 		</div>
 	{:else}
-		<div class="flex-1 overflow-y-auto relative" in:fade={{ duration: 300 }}>
-			<!-- Top Toolbar -->
-			<div class="px-6 pt-3 pb-1">
-				<div class="flex items-center justify-end gap-2">
-					<!-- Segmented Control: View / Edit -->
-					<div class="dw-page-seg flex items-center p-0.5 rounded-md" role="tablist">
-						<button
-							onclick={() => layout.isEditMode && layout.toggleEditMode()}
-							role="tab"
-							aria-selected={!layout.isEditMode}
-							class="inline-flex items-center justify-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md transition-colors {!layout.isEditMode ? 'dw-page-seg-active shadow-sm' : 'dw-page-seg-inactive'}"
-						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-							</svg>
-							View
-						</button>
-						<button
-							onclick={() => !layout.isEditMode && layout.toggleEditMode()}
-							role="tab"
-							aria-selected={layout.isEditMode}
-							class="inline-flex items-center justify-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md transition-colors {layout.isEditMode ? 'dw-page-seg-active shadow-sm' : 'dw-page-seg-inactive'}"
-						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-							</svg>
-							Edit
-						</button>
-					</div>
+		<!-- Main content area: scrollable left + fixed right panel -->
+		<div class="dw-page-body" in:fade={{ duration: 300 }}>
 
-					<!-- Separator -->
-					<div class="dw-page-sep h-4 w-px"></div>
+			<!-- Left: scrollable content -->
+			<div class="dw-page-main">
 
-					<!-- Analytics -->
-					{#if !layout.isEditMode && !layout.showWidgetPicker}
+				<!-- Top Toolbar -->
+				<div class="dw-page-toolbar">
+					<div class="dw-page-toolbar-actions">
+						<!-- Segmented Control: View / Edit -->
+						<div class="dw-page-seg" role="tablist">
+							<button
+								onclick={() => layout.isEditMode && layout.toggleEditMode()}
+								role="tab"
+								aria-selected={!layout.isEditMode}
+								class="dw-page-seg-btn {!layout.isEditMode ? 'dw-page-seg-btn--active' : ''}"
+							>
+								<svg class="dw-page-seg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+								</svg>
+								View
+							</button>
+							<button
+								onclick={() => !layout.isEditMode && layout.toggleEditMode()}
+								role="tab"
+								aria-selected={layout.isEditMode}
+								class="dw-page-seg-btn {layout.isEditMode ? 'dw-page-seg-btn--active' : ''}"
+							>
+								<svg class="dw-page-seg-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+								</svg>
+								Edit
+							</button>
+						</div>
+
+						<!-- Separator -->
+						<div class="dw-page-sep"></div>
+
+						<!-- Panel toggle -->
 						<button
-							onclick={() => (analytics.showAnalyticsSidepanel = true)}
-							class="dw-page-icon-btn inline-flex items-center justify-center p-1.5 rounded-md transition-colors"
-							title="View Dashboard Analytics"
+							onclick={toggleRightPanel}
+							class="dw-page-icon-btn"
+							title={layout.showRightPanel ? 'Hide panel' : 'Show panel'}
+							aria-label={layout.showRightPanel ? 'Hide right panel' : 'Show right panel'}
 						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg class="dw-page-icon-btn-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
 							</svg>
 						</button>
-					{/if}
 
-					<!-- Notification Bell -->
-					<NotificationDropdown />
+					</div>
 				</div>
-			</div>
 
-			<!-- Header with Greeting -->
-			<div class="px-6">
-				<DashboardHeader
-					userName={$session.data?.user?.name || 'there'}
-					energyLevel={data.energyLevel}
-					onEnergySet={(level) => data.handleEnergySet(level)}
-				/>
+				<!-- Header with Greeting -->
+				<div class="dw-page-header-area">
+					<DashboardHeader
+						userName={$session.data?.user?.name || 'there'}
+						energyLevel={data.energyLevel}
+						onEnergySet={(level) => data.handleEnergySet(level)}
+					/>
+				</div>
 
-				<!-- Edit Mode Banner -->
+				<!-- Floating Edit Toolbar -->
 				{#if layout.isEditMode}
-					<div
-						class="dw-page-edit-banner mb-4 px-4 py-3 rounded-xl flex items-center justify-between border"
-						transition:fly={{ y: -10, duration: 200 }}
-					>
-						<div class="flex items-center gap-3">
-							<div class="dw-page-edit-icon w-8 h-8 rounded-lg flex items-center justify-center">
-								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-								</svg>
-							</div>
-							<div>
-								<p class="dw-page-edit-title text-sm font-medium">Edit Mode</p>
-								<p class="dw-page-edit-hint text-xs">Drag widgets to reorder • Press <kbd class="dw-page-edit-kbd px-1.5 py-0.5 rounded text-xs">Esc</kbd> to exit</p>
-							</div>
-						</div>
-						<button
-							onclick={() => (layout.showWidgetPicker = true)}
-							class="dw-page-btn-primary inline-flex items-center justify-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-colors"
-						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-							</svg>
-							Add Widget
-						</button>
+					<div class="dw-page-toolbar-float">
+						<DashboardEditToolbar onOpenWidgetPicker={openWidgetPickerInPanel} />
 					</div>
 				{/if}
-			</div>
 
-			<!-- Widget Grid -->
-			<div class="px-6 py-4">
-				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" role={layout.isEditMode ? 'list' : undefined}>
-					{#each layout.widgets as widget, index (widget.id)}
-						{@const isSelected = layout.isEditMode && layout.selectedWidgetIndex === index}
-						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-						<div
-							class="{getWidgetGridClass(widget.size)} transition-all duration-200
-								{layout.isEditMode ? 'cursor-move' : ''}
-								{layout.draggedWidget === widget.id ? 'opacity-50 scale-95' : ''}
-								{isSelected ? 'scale-[1.02]' : ''}"
-							role={layout.isEditMode ? 'listitem' : undefined}
-							tabindex={layout.isEditMode ? 0 : -1}
-							draggable={layout.isEditMode}
-							ondragstart={(e) => layout.handleDragStart(e, widget.id)}
-							ondragover={(e) => layout.handleDragOver(e)}
-							ondrop={(e) => layout.handleDrop(e, widget.id)}
-							ondragend={() => layout.handleDragEnd()}
-							onclick={() => layout.isEditMode && (layout.selectedWidgetIndex = index)}
-							animate:flip={{ duration: 300 }}
-							in:fade={{ duration: 200, delay: index * 50 }}
-						>
-							<!-- Widget Container - pt-2 adds space for edit controls above -->
-							<div class="relative {layout.isEditMode ? 'pt-2' : ''}">
-								<!-- Edit Mode Overlay Controls -->
-								{#if layout.isEditMode}
-									<div class="absolute -top-1 right-0.5 z-20 flex gap-0.5">
-										<!-- Collapse Toggle -->
-										<button
-											onclick={(e) => { e.stopPropagation(); layout.toggleWidgetCollapse(widget.id); }}
-											class="dw-page-ctrl inline-flex items-center justify-center p-1 rounded-md border transition-colors"
-											title={widget.collapsed ? 'Expand' : 'Collapse'}
-										>
-											<svg class="w-2.5 h-2.5 dw-page-ctrl-icon transition-transform {widget.collapsed ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-											</svg>
-										</button>
-
-										<!-- Widget Menu -->
-										<DropdownMenu.Root>
-											<DropdownMenu.Trigger
-												class="dw-page-ctrl inline-flex items-center justify-center p-1 rounded-md border transition-colors"
-											>
-												<svg class="w-2.5 h-2.5 dw-page-ctrl-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-												</svg>
-											</DropdownMenu.Trigger>
-											<DropdownMenu.Content
-												class="dw-dd z-[100] min-w-[140px] rounded-lg border py-0.5"
-												sideOffset={6}
-												align="end"
-												collisionPadding={12}
-												avoidCollisions={true}
-											>
-												<!-- Size Options -->
-												<DropdownMenu.Sub>
-												<DropdownMenu.SubTrigger class="dw-dd-item flex items-center justify-between gap-1.5 px-2.5 py-1.5 text-xs cursor-pointer w-full">
-														<div class="flex items-center gap-1.5">
-															<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-															</svg>
-															Size
-														</div>
-														<svg class="w-2.5 h-2.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-														</svg>
-													</DropdownMenu.SubTrigger>
-													<DropdownMenu.SubContent class="dw-dd z-[100] min-w-[100px] rounded-lg border py-0.5" collisionPadding={12} avoidCollisions={true}>
-														<DropdownMenu.Item
-															class="dw-dd-item px-2.5 py-1.5 text-xs cursor-pointer {widget.size === 'small' ? 'dw-dd-item--active' : ''}"
-															onclick={() => layout.setWidgetSize(widget.id, 'small')}
-														>
-															Small
-														</DropdownMenu.Item>
-														<DropdownMenu.Item
-															class="dw-dd-item px-2.5 py-1.5 text-xs cursor-pointer {widget.size === 'medium' ? 'dw-dd-item--active' : ''}"
-															onclick={() => layout.setWidgetSize(widget.id, 'medium')}
-														>
-															Medium
-														</DropdownMenu.Item>
-														<DropdownMenu.Item
-															class="dw-dd-item px-2.5 py-1.5 text-xs cursor-pointer {widget.size === 'large' ? 'dw-dd-item--active' : ''}"
-															onclick={() => layout.setWidgetSize(widget.id, 'large')}
-														>
-															Large
-														</DropdownMenu.Item>
-													</DropdownMenu.SubContent>
-												</DropdownMenu.Sub>
-
-												<!-- Color Options -->
-												<DropdownMenu.Sub>
-												<DropdownMenu.SubTrigger class="dw-dd-item flex items-center justify-between gap-1.5 px-2.5 py-1.5 text-xs cursor-pointer w-full">
-														<div class="flex items-center gap-1.5">
-															<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-															</svg>
-															Color
-														</div>
-														<svg class="w-2.5 h-2.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-														</svg>
-													</DropdownMenu.SubTrigger>
-													<DropdownMenu.SubContent class="dw-dd z-[100] min-w-[100px] rounded-lg border py-0.5" collisionPadding={12} avoidCollisions={true}>
-														{#each accentColors as color}
-															<DropdownMenu.Item
-																class="dw-dd-item flex items-center gap-1.5 px-2.5 py-1.5 text-xs cursor-pointer {widget.accentColor === color.value ? 'dw-dd-item--active' : ''}"
-																onclick={() => layout.setWidgetAccentColor(widget.id, color.value)}
-															>
-																<span class="w-2.5 h-2.5 rounded-full {getAccentColorClass(color.value)}"></span>
-																{color.name}
-															</DropdownMenu.Item>
-														{/each}
-													</DropdownMenu.SubContent>
-												</DropdownMenu.Sub>
-
-												<DropdownMenu.Separator class="dw-dd-sep my-0.5 h-px" />
-												<DropdownMenu.Item
-													class="dw-dd-item dw-dd-item--danger flex items-center gap-1.5 px-2.5 py-1.5 text-xs cursor-pointer"
-													onclick={() => layout.removeWidget(widget.id)}
-												>
-													<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-													</svg>
-													Remove
-												</DropdownMenu.Item>
-											</DropdownMenu.Content>
-										</DropdownMenu.Root>
-									</div>
-								{/if}
-
-								<!-- Widget Card -->
-								<div class="dw-page-widget-card rounded-xl border transition-all duration-200 overflow-hidden relative group
-									{getAccentBorderClass(widget.accentColor)}
-									{isSelected
-										? 'border-blue-500 border-solid shadow-sm'
-										: layout.isEditMode
-											? 'border-blue-300/40 border-dashed shadow-sm hover:shadow-md hover:border-blue-400/60'
-											: 'shadow-sm hover:shadow-md'}">
-
-									<!-- Analytics Toggle Icon (appears on hover, not in edit mode) -->
-									{#if !layout.isEditMode && !widget.collapsed && !widget.showAnalytics}
-										<button
-											onclick={(e) => { e.stopPropagation(); layout.toggleWidgetAnalytics(widget.id); }}
-											class="dw-page-ctrl inline-flex items-center justify-center p-1 rounded-md border transition-colors absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100"
-											title="View Analytics"
-										>
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-											</svg>
-										</button>
-									{/if}
-
-									<!-- Drag Handle Indicator (inside card) -->
+				<!-- Widget Grid -->
+				<div class="dw-page-grid-area">
+					<div class="dw-page-grid" role={layout.isEditMode ? 'list' : undefined}>
+						{#each layout.widgets as widget, index (widget.id)}
+							{@const isSelected = layout.isEditMode && layout.selectedWidgetIndex === index}
+							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+							<div
+								class="{getWidgetGridClass(widget.size)} dw-page-widget-slot
+									{layout.isEditMode ? 'dw-page-widget-slot--editing' : ''}
+									{layout.draggedWidget === widget.id ? 'dw-page-widget-slot--dragging' : ''}
+									{layout.dragOverWidget === widget.id ? 'dw-page-widget-slot--dragover' : ''}
+									{isSelected ? 'dw-page-widget-slot--selected' : ''}"
+								role={layout.isEditMode ? 'listitem' : undefined}
+								tabindex={layout.isEditMode ? 0 : -1}
+								draggable={layout.isEditMode}
+								ondragstart={(e) => layout.handleDragStart(e, widget.id)}
+								ondragover={(e) => layout.handleDragOver(e)}
+								ondragenter={(e) => layout.handleDragEnter(e, widget.id)}
+								ondragleave={(e) => layout.handleDragLeave(e)}
+								ondrop={(e) => layout.handleDrop(e, widget.id)}
+								ondragend={() => layout.handleDragEnd()}
+								onclick={() => layout.isEditMode && (layout.selectedWidgetIndex = index)}
+								animate:flip={{ duration: 300 }}
+								in:fade={{ duration: 200, delay: index * 50 }}
+							>
+								<!-- Widget Container -->
+								<div class="dw-page-widget-inner {layout.isEditMode ? 'dw-page-widget-inner--editing' : ''}">
+									<!-- Edit Mode Overlay Controls -->
 									{#if layout.isEditMode}
-										<div class="dw-page-drag-handle absolute top-4 left-2 z-10">
-											<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-												<path d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM8 12a2 2 0 11-4 0 2 2 0 014 0zM8 18a2 2 0 11-4 0 2 2 0 014 0zM14 6a2 2 0 11-4 0 2 2 0 014 0zM14 12a2 2 0 11-4 0 2 2 0 014 0zM14 18a2 2 0 11-4 0 2 2 0 014 0z" />
-											</svg>
-										</div>
-									{/if}
-
-									<!-- Collapsed Title Bar -->
-									{#if widget.collapsed}
-										<div class="dw-page-collapsed px-4 py-3 flex items-center justify-between">
-											<span class="dw-page-text text-sm font-medium">{widget.title}</span>
+										<div class="dw-page-edit-controls">
+											<!-- Collapse Toggle -->
 											<button
-												onclick={() => layout.toggleWidgetCollapse(widget.id)}
-												class="dw-page-muted hover:dw-page-text"
-												aria-label="Expand widget"
+												onclick={(e) => { e.stopPropagation(); layout.toggleWidgetCollapse(widget.id); }}
+												class="dw-page-ctrl"
+												title={widget.collapsed ? 'Expand' : 'Collapse'}
 											>
-												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+												<svg class="dw-page-ctrl-icon {widget.collapsed ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
 												</svg>
 											</button>
-										</div>
-									{:else if widget.showAnalytics}
-										<!-- Analytics Flip View -->
-										<div class="p-5" transition:fade={{ duration: 200 }}>
-											<div class="dw-page-divider flex items-center justify-between mb-4 pb-3 border-b">
-												<div class="flex items-center gap-2">
-													<div class="dw-page-analytics-icon w-8 h-8 rounded-lg flex items-center justify-center shadow-sm">
-														<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-														</svg>
-													</div>
-													<span class="dw-page-text text-sm font-semibold">{widgetAnalytics[widget.type].title}</span>
-												</div>
-												<button
-													onclick={(e) => { e.stopPropagation(); layout.toggleWidgetAnalytics(widget.id); }}
-													class="dw-page-back-btn inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors"
-												>
-													<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+
+											<!-- Widget Menu -->
+											<DropdownMenu.Root>
+												<DropdownMenu.Trigger class="dw-page-ctrl">
+													<svg class="dw-page-ctrl-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
 													</svg>
-													Back
-												</button>
-											</div>
+												</DropdownMenu.Trigger>
+												<DropdownMenu.Content
+													class="dw-page-dropdown"
+													sideOffset={4}
+												>
+													<!-- Size Options -->
+													<DropdownMenu.Sub>
+													<DropdownMenu.SubTrigger class="dw-page-dropdown-item dw-page-dropdown-item--between">
+															<div class="dw-page-dropdown-item-left">
+																<svg class="dw-page-dropdown-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+																</svg>
+																Size
+															</div>
+															<svg class="dw-page-dropdown-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+															</svg>
+														</DropdownMenu.SubTrigger>
+														<DropdownMenu.SubContent class="dw-page-dropdown dw-page-dropdown--sub">
+															<DropdownMenu.Item
+																class="dw-page-dropdown-item {widget.size === 'small' ? 'dw-page-dropdown-item--active' : ''}"
+																onclick={() => layout.setWidgetSize(widget.id, 'small')}
+															>
+																Small
+															</DropdownMenu.Item>
+															<DropdownMenu.Item
+																class="dw-page-dropdown-item {widget.size === 'medium' ? 'dw-page-dropdown-item--active' : ''}"
+																onclick={() => layout.setWidgetSize(widget.id, 'medium')}
+															>
+																Medium
+															</DropdownMenu.Item>
+															<DropdownMenu.Item
+																class="dw-page-dropdown-item {widget.size === 'large' ? 'dw-page-dropdown-item--active' : ''}"
+																onclick={() => layout.setWidgetSize(widget.id, 'large')}
+															>
+																Large
+															</DropdownMenu.Item>
+														</DropdownMenu.SubContent>
+													</DropdownMenu.Sub>
 
-											<div class="space-y-1">
-												{#each widgetAnalytics[widget.type].stats as stat}
-													<div class="dw-page-stat-row flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors">
-														<span class="dw-page-muted text-sm">{stat.label}</span>
-														<div class="flex items-center gap-2">
-															<span class="dw-page-text text-sm font-semibold">{stat.value}</span>
-															{#if stat.trend}
-																<span class="text-xs font-medium px-1.5 py-0.5 rounded {stat.trend.startsWith('+') ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'}">{stat.trend}</span>
-															{/if}
-														</div>
-													</div>
-												{/each}
-											</div>
+													<!-- Color Options -->
+													<DropdownMenu.Sub>
+													<DropdownMenu.SubTrigger class="dw-page-dropdown-item dw-page-dropdown-item--between">
+															<div class="dw-page-dropdown-item-left">
+																<svg class="dw-page-dropdown-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+																</svg>
+																Color
+															</div>
+															<svg class="dw-page-dropdown-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+															</svg>
+														</DropdownMenu.SubTrigger>
+														<DropdownMenu.SubContent class="dw-page-dropdown dw-page-dropdown--sub">
+															{#each accentColors as color}
+																<DropdownMenu.Item
+																	class="dw-page-dropdown-item {widget.accentColor === color.value ? 'dw-page-dropdown-item--active' : ''}"
+																	onclick={() => layout.setWidgetAccentColor(widget.id, color.value)}
+																>
+																	<span class="dw-page-color-swatch {getAccentColorClass(color.value)}"></span>
+																	{color.name}
+																</DropdownMenu.Item>
+															{/each}
+														</DropdownMenu.SubContent>
+													</DropdownMenu.Sub>
 
+													<DropdownMenu.Separator class="dw-page-dropdown-sep" />
+													<DropdownMenu.Item
+														class="dw-page-dropdown-item dw-page-dropdown-item--danger"
+														onclick={() => layout.removeWidget(widget.id)}
+													>
+														<svg class="dw-page-dropdown-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+														</svg>
+														Remove
+													</DropdownMenu.Item>
+												</DropdownMenu.Content>
+											</DropdownMenu.Root>
+										</div>
+									{/if}
+
+									<!-- Widget Card -->
+									<div class="dw-page-widget-card {getAccentBorderClass(widget.accentColor)}
+										{isSelected ? 'dw-page-widget-card--selected' : layout.isEditMode ? 'dw-page-widget-card--editing' : ''}"
+									>
+										<!-- Analytics Toggle Icon (appears on hover, not in edit mode) -->
+										{#if !layout.isEditMode && !widget.collapsed && !widget.showAnalytics}
 											<button
-												onclick={() => (analytics.showAnalyticsSidepanel = true)}
-												class="dw-page-btn-primary w-full flex items-center justify-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-colors mt-4"
+												onclick={(e) => { e.stopPropagation(); layout.toggleWidgetAnalytics(widget.id); }}
+												class="dw-page-ctrl dw-page-analytics-toggle"
+												title="View Analytics"
 											>
 												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
 												</svg>
-												View Full Analytics
 											</button>
-										</div>
-									{:else}
-										<!-- Widget Content -->
-										<div class="{layout.isEditMode ? 'pointer-events-none' : ''}">
-											{#if widget.type === 'focus'}
-												<TodaysFocusWidget
-													items={data.focusItems}
-													onToggle={(id) => data.handleFocusToggle(id)}
-													onAdd={(text) => data.handleFocusAdd(text)}
-													onRemove={(id) => data.handleFocusRemove(id)}
-													onEdit={() => data.handleFocusEdit()}
-												/>
-											{:else if widget.type === 'quick-actions'}
-												<QuickActionsWidget onAction={(action) => handleQuickAction(action)} />
-											{:else if widget.type === 'projects'}
-												<ActiveProjectsWidget
-													projects={data.projects}
-													onViewAll={() => goto('/projects')}
-												/>
-											{:else if widget.type === 'tasks'}
-												<MyTasksWidget
-													tasks={data.tasks}
-													onToggle={(id) => data.handleTaskToggle(id)}
-													onViewAll={() => goto('/tasks')}
-												/>
-											{:else if widget.type === 'activity'}
-												<RecentActivityWidget activities={data.activities} onViewAll={() => goto('/chat')} />
-											{:else if widget.type === 'metric'}
-												<!-- Placeholder Metric Card -->
-												<div class="p-5">
-													<div class="flex items-center justify-between mb-3">
-														<span class="dw-page-muted text-sm">Tasks Due Today</span>
-														<span class="text-xs text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full">+12%</span>
+										{/if}
+
+										<!-- Drag Handle -->
+										{#if layout.isEditMode}
+											<div class="dw-page-drag-handle" aria-hidden="true">
+												<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+													<path d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM8 12a2 2 0 11-4 0 2 2 0 014 0zM8 18a2 2 0 11-4 0 2 2 0 014 0zM14 6a2 2 0 11-4 0 2 2 0 014 0zM14 12a2 2 0 11-4 0 2 2 0 014 0zM14 18a2 2 0 11-4 0 2 2 0 014 0z" />
+												</svg>
+											</div>
+										{/if}
+
+										<!-- Collapsed Title Bar -->
+										{#if widget.collapsed}
+											<div class="dw-page-collapsed">
+												<span class="dw-page-collapsed-title">{widget.title}</span>
+												<button
+													onclick={() => layout.toggleWidgetCollapse(widget.id)}
+													class="dw-page-collapsed-expand"
+													aria-label="Expand widget"
+												>
+													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+													</svg>
+												</button>
+											</div>
+										{:else if widget.showAnalytics}
+											<!-- Analytics Flip View -->
+											<div class="dw-page-analytics-view" transition:fade={{ duration: 200 }}>
+												<div class="dw-page-analytics-header">
+													<div class="dw-page-analytics-title-group">
+														<div class="dw-page-analytics-icon-wrap">
+															<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--dbg)">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+															</svg>
+														</div>
+														<span class="dw-page-analytics-title">{widgetAnalytics[widget.type].title}</span>
 													</div>
-													<div class="dw-page-text text-3xl font-bold">8</div>
-													<div class="dw-page-meta text-xs mt-1">vs 7 yesterday</div>
+													<button
+														onclick={(e) => { e.stopPropagation(); layout.toggleWidgetAnalytics(widget.id); }}
+														class="dw-page-back-btn"
+													>
+														<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+														</svg>
+														Back
+													</button>
 												</div>
-											{:else if widget.type === 'signal'}
-												<SignalHealthWidget />
-											{/if}
-										</div>
-									{/if}
+
+												<div class="dw-page-stat-list">
+													{#each widgetAnalytics[widget.type].stats as stat}
+														<div class="dw-page-stat-row">
+															<span class="dw-page-stat-label">{stat.label}</span>
+															<div class="dw-page-stat-value-group">
+																<span class="dw-page-stat-value">{stat.value}</span>
+																{#if stat.trend}
+																	<span class="dw-page-stat-trend {stat.trend.startsWith('+') ? 'dw-page-stat-trend--up' : 'dw-page-stat-trend--down'}">{stat.trend}</span>
+																{/if}
+															</div>
+														</div>
+													{/each}
+												</div>
+
+												<button
+													onclick={() => { layout.showRightPanel = true; }}
+													class="dw-page-btn-primary dw-page-full-analytics-btn"
+												>
+													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+													</svg>
+													View Full Analytics
+												</button>
+											</div>
+										{:else}
+											<!-- Widget Content -->
+											<div class="{layout.isEditMode ? 'dw-page-widget-content--locked' : ''}">
+												{#if widget.type === 'focus'}
+													<TodaysFocusWidget
+														items={data.focusItems}
+														onToggle={(id) => data.handleFocusToggle(id)}
+														onAdd={(text) => data.handleFocusAdd(text)}
+														onRemove={(id) => data.handleFocusRemove(id)}
+														onEdit={() => data.handleFocusEdit()}
+													/>
+												{:else if widget.type === 'quick-actions'}
+													<QuickActionsWidget onAction={(action) => handleQuickAction(action)} />
+												{:else if widget.type === 'projects'}
+													<ActiveProjectsWidget
+														projects={data.projects}
+														onViewAll={() => goto('/projects')}
+													/>
+												{:else if widget.type === 'tasks'}
+													<MyTasksWidget
+														tasks={data.tasks}
+														onToggle={(id) => data.handleTaskToggle(id)}
+														onViewAll={() => goto('/tasks')}
+													/>
+												{:else if widget.type === 'activity'}
+													<RecentActivityWidget activities={data.activities} onViewAll={() => goto('/chat')} />
+												{:else if widget.type === 'metric'}
+													<!-- Placeholder Metric Card -->
+													<div class="dw-page-metric-placeholder">
+														<div class="dw-page-metric-top">
+															<span class="dw-page-metric-label">Tasks Due Today</span>
+															<span class="dw-page-metric-badge">+12%</span>
+														</div>
+														<div class="dw-page-metric-value">8</div>
+														<div class="dw-page-metric-sub">vs 7 yesterday</div>
+													</div>
+												{:else if widget.type === 'signal'}
+													<SignalHealthWidget />
+												{:else if widget.type === 'analytics-overview'}
+													<AnalyticsOverviewWidget />
+												{/if}
+											</div>
+										{/if}
+									</div>
 								</div>
 							</div>
-						</div>
-					{/each}
+						{/each}
 
-					<!-- Empty State Add Widget Card (shown in edit mode when few widgets) -->
-					{#if layout.isEditMode && layout.widgets.length < 6}
-						<button
-							onclick={() => (layout.showWidgetPicker = true)}
-							class="dw-page-add-card col-span-1 min-h-[200px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-200 cursor-pointer"
-						>
-							<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
-							</svg>
-							<span class="text-sm font-medium">Add Widget</span>
-						</button>
-					{/if}
-				</div>
-			</div>
-		</div>
-	{/if}
-
-	<!-- Widget Picker Drawer -->
-	{#if layout.showWidgetPicker}
-		<!-- Backdrop -->
-		<button
-			class="fixed inset-0 bg-black/20 z-40"
-			onclick={() => (layout.showWidgetPicker = false)}
-			transition:fade={{ duration: 150 }}
-			aria-label="Close widget picker"
-		></button>
-
-		<!-- Drawer -->
-		<div
-			class="dw-page-drawer fixed bottom-0 left-0 right-0 rounded-t-2xl shadow-2xl z-50 max-h-[70vh] overflow-hidden"
-			transition:fly={{ y: 300, duration: 300 }}
-		>
-			<!-- Handle -->
-			<div class="flex justify-center pt-3 pb-2">
-				<div class="dw-page-handle w-10 h-1 rounded-full"></div>
-			</div>
-
-			<!-- Header -->
-			<div class="dw-page-divider px-6 pb-4 border-b">
-				<div class="flex items-center justify-between">
-					<div>
-						<h2 class="dw-page-text text-lg font-semibold">Add Widget</h2>
-						<p class="dw-page-muted text-sm">Choose a widget to add to your dashboard</p>
-					</div>
-					<button
-						onclick={() => (layout.showWidgetPicker = false)}
-						class="dw-page-icon-btn inline-flex items-center justify-center p-1.5 rounded-lg transition-colors"
-						aria-label="Close widget picker"
-					>
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-						</svg>
-					</button>
-				</div>
-
-				<!-- Size Picker -->
-				<div class="mt-4 flex items-center gap-2">
-					<span class="dw-page-muted text-sm">Size:</span>
-					<div class="dw-page-seg flex items-center p-0.5 rounded-lg">
-						<button
-							onclick={() => (layout.pickerSelectedSize = 'small')}
-							class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors {layout.pickerSelectedSize === 'small' ? 'dw-page-seg-active shadow-sm' : 'dw-page-seg-inactive'}"
-						>
-							Small
-						</button>
-						<button
-							onclick={() => (layout.pickerSelectedSize = 'medium')}
-							class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors {layout.pickerSelectedSize === 'medium' ? 'dw-page-seg-active shadow-sm' : 'dw-page-seg-inactive'}"
-						>
-							Medium
-						</button>
-						<button
-							onclick={() => (layout.pickerSelectedSize = 'large')}
-							class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors {layout.pickerSelectedSize === 'large' ? 'dw-page-seg-active shadow-sm' : 'dw-page-seg-inactive'}"
-						>
-							Large
-						</button>
+						<!-- Empty State Add Widget Card (shown in edit mode when few widgets) -->
+						{#if layout.isEditMode && layout.widgets.length < 6}
+							<button
+								onclick={openWidgetPickerInPanel}
+								class="dw-page-add-card"
+							>
+								<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
+								</svg>
+								<span class="dw-page-add-card-label">Add Widget</span>
+							</button>
+						{/if}
 					</div>
 				</div>
 			</div>
 
-			<!-- Widget List -->
-			<div class="p-6 overflow-y-auto max-h-[calc(70vh-160px)]">
-				<div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-					{#each availableWidgets as widgetOption}
-						{@const isUnique = uniqueWidgetTypes.includes(widgetOption.type)}
-						{@const isAlreadyAdded = isUnique && layout.addedUniqueTypes.has(widgetOption.type)}
-						{@const existingCount = layout.widgets.filter((w) => w.type === widgetOption.type).length}
-						<button
-							onclick={() => layout.addWidget(widgetOption.type)}
-							disabled={isAlreadyAdded}
-							class="dw-page-widget-option flex flex-col items-start p-4 border rounded-xl transition-all duration-200 text-left group relative
-								{isAlreadyAdded
-									? 'dw-page-widget-option--disabled cursor-not-allowed opacity-60'
-									: ''}"
-						>
-							{#if isAlreadyAdded}
-								<span class="absolute top-2 right-2 flex items-center gap-1 text-xs font-medium text-green-600 bg-green-100 px-1.5 py-0.5 rounded">
-									<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-									</svg>
-									Already added
-								</span>
-							{:else if !isUnique && existingCount > 0}
-								<span class="absolute top-2 right-2 text-xs font-medium text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
-									{existingCount} added
-								</span>
-							{/if}
-							<svg class="w-6 h-6 mb-2 dw-page-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d={widgetOption.icon} /></svg>
-							<span class="dw-page-text font-medium">{widgetOption.title}</span>
-							<span class="dw-page-muted text-xs mt-0.5">{widgetOption.description}</span>
-						</button>
-					{/each}
-				</div>
+			<!-- Right Panel -->
+			<div class="dw-page-panel-area" class:dw-page-panel-area--open={layout.showRightPanel}>
+				<DashboardRightPanel
+					isOpen={layout.showRightPanel}
+					onToggle={toggleRightPanel}
+				/>
 			</div>
 		</div>
 	{/if}
@@ -569,22 +462,22 @@
 	<!-- Undo Toast -->
 	{#if layout.showUndoToast && layout.undoStack.length > 0}
 		<div
-			class="dw-page-toast fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl"
+			class="dw-page-toast"
 			transition:fly={{ y: 50, duration: 200 }}
 		>
-			<svg class="w-5 h-5 dw-page-toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="dw-page-toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
 			</svg>
-			<span class="text-sm">Widget removed</span>
+			<span class="dw-page-toast-text">Widget removed</span>
 			<button
 				onclick={() => layout.undoRemove()}
-				class="dw-page-toast-btn inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors"
+				class="dw-page-toast-btn"
 			>
 				Undo
 			</button>
 			<button
 				onclick={() => { layout.showUndoToast = false; layout.undoStack = []; }}
-				class="dw-page-toast-btn inline-flex items-center justify-center p-1.5 rounded-lg transition-colors"
+				class="dw-page-toast-btn dw-page-toast-btn--dismiss"
 				aria-label="Dismiss"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -593,236 +486,745 @@
 			</button>
 		</div>
 	{/if}
-
-
-	<!-- Analytics Sidepanel -->
-	<AnalyticsSidepanel
-		isOpen={analytics.showAnalyticsSidepanel}
-		onClose={() => (analytics.showAnalyticsSidepanel = false)}
-		analytics={analytics.seededAnalytics}
-		isLoading={analytics.analyticsLoading}
-		onTimeRangeChange={(range) => analytics.handleAnalyticsTimeRangeChange(range)}
-	/>
 </div>
 
 <style>
-	/* Dashboard Page — Foundation design tokens */
+	/* ── Page shell ─────────────────────────────────────────────────────────────── */
 	.dw-page {
-		background: var(--dbg, #fafafa);
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		background: var(--dbg);
+		position: relative;
+	}
+
+	/* ── Loading / error centered states ────────────────────────────────────────── */
+	.dw-page-center {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.dw-page-loader {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-3);
 	}
 
 	.dw-page-spinner {
-		border-color: var(--dt, #111);
-	}
-
-	.dw-page-text {
-		color: var(--dt, #111);
+		width: 2rem;
+		height: 2rem;
+		border: 2px solid var(--dt);
+		border-top-color: transparent;
+		border-radius: 50%;
 	}
 
 	.dw-page-muted {
-		color: var(--dt2, #555);
+		font-size: var(--text-sm);
+		color: var(--dt2);
 	}
 
-	.dw-page-meta {
-		color: var(--dt3, #888);
+	.dw-page-error-card {
+		text-align: center;
+		padding: var(--space-8);
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--dbd);
+		background: var(--dbg);
+		box-shadow: var(--shadow-sm);
+		max-width: 28rem;
 	}
 
-	.dw-page-card {
-		background: var(--dbg, #fff);
-		border-color: var(--dbd, #e0e0e0);
-	}
-
-	.dw-page-divider {
-		border-color: var(--dbd2, #f0f0f0);
-	}
-
-	/* Segmented control */
-	.dw-page-seg {
-		background: var(--dbg2, #f5f5f5);
-	}
-	.dw-page-seg-active {
-		background: var(--dbg, #fff);
-		color: var(--dt, #111);
-	}
-	.dw-page-seg-inactive {
-		background: transparent;
-		color: var(--dt2, #555);
-	}
-	.dw-page-seg-inactive:hover {
-		color: var(--dt, #111);
-	}
-
-	.dw-page-sep {
-		background: var(--dbd, #e0e0e0);
-	}
-
-	/* Icon buttons (toolbar) */
-	.dw-page-icon-btn {
-		color: var(--dt2, #555);
-	}
-	.dw-page-icon-btn:hover {
-		background: var(--dbg2, #f5f5f5);
-		color: var(--dt, #111);
-	}
-
-	/* Primary button */
-	.dw-page-btn-primary {
-		background: var(--dt, #111);
-		color: var(--dbg, #fff);
-	}
-	.dw-page-btn-primary:hover {
-		opacity: 0.85;
-	}
-
-	/* Edit mode banner */
-	.dw-page-edit-banner {
-		background: rgba(59, 130, 246, 0.08);
-		border-color: rgba(59, 130, 246, 0.25);
-	}
-	.dw-page-edit-icon {
-		background: rgba(59, 130, 246, 0.15);
-		color: #3b82f6;
-	}
-	.dw-page-edit-title {
-		color: var(--dt, #111);
-	}
-	.dw-page-edit-hint {
-		color: #3b82f6;
-	}
-	.dw-page-edit-kbd {
-		background: rgba(59, 130, 246, 0.15);
-	}
-
-	/* Widget card */
-	.dw-page-widget-card {
-		background: var(--dbg, #fff);
-		border-color: var(--dbd, #e0e0e0);
-	}
-
-	/* Edit control buttons */
-	.dw-page-ctrl {
-		background: var(--dbg, #fff);
-		border-color: var(--dbd, #e0e0e0);
-	}
-	.dw-page-ctrl:hover {
-		background: var(--dbg2, #f5f5f5);
-	}
-	.dw-page-ctrl-icon {
-		color: var(--dt2, #555);
-	}
-
-	/* Dropdown menus */
-	.dw-dd {
-		background: var(--dbg, #fff);
-		border-color: var(--dbd, #e0e0e0);
-		box-shadow: 0 4px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.06);
-		backdrop-filter: blur(8px);
-	}
-	.dw-dd-item {
-		color: var(--dt, #111);
-		border-radius: 4px;
-		margin: 0 2px;
-	}
-	.dw-dd-item:hover {
-		background: var(--dbg2, #f5f5f5);
-	}
-	.dw-dd-item--active {
-		color: #3b82f6;
-		background: rgba(59, 130, 246, 0.08);
-	}
-	.dw-dd-item--danger {
-		color: #ef4444;
-	}
-	.dw-dd-item--danger:hover {
-		background: rgba(239, 68, 68, 0.08);
-	}
-	.dw-dd-sep {
-		background: var(--dbd2, #f0f0f0);
-	}
-
-	/* Drag handle */
-	.dw-page-drag-handle {
-		color: var(--dt3, #888);
-	}
-
-	/* Collapsed bar */
-	.dw-page-collapsed {
-		background: var(--dbg2, #f5f5f5);
-	}
-
-	/* Analytics flip view */
-	.dw-page-analytics-icon {
-		background: linear-gradient(135deg, var(--dt2, #555), var(--dt, #111));
-	}
-	.dw-page-back-btn {
-		background: var(--dbg2, rgba(0,0,0,0.05));
-		border-color: var(--dbd, rgba(0,0,0,0.08));
-		color: var(--dt, #111);
-	}
-	.dw-page-back-btn:hover {
-		background: var(--dbg3, rgba(0,0,0,0.08));
-	}
-	.dw-page-stat-row:hover {
-		background: var(--dbg2, #f5f5f5);
-	}
-
-	/* Add widget card */
-	.dw-page-add-card {
-		border-color: var(--dbd, #ccc);
-		color: var(--dt3, #888);
-	}
-	.dw-page-add-card:hover {
-		border-color: #3b82f6;
-		color: #3b82f6;
-		background: rgba(59, 130, 246, 0.05);
-	}
-
-	/* Widget picker drawer */
-	.dw-page-drawer {
-		background: var(--dbg, #fff);
-	}
-	.dw-page-handle {
-		background: var(--dbd, #ccc);
-	}
-
-	/* Widget option cards */
-	.dw-page-widget-option {
-		background: var(--dbg2, #f5f5f5);
-		border-color: var(--dbd, #e0e0e0);
-	}
-	.dw-page-widget-option:not(.dw-page-widget-option--disabled):hover {
-		background: rgba(59, 130, 246, 0.06);
-		border-color: rgba(59, 130, 246, 0.4);
-	}
-	.dw-page-widget-option--disabled {
-		background: var(--dbg3, #eee);
-	}
-
-	/* Error state */
 	.dw-page-error-icon {
 		width: 4rem;
 		height: 4rem;
 		background: color-mix(in srgb, var(--color-error, #ef4444) 10%, transparent);
 		color: var(--color-error, #ef4444);
-		border-radius: var(--radius-sm, 12px);
+		border-radius: var(--radius-sm);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		margin: 0 auto 1rem;
+		margin: 0 auto var(--space-4);
 	}
 
-	/* Undo toast */
+	/* ── Body: main + right panel ──────────────────────────────────────────────── */
+	.dw-page-body {
+		flex: 1;
+		display: flex;
+		overflow: hidden;
+	}
+
+	.dw-page-main {
+		flex: 1;
+		min-width: 0;
+		overflow-y: auto;
+		overflow-x: hidden;
+	}
+
+	.dw-page-panel-area {
+		position: relative;
+		flex-shrink: 0;
+		width: 0;
+		transition: width 240ms ease;
+	}
+
+	.dw-page-panel-area--open {
+		width: 320px;
+	}
+
+	/* ── Toolbar ───────────────────────────────────────────────────────────────── */
+	.dw-page-toolbar {
+		padding: var(--space-4) var(--space-6) var(--space-2);
+	}
+
+	.dw-page-toolbar-actions {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: var(--space-3);
+	}
+
+	/* Segmented control */
+	.dw-page-seg {
+		display: flex;
+		align-items: center;
+		padding: 0.25rem;
+		border-radius: var(--radius-md);
+		background: var(--dbg2);
+	}
+
+	.dw-page-seg-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-1);
+		padding: 0.375rem 0.625rem;
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		border-radius: var(--radius-md);
+		border: none;
+		cursor: pointer;
+		transition: background 150ms, color 150ms, box-shadow 150ms;
+		background: transparent;
+		color: var(--dt2);
+	}
+
+	.dw-page-seg-btn:hover:not(.dw-page-seg-btn--active) {
+		color: var(--dt);
+	}
+
+	.dw-page-seg-btn--active {
+		background: var(--dbg);
+		color: var(--dt);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.dw-page-seg-icon {
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.dw-page-sep {
+		height: 1.5rem;
+		width: 1px;
+		background: var(--dbd);
+	}
+
+	/* Icon buttons */
+	.dw-page-icon-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.5rem;
+		border-radius: var(--radius-md);
+		border: none;
+		background: transparent;
+		color: var(--dt2);
+		cursor: pointer;
+		transition: background 150ms, color 150ms;
+	}
+
+	.dw-page-icon-btn:hover {
+		background: var(--dbg2);
+		color: var(--dt);
+	}
+
+	.dw-page-icon-btn-svg {
+		width: 1.25rem;
+		height: 1.25rem;
+	}
+
+	/* Primary button */
+	.dw-page-btn-primary {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		padding: 0.5rem 0.875rem;
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		border-radius: var(--radius-md);
+		border: none;
+		background: var(--dt);
+		color: var(--dbg);
+		cursor: pointer;
+		transition: opacity 150ms;
+	}
+
+	.dw-page-btn-primary:hover {
+		opacity: 0.85;
+	}
+
+	/* ── Header area ───────────────────────────────────────────────────────────── */
+	.dw-page-header-area {
+		padding: 0 var(--space-6);
+	}
+
+	/* ── Floating edit toolbar wrapper ─────────────────────────────────────────── */
+	.dw-page-toolbar-float {
+		padding: 0 var(--space-6);
+		margin-bottom: var(--space-3);
+	}
+
+	/* ── Widget grid ───────────────────────────────────────────────────────────── */
+	.dw-page-grid-area {
+		padding: var(--space-4) var(--space-6) var(--space-8);
+	}
+
+	.dw-page-grid {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: var(--space-5);
+	}
+
+	@media (min-width: 768px) {
+		.dw-page-grid {
+			grid-template-columns: repeat(2, 1fr);
+			gap: var(--space-5);
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.dw-page-grid {
+			grid-template-columns: repeat(3, 1fr);
+			gap: var(--space-6);
+		}
+	}
+
+	/* ── Widget size classes ───────────────────────────────────────────────────── */
+	/* Small: always 1 column */
+	:global(.dw-widget-sm) {
+		grid-column: span 1;
+	}
+
+	/* Medium: 1 col on mobile, 2 cols on large screens */
+	:global(.dw-widget-md) {
+		grid-column: span 1;
+	}
+
+	@media (min-width: 1280px) {
+		:global(.dw-widget-md) {
+			grid-column: span 2;
+		}
+	}
+
+	/* Large: full width row */
+	:global(.dw-widget-lg) {
+		grid-column: span 1;
+	}
+
+	@media (min-width: 768px) {
+		:global(.dw-widget-lg) {
+			grid-column: span 2;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		:global(.dw-widget-lg) {
+			grid-column: span 3;
+		}
+	}
+
+	/* ── Widget slot states ────────────────────────────────────────────────────── */
+	.dw-page-widget-slot {
+		transition: transform 200ms ease, opacity 200ms ease;
+		border-radius: var(--radius-lg);
+	}
+
+	.dw-page-widget-slot--editing {
+		cursor: grab;
+	}
+
+	.dw-page-widget-slot--editing:active {
+		cursor: grabbing;
+	}
+
+	.dw-page-widget-slot--dragging {
+		opacity: 0.4;
+		transform: scale(0.96);
+	}
+
+	.dw-page-widget-slot--dragover {
+		transform: scale(1.02);
+	}
+
+	.dw-page-widget-slot--dragover .dw-page-widget-card {
+		border-color: var(--accent-blue, #3b82f6);
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-blue, #3b82f6) 25%, transparent),
+			var(--shadow-md);
+	}
+
+	.dw-page-widget-slot--selected {
+		transform: scale(1.01);
+	}
+
+	/* ── Widget inner container ────────────────────────────────────────────────── */
+	.dw-page-widget-inner {
+		position: relative;
+		height: 100%;
+	}
+
+	.dw-page-widget-inner--editing {
+		padding-top: var(--space-2);
+	}
+
+	/* ── Edit controls (above widget) ──────────────────────────────────────────── */
+	.dw-page-edit-controls {
+		position: absolute;
+		top: 0;
+		right: 0.25rem;
+		z-index: 10;
+		display: flex;
+		gap: 0.25rem;
+	}
+
+	.dw-page-ctrl {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.375rem;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--dbd);
+		background: var(--dbg);
+		box-shadow: var(--shadow-sm);
+		cursor: pointer;
+		transition: background 150ms, color 150ms;
+		color: var(--dt2);
+	}
+
+	.dw-page-ctrl:hover {
+		background: var(--dbg2);
+		color: var(--dt);
+	}
+
+	.dw-page-ctrl-icon {
+		width: 0.75rem;
+		height: 0.75rem;
+		transition: transform 200ms;
+	}
+
+	/* ── Widget card ───────────────────────────────────────────────────────────── */
+	.dw-page-widget-card {
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--dbd);
+		background: var(--dbg);
+		transition: border-color 200ms ease, box-shadow 200ms ease;
+		overflow: hidden;
+		position: relative;
+		box-shadow: var(--shadow-sm);
+		height: 100%;
+	}
+
+	.dw-page-widget-card:hover {
+		box-shadow: var(--shadow-md);
+		border-color: var(--dbd2);
+	}
+
+	.dw-page-widget-card--editing {
+		border: 2px dashed color-mix(in srgb, var(--dt) 20%, transparent);
+	}
+
+	.dw-page-widget-card--editing:hover {
+		border-color: color-mix(in srgb, var(--dt) 35%, transparent);
+	}
+
+	.dw-page-widget-card--selected {
+		border: 2px solid var(--accent-blue, #3b82f6);
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-blue, #3b82f6) 15%, transparent);
+	}
+
+	/* Lock widget interactions in edit mode */
+	.dw-page-widget-content--locked {
+		pointer-events: none;
+	}
+
+	/* Analytics toggle (appears on hover) */
+	.dw-page-analytics-toggle {
+		position: absolute;
+		top: 0.75rem;
+		right: 0.75rem;
+		z-index: 20;
+		opacity: 0;
+		transition: opacity 150ms;
+	}
+
+	.dw-page-widget-card:hover .dw-page-analytics-toggle {
+		opacity: 1;
+	}
+
+	/* Drag handle */
+	.dw-page-drag-handle {
+		position: absolute;
+		top: 0.75rem;
+		left: 0.625rem;
+		z-index: 10;
+		color: var(--dt4);
+		opacity: 0.5;
+		transition: opacity 150ms, color 150ms;
+		cursor: grab;
+	}
+
+	.dw-page-drag-handle:hover {
+		opacity: 1;
+		color: var(--dt2);
+	}
+
+	.dw-page-widget-slot--editing:active .dw-page-drag-handle {
+		cursor: grabbing;
+		opacity: 1;
+	}
+
+	/* ── Collapsed bar ─────────────────────────────────────────────────────────── */
+	.dw-page-collapsed {
+		padding: var(--space-3) var(--space-4);
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		background: var(--dbg2);
+	}
+
+	.dw-page-collapsed-title {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--dt);
+	}
+
+	.dw-page-collapsed-expand {
+		color: var(--dt3);
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		padding: 0;
+		display: flex;
+	}
+
+	.dw-page-collapsed-expand:hover {
+		color: var(--dt);
+	}
+
+	/* ── Analytics flip view ───────────────────────────────────────────────────── */
+	.dw-page-analytics-view {
+		padding: var(--space-5);
+	}
+
+	.dw-page-analytics-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: var(--space-4);
+		padding-bottom: var(--space-3);
+		border-bottom: 1px solid var(--dbd2);
+	}
+
+	.dw-page-analytics-title-group {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.dw-page-analytics-icon-wrap {
+		width: 2rem;
+		height: 2rem;
+		border-radius: var(--radius-md);
+		background: linear-gradient(135deg, var(--dt2), var(--dt));
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: var(--shadow-sm);
+	}
+
+	.dw-page-analytics-title {
+		font-size: var(--text-sm);
+		font-weight: var(--font-semibold);
+		color: var(--dt);
+	}
+
+	.dw-page-back-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding: 0.375rem 0.625rem;
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		border-radius: var(--radius-md);
+		border: 1px solid var(--dbd);
+		background: var(--dbg2);
+		color: var(--dt);
+		cursor: pointer;
+		transition: background 150ms;
+	}
+
+	.dw-page-back-btn:hover {
+		background: var(--dbg3);
+	}
+
+	.dw-page-stat-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
+	.dw-page-stat-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.625rem 0.75rem;
+		border-radius: var(--radius-md);
+		transition: background 150ms;
+	}
+
+	.dw-page-stat-row:hover {
+		background: var(--dbg2);
+	}
+
+	.dw-page-stat-label {
+		font-size: var(--text-sm);
+		color: var(--dt2);
+	}
+
+	.dw-page-stat-value-group {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.dw-page-stat-value {
+		font-size: var(--text-sm);
+		font-weight: var(--font-semibold);
+		color: var(--dt);
+	}
+
+	.dw-page-stat-trend {
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		padding: 0.125rem 0.375rem;
+		border-radius: var(--radius-sm);
+	}
+
+	.dw-page-stat-trend--up {
+		color: var(--color-success, #16a34a);
+		background: color-mix(in srgb, var(--color-success, #22c55e) 10%, transparent);
+	}
+
+	.dw-page-stat-trend--down {
+		color: var(--color-error, #dc2626);
+		background: color-mix(in srgb, var(--color-error, #ef4444) 10%, transparent);
+	}
+
+	.dw-page-full-analytics-btn {
+		width: 100%;
+		margin-top: var(--space-4);
+	}
+
+	/* ── Metric placeholder ────────────────────────────────────────────────────── */
+	.dw-page-metric-placeholder {
+		padding: var(--space-5);
+	}
+
+	.dw-page-metric-top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: var(--space-3);
+	}
+
+	.dw-page-metric-label {
+		font-size: var(--text-sm);
+		color: var(--dt2);
+	}
+
+	.dw-page-metric-badge {
+		font-size: var(--text-xs);
+		color: var(--color-success, #16a34a);
+		background: color-mix(in srgb, var(--color-success, #22c55e) 10%, transparent);
+		padding: 0.125rem 0.5rem;
+		border-radius: var(--radius-full);
+	}
+
+	.dw-page-metric-value {
+		font-size: 1.875rem;
+		font-weight: var(--font-bold);
+		color: var(--dt);
+	}
+
+	.dw-page-metric-sub {
+		font-size: var(--text-xs);
+		color: var(--dt3);
+		margin-top: var(--space-1);
+	}
+
+	/* ── Add widget card ───────────────────────────────────────────────────────── */
+	.dw-page-add-card {
+		min-height: 200px;
+		border: 2px dashed var(--dbd);
+		border-radius: var(--radius-lg);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		color: var(--dt3);
+		background: transparent;
+		cursor: pointer;
+		transition: border-color 200ms, color 200ms, background 200ms;
+	}
+
+	.dw-page-add-card:hover {
+		border-color: var(--accent-blue, #3b82f6);
+		color: var(--accent-blue, #3b82f6);
+		background: color-mix(in srgb, var(--accent-blue, #3b82f6) 5%, transparent);
+	}
+
+	.dw-page-add-card-label {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+	}
+
+	/* ── Dropdown ──────────────────────────────────────────────────────────────── */
+	.dw-page-dropdown {
+		z-index: 50;
+		min-width: 160px;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--dbd);
+		background: var(--dbg);
+		box-shadow: var(--shadow-lg);
+		padding: var(--space-1) 0;
+	}
+
+	.dw-page-dropdown--sub {
+		min-width: 120px;
+	}
+
+	.dw-page-dropdown-item {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		font-size: var(--text-sm);
+		color: var(--dt);
+		cursor: pointer;
+		transition: background 120ms;
+	}
+
+	.dw-page-dropdown-item:hover {
+		background: var(--dbg2);
+	}
+
+	.dw-page-dropdown-item--between {
+		justify-content: space-between;
+		width: 100%;
+	}
+
+	.dw-page-dropdown-item-left {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.dw-page-dropdown-item--active {
+		color: var(--accent-blue, #3b82f6);
+		background: color-mix(in srgb, var(--accent-blue, #3b82f6) 8%, transparent);
+	}
+
+	.dw-page-dropdown-item--danger {
+		color: var(--color-error, #ef4444);
+	}
+
+	.dw-page-dropdown-item--danger:hover {
+		background: color-mix(in srgb, var(--color-error, #ef4444) 10%, transparent);
+	}
+
+	.dw-page-dropdown-icon {
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.dw-page-dropdown-chevron {
+		width: 0.75rem;
+		height: 0.75rem;
+	}
+
+	.dw-page-dropdown-sep {
+		margin: var(--space-1) 0;
+		height: 1px;
+		background: var(--dbd2);
+	}
+
+	.dw-page-color-swatch {
+		width: 0.75rem;
+		height: 0.75rem;
+		border-radius: 50%;
+	}
+
+	/* ── Undo toast ────────────────────────────────────────────────────────────── */
 	.dw-page-toast {
-		background: var(--dt, #111);
-		color: var(--dbg, #fff);
+		position: fixed;
+		bottom: 1.5rem;
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 50;
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-lg);
+		background: var(--dt);
+		color: var(--dbg);
+		box-shadow: var(--shadow-xl);
 	}
+
 	.dw-page-toast-icon {
-		color: var(--dt4, #bbb);
+		width: 1.25rem;
+		height: 1.25rem;
+		color: var(--dt4);
 	}
+
+	.dw-page-toast-text {
+		font-size: var(--text-sm);
+	}
+
 	.dw-page-toast-btn {
-		color: var(--dbg, #fff);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-1);
+		padding: 0.375rem 0.625rem;
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		border-radius: var(--radius-md);
+		border: none;
+		background: transparent;
+		color: var(--dbg);
+		cursor: pointer;
+		transition: background 150ms;
 	}
+
 	.dw-page-toast-btn:hover {
-		background: rgba(255,255,255,0.15);
+		background: rgba(255, 255, 255, 0.15);
+	}
+
+	.dw-page-toast-btn--dismiss {
+		padding: 0.375rem;
 	}
 </style>

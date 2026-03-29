@@ -72,12 +72,12 @@
 </div>
 
 <div
-	class="h-full flex flex-col bg-white flex-shrink-0"
+	class="h-full flex flex-col bg-white dark:bg-gray-900 flex-shrink-0"
 	style="width: {rightPanelWidth}px"
 	transition:fly={{ x: 320, duration: 200 }}
 >
 	<!-- Panel Tabs -->
-	<div class="flex border-b border-gray-200">
+	<div class="flex border-b border-gray-200 dark:border-gray-700">
 		<button
 			onclick={() => onTabChange('progress')}
 			class="flex-1 px-3 py-3 text-xs font-medium transition-colors {rightPanelTab === 'progress' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-700'}"
@@ -124,7 +124,7 @@
 			/>
 		{:else if rightPanelTab === 'artifacts'}
 			<!-- Artifacts List in Panel -->
-			<div class="flex flex-col h-full bg-[#1c1c1e]">
+			<div class="flex flex-col h-full bg-gray-50 dark:bg-[#1c1c1e]">
 				<div class="p-4 border-b border-white/10">
 					<div class="flex items-center justify-between">
 						<h3 class="text-sm font-semibold text-gray-100">Artifacts</h3>

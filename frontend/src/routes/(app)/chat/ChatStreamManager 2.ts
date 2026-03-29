@@ -113,22 +113,14 @@ export interface StreamCallbacks {
 
 export class ChatStreamManager {
   private abortController: AbortController | null = null;
-  private _userAborted = false;
 
   stop() {
-    this._userAborted = true;
     this.abortController?.abort();
   }
 
   async send(params: SendParams, callbacks: StreamCallbacks): Promise<void> {
-    this._userAborted = false;
     this.abortController = new AbortController();
     callbacks.onStreamStart(this.abortController);
-
-    // Timeout for getting FIRST response (headers). Once streaming starts this is cleared.
-    const connectionTimeoutId = setTimeout(() => {
-      this.abortController?.abort();
-    }, 30_000);
 
     const userMsgId = crypto.randomUUID();
     const assistantMsgId = crypto.randomUUID();
@@ -154,8 +146,6 @@ export class ChatStreamManager {
         body: JSON.stringify(requestBody),
         signal: this.abortController.signal,
       });
-
-      clearTimeout(connectionTimeoutId); // Got headers — streaming started, clear timeout
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -317,15 +307,9 @@ export class ChatStreamManager {
               break;
             }
 
-            case "error": {
-              const errorMsg = event.message || "Unknown error";
-              console.error("[SSE] Stream error event:", errorMsg);
-              // Surface error to user if no content was generated
-              if (!fullContent) {
-                fullContent = `Sorry, an error occurred: ${errorMsg}`;
-              }
+            case "error":
+              console.error("[SSE] Stream error event:", event.message);
               break;
-            }
 
             case "done":
               break;
@@ -467,18 +451,8 @@ export class ChatStreamManager {
 
       callbacks.onModelWarmedUp(params.model);
     } catch (error: any) {
-      clearTimeout(connectionTimeoutId);
       if (error.name === "AbortError") {
-        if (this._userAborted) {
-          if (import.meta.env.DEV)
-            console.log("[ChatStreamManager] Request aborted by user");
-        } else {
-          // Timeout abort — backend didn't respond within 30 seconds
-          callbacks.onStreamError(
-            "Response timed out. The server may be busy — please try again.",
-          );
-          callbacks.updateAssistantContent(assistantMsgId, "");
-        }
+        console.log("[ChatStreamManager] Request aborted by user");
       } else {
         const errorMsg =
           error instanceof Error

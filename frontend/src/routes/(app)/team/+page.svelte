@@ -15,10 +15,28 @@
 		MemberProfileSlideOver,
 		AddMemberModal
 	} from '$lib/components/team';
-	import InviteMemberModal from '$lib/components/workspace/InviteMemberModal.svelte';
 	import { Pagination } from '$lib/components/ui';
 
 	type ViewMode = 'directory' | 'orgchart' | 'capacity';
+
+	/** Parse skills from backend — handles array, JSON string, base64-encoded JSON, or comma-separated */
+	function parseSkills(raw: unknown): string[] {
+		if (Array.isArray(raw)) return raw;
+		if (typeof raw !== 'string' || !raw) return [];
+		// Try JSON parse first (e.g. '["Go","Python"]')
+		try {
+			const parsed = JSON.parse(raw);
+			if (Array.isArray(parsed)) return parsed;
+		} catch { /* not JSON */ }
+		// Try base64 decode then JSON parse
+		try {
+			const decoded = atob(raw);
+			const parsed = JSON.parse(decoded);
+			if (Array.isArray(parsed)) return parsed;
+		} catch { /* not base64 JSON */ }
+		// Fallback: comma-separated
+		return raw.split(',').map(s => s.trim()).filter(Boolean);
+	}
 
 	// State
 	let viewMode = $state<ViewMode>('directory');
@@ -37,7 +55,6 @@
 	let page = $state(1);
 	let pageSize = $state(20);
 	let total = $state(0);
-	let showInviteModal = $state(false);
 	let showProfileSlideOver = $state(false);
 	let selectedMember = $state<TeamMemberDetailResponse | null>(null);
 	let loadingMember = $state(false);
@@ -70,17 +87,9 @@
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 
-	// Open invite modal
-	function openInviteModal() {
-		if (!$currentWorkspace?.id) {
-			alert('Please select a workspace first');
-			return;
-		}
-		showInviteModal = true;
-	}
 
 	// Filtered members based on search
-	const filteredMembers = $derived((() => {
+	const filteredMembers = $derived(() => {
 		if (!searchQuery) return members;
 		const query = searchQuery.toLowerCase();
 		return members.filter(
@@ -89,75 +98,78 @@
 				m.role.toLowerCase().includes(query) ||
 				m.email.toLowerCase().includes(query)
 		);
-	})());
+	});
 
 	// Transform for directory view
-	const directoryMembers = $derived(filteredMembers.map((m) => ({
-		id: m.id,
-		name: m.name,
-		role: m.role,
-		email: m.email,
-		avatar: m.avatar_url || undefined,
-		status: m.status as 'available' | 'busy' | 'overloaded' | 'ooo',
-		activeProjects: m.active_projects,
-		openTasks: m.open_tasks,
-		capacity: m.capacity
-	})));
+	const directoryMembers = $derived(() => {
+		return filteredMembers().map((m) => ({
+			id: m.id,
+			name: m.name,
+			role: m.role,
+			email: m.email,
+			avatar: m.avatar_url || undefined,
+			status: m.status as 'available' | 'busy' | 'overloaded' | 'ooo',
+			activeProjects: m.active_projects,
+			openTasks: m.open_tasks,
+			capacity: m.capacity
+		}));
+	});
 
 	// Capacity view data format
-	const capacityMembers = $derived(filteredMembers.map((m) => ({
-		id: m.id,
-		name: m.name,
-		role: m.role,
-		avatar: m.avatar_url || undefined,
-		status: m.status as 'available' | 'busy' | 'overloaded' | 'ooo',
-		capacity: m.capacity,
-		projects: [],
-		activeProjects: m.active_projects
-	})));
+	const capacityMembers = $derived(() => {
+		return filteredMembers().map((m) => ({
+			id: m.id,
+			name: m.name,
+			role: m.role,
+			avatar: m.avatar_url || undefined,
+			status: m.status as 'available' | 'busy' | 'overloaded' | 'ooo',
+			capacity: m.capacity,
+			projects: [],
+			activeProjects: m.active_projects
+		}));
+	});
 
 	// Org chart data format
-	const orgMembers = $derived(filteredMembers.map((m) => ({
-		id: m.id,
-		name: m.name,
-		role: m.role,
-		avatar: m.avatar_url || undefined,
-		status: m.status as 'available' | 'busy' | 'overloaded' | 'ooo',
-		managerId: m.manager_id
-	})));
+	const orgMembers = $derived(() => {
+		return filteredMembers().map((m) => ({
+			id: m.id,
+			name: m.name,
+			role: m.role,
+			avatar: m.avatar_url || undefined,
+			status: m.status as 'available' | 'busy' | 'overloaded' | 'ooo',
+			managerId: m.manager_id
+		}));
+	});
 
 	// Manager options for Add modal
-	const managerOptions = $derived(members.map((m) => ({ id: m.id, name: m.name })));
+	const managerOptions = $derived(() => {
+		return members.map((m) => ({ id: m.id, name: m.name }));
+	});
 
 	async function handleMemberClick(memberId: string) {
 		loadingMember = true;
-		const member = await team.loadMember(memberId);
-		if (member) {
-			selectedMember = member;
-			showProfileSlideOver = true;
+		try {
+			const member = await team.loadMember(memberId);
+			if (member) {
+				selectedMember = member;
+				showProfileSlideOver = true;
+			}
+		} catch (err) {
+			console.error('Failed to load member profile:', err);
+		} finally {
+			loadingMember = false;
 		}
-		loadingMember = false;
 	}
 
-	async function handleAddMember(data: {
-		name: string;
-		email: string;
-		role: string;
-		managerId?: string;
-		skills: string[];
-		hourlyRate?: number;
-	}) {
+	async function handleAddMember(data: { email: string; role: string }) {
 		try {
 			await team.createMember({
-				name: data.name,
+				name: data.email.split('@')[0],
 				email: data.email,
 				role: data.role,
-				manager_id: data.managerId,
-				skills: data.skills,
-				hourly_rate: data.hourlyRate
+				skills: []
 			});
 			showAddModal = false;
-			// Reload members after adding a new one
 			await loadMembers();
 		} catch (err) {
 			console.error('Failed to add member:', err);
@@ -178,7 +190,7 @@
 			email: selectedMember.email,
 			role: selectedMember.role,
 			managerId: selectedMember.manager_id || undefined,
-			skills: selectedMember.skills || [],
+			skills: parseSkills(selectedMember.skills),
 			hourlyRate: selectedMember.hourly_rate || undefined
 		};
 		showAddModal = true;
@@ -222,29 +234,30 @@
 	}
 
 	// Transform selectedMember to match MemberProfileSlideOver expected format
-	const profileMember = $derived((() => {
+	const profileMember = $derived(() => {
 		if (!selectedMember) return null;
+		const skills = parseSkills(selectedMember.skills);
 		return {
 			id: selectedMember.id,
 			name: selectedMember.name,
-			role: selectedMember.role,
-			email: selectedMember.email,
+			role: selectedMember.role ?? '',
+			email: selectedMember.email ?? '',
 			avatar: selectedMember.avatar_url || undefined,
-			status: selectedMember.status as 'available' | 'busy' | 'overloaded' | 'ooo',
-			activeProjects: selectedMember.active_projects,
-			openTasks: selectedMember.open_tasks,
-			capacity: selectedMember.capacity,
+			status: (selectedMember.status ?? 'available') as 'available' | 'busy' | 'overloaded' | 'ooo',
+			activeProjects: selectedMember.active_projects ?? 0,
+			openTasks: selectedMember.open_tasks ?? 0,
+			capacity: selectedMember.capacity ?? 0,
 			managerId: selectedMember.manager_id,
 			joinedAt: selectedMember.joined_at,
-			skills: selectedMember.skills || [],
+			skills,
 			projects: [],
-			activity: selectedMember.activities.map((a) => ({
+			activity: (selectedMember.activities || []).map((a) => ({
 				id: a.id,
 				description: a.description,
 				createdAt: a.created_at
 			}))
 		};
-	})());
+	});
 </script>
 
 <div class="td-page">
@@ -256,18 +269,8 @@
 		</div>
 		<div class="td-page__actions">
 			<button
-				onclick={openInviteModal}
-				class="btn-pill btn-pill-ghost btn-pill-sm flex items-center gap-2"
-				aria-label="Invite team member"
-			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-				</svg>
-				Invite
-			</button>
-			<button
 				onclick={() => (showAddModal = true)}
-				class="btn-pill btn-pill-primary"
+				class="btn-cta"
 				aria-label="Add team member"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -337,7 +340,7 @@
 				<p class="td-page__center-text">Add your first team member to get started</p>
 				<button
 					onclick={() => (showAddModal = true)}
-					class="btn-pill btn-pill-primary"
+					class="btn-cta"
 					aria-label="Add your first member"
 				>
 					Add Member
@@ -350,11 +353,11 @@
 			<!-- Content -->
 			<div class="flex-1 overflow-auto">
 				{#if viewMode === 'directory'}
-					<TeamDirectoryView members={directoryMembers} onMemberClick={handleMemberClick} />
+					<TeamDirectoryView members={directoryMembers()} onMemberClick={handleMemberClick} />
 				{:else if viewMode === 'orgchart'}
-					<TeamOrgChartView members={orgMembers} onMemberClick={handleMemberClick} />
+					<TeamOrgChartView members={orgMembers()} onMemberClick={handleMemberClick} />
 				{:else if viewMode === 'capacity'}
-					<TeamCapacityView members={capacityMembers} onMemberClick={handleMemberClick} />
+					<TeamCapacityView members={capacityMembers()} onMemberClick={handleMemberClick} />
 				{/if}
 			</div>
 
@@ -369,34 +372,20 @@
 	{/if}
 </div>
 
-<!-- Add Member Modal -->
+<!-- Add Member Modal (includes Invite tab) -->
 <AddMemberModal
 	bind:open={showAddModal}
-	managers={managerOptions}
-	editMember={editingMember}
+	members={$team.members.map(m => ({ id: m.id, name: m.name, email: m.email, avatar: m.avatar, role: m.role }))}
+	workspaceId={$currentWorkspace?.id}
+	roles={$currentWorkspaceRoles}
 	onCreate={handleAddMember}
-	onUpdate={handleUpdateMember}
 	onClose={() => { editingMember = null; }}
 />
-
-<!-- Invite Member Modal -->
-{#if showInviteModal && $currentWorkspace?.id}
-	<InviteMemberModal
-		workspaceId={$currentWorkspace.id}
-		roles={$currentWorkspaceRoles}
-		onsuccess={() => {
-			showInviteModal = false;
-		}}
-		oncancel={() => {
-			showInviteModal = false;
-		}}
-	/>
-{/if}
 
 <!-- Member Profile Slide-over -->
 <MemberProfileSlideOver
 	bind:open={showProfileSlideOver}
-	member={profileMember}
+	member={profileMember()}
 	onClose={handleCloseProfile}
 	onEdit={handleEditMember}
 	onDelete={handleDeleteMember}
@@ -440,19 +429,19 @@
 	.td-page__error {
 		margin: 1rem 1.5rem 0;
 		padding: 1rem;
-		background: color-mix(in srgb, #ef4444 10%, var(--dbg));
-		border: 1px solid color-mix(in srgb, #ef4444 30%, var(--dbd));
+		background: color-mix(in srgb, var(--bos-status-error) 10%, var(--dbg));
+		border: 1px solid color-mix(in srgb, var(--bos-status-error) 30%, var(--dbd));
 		border-radius: 8px;
 	}
 	.td-page__error-text {
 		font-size: 0.875rem;
-		color: #ef4444;
+		color: var(--bos-status-error);
 		margin: 0;
 	}
 	.td-page__error-retry {
 		margin-top: 0.5rem;
 		font-size: 0.875rem;
-		color: #ef4444;
+		color: var(--bos-status-error);
 		text-decoration: underline;
 		background: none;
 		border: none;

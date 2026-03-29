@@ -26,6 +26,7 @@
 		isToday
 	} from '$lib/components/calendar/calendarUtils';
 
+
 	// ── View State ────────────────────────────────────────────────────────────
 	let viewMode = $state<ViewMode>('week');
 	let currentDate = $state(new Date());
@@ -417,44 +418,6 @@
 </script>
 
 <div class="min-h-full flex flex-col overflow-auto">
-	<!-- Page Header -->
-	<div class="cal-header">
-		<div class="cal-header__row">
-			<div>
-				<h1 class="cal-header__title">Calendar</h1>
-				<p class="cal-header__sub">Manage your schedule and meetings</p>
-			</div>
-			<div class="flex items-center gap-2">
-				<button onclick={() => openCreateModal()} class="btn-pill btn-pill-primary btn-pill-xs">
-					<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-					</svg>
-					Add Event
-				</button>
-				{#if connectionStatus?.connected}
-					<button
-						onclick={syncCalendar}
-						disabled={isSyncing}
-						class="btn-pill btn-pill-ghost btn-pill-xs"
-					>
-						{#if isSyncing}
-							<svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-							</svg>
-							Syncing...
-						{:else}
-							<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-							</svg>
-							Sync
-						{/if}
-					</button>
-				{/if}
-			</div>
-		</div>
-	</div>
-
 	{#if isLoading}
 		<div class="cal-loading">
 			<div class="cal-spinner"></div>
@@ -480,11 +443,15 @@
 			onViewModeChange={(mode) => { viewMode = mode; loadEvents(); }}
 			onMeetingTypeChange={(type) => { selectedMeetingType = type; }}
 			onToggleSidebar={() => (showSidebar = !showSidebar)}
+			onCreateEvent={() => openCreateModal()}
+			onSync={syncCalendar}
+			{isSyncing}
+			isConnected={connectionStatus?.connected ?? false}
 		/>
 
 		<!-- Main Content -->
 		<div class="flex-1 flex min-h-0">
-			{#if showSidebar}
+			<div class="cal-sidebar-wrap" class:cal-sidebar-wrap--collapsed={!showSidebar}>
 				<CalendarSidebar
 					bind:selectedDay
 					{events}
@@ -493,7 +460,7 @@
 					onOpenCreateModal={openCreateModal}
 					onOpenEventModal={openEventModal}
 				/>
-			{/if}
+			</div>
 
 			<!-- Calendar Grid -->
 			<div class="flex-1 overflow-auto" bind:this={timeGridRef}>
@@ -565,29 +532,15 @@
 {/if}
 
 <style>
-	.cal-header {
-		padding: 1rem 1.5rem;
-		border-bottom: 1px solid var(--dbd2);
+	.cal-sidebar-wrap {
+		width: 14rem;
+		overflow: hidden;
 		flex-shrink: 0;
+		transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 	}
 
-	.cal-header__row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-
-	.cal-header__title {
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: var(--dt);
-		margin: 0;
-	}
-
-	.cal-header__sub {
-		font-size: 0.8rem;
-		color: var(--dt3);
-		margin: 0.15rem 0 0;
+	.cal-sidebar-wrap--collapsed {
+		width: 0;
 	}
 
 	.cal-loading {

@@ -144,10 +144,10 @@
       context.role_name === 'manager';
   }
 
-  function handleWorkspaceUpdated(updated: Workspace) {
-    workspace = updated;
+  function handleWorkspaceUpdated(event: CustomEvent<Workspace>) {
+    workspace = event.detail;
     if ($currentWorkspace) {
-      $currentWorkspace = { ...$currentWorkspace, ...updated };
+      $currentWorkspace = { ...$currentWorkspace, ...event.detail };
     }
   }
 
@@ -243,7 +243,7 @@
               class:active={activeTab === tab.id}
               onclick={() => (activeTab = tab.id)}
             >
-              <tab.icon class="w-5 h-5" />
+              <tab.icon class="w-4 h-4" />
               <span>{tab.label}</span>
               {#if tab.badge !== undefined && tab.badge > 0}
                 <span class="tab-badge">{tab.badge}</span>
@@ -300,12 +300,12 @@
 <style>
   .workspace-settings-page {
     min-height: 100vh;
-    background: var(--dbg2, #f5f5f5);
+    background: var(--dbg2);
   }
 
   .settings-header {
-    background: var(--dbg, #fff);
-    border-bottom: 1px solid var(--dbd, #e0e0e0);
+    background: var(--dbg);
+    border-bottom: 1px solid var(--dbd);
     padding: 1.5rem 2rem;
   }
 
@@ -326,7 +326,7 @@
   .header-title h1 {
     font-size: 1.5rem;
     font-weight: 600;
-    color: var(--dt, #111);
+    color: var(--dt);
     margin: 0;
   }
 
@@ -339,14 +339,14 @@
   .workspace-name {
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--dt2, #555);
+    color: var(--dt2);
   }
 
   .workspace-plan {
     display: inline-block;
     padding: 0.25rem 0.75rem;
-    background: color-mix(in srgb, #3b82f6 12%, var(--dbg, #fff));
-    color: #3b82f6;
+    background: var(--bos-status-info-bg);
+    color: var(--bos-status-info);
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -361,11 +361,11 @@
     justify-content: center;
     padding: 4rem 2rem;
     gap: 1rem;
-    color: var(--dt3, #888);
+    color: var(--dt3);
   }
 
   .error-state {
-    color: #dc2626;
+    color: var(--bos-status-error);
   }
 
   .mock-data-banner {
@@ -373,10 +373,10 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background: color-mix(in srgb, #f59e0b 10%, var(--dbg, #fff));
-    border: 1px solid color-mix(in srgb, #f59e0b 25%, var(--dbd, #e0e0e0));
+    background: var(--bos-status-warning-bg);
+    border: 1px solid var(--bos-status-warning);
     border-radius: 0.5rem;
-    color: var(--dt2, #92400e);
+    color: var(--bos-status-warning);
     font-size: 0.875rem;
     margin: 1rem 2rem;
     max-width: 1200px;
@@ -392,61 +392,63 @@
 
   .settings-tabs {
     display: flex;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    background: var(--dbg, #fff);
-    border-radius: 0.5rem;
-    border: 1px solid var(--dbd, #e0e0e0);
+    gap: 2px;
+    border-bottom: 1px solid var(--dbd);
     margin-bottom: 1.5rem;
+    overflow-x: auto;
   }
+  .settings-tabs::-webkit-scrollbar { display: none; }
 
   .tab-button {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
+    gap: 6px;
+    padding: 8px 14px;
     background: transparent;
     border: none;
-    border-radius: 0.375rem;
+    border-bottom: 2px solid transparent;
     cursor: pointer;
-    transition: all 0.15s;
-    color: var(--dt3, #888);
-    font-size: 0.875rem;
+    transition: color 0.15s;
+    color: var(--dt3);
+    font-size: 13px;
     font-weight: 500;
+    white-space: nowrap;
+    margin-bottom: -1px;
   }
 
   .tab-button:hover {
-    background: var(--dbg3, #eee);
-    color: var(--dt, #111);
+    color: var(--dt2);
   }
 
   .tab-button.active {
-    background: color-mix(in srgb, #3b82f6 10%, var(--dbg, #fff));
-    color: #3b82f6;
+    color: var(--dt);
+    border-bottom-color: var(--dt);
+    font-weight: 600;
   }
 
   .tab-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 1.25rem;
-    height: 1.25rem;
-    padding: 0 0.375rem;
-    background: var(--dt3, #888);
-    color: var(--dbg, #fff);
-    font-size: 0.75rem;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: var(--dbg3);
+    color: var(--dt2);
+    font-size: 11px;
     font-weight: 600;
     border-radius: 9999px;
   }
 
   .tab-button.active .tab-badge {
-    background: #3b82f6;
+    background: var(--dt);
+    color: var(--dbg);
   }
 
   .settings-content {
-    background: var(--dbg, #fff);
+    background: var(--dbg);
     border-radius: 0.5rem;
-    border: 1px solid var(--dbd, #e0e0e0);
+    border: 1px solid var(--dbd);
     min-height: 400px;
   }
 </style>

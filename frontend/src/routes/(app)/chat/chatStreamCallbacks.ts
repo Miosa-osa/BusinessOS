@@ -142,15 +142,12 @@ export function createStreamCallbacks(
       type: string;
       content: string;
     }) {
-      ar.onArtifactComplete(
-        {
-          title: artifact.title,
-          artifactType: artifact.type,
-          content: artifact.content,
-        },
-        cs.conversationId,
-        cx.selectedProjectId,
-      );
+      // Updates local UI state only — no API call. Backend persists the artifact.
+      ar.onArtifactComplete({
+        title: artifact.title,
+        artifactType: artifact.type,
+        content: artifact.content,
+      });
       ui.rightPanelOpen = true;
       ui.rightPanelTab = "artifacts";
     },
@@ -185,6 +182,13 @@ export function createStreamCallbacks(
       ar.generatingArtifactTitle = "";
       ar.generatingArtifactType = "";
       ar.generatingArtifactContent = "";
+
+      // Sync artifact store with what the backend persisted during postProcessStream.
+      // A short delay allows the backend's post-processing goroutine to finish writing
+      // before we fetch. The UI already shows the artifact via viewingArtifactFromMessage.
+      setTimeout(() => {
+        ar.loadArtifacts();
+      }, 800);
     },
     onStreamError(message: string) {
       toast.error(message || "Failed to process message. Please try again.");
@@ -194,7 +198,8 @@ export function createStreamCallbacks(
       type: string;
       content: string;
     }) {
-      ar.autoSaveArtifact(artifact, cs.conversationId, cx.selectedProjectId);
+      // No longer calls autoSaveArtifact — backend handles persistence.
+      // Inline task creation is still triggered for actionable artifact types.
       const actionableTypes = ["plan", "framework", "proposal", "sop"];
       if (actionableTypes.includes(artifact.type.toLowerCase())) {
         ar.triggerInlineTaskCreation(artifact, cx.availableTeamMembers);

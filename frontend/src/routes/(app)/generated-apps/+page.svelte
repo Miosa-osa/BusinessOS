@@ -6,11 +6,12 @@
 	import { generatedAppsStore, type AppStatus } from '$lib/stores/generatedAppsStore';
 	import GeneratedAppCard from '$lib/components/osa/GeneratedAppCard.svelte';
 	import CreateAppModal from '$lib/components/osa/CreateAppModal.svelte';
+	import { currentWorkspace } from '$lib/stores/workspaces';
 
 	let { data } = $props();
 
 	let showCreateModal = $state(false);
-	let workspaceId = $derived(data?.workspaceId || $page.data?.workspaceId || 'default');
+	let workspaceId = $derived($currentWorkspace?.id ?? data?.workspaceId ?? $page.data?.workspaceId ?? '');
 
 	let loading = $state(false);
 	let error = $state<string | null>(null);

@@ -17,6 +17,7 @@
 	import { desktop3dStore, BUILTIN_MODULES, DYNAMIC_MODULE_COLORS } from '$lib/stores/desktop3dStore';
 	import { windowStore } from '$lib/stores/windowStore';
 	import { currentWorkspace } from '$lib/stores/workspaces';
+	import { ChevronsLeft, Monitor, ChevronRight, ChevronDown } from 'lucide-svelte';
 
 	// Projects state for dropdown
 	let projects = $state<Array<{id: string, name: string, status: string}>>([]);
@@ -26,7 +27,7 @@
 	async function loadProjects() {
 		try {
 			const data = await api.getProjects('active');
-			projects = Array.isArray(data) ? data.slice(0, 5) : []; // Show top 5 active projects
+			projects = data.slice(0, 5); // Show top 5 active projects
 		} catch (e) {
 			console.error('Failed to load projects:', e);
 		}
@@ -259,7 +260,7 @@
 			items: [
 				{
 					href: '/usage',
-					label: 'Usage',
+					label: 'Analytics',
 					icon: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z'
 				},
 				{
@@ -285,10 +286,10 @@
 			{@render children()}
 		</div>
 	{:else}
-	<div class="h-screen flex overflow-hidden sb-main-bg">
+	<div class="h-screen flex overflow-hidden p-2 gap-2 sb-canvas">
 		<!-- Sidebar -->
 		<aside
-			class="sb-sidebar h-full flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out {isCollapsed ? (needsTrafficLightSpace ? 'w-20' : 'w-16') : 'w-64'}"
+			class="sb-sidebar flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out rounded-[14px] overflow-hidden {isCollapsed ? (needsTrafficLightSpace ? 'w-20' : 'w-16') : 'w-64'}"
 		>
 			<!-- Draggable titlebar region for Electron (traffic light area) -->
 			{#if needsTrafficLightSpace}
@@ -313,14 +314,11 @@
 					style="-webkit-app-region: no-drag;"
 					title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 				>
-					<svg
-						class="w-5 h-5 transition-transform duration-300 {isCollapsed ? 'rotate-180' : ''}"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-					</svg>
+<ChevronsLeft
+						size={20}
+						strokeWidth={2}
+						class="transition-transform duration-300 {isCollapsed ? 'rotate-180' : ''}"
+					/>
 				</button>
 			</div>
 
@@ -350,9 +348,7 @@
 						{isCollapsed ? 'justify-center' : ''}"
 					title={isCollapsed ? 'Window Desktop' : ''}
 				>
-					<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-					</svg>
+<Monitor size={20} strokeWidth={2} class="flex-shrink-0" />
 					{#if !isCollapsed}
 						<span class="font-medium">Window</span>
 						<span class="ml-auto text-xs sb-desktop-badge">Desktop</span>
@@ -373,9 +369,7 @@
 							aria-label="Toggle {group.label} section"
 						>
 							<span class="sb-section-label">{group.label}</span>
-							<svg class="sb-section-chevron {collapsedSections.has(group.label) ? '' : 'sb-section-chevron--open'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-							</svg>
+							<ChevronRight size={16} strokeWidth={2} class="sb-section-chevron {collapsedSections.has(group.label) ? '' : 'sb-section-chevron--open'}" />
 						</button>
 					{:else if gi > 0}
 						<div class="sb-section-dot"></div>
@@ -408,9 +402,7 @@
 													class="sb-chevron-btn p-1.5 rounded-lg transition-colors mr-1 opacity-0 group-hover:opacity-100 {showProjectsDropdown ? 'opacity-100' : ''} transition-opacity duration-200"
 													title="Show recent projects"
 												>
-													<svg class="w-4 h-4 sb-chevron-icon transition-transform {showProjectsDropdown ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-													</svg>
+													<ChevronDown size={16} strokeWidth={2} class="sb-chevron-icon transition-transform {showProjectsDropdown ? 'rotate-180' : ''}" />
 												</button>
 											{/if}
 										</div>
@@ -476,16 +468,14 @@
 							<p class="text-sm font-medium sb-user-name truncate">{$session.data.user?.name}</p>
 							<p class="text-xs sb-user-email truncate">{$session.data.user?.email}</p>
 						</div>
-						<svg class="w-4 h-4 sb-user-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-						</svg>
+						<ChevronRight size={16} strokeWidth={2} class="sb-user-chevron" />
 					{/if}
 				</a>
 			</div>
 		</aside>
 
 		<!-- Main Content -->
-		<main class="flex-1 h-full flex flex-col min-w-0 overflow-hidden sb-main-bg">
+		<main class="flex-1 flex flex-col min-w-0 overflow-hidden rounded-[14px] sb-panel">
 			{#if needsTrafficLightSpace}
 				<!-- Draggable titlebar region for main content area (Electron macOS only) -->
 				<div
@@ -513,18 +503,30 @@
 	/*  SIDEBAR (sb-) — Foundation Design Tokens                    */
 	/* ══════════════════════════════════════════════════════════════ */
 
-	/* Main background */
+	/* Canvas — the background layer behind floating panels */
+	.sb-canvas {
+		background: #e6e6e6;
+	}
+	:global(.dark) .sb-canvas {
+		background: #000000;
+	}
+
+	/* Panel — shared bg for sidebar + main content */
+	.sb-panel {
+		background: var(--dbg, #fff);
+	}
+
+	/* Legacy: embed mode still uses flat background */
 	.sb-main-bg {
 		background: var(--dbg, #fff);
 	}
 	.sb-main-border-b {
-		border-bottom: 1px solid var(--dbd2, #f0f0f0);
+		border-bottom: 1px solid transparent;
 	}
 
 	/* Sidebar container */
 	.sb-sidebar {
 		background: var(--dbg, #fff);
-		border-right: 1px solid var(--dbd2, #f0f0f0);
 	}
 
 	/* Title */
@@ -566,7 +568,7 @@
 		width: 3px;
 		height: 0%;
 		border-radius: 3px 0 0 3px;
-		background: #3b82f6;
+		background: var(--bos-nav-active);
 		opacity: 0;
 		filter: blur(0px);
 		transition: height 300ms cubic-bezier(0.4, 0, 0.2, 1),
@@ -578,18 +580,23 @@
 		color: var(--dt, #111);
 	}
 	.sb-nav-item--active {
-		background: linear-gradient(90deg, transparent 0%, transparent 65%, rgba(59, 130, 246, 0.08) 85%, rgba(59, 130, 246, 0.18) 100%);
+		background: linear-gradient(90deg, transparent 0%, transparent 60%, var(--bos-nav-active-bg) 100%);
 		color: var(--dt, #fff);
 	}
 	.sb-nav-item--active::after {
 		height: 55%;
 		opacity: 1;
-		box-shadow: 0 0 8px 1px rgba(59, 130, 246, 0.3),
-		            0 0 20px 4px rgba(59, 130, 246, 0.1);
+		box-shadow: 0 0 8px 2px var(--bos-nav-active-glow),
+		            0 0 22px 6px var(--bos-nav-active-bg);
+		animation: nav-glow-pulse 3s ease-in-out infinite;
 	}
 	.sb-nav-item--active:hover {
-		background: linear-gradient(90deg, transparent 0%, transparent 60%, rgba(59, 130, 246, 0.1) 82%, rgba(59, 130, 246, 0.22) 100%);
+		background: linear-gradient(90deg, transparent 0%, transparent 55%, var(--bos-nav-active-bg) 100%);
 		color: var(--dt, #fff);
+	}
+	@keyframes nav-glow-pulse {
+		0%, 100% { box-shadow: 0 0 8px 2px var(--bos-nav-active-glow), 0 0 22px 6px var(--bos-nav-active-bg); }
+		50% { box-shadow: 0 0 12px 3px var(--bos-nav-active-glow), 0 0 28px 8px var(--bos-nav-active-bg); }
 	}
 
 	/* ── Section Headers ────────────────────────────────────────── */
@@ -636,8 +643,10 @@
 		gap: 1px;
 	}
 	.sb-nav-scroll {
-		scrollbar-width: thin;
-		scrollbar-color: var(--dbd, #e0e0e0) transparent;
+		scrollbar-width: none;
+	}
+	.sb-nav-scroll::-webkit-scrollbar {
+		display: none;
 	}
 
 	/* ── Workspace Badge (collapsed) ────────────────────────────── */
@@ -645,9 +654,9 @@
 		width: 34px;
 		height: 34px;
 		border-radius: 8px;
-		background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+		background: linear-gradient(135deg, var(--bos-nav-active) 0%, var(--bos-category-productivity) 100%);
 		border: none;
-		color: #fff;
+		color: var(--bos-surface-on-color);
 		font-size: 0.8rem;
 		font-weight: 700;
 		display: flex;
@@ -658,7 +667,7 @@
 	}
 	.sb-workspace-badge:hover {
 		transform: scale(1.06);
-		box-shadow: 0 0 0 2px var(--dbg, #fff), 0 0 0 4px rgba(59, 130, 246, 0.3);
+		box-shadow: 0 0 0 2px var(--dbg, #fff), 0 0 0 4px var(--bos-nav-active-glow);
 	}
 
 	/* Sub-items (projects dropdown) */
@@ -670,8 +679,8 @@
 		color: var(--dt, #111);
 	}
 	.sb-sub-item--active {
-		background: rgba(59, 130, 246, 0.08);
-		color: #3b82f6;
+		background: var(--bos-nav-active-bg);
+		color: var(--bos-nav-active);
 	}
 	.sb-dot-inactive {
 		background: var(--dt4, #bbb);

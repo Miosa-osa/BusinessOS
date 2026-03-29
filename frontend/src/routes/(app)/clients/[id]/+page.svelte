@@ -23,6 +23,7 @@
 
 	// State
 	let activeTab = $state<Tab>('overview');
+	let loadTimedOut = $state(false);
 
 	// Derive from store auto-subscription
 	let client = $derived($clients.currentClient);
@@ -44,7 +45,20 @@
 	onMount(() => {
 		const id = $page.params.id;
 		if (id) {
-			clients.loadClient(id);
+			// Timeout fallback: if the load hasn't resolved in 10 s, stop the
+			// spinner so the UI never freezes on loading=true indefinitely.
+			const timeoutId = setTimeout(() => {
+				if ($clients.loading) {
+					clients.clearCurrent();
+					loadTimedOut = true;
+				}
+			}, 10000);
+
+			clients.loadClient(id).catch(() => {
+				clearTimeout(timeoutId);
+			}).then(() => {
+				clearTimeout(timeoutId);
+			});
 		}
 		return () => {
 			clients.clearCurrent();
@@ -87,6 +101,17 @@
 			.join('')
 			.toUpperCase()
 			.slice(0, 2);
+	}
+
+	function getStatusStyle(status: ClientStatus): string {
+		const map: Record<ClientStatus, string> = {
+			lead: 'background: var(--bos-status-info-bg); color: var(--bos-status-info-text)',
+			prospect: 'background: var(--bos-status-warning-bg); color: var(--bos-status-warning-text)',
+			active: 'background: var(--bos-status-success-bg); color: var(--bos-status-success-text)',
+			inactive: 'background: var(--bos-status-neutral-bg); color: var(--bos-status-neutral-text)',
+			churned: 'background: var(--bos-status-error-bg); color: var(--bos-status-error-text)',
+		};
+		return map[status] || '';
 	}
 
 	async function handleStatusChange(status: ClientStatus) {
@@ -165,9 +190,37 @@
 	}
 </script>
 
-{#if loading && !client}
-	<div class="flex-1 flex items-center justify-center bg-white">
-		<div class="flex flex-col items-center gap-3 text-gray-500">
+{#if loadTimedOut}
+	<div class="flex-1 flex items-center justify-center" style="background: var(--dbg)">
+		<div class="text-center flex flex-col items-center gap-4">
+			<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--dt3)">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+			</svg>
+			<div>
+				<p class="text-sm font-medium" style="color: var(--dt)">Loading is taking longer than expected</p>
+				<p class="text-xs mt-1" style="color: var(--dt3)">The server may be slow or unavailable.</p>
+			</div>
+			<div class="flex items-center gap-4">
+				<button
+					onclick={() => {
+						loadTimedOut = false;
+						const id = $page.params.id;
+						if (id) clients.loadClient(id).catch(() => {});
+					}}
+					class="px-4 py-1.5 text-sm font-medium rounded-lg transition-colors hover:opacity-80"
+					style="background: var(--dt); color: var(--dbg)"
+				>
+					Retry
+				</button>
+				<a href={'/clients' + embedSuffix} class="text-sm underline" style="color: var(--dt2)">
+					Back to clients
+				</a>
+			</div>
+		</div>
+	</div>
+{:else if loading && !client}
+	<div class="flex-1 flex items-center justify-center" style="background: var(--dbg)">
+		<div class="flex flex-col items-center gap-3" style="color: var(--dt3)">
 			<svg class="w-8 h-8 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
 					stroke-linecap="round"
@@ -180,39 +233,39 @@
 		</div>
 	</div>
 {:else if error}
-	<div class="flex-1 flex items-center justify-center bg-white">
+	<div class="flex-1 flex items-center justify-center" style="background: var(--dbg)">
 		<div class="text-center">
-			<p class="text-red-600">{error}</p>
-			<button onclick={() => goto('/clients' + embedSuffix)} class="mt-4 text-sm text-gray-600 hover:text-gray-900 underline">
+			<p style="color: var(--bos-status-error-text)">{error}</p>
+			<button onclick={() => goto('/clients' + embedSuffix)} class="mt-4 text-sm underline" style="color: var(--dt2)">
 				Back to clients
 			</button>
 		</div>
 	</div>
 {:else if client}
-	<div class="flex flex-col h-full bg-gray-50">
+	<div class="flex flex-col h-full" style="background: var(--dbg2)">
 		<!-- Header -->
-		<div class="bg-white border-b border-gray-200">
+		<div style="background: var(--dbg); border-bottom: 1px solid var(--dbd)">
 			<div class="px-6 py-4">
 				<div class="flex items-start justify-between">
-					<div class="flex items-start gap-4">
-						<button onclick={() => goto('/clients' + embedSuffix)} class="mt-1 p-1 hover:bg-gray-100 rounded-lg transition-colors">
-							<svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<div class="flex items-start gap-3">
+						<button onclick={() => goto('/clients' + embedSuffix)} class="mt-1 p-1 rounded-lg transition-colors hover:opacity-80" style="color: var(--dt2)">
+							<svg class="w-5 h-5" style="color: var(--dt3)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 							</svg>
 						</button>
-						<div class="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-xl font-semibold text-gray-600">
+						<div class="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-semibold" style="background: var(--dbg2); color: var(--dt2); border: 1px solid var(--dbd)">
 							{getInitials(client.name)}
 						</div>
 						<div>
-							<h1 class="text-2xl font-semibold text-gray-900">{client.name}</h1>
+							<h1 class="text-2xl font-semibold" style="color: var(--dt); letter-spacing: -0.02em">{client.name}</h1>
 							<div class="flex items-center gap-3 mt-1">
-								<span class="inline-flex items-center px-2 py-0.5 text-xs rounded-md {client.type === 'company' ? 'bg-blue-50 text-blue-700' : 'bg-violet-50 text-violet-700'}">
+								<span class="inline-flex items-center px-2 py-0.5 text-xs rounded-md" style="background: {client.type === 'company' ? 'var(--bos-status-info-bg)' : 'var(--bos-status-neutral-bg)'}; color: {client.type === 'company' ? 'var(--bos-status-info-text)' : 'var(--bos-status-neutral-text)'}">
 									{client.type === 'company' ? 'Company' : 'Individual'}
 								</span>
 								<select
 									value={client.status}
 									onchange={(e) => handleStatusChange((e.target as HTMLSelectElement).value as ClientStatus)}
-									class="px-2 py-0.5 text-xs rounded-md border-0 {statusColors[client.status]} cursor-pointer focus:ring-2 focus:ring-gray-900"
+									class="px-2 py-0.5 text-xs rounded-md border-0 cursor-pointer focus:ring-2 focus:ring-gray-900" style={getStatusStyle(client.status)}
 								>
 									<option value="lead">Lead</option>
 									<option value="prospect">Prospect</option>
@@ -221,7 +274,7 @@
 									<option value="churned">Churned</option>
 								</select>
 								{#if client.source}
-									<span class="text-xs text-gray-500">via {client.source}</span>
+									<span class="text-xs" style="color: var(--dt3)">via {client.source}</span>
 								{/if}
 							</div>
 						</div>
@@ -229,13 +282,13 @@
 					<div class="flex items-center gap-2">
 						<button
 							onclick={() => (showAddInteractionModal = true)}
-							class="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+							class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors hover:opacity-80" style="color: var(--dt2)"
 						>
 							Log Interaction
 						</button>
 						<button
 							onclick={() => (showAddDealModal = true)}
-							class="px-3 py-1.5 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+							class="btn-cta px-3 py-1.5 text-sm font-medium rounded-lg transition-colors"
 						>
 							Add Deal
 						</button>
@@ -253,7 +306,7 @@
 			</div>
 
 			<!-- Tabs -->
-			<div class="px-6 flex gap-6 border-t border-gray-100">
+			<div class="px-6 flex gap-6" style="border-top: 1px solid var(--dbd2)">
 				{#each [
 					{ id: 'overview', label: 'Overview' },
 					{ id: 'contacts', label: `Contacts (${client.contacts?.length ?? 0})` },
@@ -263,8 +316,8 @@
 					<button
 						onclick={() => (activeTab = tab.id as Tab)}
 						class="py-3 text-sm font-medium border-b-2 transition-colors {activeTab === tab.id
-							? 'border-gray-900 text-gray-900'
-							: 'border-transparent text-gray-500 hover:text-gray-700'}"
+							? ''
+							: 'border-transparent'}" style={activeTab === tab.id ? 'border-color: var(--bos-nav-active); color: var(--bos-nav-active); background: var(--bos-nav-active-bg); border-radius: 6px 6px 0 0' : 'color: var(--dt3)'}
 					>
 						{tab.label}
 					</button>
@@ -280,39 +333,39 @@
 						<!-- Main Info -->
 						<div class="col-span-2 space-y-6">
 							<!-- Contact Info Card -->
-							<div class="bg-white rounded-xl border border-gray-200 p-6">
-								<h3 class="text-sm font-medium text-gray-900 mb-4">Contact Information</h3>
+							<div class="rounded-xl p-6" style="background: var(--dbg); border: 1px solid var(--dbd)">
+								<h3 class="text-sm font-medium mb-4" style="color: var(--dt)">Contact Information</h3>
 								<div class="grid grid-cols-2 gap-4">
 									<div>
-										<div class="text-xs text-gray-500">Email</div>
-										<div class="text-sm text-gray-900">{client.email || '-'}</div>
+										<div class="text-xs" style="color: var(--dt3)">Email</div>
+										<div class="text-sm" style="color: var(--dt)">{client.email || '-'}</div>
 									</div>
 									<div>
-										<div class="text-xs text-gray-500">Phone</div>
-										<div class="text-sm text-gray-900">{client.phone || '-'}</div>
+										<div class="text-xs" style="color: var(--dt3)">Phone</div>
+										<div class="text-sm" style="color: var(--dt)">{client.phone || '-'}</div>
 									</div>
 									{#if client.website}
 										<div>
-											<div class="text-xs text-gray-500">Website</div>
-											<a href={client.website} target="_blank" class="text-sm text-blue-600 hover:underline">{client.website}</a>
+											<div class="text-xs" style="color: var(--dt3)">Website</div>
+											<a href={client.website} target="_blank" class="text-sm hover:underline" style="color: var(--bos-nav-active)">{client.website}</a>
 										</div>
 									{/if}
 									{#if client.type === 'company'}
 										<div>
-											<div class="text-xs text-gray-500">Industry</div>
-											<div class="text-sm text-gray-900">{client.industry || '-'}</div>
+											<div class="text-xs" style="color: var(--dt3)">Industry</div>
+											<div class="text-sm" style="color: var(--dt)">{client.industry || '-'}</div>
 										</div>
 										<div>
-											<div class="text-xs text-gray-500">Company Size</div>
-											<div class="text-sm text-gray-900">{client.company_size || '-'}</div>
+											<div class="text-xs" style="color: var(--dt3)">Company Size</div>
+											<div class="text-sm" style="color: var(--dt)">{client.company_size || '-'}</div>
 										</div>
 									{/if}
 								</div>
 
 								{#if client.address || client.city}
-									<div class="mt-4 pt-4 border-t border-gray-100">
-										<div class="text-xs text-gray-500">Address</div>
-										<div class="text-sm text-gray-900">
+									<div class="mt-4 pt-4" style="border-top: 1px solid var(--dbd2)">
+										<div class="text-xs" style="color: var(--dt3)">Address</div>
+										<div class="text-sm" style="color: var(--dt)">
 											{client.address || ''}{client.address && client.city ? ', ' : ''}{client.city || ''}{client.city && client.state ? ', ' : ''}{client.state || ''} {client.zip_code || ''}
 											{#if client.country}<br />{client.country}{/if}
 										</div>
@@ -322,30 +375,30 @@
 
 							<!-- Notes -->
 							{#if client.notes}
-								<div class="bg-white rounded-xl border border-gray-200 p-6">
-									<h3 class="text-sm font-medium text-gray-900 mb-2">Notes</h3>
-									<p class="text-sm text-gray-600 whitespace-pre-wrap">{client.notes}</p>
+								<div class="rounded-xl p-6" style="background: var(--dbg); border: 1px solid var(--dbd)">
+									<h3 class="text-sm font-medium mb-2" style="color: var(--dt)">Notes</h3>
+									<p class="text-sm whitespace-pre-wrap" style="color: var(--dt2)">{client.notes}</p>
 								</div>
 							{/if}
 
 							<!-- Recent Interactions -->
-							<div class="bg-white rounded-xl border border-gray-200 p-6">
+							<div class="rounded-xl p-6" style="background: var(--dbg); border: 1px solid var(--dbd)">
 								<div class="flex items-center justify-between mb-4">
-									<h3 class="text-sm font-medium text-gray-900">Recent Activity</h3>
-									<button onclick={() => (activeTab = 'interactions')} class="text-xs text-gray-500 hover:text-gray-700">
+									<h3 class="text-sm font-medium" style="color: var(--dt)">Recent Activity</h3>
+									<button onclick={() => (activeTab = 'interactions')} class="text-xs hover:underline" style="color: var(--dt3)">
 										View all
 									</button>
 								</div>
 								{#if !client.interactions || client.interactions.length === 0}
-									<p class="text-sm text-gray-500">No interactions yet</p>
+									<p class="text-sm" style="color: var(--dt3)">No interactions yet</p>
 								{:else}
 									<div class="space-y-3">
 										{#each client.interactions.slice(0, 5) as interaction}
 											<div class="flex items-start gap-3">
 												<span class="text-lg">{interactionTypeIcons[interaction.type]}</span>
 												<div class="flex-1 min-w-0">
-													<div class="text-sm font-medium text-gray-900">{interaction.subject}</div>
-													<div class="text-xs text-gray-500">{formatDateTime(interaction.occurred_at)}</div>
+													<div class="text-sm font-medium" style="color: var(--dt)">{interaction.subject}</div>
+													<div class="text-xs" style="color: var(--dt3)">{formatDateTime(interaction.occurred_at)}</div>
 												</div>
 											</div>
 										{/each}
@@ -357,25 +410,25 @@
 						<!-- Sidebar -->
 						<div class="space-y-6">
 							<!-- Stats Card -->
-							<div class="bg-white rounded-xl border border-gray-200 p-6">
-								<h3 class="text-sm font-medium text-gray-900 mb-4">Summary</h3>
+							<div class="rounded-xl p-6" style="background: var(--dbg); border: 1px solid var(--dbd)">
+								<h3 class="text-sm font-medium mb-4" style="color: var(--dt)">Summary</h3>
 								<div class="space-y-4">
 									<div>
-										<div class="text-xs text-gray-500">Lifetime Value</div>
-										<div class="text-2xl font-semibold text-gray-900">{formatCurrency(client.lifetime_value)}</div>
+										<div class="text-xs" style="color: var(--dt3)">Lifetime Value</div>
+										<div style="font-size: 1.75rem; font-weight: 700; letter-spacing: -0.03em; color: var(--dt)">{formatCurrency(client.lifetime_value)}</div>
 									</div>
 									<div>
-										<div class="text-xs text-gray-500">Pipeline Value</div>
-										<div class="text-lg font-medium text-emerald-600">{formatCurrency(getActiveDealsValue())}</div>
+										<div class="text-xs" style="color: var(--dt3)">Pipeline Value</div>
+										<div class="text-lg font-medium" style="color: var(--bos-status-success-text)">{formatCurrency(getActiveDealsValue())}</div>
 									</div>
-									<div class="pt-3 border-t border-gray-100 grid grid-cols-2 gap-4">
+									<div class="pt-3 grid grid-cols-2 gap-4" style="border-top: 1px solid var(--dbd2)">
 										<div>
-										<div class="text-2xl font-semibold text-gray-900">{client.deals?.length ?? 0}</div>
-										<div class="text-xs text-gray-500">Total Deals</div>
+										<div class="text-2xl font-semibold" style="color: var(--dt)">{client.deals?.length ?? 0}</div>
+										<div class="text-xs" style="color: var(--dt3)">Total Deals</div>
 									</div>
 									<div>
-										<div class="text-2xl font-semibold text-gray-900">{client.contacts?.length ?? 0}</div>
-											<div class="text-xs text-gray-500">Contacts</div>
+										<div class="text-2xl font-semibold" style="color: var(--dt)">{client.contacts?.length ?? 0}</div>
+											<div class="text-xs" style="color: var(--dt3)">Contacts</div>
 										</div>
 									</div>
 								</div>
@@ -383,31 +436,31 @@
 
 							<!-- Tags -->
 							{#if client.tags && client.tags.length > 0}
-								<div class="bg-white rounded-xl border border-gray-200 p-6">
-									<h3 class="text-sm font-medium text-gray-900 mb-3">Tags</h3>
+								<div class="rounded-xl p-6" style="background: var(--dbg); border: 1px solid var(--dbd)">
+									<h3 class="text-sm font-medium mb-3" style="color: var(--dt)">Tags</h3>
 									<div class="flex flex-wrap gap-2">
 										{#each client.tags as tag}
-											<span class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-md">{tag}</span>
+											<span class="px-2 py-1 text-xs rounded-md" style="background: var(--dbg2); color: var(--dt2)">{tag}</span>
 										{/each}
 									</div>
 								</div>
 							{/if}
 
 							<!-- Dates -->
-							<div class="bg-white rounded-xl border border-gray-200 p-6">
-								<h3 class="text-sm font-medium text-gray-900 mb-3">Dates</h3>
+							<div class="rounded-xl p-6" style="background: var(--dbg); border: 1px solid var(--dbd)">
+								<h3 class="text-sm font-medium mb-3" style="color: var(--dt)">Dates</h3>
 								<div class="space-y-2 text-sm">
 									<div class="flex justify-between">
-										<span class="text-gray-500">Created</span>
-										<span class="text-gray-900">{formatDate(client.created_at)}</span>
+										<span style="color: var(--dt3)">Created</span>
+										<span style="color: var(--dt)">{formatDate(client.created_at)}</span>
 									</div>
 									<div class="flex justify-between">
-										<span class="text-gray-500">Last Updated</span>
-										<span class="text-gray-900">{formatDate(client.updated_at)}</span>
+										<span style="color: var(--dt3)">Last Updated</span>
+										<span style="color: var(--dt)">{formatDate(client.updated_at)}</span>
 									</div>
 									<div class="flex justify-between">
-										<span class="text-gray-500">Last Contact</span>
-										<span class="text-gray-900">{formatDate(client.last_contacted_at)}</span>
+										<span style="color: var(--dt3)">Last Contact</span>
+										<span style="color: var(--dt)">{formatDate(client.last_contacted_at)}</span>
 									</div>
 								</div>
 							</div>
@@ -416,12 +469,12 @@
 				</div>
 			{:else if activeTab === 'contacts'}
 				<div class="p-6">
-					<div class="bg-white rounded-xl border border-gray-200">
-						<div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-							<h3 class="text-sm font-medium text-gray-900">Contacts</h3>
+					<div class="rounded-xl" style="background: var(--dbg); border: 1px solid var(--dbd)">
+						<div class="px-6 py-4 flex items-center justify-between" style="border-bottom: 1px solid var(--dbd)">
+							<h3 class="text-sm font-medium" style="color: var(--dt)">Contacts</h3>
 							<button
 								onclick={() => (showAddContactModal = true)}
-								class="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+								class="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors hover:opacity-80" style="color: var(--dt2)"
 							>
 								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -430,35 +483,35 @@
 							</button>
 						</div>
 						{#if !client.contacts || client.contacts.length === 0}
-							<div class="px-6 py-12 text-center text-gray-500">
+							<div class="px-6 py-12 text-center" style="color: var(--dt3)">
 								<p>No contacts yet</p>
 							</div>
 						{:else}
-							<div class="divide-y divide-gray-100">
+							<div class="divide-y" style="--tw-divide-color: var(--dbd2)">
 								{#each client.contacts as contact}
-									<div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
+									<div class="px-6 py-4 flex items-center justify-between hover:opacity-90">
 										<div class="flex items-center gap-4">
-											<div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
+											<div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium" style="background: var(--dbg2); color: var(--dt2)">
 												{getInitials(contact.name)}
 											</div>
 											<div>
 												<div class="flex items-center gap-2">
-													<span class="text-sm font-medium text-gray-900">{contact.name}</span>
+													<span class="text-sm font-medium" style="color: var(--dt)">{contact.name}</span>
 													{#if contact.is_primary}
-														<span class="px-1.5 py-0.5 text-xs bg-blue-50 text-blue-700 rounded">Primary</span>
+														<span class="px-1.5 py-0.5 text-xs rounded" style="background: var(--bos-status-info-bg); color: var(--bos-status-info-text)">Primary</span>
 													{/if}
 												</div>
-												<div class="text-xs text-gray-500">{contact.role || 'No role specified'}</div>
+												<div class="text-xs" style="color: var(--dt3)">{contact.role || 'No role specified'}</div>
 											</div>
 										</div>
 										<div class="flex items-center gap-4">
 											<div class="text-right text-sm">
-												<div class="text-gray-900">{contact.email || '-'}</div>
-												<div class="text-gray-500">{contact.phone || '-'}</div>
+												<div style="color: var(--dt)">{contact.email || '-'}</div>
+												<div style="color: var(--dt3)">{contact.phone || '-'}</div>
 											</div>
 											<button
 												onclick={() => handleDeleteContact(contact.id)}
-												class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+												class="p-1 rounded transition-colors" style="color: var(--dt4)"
 											>
 												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -473,12 +526,12 @@
 				</div>
 			{:else if activeTab === 'interactions'}
 				<div class="p-6">
-					<div class="bg-white rounded-xl border border-gray-200">
-						<div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-							<h3 class="text-sm font-medium text-gray-900">Interaction Timeline</h3>
+					<div class="rounded-xl" style="background: var(--dbg); border: 1px solid var(--dbd)">
+						<div class="px-6 py-4 flex items-center justify-between" style="border-bottom: 1px solid var(--dbd)">
+							<h3 class="text-sm font-medium" style="color: var(--dt)">Interaction Timeline</h3>
 							<button
 								onclick={() => (showAddInteractionModal = true)}
-								class="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+								class="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors hover:opacity-80" style="color: var(--dt2)"
 							>
 								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -487,31 +540,31 @@
 							</button>
 						</div>
 						{#if !client.interactions || client.interactions.length === 0}
-							<div class="px-6 py-12 text-center text-gray-500">
+							<div class="px-6 py-12 text-center" style="color: var(--dt3)">
 								<p>No interactions yet</p>
 							</div>
 						{:else}
-							<div class="divide-y divide-gray-100">
+							<div class="divide-y" style="--tw-divide-color: var(--dbd2)">
 								{#each client.interactions as interaction}
 									<div class="px-6 py-4">
 										<div class="flex items-start gap-4">
-											<div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-lg">
+											<div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg" style="background: var(--dbg2)">
 												{interactionTypeIcons[interaction.type]}
 											</div>
 											<div class="flex-1">
 												<div class="flex items-center gap-2">
-													<span class="text-sm font-medium text-gray-900">{interaction.subject}</span>
-													<span class="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">{interactionTypeLabels[interaction.type]}</span>
+													<span class="text-sm font-medium" style="color: var(--dt)">{interaction.subject}</span>
+													<span class="px-1.5 py-0.5 text-xs rounded" style="background: var(--dbg2); color: var(--dt2)">{interactionTypeLabels[interaction.type]}</span>
 												</div>
 												{#if interaction.description}
-													<p class="text-sm text-gray-600 mt-1">{interaction.description}</p>
+													<p class="text-sm mt-1" style="color: var(--dt2)">{interaction.description}</p>
 												{/if}
 												{#if interaction.outcome}
-													<div class="mt-2 text-xs text-gray-500">
+													<div class="mt-2 text-xs" style="color: var(--dt3)">
 														<span class="font-medium">Outcome:</span> {interaction.outcome}
 													</div>
 												{/if}
-												<div class="text-xs text-gray-400 mt-2">{formatDateTime(interaction.occurred_at)}</div>
+												<div class="text-xs mt-2" style="color: var(--dt4)">{formatDateTime(interaction.occurred_at)}</div>
 											</div>
 										</div>
 									</div>
@@ -522,12 +575,12 @@
 				</div>
 			{:else if activeTab === 'deals'}
 				<div class="p-6">
-					<div class="bg-white rounded-xl border border-gray-200">
-						<div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-							<h3 class="text-sm font-medium text-gray-900">Deals</h3>
+					<div class="rounded-xl" style="background: var(--dbg); border: 1px solid var(--dbd)">
+						<div class="px-6 py-4 flex items-center justify-between" style="border-bottom: 1px solid var(--dbd)">
+							<h3 class="text-sm font-medium" style="color: var(--dt)">Deals</h3>
 							<button
 								onclick={() => (showAddDealModal = true)}
-								class="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+								class="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors hover:opacity-80" style="color: var(--dt2)"
 							>
 								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -536,20 +589,20 @@
 							</button>
 						</div>
 						{#if !client.deals || client.deals.length === 0}
-							<div class="px-6 py-12 text-center text-gray-500">
+							<div class="px-6 py-12 text-center" style="color: var(--dt3)">
 								<p>No deals yet</p>
 							</div>
 						{:else}
-							<div class="divide-y divide-gray-100">
+							<div class="divide-y" style="--tw-divide-color: var(--dbd2)">
 								{#each client.deals as deal}
 									<div class="px-6 py-4">
 										<div class="flex items-center justify-between">
 											<div>
 												<div class="flex items-center gap-2">
-													<span class="text-sm font-medium text-gray-900">{deal.name}</span>
+													<span class="text-sm font-medium" style="color: var(--dt)">{deal.name}</span>
 													<span class="px-1.5 py-0.5 text-xs rounded {dealStageColors[deal.stage]}">{dealStageLabels[deal.stage]}</span>
 												</div>
-												<div class="text-xs text-gray-500 mt-1">
+												<div class="text-xs mt-1" style="color: var(--dt3)">
 													{deal.probability}% probability
 													{#if deal.expected_close_date}
 														 &middot; Expected close: {formatDate(deal.expected_close_date)}
@@ -557,12 +610,12 @@
 												</div>
 											</div>
 											<div class="text-right">
-												<div class="text-lg font-semibold text-gray-900">{formatCurrency(deal.value)}</div>
-												<div class="text-xs text-gray-500">Created {formatDate(deal.created_at)}</div>
+												<div class="text-lg font-semibold" style="color: var(--dt)">{formatCurrency(deal.value)}</div>
+												<div class="text-xs" style="color: var(--dt3)">Created {formatDate(deal.created_at)}</div>
 											</div>
 										</div>
 										{#if deal.notes}
-											<p class="text-sm text-gray-600 mt-2">{deal.notes}</p>
+											<p class="text-sm mt-2" style="color: var(--dt2)">{deal.notes}</p>
 										{/if}
 									</div>
 								{/each}
@@ -578,35 +631,35 @@
 	{#if showAddContactModal}
 		<div class="fixed inset-0 z-50 flex items-center justify-center">
 			<div class="absolute inset-0 bg-black/50" onclick={() => (showAddContactModal = false)} role="presentation"></div>
-			<div class="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-				<h3 class="text-lg font-semibold text-gray-900 mb-4">Add Contact</h3>
+			<div class="relative rounded-xl shadow-xl w-full max-w-md mx-4 p-6" style="background: var(--dbg); border: 1px solid var(--dbd)">
+				<h3 class="text-lg font-semibold mb-4" style="color: var(--dt)">Add Contact</h3>
 				<form onsubmit={(e) => { e.preventDefault(); handleAddContact(); }}>
 					<div class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-							<input type="text" bind:value={contactForm.name} required class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" />
+							<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Name *</label>
+							<input type="text" bind:value={contactForm.name} required class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)" />
 						</div>
 						<div class="grid grid-cols-2 gap-4">
 							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-								<input type="email" bind:value={contactForm.email} class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" />
+								<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Email</label>
+								<input type="email" bind:value={contactForm.email} class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)" />
 							</div>
 							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-								<input type="tel" bind:value={contactForm.phone} class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" />
+								<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Phone</label>
+								<input type="tel" bind:value={contactForm.phone} class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)" />
 							</div>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-							<input type="text" bind:value={contactForm.role} placeholder="CEO, CTO, etc." class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" />
+							<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Role</label>
+							<input type="text" bind:value={contactForm.role} placeholder="CEO, CTO, etc." class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)" />
 						</div>
 						<div class="flex items-center gap-2">
 							<input type="checkbox" id="isPrimary" bind:checked={contactForm.is_primary} class="rounded" />
-							<label for="isPrimary" class="text-sm text-gray-700">Primary contact</label>
+							<label for="isPrimary" class="text-sm" style="color: var(--dt2)">Primary contact</label>
 						</div>
 					</div>
 					<div class="flex justify-end gap-3 mt-6">
-						<button type="button" onclick={() => (showAddContactModal = false)} class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+						<button type="button" onclick={() => (showAddContactModal = false)} class="px-4 py-2 text-sm font-medium rounded-lg hover:opacity-80 transition-colors" style="color: var(--dt2)">Cancel</button>
 						<button type="submit" class="btn-pill btn-pill-primary btn-pill-sm">Add Contact</button>
 					</div>
 				</form>
@@ -618,13 +671,13 @@
 	{#if showAddInteractionModal}
 		<div class="fixed inset-0 z-50 flex items-center justify-center">
 			<div class="absolute inset-0 bg-black/50" onclick={() => (showAddInteractionModal = false)} role="presentation"></div>
-			<div class="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-				<h3 class="text-lg font-semibold text-gray-900 mb-4">Log Interaction</h3>
+			<div class="relative rounded-xl shadow-xl w-full max-w-md mx-4 p-6" style="background: var(--dbg); border: 1px solid var(--dbd)">
+				<h3 class="text-lg font-semibold mb-4" style="color: var(--dt)">Log Interaction</h3>
 				<form onsubmit={(e) => { e.preventDefault(); handleAddInteraction(); }}>
 					<div class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-							<select bind:value={interactionForm.type} class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900">
+							<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Type</label>
+							<select bind:value={interactionForm.type} class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)">
 								<option value="call">Call</option>
 								<option value="email">Email</option>
 								<option value="meeting">Meeting</option>
@@ -632,20 +685,20 @@
 							</select>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-1">Subject *</label>
-							<input type="text" bind:value={interactionForm.subject} required class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" />
+							<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Subject *</label>
+							<input type="text" bind:value={interactionForm.subject} required class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)" />
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-							<textarea bind:value={interactionForm.description} rows="3" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"></textarea>
+							<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Description</label>
+							<textarea bind:value={interactionForm.description} rows="3" class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)"></textarea>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-1">Outcome</label>
-							<input type="text" bind:value={interactionForm.outcome} placeholder="e.g., Scheduled follow-up call" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" />
+							<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Outcome</label>
+							<input type="text" bind:value={interactionForm.outcome} placeholder="e.g., Scheduled follow-up call" class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)" />
 						</div>
 					</div>
 					<div class="flex justify-end gap-3 mt-6">
-						<button type="button" onclick={() => (showAddInteractionModal = false)} class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+						<button type="button" onclick={() => (showAddInteractionModal = false)} class="px-4 py-2 text-sm font-medium rounded-lg hover:opacity-80 transition-colors" style="color: var(--dt2)">Cancel</button>
 						<button type="submit" class="btn-pill btn-pill-primary btn-pill-sm">Log Interaction</button>
 					</div>
 				</form>
@@ -657,28 +710,28 @@
 	{#if showAddDealModal}
 		<div class="fixed inset-0 z-50 flex items-center justify-center">
 			<div class="absolute inset-0 bg-black/50" onclick={() => (showAddDealModal = false)} role="presentation"></div>
-			<div class="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-				<h3 class="text-lg font-semibold text-gray-900 mb-4">Add Deal</h3>
+			<div class="relative rounded-xl shadow-xl w-full max-w-md mx-4 p-6" style="background: var(--dbg); border: 1px solid var(--dbd)">
+				<h3 class="text-lg font-semibold mb-4" style="color: var(--dt)">Add Deal</h3>
 				<form onsubmit={(e) => { e.preventDefault(); handleAddDeal(); }}>
 					<div class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-1">Deal Name *</label>
-							<input type="text" bind:value={dealForm.name} required class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" />
+							<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Deal Name *</label>
+							<input type="text" bind:value={dealForm.name} required class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)" />
 						</div>
 						<div class="grid grid-cols-2 gap-4">
 							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-1">Value</label>
-								<input type="number" bind:value={dealForm.value} min="0" step="0.01" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" />
+								<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Value</label>
+								<input type="number" bind:value={dealForm.value} min="0" step="0.01" class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)" />
 							</div>
 							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-1">Probability %</label>
-								<input type="number" bind:value={dealForm.probability} min="0" max="100" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" />
+								<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Probability %</label>
+								<input type="number" bind:value={dealForm.probability} min="0" max="100" class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)" />
 							</div>
 						</div>
 						<div class="grid grid-cols-2 gap-4">
 							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-1">Stage</label>
-								<select bind:value={dealForm.stage} class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900">
+								<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Stage</label>
+								<select bind:value={dealForm.stage} class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)">
 									<option value="qualification">Qualification</option>
 									<option value="proposal">Proposal</option>
 									<option value="negotiation">Negotiation</option>
@@ -687,17 +740,17 @@
 								</select>
 							</div>
 							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-1">Expected Close</label>
-								<input type="date" bind:value={dealForm.expected_close_date} class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" />
+								<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Expected Close</label>
+								<input type="date" bind:value={dealForm.expected_close_date} class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)" />
 							</div>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-							<textarea bind:value={dealForm.notes} rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"></textarea>
+							<label class="block text-sm font-medium mb-1" style="color: var(--dt2)">Notes</label>
+							<textarea bind:value={dealForm.notes} rows="2" class="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt)"></textarea>
 						</div>
 					</div>
 					<div class="flex justify-end gap-3 mt-6">
-						<button type="button" onclick={() => (showAddDealModal = false)} class="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+						<button type="button" onclick={() => (showAddDealModal = false)} class="px-4 py-2 text-sm font-medium rounded-lg hover:opacity-80 transition-colors" style="color: var(--dt2)">Cancel</button>
 						<button type="submit" class="btn-pill btn-pill-primary btn-pill-sm">Add Deal</button>
 					</div>
 				</form>

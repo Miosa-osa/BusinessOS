@@ -39,8 +39,8 @@
 		} | null;
 		showModelDropdown: boolean;
 		// Computed values
-		totalConversationTokens: () => number;
-		contextUsagePercent: () => number;
+		totalConversationTokens: number;
+		contextUsagePercent: number;
 		// Handlers
 		onSendMessage: () => void;
 		onStop: () => void;
@@ -98,7 +98,7 @@
 	}: Props = $props();
 
 	// Shared input bar props (used in both conversation and empty state)
-	const sharedInputProps = $derived(() => ({
+	const sharedInputProps = $derived.by(() => ({
 		isStreaming: cs.isStreaming,
 		attachedFiles: cx.attachedFiles,
 		selectedMemoryIds: ag.selectedMemoryIds,
@@ -154,6 +154,7 @@
 	}));
 </script>
 
+
 {#if cs.hasConversation}
 	<!-- Messages container -->
 	<div bind:this={messagesContainer} class="flex-1 overflow-y-auto min-h-0">
@@ -206,14 +207,14 @@
 			<ChatInputBar
 				bind:inputValue={cs.inputValue}
 				bind:inputRef
-				{...sharedInputProps()}
+				{...sharedInputProps}
 				availableContexts={cx.availableContexts.map(c => ({ id: c.id, name: c.name, icon: c.icon ?? undefined }))}
 				selectedContextIds={cx.selectedContextIds}
 				selectedContextsLabel={cx.selectedContextsLabel()}
 				showContextStats={cs.messages.length > 0}
-				totalTokens={totalConversationTokens()}
+				totalTokens={totalConversationTokens}
 				contextLimit={ms.currentContextLimit}
-				contextUsagePercent={contextUsagePercent()}
+				contextUsagePercent={contextUsagePercent}
 				messageTokens={cx.messageTokens(cs.messages)}
 				nodeContextTokens={cx.nodeContextTokens}
 				contextDocTokens={cx.contextDocTokens}
@@ -238,7 +239,7 @@
 		onRequestProjectSelect={() => { cx.showProjectDropdown = true; }}
 		bind:inputValue={cs.inputValue}
 		bind:inputRef
-		{...sharedInputProps()}
+		{...sharedInputProps}
 		selectedContextsLabel={cx.selectedContextsLabel()}
 		onNewConversation={() => cs.startNewConversation()}
 		onSwitchToFocusMode={() => { ag.focusModeEnabled = true; }}

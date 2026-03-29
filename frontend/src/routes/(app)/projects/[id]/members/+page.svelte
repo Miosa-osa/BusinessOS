@@ -141,14 +141,14 @@
 	.prm-mem-title { color: var(--dt, #111); }
 	.prm-mem-muted { color: var(--dt3, #6b7280); }
 	.prm-mem-icon { color: var(--dt3, #6b7280); }
-	.prm-mem-panel { background: var(--dbg, #fff); border-radius: 0.75rem; border: 1px solid var(--dbd, #e5e7eb); box-shadow: 0 1px 2px rgba(0,0,0,.05); }
-	.prm-mem-accent { color: #3b82f6; }
-	.prm-mem-error-box { background: color-mix(in srgb, #ef4444 10%, var(--dbg, #fff)); border: 1px solid color-mix(in srgb, #ef4444 25%, var(--dbd, #e5e7eb)); }
-	.prm-mem-error-icon { color: #ef4444; }
+	.prm-mem-panel { background: var(--dbg, #fff); border-radius: 0.75rem; border: 1px solid var(--dbd, #e5e7eb); box-shadow: var(--bos-shadow-1); }
+	.prm-mem-accent { color: var(--bos-status-info); }
+	.prm-mem-error-box { background: var(--bos-status-error-bg); border: 1px solid color-mix(in srgb, var(--bos-status-error) 25%, var(--dbd, #e5e7eb)); }
+	.prm-mem-error-icon { color: var(--bos-status-error); }
 	.prm-mem-error-title { color: var(--dt, #111); }
-	.prm-mem-error-text { color: color-mix(in srgb, #ef4444 70%, var(--dt, #111)); }
-	.prm-mem-info-box { background: color-mix(in srgb, #3b82f6 10%, var(--dbg, #fff)); border: 1px solid color-mix(in srgb, #3b82f6 25%, var(--dbd, #e5e7eb)); }
-	.prm-mem-info-badge { background: color-mix(in srgb, #3b82f6 15%, var(--dbg, #fff)); color: #3b82f6; }
+	.prm-mem-error-text { color: var(--bos-status-error-text); }
+	.prm-mem-info-box { background: var(--bos-status-info-bg); border: 1px solid color-mix(in srgb, var(--bos-status-info) 25%, var(--dbd, #e5e7eb)); }
+	.prm-mem-info-badge { background: color-mix(in srgb, var(--bos-status-info) 15%, var(--dbg, #fff)); color: var(--bos-status-info); }
 	.prm-mem-info-title { color: var(--dt, #111); }
 	.prm-mem-info-text { color: var(--dt2, #4b5563); }
 </style>

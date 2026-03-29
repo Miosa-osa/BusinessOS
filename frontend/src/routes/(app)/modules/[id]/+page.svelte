@@ -2,12 +2,13 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { ArrowLeft, Download, Star, Share2, Upload, Loader2, Trash2, Package, Play, Code, Workflow, Info, Lock, CheckCircle2 } from 'lucide-svelte';
+	import { ArrowLeft, Download, Star, Share2, Upload, Loader2, Trash2, Play, Code, Workflow, Info, Lock, CheckCircle2 } from 'lucide-svelte';
 	import { customModulesStore } from '$lib/stores/customModulesStore';
 	import ManifestViewer from '$lib/components/modules/ManifestViewer.svelte';
 	import ShareDialog from '$lib/components/modules/ShareDialog.svelte';
 	import { categoryLabels } from '$lib/types/modules';
-	import { moduleIconMap } from '$lib/components/modules/moduleIcons';
+	import { getCategoryColor } from '$lib/constants/colors';
+	import { getModuleIcon } from '$lib/components/modules/moduleIcons';
 
 	let store = $state(customModulesStore);
 	let storeState = $state($store);
@@ -22,16 +23,7 @@
 	let isInstalled = $state(false);
 	let isProcessing = $state(false);
 
-	const categoryHexColors: Record<string, string> = {
-		productivity: '#3b82f6',
-		communication: '#a855f7',
-		finance: '#10b981',
-		analytics: '#f97316',
-		automation: '#ec4899',
-		integration: '#6366f1',
-		utilities: '#6b7280',
-		custom: '#06b6d4',
-	};
+	// Using shared getCategoryColor from $lib/constants/colors
 
 	const actionTypeIcons: Record<string, typeof Play> = {
 		function: Code,
@@ -112,8 +104,8 @@
 		</div>
 	{:else}
 		{@const mod = storeState.currentModule}
-		{@const catColor = categoryHexColors[mod.category] || '#6366f1'}
-		{@const ModIcon = mod.icon ? moduleIconMap[mod.icon] ?? null : null}
+		{@const catColor = getCategoryColor(mod.category)}
+		{@const ModIcon = getModuleIcon(mod.icon, mod.category)}
 
 		<!-- Top bar -->
 		<div class="md-topbar">
@@ -139,15 +131,9 @@
 		<!-- Hero header -->
 		<div class="md-hero">
 			<div class="md-hero__icon-wrap">
-				{#if ModIcon}
-					<div class="md-hero__icon" style="background: {catColor}">
-						<ModIcon class="w-7 h-7" />
-					</div>
-				{:else}
-					<div class="md-hero__icon md-hero__icon--fallback">
-						<Package class="w-7 h-7" />
-					</div>
-				{/if}
+				<div class="md-hero__icon" style="background: {catColor}">
+					<ModIcon class="w-7 h-7" />
+				</div>
 			</div>
 			<div class="md-hero__info">
 				<div class="md-hero__title-row">
@@ -155,7 +141,7 @@
 					<span class="md-badge md-badge--vis md-badge--{mod.visibility}">{mod.visibility}</span>
 				</div>
 				<div class="md-hero__meta">
-					<span class="md-badge md-badge--cat" style="background: {catColor}18; color: {catColor}; border-color: {catColor}30">
+					<span class="md-badge md-badge--cat" style="background: color-mix(in srgb, {catColor} 10%, transparent); color: {catColor}; border-color: color-mix(in srgb, {catColor} 20%, transparent)">
 						{categoryLabels[mod.category]}
 					</span>
 					<span class="md-hero__sep">v{mod.version}</span>
@@ -167,12 +153,12 @@
 			</div>
 			<div class="md-hero__cta">
 				{#if isInstalled}
-					<button onclick={handleUninstall} disabled={isProcessing} class="md-install-btn md-install-btn--installed" aria-label="Uninstall module">
+					<button onclick={handleUninstall} disabled={isProcessing} class="md-installed-btn" aria-label="Uninstall module">
 						<CheckCircle2 class="w-4 h-4" />
 						{isProcessing ? 'Removing...' : 'Installed'}
 					</button>
 				{:else}
-					<button onclick={handleInstall} disabled={isProcessing} class="md-install-btn" aria-label="Install module">
+					<button onclick={handleInstall} disabled={isProcessing} class="btn-pill btn-pill-primary" aria-label="Install module">
 						<Download class="w-4 h-4" />
 						{isProcessing ? 'Installing...' : 'Install'}
 					</button>
@@ -236,7 +222,7 @@
 										{@const TypeIcon = actionTypeIcons[action.type] || Code}
 										<div class="md-action-card">
 											<div class="md-action-card__left">
-												<div class="md-action-card__icon" style="background: {catColor}14; color: {catColor}">
+												<div class="md-action-card__icon" style="background: color-mix(in srgb, {catColor} 8%, transparent); color: {catColor}">
 													<TypeIcon class="w-4 h-4" />
 												</div>
 												<div>
@@ -399,7 +385,7 @@
 		height: 100%;
 		display: flex;
 		flex-direction: column;
-		background: var(--dbg, #fff);
+		background: var(--dbg);
 	}
 
 	/* Center states */
@@ -414,15 +400,15 @@
 	}
 	.md-center :global(.md-spinner) {
 		width: 28px; height: 28px;
-		color: var(--dt3, #888);
+		color: var(--dt3);
 		animation: md-spin 1s linear infinite;
 	}
 	@keyframes md-spin { to { transform: rotate(360deg); } }
-	.md-text-primary { font-size: 14px; font-weight: 500; color: var(--dt, #111); }
-	.md-muted { font-size: 13px; color: var(--dt3, #888); }
+	.md-text-primary { font-size: 14px; font-weight: 500; color: var(--dt); }
+	.md-muted { font-size: 13px; color: var(--dt3); }
 	.md-error-orb {
 		width: 52px; height: 52px; border-radius: 50%;
-		background: rgba(239, 68, 68, 0.1); color: #ef4444;
+		background: var(--bos-status-error-bg); color: var(--bos-status-error);
 		display: flex; align-items: center; justify-content: center;
 		margin-bottom: 4px;
 	}
@@ -433,16 +419,16 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 12px 32px;
-		border-bottom: 1px solid var(--dbd2, #f0f0f0);
+		border-bottom: 1px solid var(--dbd2);
 		flex-shrink: 0;
 	}
 	.md-back {
 		display: inline-flex; align-items: center; gap: 6px;
-		font-size: 13px; color: var(--dt3, #888);
+		font-size: 13px; color: var(--dt3);
 		background: none; border: none; cursor: pointer; padding: 0;
 		transition: color .15s;
 	}
-	.md-back:hover { color: var(--dt, #111); }
+	.md-back:hover { color: var(--dt); }
 	.md-topbar__actions {
 		display: flex; align-items: center; gap: 4px;
 	}
@@ -450,23 +436,23 @@
 		display: inline-flex; align-items: center; gap: 6px;
 		padding: 6px 12px; border-radius: 8px;
 		font-size: 12px; font-weight: 500;
-		border: 1px solid var(--dbd, #e0e0e0);
-		background: transparent; color: var(--dt2, #555);
+		border: 1px solid var(--dbd);
+		background: transparent; color: var(--dt2);
 		cursor: pointer; transition: all .15s;
 	}
 	.md-action-btn:hover {
-		background: var(--dbg2, #f5f5f5);
-		border-color: var(--dt3, #888);
-		color: var(--dt, #111);
+		background: var(--dbg2);
+		border-color: var(--dt3);
+		color: var(--dt);
 	}
 	.md-action-btn--danger {
-		border-color: rgba(239, 68, 68, 0.25);
-		color: #ef4444;
+		border-color: color-mix(in srgb, var(--bos-status-error) 25%, transparent);
+		color: var(--bos-status-error);
 	}
 	.md-action-btn--danger:hover {
-		background: rgba(239, 68, 68, 0.08);
-		border-color: rgba(239, 68, 68, 0.4);
-		color: #dc2626;
+		background: var(--bos-status-error-bg);
+		border-color: color-mix(in srgb, var(--bos-status-error) 40%, transparent);
+		color: var(--bos-status-error-text);
 	}
 
 	/* Hero */
@@ -481,55 +467,45 @@
 	.md-hero__icon {
 		width: 56px; height: 56px; border-radius: 16px;
 		display: flex; align-items: center; justify-content: center;
-		color: #fff;
+		color: var(--bos-surface-on-color);
 	}
 	.md-hero__icon--fallback {
-		background: var(--dbg3, #eee); color: var(--dt3, #888);
+		background: var(--dbg3); color: var(--dt3);
 	}
 	.md-hero__info { flex: 1; min-width: 0; }
 	.md-hero__title-row {
 		display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
 	}
 	.md-hero__name {
-		font-size: 20px; font-weight: 700; color: var(--dt, #111);
+		font-size: 20px; font-weight: 700; color: var(--dt);
 		white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 	}
 	.md-hero__meta {
 		display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-		font-size: 12px; color: var(--dt3, #888); margin-bottom: 8px;
+		font-size: 12px; color: var(--dt3); margin-bottom: 8px;
 	}
-	.md-hero__sep { color: var(--dt3, #888); }
+	.md-hero__sep { color: var(--dt3); }
 	.md-hero__desc {
-		font-size: 13px; color: var(--dt2, #555); line-height: 1.6;
+		font-size: 13px; color: var(--dt2); line-height: 1.6;
 		max-width: 640px;
 	}
 	.md-hero__cta { flex-shrink: 0; padding-top: 4px; }
 
-	/* Install button */
-	.md-install-btn {
+	/* Installed button (green state) */
+	.md-installed-btn {
 		display: inline-flex; align-items: center; gap: 8px;
 		padding: 10px 22px; border-radius: 10px;
 		font-size: 13px; font-weight: 600;
 		border: none; cursor: pointer;
-		background: var(--dt, #111); color: #fff;
+		background: var(--bos-status-success-bg);
+		color: var(--bos-status-success);
 		transition: all .15s;
 	}
-	.md-install-btn:hover:not(:disabled) {
-		opacity: 0.9;
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+	.md-installed-btn:hover:not(:disabled) {
+		background: var(--bos-status-error-bg);
+		color: var(--bos-status-error);
 	}
-	.md-install-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-	.md-install-btn--installed {
-		background: rgba(16, 185, 129, 0.12);
-		color: #10b981;
-	}
-	.md-install-btn--installed:hover:not(:disabled) {
-		background: rgba(239, 68, 68, 0.1);
-		color: #ef4444;
-		box-shadow: none;
-		transform: none;
-	}
+	.md-installed-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 	/* Stats bar */
 	.md-stats-bar {
@@ -540,10 +516,10 @@
 	}
 	.md-stat-item {
 		display: inline-flex; align-items: center; gap: 5px;
-		font-size: 12px; color: var(--dt3, #888);
+		font-size: 12px; color: var(--dt3);
 	}
-	.md-stat-item__val { font-weight: 600; color: var(--dt, #111); }
-	.md-stat-item__label { color: var(--dt3, #888); }
+	.md-stat-item__val { font-weight: 600; color: var(--dt); }
+	.md-stat-item__label { color: var(--dt3); }
 
 	/* Badges */
 	.md-badge {
@@ -557,12 +533,12 @@
 	.md-badge--vis {
 		font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
 	}
-	.md-badge--public { background: #10b98118; color: #10b981; }
-	.md-badge--workspace { background: #6366f118; color: #6366f1; }
-	.md-badge--private { background: #6b728018; color: #6b7280; }
+	.md-badge--public { background: var(--bos-status-success-bg); color: var(--bos-status-success); }
+	.md-badge--workspace { background: var(--bos-status-info-bg); color: var(--bos-status-info); }
+	.md-badge--private { background: var(--bos-status-neutral-bg); color: var(--bos-status-neutral); }
 	.md-badge--latest {
-		background: rgba(59, 130, 246, 0.1);
-		color: #3b82f6;
+		background: var(--bos-status-info-bg);
+		color: var(--bos-status-info);
 		font-size: 10px;
 	}
 
@@ -570,19 +546,23 @@
 	.md-tabs {
 		display: flex; gap: 0;
 		padding: 0 32px;
-		border-bottom: 1px solid var(--dbd, #e0e0e0);
+		border-bottom: 1px solid var(--dbd);
 		flex-shrink: 0;
+		position: sticky;
+		top: 0;
+		z-index: 10;
+		background: var(--dbg);
 	}
 	.md-tab {
 		padding: 10px 18px; border: none; background: transparent;
-		color: var(--dt3, #888); font-size: 13px; font-weight: 500;
+		color: var(--dt3); font-size: 13px; font-weight: 500;
 		cursor: pointer; border-bottom: 2px solid transparent;
 		margin-bottom: -1px; transition: all .15s; white-space: nowrap;
 	}
-	.md-tab:hover { color: var(--dt, #111); }
+	.md-tab:hover { color: var(--dt); }
 	.md-tab--active {
-		color: var(--dt, #111);
-		border-bottom-color: var(--dt, #111);
+		color: var(--dt);
+		border-bottom-color: var(--dt);
 	}
 
 	/* Content */
@@ -607,7 +587,7 @@
 	.md-section { margin-bottom: 28px; }
 	.md-section--wide { max-width: 800px; }
 	.md-section__title {
-		font-size: 14px; font-weight: 600; color: var(--dt, #111);
+		font-size: 14px; font-weight: 600; color: var(--dt);
 		margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.03em;
 	}
 
@@ -616,13 +596,13 @@
 	.md-action-card {
 		display: flex; align-items: center; justify-content: space-between;
 		padding: 12px 14px; border-radius: 10px;
-		border: 1px solid var(--dbd, #e0e0e0);
-		background: var(--dbg, #fff);
+		border: 1px solid var(--dbd);
+		background: var(--dbg);
 		transition: border-color .15s, background .15s;
 	}
 	.md-action-card:hover {
-		border-color: var(--dbd2, #ccc);
-		background: var(--dbg2, #fafafa);
+		border-color: var(--dbd2);
+		background: var(--dbg2);
 	}
 	.md-action-card__left {
 		display: flex; align-items: center; gap: 12px; min-width: 0;
@@ -633,14 +613,14 @@
 		flex-shrink: 0;
 	}
 	.md-action-card__name {
-		font-size: 13px; font-weight: 600; color: var(--dt, #111);
+		font-size: 13px; font-weight: 600; color: var(--dt);
 	}
 	.md-action-card__desc {
-		font-size: 12px; color: var(--dt3, #888); margin-top: 2px;
+		font-size: 12px; color: var(--dt3); margin-top: 2px;
 	}
 	.md-action-card__type {
 		font-size: 11px; padding: 3px 10px; border-radius: 999px;
-		background: var(--dbg2, #f5f5f5); color: var(--dt3, #888);
+		background: var(--dbg2); color: var(--dt3);
 		font-weight: 500; flex-shrink: 0;
 	}
 
@@ -649,20 +629,20 @@
 	.md-perm-item {
 		display: inline-flex; align-items: center; gap: 5px;
 		padding: 5px 10px; border-radius: 8px;
-		font-size: 12px; color: var(--dt2, #555);
-		border: 1px solid var(--dbd, #e0e0e0);
-		background: var(--dbg, #fff);
+		font-size: 12px; color: var(--dt2);
+		border: 1px solid var(--dbd);
+		background: var(--dbg);
 	}
 
 	/* Sidebar */
 	.md-sidebar { display: flex; flex-direction: column; gap: 16px; }
 	.md-sidebar-card {
 		padding: 16px; border-radius: 12px;
-		border: 1px solid var(--dbd, #e0e0e0);
-		background: var(--dbg, #fff);
+		border: 1px solid var(--dbd);
+		background: var(--dbg);
 	}
 	.md-sidebar-card__title {
-		font-size: 12px; font-weight: 600; color: var(--dt, #111);
+		font-size: 12px; font-weight: 600; color: var(--dt);
 		text-transform: uppercase; letter-spacing: 0.04em;
 		margin-bottom: 12px;
 	}
@@ -672,44 +652,44 @@
 	.md-detail-list__item {
 		display: flex; justify-content: space-between; align-items: center;
 		padding: 7px 0;
-		border-bottom: 1px solid var(--dbd2, #f0f0f0);
+		border-bottom: 1px solid var(--dbd2);
 	}
 	.md-detail-list__item:last-child { border-bottom: none; }
 	.md-detail-list__item dt {
-		font-size: 12px; color: var(--dt3, #888);
+		font-size: 12px; color: var(--dt3);
 	}
 	.md-detail-list__item dd {
-		font-size: 12px; font-weight: 500; color: var(--dt, #111);
+		font-size: 12px; font-weight: 500; color: var(--dt);
 		display: flex; align-items: center; gap: 5px;
 	}
 	.capitalize { text-transform: capitalize; }
 	.md-status-dot {
 		width: 7px; height: 7px; border-radius: 50%;
 	}
-	.md-status-dot--active { background: #10b981; }
-	.md-status-dot--inactive { background: #9ca3af; }
+	.md-status-dot--active { background: var(--bos-status-success); }
+	.md-status-dot--inactive { background: var(--bos-status-neutral); }
 
 	/* Dependencies */
 	.md-dep-list { display: flex; flex-wrap: wrap; gap: 6px; }
 	.md-dep-chip {
 		padding: 4px 10px; border-radius: 6px; font-size: 11px;
 		font-weight: 500; font-family: monospace;
-		background: var(--dbg2, #f5f5f5); color: var(--dt2, #555);
-		border: 1px solid var(--dbd, #e0e0e0);
+		background: var(--dbg2); color: var(--dt2);
+		border: 1px solid var(--dbd);
 	}
 
 	/* Empty card */
 	.md-empty-card {
 		padding: 24px; border-radius: 10px; text-align: center;
-		border: 1px dashed var(--dbd, #e0e0e0);
-		background: var(--dbg2, #fafafa);
+		border: 1px dashed var(--dbd);
+		background: var(--dbg2);
 	}
 
 	/* Version timeline */
 	.md-version-timeline {
 		display: flex; flex-direction: column; gap: 0;
 		padding-left: 16px;
-		border-left: 2px solid var(--dbd, #e0e0e0);
+		border-left: 2px solid var(--dbd);
 	}
 	.md-version-item {
 		display: flex; align-items: flex-start; gap: 14px;
@@ -718,63 +698,63 @@
 	}
 	.md-version-item__dot {
 		width: 10px; height: 10px; border-radius: 50%;
-		background: var(--dbd, #e0e0e0); border: 2px solid var(--dbg, #fff);
+		background: var(--dbd); border: 2px solid var(--dbg);
 		flex-shrink: 0; margin-top: 4px; margin-left: -21px;
 	}
 	.md-version-item__dot--latest {
-		background: #3b82f6;
+		background: var(--bos-status-info);
 	}
 	.md-version-item__content { flex: 1; }
 	.md-version-item__header {
 		display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
 	}
 	.md-version-item__tag {
-		font-size: 13px; font-weight: 600; color: var(--dt, #111);
+		font-size: 13px; font-weight: 600; color: var(--dt);
 		font-family: monospace;
 	}
 	.md-version-item__date {
-		font-size: 12px; color: var(--dt3, #888);
+		font-size: 12px; color: var(--dt3);
 	}
 	.md-version-item__log {
-		font-size: 13px; color: var(--dt2, #555); line-height: 1.5;
+		font-size: 13px; color: var(--dt2); line-height: 1.5;
 	}
 
 	/* Settings */
 	.md-settings-card {
 		padding: 16px 18px; border-radius: 12px;
-		border: 1px solid var(--dbd, #e0e0e0);
-		background: var(--dbg, #fff);
+		border: 1px solid var(--dbd);
+		background: var(--dbg);
 		margin-bottom: 12px;
 	}
 	.md-settings-card--danger {
-		border-color: rgba(239, 68, 68, 0.2);
+		border-color: color-mix(in srgb, var(--bos-status-error) 20%, transparent);
 	}
 	.md-setting-row {
 		display: flex; align-items: center; justify-content: space-between;
 		cursor: pointer; width: 100%; gap: 16px;
 	}
 	.md-setting-row__title {
-		font-size: 13px; font-weight: 600; color: var(--dt, #111);
+		font-size: 13px; font-weight: 600; color: var(--dt);
 	}
-	.md-setting-row__title--danger { color: #ef4444; }
+	.md-setting-row__title--danger { color: var(--bos-status-error); }
 	.md-setting-row__desc {
-		font-size: 12px; color: var(--dt3, #888); margin-top: 2px;
+		font-size: 12px; color: var(--dt3); margin-top: 2px;
 	}
 
 	/* Toggle checkbox */
 	.md-toggle {
 		width: 40px; height: 22px; appearance: none; -webkit-appearance: none;
-		background: var(--dbd, #d1d5db); border-radius: 999px;
+		background: var(--dbd); border-radius: 999px;
 		position: relative; cursor: pointer; transition: background .2s;
 		flex-shrink: 0;
 	}
 	.md-toggle::after {
 		content: ''; position: absolute;
 		top: 2px; left: 2px; width: 18px; height: 18px;
-		border-radius: 50%; background: #fff;
+		border-radius: 50%; background: var(--dbg);
 		transition: transform .2s;
 	}
-	.md-toggle:checked { background: #10b981; }
+	.md-toggle:checked { background: var(--bos-status-success); }
 	.md-toggle:checked::after { transform: translateX(18px); }
 
 	/* Danger button */
@@ -782,13 +762,13 @@
 		display: inline-flex; align-items: center; gap: 6px;
 		padding: 8px 16px; border-radius: 8px;
 		font-size: 12px; font-weight: 600;
-		border: 1px solid rgba(239, 68, 68, 0.3);
-		background: rgba(239, 68, 68, 0.08);
-		color: #ef4444; cursor: pointer;
+		border: 1px solid color-mix(in srgb, var(--bos-status-error) 30%, transparent);
+		background: var(--bos-status-error-bg);
+		color: var(--bos-status-error); cursor: pointer;
 		transition: all .15s; flex-shrink: 0;
 	}
 	.md-danger-btn:hover {
-		background: rgba(239, 68, 68, 0.15);
-		border-color: rgba(239, 68, 68, 0.5);
+		background: color-mix(in srgb, var(--bos-status-error) 15%, transparent);
+		border-color: color-mix(in srgb, var(--bos-status-error) 50%, transparent);
 	}
 </style>

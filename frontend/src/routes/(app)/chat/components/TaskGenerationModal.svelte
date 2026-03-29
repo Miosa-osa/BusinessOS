@@ -54,12 +54,13 @@
 </script>
 
 {#if show}
-	<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-		<div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onclick={onClose}>
+		<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onclick={(e) => e.stopPropagation()}>
 			<!-- Header -->
-			<div class="p-5 border-b border-gray-100 flex items-center justify-between">
+			<div class="p-5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
 				<div>
-					<h3 class="text-lg font-semibold text-gray-900">Generate Tasks from Plan</h3>
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Generate Tasks from Plan</h3>
 					<p class="text-sm text-gray-500 mt-0.5">Review and assign tasks extracted from "{taskGenerationArtifact?.title}"</p>
 				</div>
 				<button
@@ -74,12 +75,12 @@
 			</div>
 
 			<!-- Project Selection -->
-			<div class="px-5 py-3 border-b border-gray-100 bg-gray-50">
-				<label class="block text-sm font-medium text-gray-700 mb-1.5">Assign to Project</label>
+			<div class="px-5 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+				<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Assign to Project</label>
 				<select
 					value={selectedProjectForTasks}
 					onchange={(e) => onSelectProject((e.target as HTMLSelectElement).value)}
-					class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+					class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 				>
 					<option value="">Select a project...</option>
 					{#each availableProjects as project}
