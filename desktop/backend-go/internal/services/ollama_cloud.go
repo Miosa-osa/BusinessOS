@@ -135,15 +135,19 @@ func (s *OllamaCloudService) doRequest(ctx context.Context, cloudMsgs []OllamaCl
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+s.apiKey)
 
+	slog.Info("[OllamaCloudService] Sending request", "model", s.model, "stream", stream)
 	resp, err := s.client.Do(req)
 	if err != nil {
+		slog.Error("[OllamaCloudService] Request failed", "error", err, "model", s.model)
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		defer resp.Body.Close()
 		errBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ollama cloud API error: %s - %s", resp.Status, string(errBody))
+		slog.Error("[OllamaCloudService] API error",
+			"status", resp.StatusCode, "body", string(errBody), "model", s.model)
+		return nil, fmt.Errorf("ollama cloud API error (model=%s): %s - %s", s.model, resp.Status, string(errBody))
 	}
 
 	return resp, nil

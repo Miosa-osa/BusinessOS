@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -16,6 +17,27 @@ import (
 	"github.com/rhl/businessos-backend/internal/streaming"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
+
+// Package-level compiled regexes for thinking tag detection (avoids recompiling per token)
+var (
+	thinkingStartRe = regexp.MustCompile(`<think[a-z]*\s*>`)
+	thinkingEndRe   = regexp.MustCompile(`</think[a-z]*\s*>`)
+)
+
+// isOllamaReachable performs a fast health check against the local Ollama instance.
+// Returns false if Ollama is not running or not reachable within 3 seconds.
+func isOllamaReachable(baseURL string) bool {
+	if baseURL == "" {
+		baseURL = "http://localhost:11434"
+	}
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(baseURL + "/api/tags")
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
+}
 
 // SendMessage handles chat messages using streaming SSE events with artifact detection.
 // The implementation is split across:
@@ -54,6 +76,21 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
+	// Pre-stream provider health check: fail fast for ollama_local instead of hanging 60s
+	provider := h.cfg.GetActiveProvider()
+	if provider == "ollama_local" {
+		if !isOllamaReachable(h.cfg.OllamaLocalURL) {
+			slog.Error("[ChatV2] Ollama local is not reachable, cannot process message",
+				"url", h.cfg.OllamaLocalURL)
+			c.JSON(503, gin.H{
+				"error":    "Ollama is not running or not reachable",
+				"provider": "ollama_local",
+				"hint":     "Start Ollama with 'ollama serve' or switch to a cloud provider (groq, anthropic) in Settings > AI",
+			})
+			return
+		}
+	}
+
 	// OSA routing: attempt before doing any local setup
 	if h.cfg.OSAEnabled && h.osaClient == nil {
 		slog.Warn("OSA unavailable, routing to local orchestrator")
@@ -78,9 +115,8 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 
 	startTime := time.Now()
-	provider := h.cfg.GetActiveProvider()
 
-	streamCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	streamCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 
 	// Augment last user message with search results for non-Claude models
@@ -167,7 +203,7 @@ Example ending:
 			streamCtx, input, user.ID, user.Name, setup.convUUID, setup.llmOptions)
 		c.Header("X-COT-Enabled", "true")
 	} else {
-		events, errs = setup.agent.Run(streamCtx, input)
+		events, errs = setup.agent.RunWithTools(streamCtx, input)
 	}
 
 	// SSE stream state
@@ -175,6 +211,7 @@ Example ending:
 	var detectedArtifacts []streaming.Artifact
 	var firstTokenReceived bool
 	var pendingArtifact pendingArtifactState
+	var signalSent bool
 	var thinkingEventSent bool
 	var insideThinking bool
 	var thinkingStartSent bool
@@ -185,7 +222,8 @@ Example ending:
 
 	c.Stream(func(w io.Writer) bool {
 		// Emit signal classification as the very first SSE event
-		if !thinkingEventSent {
+		if !signalSent {
+			signalSent = true
 			writeSSEEvent(w, streaming.StreamEvent{
 				Type: "signal_classified",
 				Data: map[string]any{
@@ -440,10 +478,8 @@ func (h *ChatHandler) processThinkingToken(
 		return
 	}
 
-	startRe := regexp.MustCompile(`<think[a-z]*\s*>`)
-	endRe := regexp.MustCompile(`</think[a-z]*\s*>`)
-	startMatch := startRe.FindStringIndex(fullResponse)
-	endMatch := endRe.FindStringIndex(fullResponse)
+	startMatch := thinkingStartRe.FindStringIndex(fullResponse)
+	endMatch := thinkingEndRe.FindStringIndex(fullResponse)
 
 	if !insideThinking && startMatch != nil && endMatch == nil {
 		newInsideThinking = true

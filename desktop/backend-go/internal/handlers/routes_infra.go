@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"log/slog"
+
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/middleware"
 )
@@ -89,6 +91,8 @@ func (h *Handlers) registerInfraRoutes(api *gin.RouterGroup, auth gin.HandlerFun
 	// Comments routes - /api/comments
 	if h.commentService != nil {
 		RegisterCommentRoutes(api, NewCommentHandler(h.commentService), auth)
+	} else {
+		slog.Warn("Comment routes skipped: commentService not initialized")
 	}
 
 	// Usage routes - /api/usage

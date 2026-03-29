@@ -134,10 +134,15 @@ func (m *Manager) CreateSession(userID string, cols, rows int, shell, workingDir
 		subnet = extractSubnet(ip)
 	}
 
-	// Create session with security fields
+	// Create session with security fields.
+	// WorkspaceID defaults to UserID so that OSA commands executed inside a
+	// terminal session are always attributed to a real user, not a random UUID.
+	// Callers that have an explicit workspace concept should set WorkspaceID
+	// after creation before invoking any OSA operations.
 	session := &Session{
 		ID:              uuid.New().String(),
 		UserID:          userID,
+		WorkspaceID:     userID,
 		CreatedAt:       now,
 		LastActivity:    now,
 		Cols:            cols,

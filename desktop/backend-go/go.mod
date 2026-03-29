@@ -122,4 +122,4 @@ require (
 
 replace github.com/docker/docker => github.com/docker/docker v27.4.1+incompatible
 
-replace github.com/Miosa-osa/sdk-go => ../../../../miosa-sdk-go
+replace github.com/Miosa-osa/sdk-go => ./stub/miosa-sdk-go

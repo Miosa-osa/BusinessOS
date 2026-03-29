@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -342,6 +343,29 @@ func (h *CRMHandler) DeleteCRMDeal(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Deal deleted"})
 }
 
+// numericToFloat64 converts COALESCE(SUM(...), 0) scan results (interface{}) to
+// float64. pgx v5 returns pgtype.Numeric for numeric/decimal columns; fallbacks
+// cover int64 (when the value is the COALESCE default 0) and string.
+func numericToFloat64(v interface{}) float64 {
+	switch val := v.(type) {
+	case float64:
+		return val
+	case int64:
+		return float64(val)
+	case pgtype.Numeric:
+		f, err := val.Float64Value()
+		if err != nil || !f.Valid {
+			return 0
+		}
+		return f.Float64
+	case string:
+		f, _ := strconv.ParseFloat(val, 64)
+		return f
+	default:
+		return 0
+	}
+}
+
 // GetCRMDealStats returns deal statistics for the current user
 func (h *CRMHandler) GetCRMDealStats(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
@@ -367,8 +391,8 @@ func (h *CRMHandler) GetCRMDealStats(c *gin.Context) {
 		"open_deals":  stats.OpenDeals,
 		"won_deals":   stats.WonDeals,
 		"lost_deals":  stats.LostDeals,
-		"open_value":  stats.OpenValue,
-		"won_value":   stats.WonValue,
-		"lost_value":  stats.LostValue,
+		"open_value":  numericToFloat64(stats.OpenValue),
+		"won_value":   numericToFloat64(stats.WonValue),
+		"lost_value":  numericToFloat64(stats.LostValue),
 	})
 }

@@ -30,8 +30,10 @@ func (h *Handlers) registerVoiceRoutes(api *gin.RouterGroup, auth gin.HandlerFun
 			osaVoice.POST("/speak", voiceH.HandleOSASpeak)
 			osaVoice.POST("/speak/stream", voiceH.HandleOSASpeakStream)
 		}
+		slog.Info("OSA voice routes registered")
+	} else {
+		slog.Warn("OSA voice routes skipped: elevenLabsService not initialized")
 	}
-	slog.Info("OSA voice routes registered")
 
 	// Voice notes routes - /api/voice-notes
 	voiceNotesHandler := NewVoiceNotesHandler(h.pool, h.embeddingService)

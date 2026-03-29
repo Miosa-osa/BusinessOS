@@ -84,8 +84,10 @@ func (s *GroqService) StreamChat(ctx context.Context, messages []ChatMessage, sy
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+s.apiKey)
 
+		slog.Info("[GroqService] Sending stream request", "model", s.model, "message_count", len(groqMsgs))
 		resp, err := s.client.Do(req)
 		if err != nil {
+			slog.Error("[GroqService] Request failed", "error", err, "model", s.model)
 			errs <- fmt.Errorf("failed to send request: %w", err)
 			return
 		}
@@ -93,7 +95,9 @@ func (s *GroqService) StreamChat(ctx context.Context, messages []ChatMessage, sy
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			errs <- fmt.Errorf("groq API error: %s - %s", resp.Status, string(body))
+			slog.Error("[GroqService] API error",
+				"status", resp.StatusCode, "body", string(body), "model", s.model)
+			errs <- fmt.Errorf("groq API error (model=%s): %s - %s", s.model, resp.Status, string(body))
 			return
 		}
 
@@ -156,7 +160,8 @@ func (s *GroqService) StreamChatWithUsage(ctx context.Context, messages []ChatMe
 
 		groqMsgs := make([]GroqMessage, 0, len(messages)+1)
 		for _, msg := range messages {
-			if msg.Role == "system" {
+			role := strings.ToLower(msg.Role)
+			if role == "system" {
 				if systemPrompt != "" {
 					systemPrompt = systemPrompt + "\n\n" + msg.Content
 				} else {
@@ -164,8 +169,11 @@ func (s *GroqService) StreamChatWithUsage(ctx context.Context, messages []ChatMe
 				}
 				continue
 			}
+			if role != "user" && role != "assistant" {
+				role = "user"
+			}
 			groqMsgs = append(groqMsgs, GroqMessage{
-				Role:    msg.Role,
+				Role:    role,
 				Content: msg.Content,
 			})
 		}

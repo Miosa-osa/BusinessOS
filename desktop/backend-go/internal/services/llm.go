@@ -16,10 +16,10 @@ type LLMOptions struct {
 	// Model override (e.g. from focus mode)
 	Model *string
 	// Thinking/COT options
-	ThinkingEnabled      bool
-	ThinkingInstruction  string
-	MaxThinkingTokens    int
-	ReasoningTemplateID  string
+	ThinkingEnabled     bool
+	ThinkingInstruction string
+	MaxThinkingTokens   int
+	ReasoningTemplateID string
 }
 
 // DefaultLLMOptions returns sensible defaults
@@ -92,10 +92,10 @@ func (sr *StreamResult) GetTokenUsage() *TokenUsage {
 
 // ExtendedThinkingResult wraps streaming results with separate thinking channel
 type ExtendedThinkingResult struct {
-	Chunks         chan string        // Regular response content
-	ThinkingChunks chan string        // Extended thinking content
-	Errors         chan error         // Errors
-	TokenUsage     *TokenUsage        // Final token usage
+	Chunks         chan string // Regular response content
+	ThinkingChunks chan string // Extended thinking content
+	Errors         chan error  // Errors
+	TokenUsage     *TokenUsage // Final token usage
 	mu             sync.Mutex
 }
 
@@ -124,6 +124,21 @@ type LLMService interface {
 	GetProvider() string
 	SetOptions(opts LLMOptions)
 	GetOptions() LLMOptions
+}
+
+// ToolCallingService is implemented by LLM providers that support native tool/function calling.
+// Providers that don't support this will fall back to prompt-based tool descriptions.
+type ToolCallingService interface {
+	LLMService
+	ChatWithTools(ctx context.Context, messages []ChatMessage, systemPrompt string, tools []ToolDefinition) (*ChatWithToolsResponse, error)
+	ContinueWithToolResults(ctx context.Context, messages []ChatMessage, systemPrompt string, toolResults map[string]string) (string, error)
+}
+
+// AsToolCallingService checks if an LLMService supports tool calling and returns the
+// ToolCallingService interface if so. Returns (nil, false) for providers without tool support.
+func AsToolCallingService(llm LLMService) (ToolCallingService, bool) {
+	tc, ok := llm.(ToolCallingService)
+	return tc, ok
 }
 
 // ExtendedThinkingService interface for providers that support native extended thinking

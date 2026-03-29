@@ -11,12 +11,34 @@ import (
 
 // OSACommand handles `osa` CLI commands in terminal
 type OSACommand struct {
-	client *osa.ResilientClient
+	client      *osa.ResilientClient
+	userID      uuid.UUID
+	workspaceID uuid.UUID
 }
 
-// NewOSACommand creates OSA command handler
-func NewOSACommand(client *osa.ResilientClient) *OSACommand {
-	return &OSACommand{client: client}
+// NewOSACommand creates an OSA command handler bound to the authenticated
+// terminal session. userIDStr and workspaceIDStr must be the real user/workspace
+// UUIDs from the session — never random UUIDs.
+func NewOSACommand(client *osa.ResilientClient, userIDStr, workspaceIDStr string) *OSACommand {
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		// userIDStr is not a UUID (e.g., opaque string IDs from some auth
+		// providers). Derive a stable, deterministic UUID from the raw string
+		// using UUID v5 with the DNS namespace so OSA always sees a valid UUID
+		// that round-trips consistently for the same user.
+		userID = uuid.NewSHA1(uuid.NameSpaceDNS, []byte(userIDStr))
+	}
+
+	workspaceID, err := uuid.Parse(workspaceIDStr)
+	if err != nil {
+		workspaceID = uuid.NewSHA1(uuid.NameSpaceDNS, []byte(workspaceIDStr))
+	}
+
+	return &OSACommand{
+		client:      client,
+		userID:      userID,
+		workspaceID: workspaceID,
+	}
 }
 
 // Execute handles: osa <subcommand> [args]
@@ -53,8 +75,8 @@ func (c *OSACommand) generate(ctx context.Context, args []string) (string, error
 		Name:        "Generated App",
 		Description: description,
 		Type:        "full-stack",
-		UserID:      uuid.New(), // TODO: Get from session context
-		WorkspaceID: uuid.New(), // TODO: Get from user's default workspace
+		UserID:      c.userID,
+		WorkspaceID: c.workspaceID,
 	}
 
 	resp, err := c.client.GenerateApp(ctx, req)
@@ -82,7 +104,7 @@ func (c *OSACommand) status(ctx context.Context, args []string) (string, error) 
 	}
 
 	appID := args[0]
-	status, err := c.client.GetAppStatus(ctx, appID, uuid.New()) // TODO: Get userID from session
+	status, err := c.client.GetAppStatus(ctx, appID, c.userID)
 	if err != nil {
 		return "", err
 	}

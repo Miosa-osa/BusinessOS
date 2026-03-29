@@ -697,7 +697,7 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 	}
 
 	if sandboxDeploymentService != nil {
-		sandboxHandler := handlers.NewSandboxHandler(sandboxDeploymentService, slog.Default())
+		sandboxHandler := handlers.NewSandboxHandler(sandboxDeploymentService, slog.Default(), app.pool)
 		h.SetSandboxHandler(sandboxHandler)
 		slog.Info("Sandbox handler initialized (deploy, start, stop, delete endpoints)")
 	}

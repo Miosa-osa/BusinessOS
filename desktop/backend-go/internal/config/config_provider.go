@@ -1,28 +1,36 @@
 package config
 
+import "log/slog"
+
 // GetActiveProvider returns the currently configured AI provider.
-// Falls back to "ollama_local" when the configured provider lacks credentials.
+// Falls back to "ollama_local" when the configured provider lacks credentials
+// and logs a warning so the misconfiguration is visible.
 func (c *Config) GetActiveProvider() string {
 	switch c.AIProvider {
 	case "ollama_cloud":
 		if c.OllamaCloudAPIKey != "" {
 			return "ollama_cloud"
 		}
-		// Fallback to local if no cloud key
+		slog.Warn("[Config] AI_PROVIDER=ollama_cloud but OLLAMA_CLOUD_API_KEY is empty, falling back to ollama_local")
 		return "ollama_local"
 	case "anthropic":
 		if c.AnthropicAPIKey != "" {
 			return "anthropic"
 		}
+		slog.Warn("[Config] AI_PROVIDER=anthropic but ANTHROPIC_API_KEY is empty, falling back to ollama_local")
 		return "ollama_local"
 	case "groq":
 		if c.GroqAPIKey != "" {
 			return "groq"
 		}
+		slog.Warn("[Config] AI_PROVIDER=groq but GROQ_API_KEY is empty, falling back to ollama_local")
 		return "ollama_local"
 	case "ollama_local":
 		return "ollama_local"
 	default:
+		if c.AIProvider != "" {
+			slog.Warn("[Config] Unknown AI_PROVIDER value, falling back to ollama_local", "value", c.AIProvider)
+		}
 		return "ollama_local"
 	}
 }

@@ -165,6 +165,23 @@ func (h *SkillsHandler) ReloadSkills(c *gin.Context) {
 		return
 	}
 
+	// Require workspace owner or admin (hierarchy_level <= 2: owner=1, admin=2).
+	// Reloading skills affects every agent system-wide and must be restricted
+	// to privileged users only.
+	if h.pool != nil {
+		var hierarchyLevel int
+		err := h.pool.QueryRow(c.Request.Context(), `
+			SELECT COALESCE(MIN(wr.hierarchy_level), 999)
+			FROM workspace_members wm
+			JOIN workspace_roles wr ON wr.name = wm.role_name AND wr.workspace_id = wm.workspace_id
+			WHERE wm.user_id = $1 AND wm.status = 'active'
+		`, user.ID).Scan(&hierarchyLevel)
+		if err != nil || hierarchyLevel > 2 {
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: admin or owner role required"})
+			return
+		}
+	}
+
 	if h.loader == nil {
 		utils.BadRequest(slog.Default(), "Skills system not initialized").Respond(c)
 		return

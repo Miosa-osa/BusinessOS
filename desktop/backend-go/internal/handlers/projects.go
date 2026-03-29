@@ -50,6 +50,9 @@ func RegisterProjectRoutes(api *gin.RouterGroup, h *ProjectHandler, auth gin.Han
 		projects.PUT("/:id", h.UpdateProject)
 		projects.DELETE("/:id", h.DeleteProject)
 		projects.POST("/:id/notes", h.AddProjectNote)
+		// File uploads
+		projects.POST("/:id/files", h.UploadProjectFile)
+		projects.GET("/:id/files/:filename", h.ServeProjectFile)
 		// Project members (team assignment with role-based access)
 		projects.GET("/:id/members", h.ListProjectMembers)
 		projects.POST("/:id/members", h.AddProjectMember)

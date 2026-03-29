@@ -177,6 +177,9 @@ func CalculateEstimatedCost(provider, model string, inputTokens, outputTokens in
 
 	prices := map[string]map[string]pricing{
 		"anthropic": {
+			"claude-sonnet-4-20250514":   {input: 0.003, output: 0.015},
+			"claude-opus-4-20250514":     {input: 0.015, output: 0.075},
+			"claude-3-7-sonnet-20250219": {input: 0.003, output: 0.015},
 			"claude-3-5-sonnet-20241022": {input: 0.003, output: 0.015},
 			"claude-3-5-haiku-20241022":  {input: 0.001, output: 0.005},
 			"claude-3-opus-20240229":     {input: 0.015, output: 0.075},
@@ -184,11 +187,11 @@ func CalculateEstimatedCost(provider, model string, inputTokens, outputTokens in
 			"claude-3-haiku-20240307":    {input: 0.00025, output: 0.00125},
 		},
 		"groq": {
-			"llama-3.3-70b-versatile":  {input: 0.00059, output: 0.00079},
-			"llama-3.1-8b-instant":     {input: 0.00005, output: 0.00008},
-			"mixtral-8x7b-32768":       {input: 0.00024, output: 0.00024},
+			"llama-3.3-70b-versatile": {input: 0.00059, output: 0.00079},
+			"llama-3.1-8b-instant":    {input: 0.00005, output: 0.00008},
+			"mixtral-8x7b-32768":      {input: 0.00024, output: 0.00024},
 		},
-		"ollama": {
+		"ollama_local": {
 			// Local models are free
 			"default": {input: 0, output: 0},
 		},

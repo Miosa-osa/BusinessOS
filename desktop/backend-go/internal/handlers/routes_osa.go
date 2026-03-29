@@ -36,6 +36,8 @@ func (h *Handlers) registerOSARoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 					osaTemplates.POST("/:name/generate", osaTplH.GenerateFromOSATemplate)
 					osaTemplates.POST("/:name/preview", osaTplH.PreviewTemplatePrompt)
 				}
+			} else {
+				slog.Warn("OSA template routes skipped: osaPromptBuilder not initialized")
 			}
 
 			// Swarm endpoints
@@ -54,6 +56,8 @@ func (h *Handlers) registerOSARoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 			// SSE streaming for app generation (RESTful path: /generate/:id/stream)
 			if h.osaStreamingHandler != nil {
 				osaAuth.GET("/generate/:app_id/stream", h.osaStreamingHandler.HandleGenerateAppStream)
+			} else {
+				slog.Warn("OSA generate stream route skipped: osaStreamingHandler not initialized")
 			}
 
 			// Workflow endpoints
@@ -65,12 +69,16 @@ func (h *Handlers) registerOSARoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 				osaAuth.GET("/files/:id/content", h.osaWorkflowsHandler.GetFileContentByID)
 				osaAuth.POST("/modules/install", h.osaWorkflowsHandler.InstallModule)
 				osaAuth.POST("/sync/trigger", h.osaWorkflowsHandler.TriggerSync)
+			} else {
+				slog.Warn("OSA workflow routes skipped: osaWorkflowsHandler not initialized")
 			}
 
 			// Webhook management endpoints
 			if h.osaWebhooksHandler != nil {
 				osaAuth.GET("/webhooks", h.osaWebhooksHandler.ListWebhooks)
 				osaAuth.POST("/webhooks/register", h.osaWebhooksHandler.RegisterWebhook)
+			} else {
+				slog.Warn("OSA webhook management routes skipped: osaWebhooksHandler not initialized")
 			}
 
 			// SSE streaming endpoints
@@ -78,6 +86,8 @@ func (h *Handlers) registerOSARoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 				osaAuth.GET("/stream/build/:app_id", h.osaStreamingHandler.StreamBuildProgress)
 				osaAuth.GET("/stream/stats", h.osaStreamingHandler.GetStreamStats)
 				osaAuth.GET("/stream/stats/:app_id", h.osaStreamingHandler.GetAppStreamStats)
+			} else {
+				slog.Warn("OSA SSE streaming routes skipped: osaStreamingHandler not initialized")
 			}
 
 			// App deployment endpoints
@@ -87,6 +97,8 @@ func (h *Handlers) registerOSARoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 				osaAuth.POST("/deployment/:app_id/stop", h.osaDeploymentHandler.StopApp)
 				osaAuth.GET("/deployment/:app_id/status", h.osaDeploymentHandler.GetAppStatus)
 				osaAuth.GET("/deployments", h.osaDeploymentHandler.ListDeployedApps)
+			} else {
+				slog.Warn("OSA deployment routes skipped: osaDeploymentHandler not initialized")
 			}
 
 			// App management endpoints (ISR-4)
@@ -110,6 +122,8 @@ func (h *Handlers) registerOSARoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 
 				// SSE streaming endpoint for app generation progress
 				osaAuth.GET("/module-instances/generate/:queue_item_id/stream", h.osaAppsHandler.StreamAppGeneration)
+			} else {
+				slog.Warn("OSA app management routes skipped: osaAppsHandler not initialized")
 			}
 
 			// Prompt templates endpoints
@@ -117,6 +131,8 @@ func (h *Handlers) registerOSARoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 				promptTemplatesHandler := NewOSAPromptTemplatesHandler(h.osaPromptBuilder, h.pool)
 				osaAuth.GET("/prompt-templates/system", promptTemplatesHandler.ListSystemTemplates)
 				osaAuth.GET("/prompt-templates/health", promptTemplatesHandler.TemplateHealthCheck)
+			} else {
+				slog.Warn("OSA prompt template routes skipped: osaPromptBuilder not initialized")
 			}
 		}
 		slog.Info("OSA authenticated API routes registered at /api/osa/*")
@@ -136,7 +152,7 @@ func (h *Handlers) registerOSARoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 		}
 		slog.Info("OSA internal API routes registered at /api/internal/osa/* (with HMAC auth)")
 	} else {
-		slog.Debug("Skipping OSA routes, client not initialized")
+		slog.Warn("OSA routes skipped: osaClient not initialized")
 	}
 
 	// OSA App Deployment routes - works independently of full OSA integration
@@ -162,6 +178,8 @@ func (h *Handlers) registerOSARoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 			osaWebhooks.POST("/build-event", h.osaWebhooksHandler.HandleBuildEvent)
 		}
 		slog.Info("[Router] OSA webhook receiver routes registered", "path", "/api/osa/webhooks/*")
+	} else {
+		slog.Warn("OSA webhook receiver routes skipped: osaWebhooksHandler not initialized")
 	}
 
 	// Sandbox routes - /api/sandbox (App Deployment & Management)
@@ -179,6 +197,8 @@ func (h *Handlers) registerOSARoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 			sandbox.GET("/stats", h.sandboxHandler.GetSandboxStats)
 		}
 		slog.Info("Sandbox routes registered at /api/v1/sandbox/*")
+	} else {
+		slog.Warn("Sandbox routes skipped: sandboxHandler not initialized")
 	}
 
 	// Sandbox Edit routes - /api/sandbox/edit (Module Edit Lifecycle)
@@ -187,5 +207,7 @@ func (h *Handlers) registerOSARoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 		sandboxEdit.Use(auth, middleware.RequireAuth())
 		h.sandboxEditHandler.RegisterRoutes(sandboxEdit)
 		slog.Info("Sandbox edit routes registered at /api/v1/sandbox/edit/*")
+	} else {
+		slog.Warn("Sandbox edit routes skipped: sandboxEditHandler not initialized")
 	}
 }

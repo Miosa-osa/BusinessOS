@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	"github.com/rhl/businessos-backend/internal/services"
 )
@@ -30,6 +31,7 @@ type SandboxDeploymentServiceInterface interface {
 type SandboxHandler struct {
 	deploymentService SandboxDeploymentServiceInterface
 	logger            *slog.Logger
+	pool              *pgxpool.Pool
 }
 
 // respondError sends a JSON error response.
@@ -42,10 +44,11 @@ func respondError(c *gin.Context, status int, message string, err error) {
 }
 
 // NewSandboxHandler creates a new sandbox handler
-func NewSandboxHandler(deploymentService *services.SandboxDeploymentService, logger *slog.Logger) *SandboxHandler {
+func NewSandboxHandler(deploymentService *services.SandboxDeploymentService, logger *slog.Logger, pool *pgxpool.Pool) *SandboxHandler {
 	return &SandboxHandler{
 		deploymentService: deploymentService,
 		logger:            logger.With("handler", "sandbox"),
+		pool:              pool,
 	}
 }
 
@@ -403,8 +406,22 @@ func (h *SandboxHandler) GetSandboxStats(c *gin.Context) {
 		return
 	}
 
-	// TODO: Add admin role check if needed
-	// For now, any authenticated user can view stats
+	// Require workspace owner or admin (hierarchy_level <= 2: owner=1, admin=2).
+	// This endpoint exposes system-wide deployment stats and must not be
+	// accessible to regular workspace members.
+	if h.pool != nil {
+		var hierarchyLevel int
+		err := h.pool.QueryRow(c.Request.Context(), `
+			SELECT COALESCE(MIN(wr.hierarchy_level), 999)
+			FROM workspace_members wm
+			JOIN workspace_roles wr ON wr.name = wm.role_name AND wr.workspace_id = wm.workspace_id
+			WHERE wm.user_id = $1 AND wm.status = 'active'
+		`, user.ID).Scan(&hierarchyLevel)
+		if err != nil || hierarchyLevel > 2 {
+			respondError(c, http.StatusForbidden, "forbidden: admin or owner role required", err)
+			return
+		}
+	}
 
 	stats := h.deploymentService.GetStats()
 	c.JSON(http.StatusOK, stats)

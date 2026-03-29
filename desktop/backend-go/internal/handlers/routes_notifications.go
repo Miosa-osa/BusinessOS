@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"log/slog"
+
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/middleware"
 )
@@ -32,6 +34,8 @@ func (h *Handlers) registerNotificationRoutes(api *gin.RouterGroup, auth gin.Han
 				notifications.POST("/push/subscribe", pushHandler.Subscribe)
 				notifications.POST("/push/unsubscribe", pushHandler.Unsubscribe)
 				notifications.POST("/push/test", pushHandler.TestPush)
+			} else {
+				slog.Warn("Web push notification routes skipped: webPushService not initialized")
 			}
 		}
 
@@ -46,6 +50,8 @@ func (h *Handlers) registerNotificationRoutes(api *gin.RouterGroup, auth gin.Han
 				devNotifications.DELETE("/seed", seedHandler.ClearSeedNotifications)
 			}
 		}
+	} else {
+		slog.Warn("Notification routes skipped: notificationService not initialized")
 	}
 
 	// Email routes - /api/email

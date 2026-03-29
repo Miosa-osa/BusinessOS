@@ -80,6 +80,8 @@ func (h *Handlers) registerPlatformRoutes(api *gin.RouterGroup, auth gin.Handler
 		protectedDocs := api.Group("")
 		protectedDocs.Use(auth, middleware.RequireAuth())
 		RegisterDocumentRoutes(protectedDocs, documentHandler)
+	} else {
+		slog.Warn("Document processing routes skipped: documentProcessor not initialized")
 	}
 
 	// Pedro Tasks - Learning/Personalization routes - /api/learning
@@ -88,6 +90,8 @@ func (h *Handlers) registerPlatformRoutes(api *gin.RouterGroup, auth gin.Handler
 		protectedLearning := api.Group("")
 		protectedLearning.Use(auth, middleware.RequireAuth())
 		RegisterLearningRoutes(protectedLearning, learningHandler)
+	} else {
+		slog.Warn("Learning routes skipped: learningService not initialized")
 	}
 
 	// Pedro Tasks - App Profiler routes - /api/app-profiles
@@ -96,6 +100,8 @@ func (h *Handlers) registerPlatformRoutes(api *gin.RouterGroup, auth gin.Handler
 		protectedProfiler := api.Group("")
 		protectedProfiler.Use(auth, middleware.RequireAuth())
 		RegisterAppProfilerRoutes(protectedProfiler, appProfilerHandler)
+	} else {
+		slog.Warn("App profiler routes skipped: appProfilerService not initialized")
 	}
 
 	// Pedro Tasks - Conversation Intelligence routes - /api/intelligence
@@ -104,6 +110,8 @@ func (h *Handlers) registerPlatformRoutes(api *gin.RouterGroup, auth gin.Handler
 		protectedIntel := api.Group("")
 		protectedIntel.Use(auth, middleware.RequireAuth())
 		RegisterConversationIntelligenceRoutes(protectedIntel, intelligenceHandler)
+	} else {
+		slog.Warn("Conversation intelligence routes skipped: conversationIntelligence or memoryExtractor not initialized")
 	}
 
 	// Billing metering routes - /api/usage/metering

@@ -2,6 +2,7 @@ package osa
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -81,12 +82,20 @@ func (c *Client) GetAppStatus(ctx context.Context, appID string, userID uuid.UUI
 
 	updatedAt, _ := time.Parse(time.RFC3339, sdkResp.UpdatedAt)
 
+	// Convert map output to JSON string for BOS type compatibility.
+	outputStr := ""
+	if sdkResp.Output != nil {
+		if b, err := json.Marshal(sdkResp.Output); err == nil {
+			outputStr = string(b)
+		}
+	}
+
 	return &AppStatusResponse{
 		AppID:       sdkResp.AppID,
 		Status:      sdkResp.Status,
 		Progress:    sdkResp.Progress,
 		CurrentStep: sdkResp.CurrentStep,
-		Output:      sdkResp.Output,
+		Output:      outputStr,
 		Error:       sdkResp.Error,
 		Metadata:    sdkResp.Metadata,
 		UpdatedAt:   updatedAt,

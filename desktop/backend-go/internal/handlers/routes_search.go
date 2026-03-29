@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"log/slog"
+
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/middleware"
 )
@@ -19,9 +21,13 @@ func (h *Handlers) registerSearchRoutes(api *gin.RouterGroup, auth gin.HandlerFu
 		search.POST("/hybrid", ragH.HybridSearch)
 		search.POST("/rerank", ragH.HybridSearch)
 		search.GET("/explain", ragH.HybridSearchExplain)
+	} else {
+		slog.Warn("Hybrid search routes skipped: hybridSearchService not initialized")
 	}
 	if h.multiModalHandler != nil {
 		search.POST("/multimodal", h.multiModalHandler.SearchWithImage)
+	} else {
+		slog.Warn("Multimodal search route skipped: multiModalHandler not initialized")
 	}
 
 	// Embeddings routes - /api/embeddings (for RAG and semantic search)
@@ -37,6 +43,8 @@ func (h *Handlers) registerSearchRoutes(api *gin.RouterGroup, auth gin.HandlerFu
 			embeddings.GET("/stats", embeddingHandler.GetStats)
 			embeddings.GET("/health", embeddingHandler.HealthCheck)
 		}
+	} else {
+		slog.Warn("Embeddings routes skipped: embeddingService or contextBuilder not initialized")
 	}
 
 	// RAG routes - /api/rag (Advanced retrieval with hybrid search + agentic RAG)
@@ -49,22 +57,24 @@ func (h *Handlers) registerSearchRoutes(api *gin.RouterGroup, auth gin.HandlerFu
 			if h.hybridSearchService != nil {
 				rag.POST("/search/hybrid", ragH.HybridSearch)
 				rag.POST("/search/hybrid/explain", ragH.HybridSearchExplain)
+				rag.GET("/search/explain", ragH.SearchExplain)
+			} else {
+				slog.Warn("RAG hybrid search routes skipped: hybridSearchService not initialized")
 			}
 
 			// Re-ranking endpoints
 			if h.rerankerService != nil {
 				rag.POST("/search/rerank", ragH.ReRankResults)
 				rag.POST("/search/rerank/explain", ragH.ReRankExplain)
-			}
-
-			// Search explanation endpoint (hybrid search only)
-			if h.hybridSearchService != nil {
-				rag.GET("/search/explain", ragH.SearchExplain)
+			} else {
+				slog.Warn("RAG rerank routes skipped: rerankerService not initialized")
 			}
 
 			// Agentic RAG endpoint
 			if h.agenticRAGService != nil {
 				rag.POST("/retrieve", ragH.AgenticRAGRetrieve)
+			} else {
+				slog.Warn("RAG agentic retrieve route skipped: agenticRAGService not initialized")
 			}
 
 			// Memory endpoints
@@ -72,12 +82,18 @@ func (h *Handlers) registerSearchRoutes(api *gin.RouterGroup, auth gin.HandlerFu
 				rag.GET("/memories", ragH.MemoryList)
 				rag.GET("/memories/:id", ragH.MemoryGet)
 				rag.POST("/memories", ragH.MemoryCreate)
+			} else {
+				slog.Warn("RAG memory routes skipped: memoryService not initialized")
 			}
 		}
+	} else {
+		slog.Warn("RAG routes skipped: no RAG services initialized (hybridSearchService, agenticRAGService, memoryService, rerankerService, multiModalHandler all nil)")
 	}
 
 	// Multi-modal Search routes - /api/images (Feature 7: Multi-modal Embeddings)
 	if h.multiModalHandler != nil {
 		RegisterMultiModalRoutes(api, h.multiModalHandler)
+	} else {
+		slog.Warn("Multi-modal image routes skipped: multiModalHandler not initialized")
 	}
 }

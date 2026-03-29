@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -19,6 +20,8 @@ func (s *AnthropicService) StreamChat(ctx context.Context, messages []ChatMessag
 	go func() {
 		defer close(chunks)
 		defer close(errs)
+
+		slog.Info("[AnthropicService] StreamChat starting", "model", s.model, "message_count", len(messages))
 
 		// Convert messages to Anthropic format (filter out system messages)
 		anthropicMsgs := make([]AnthropicMessage, 0, len(messages))
@@ -69,6 +72,7 @@ func (s *AnthropicService) StreamChat(ctx context.Context, messages []ChatMessag
 
 		resp, err := s.client.Do(req)
 		if err != nil {
+			slog.Error("[AnthropicService] Request failed", "error", err, "model", s.model)
 			errs <- fmt.Errorf("failed to send request: %w", err)
 			return
 		}
@@ -76,7 +80,9 @@ func (s *AnthropicService) StreamChat(ctx context.Context, messages []ChatMessag
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			errs <- fmt.Errorf("anthropic API error: %s - %s", resp.Status, string(body))
+			slog.Error("[AnthropicService] API error",
+				"status", resp.StatusCode, "body", string(body), "model", s.model)
+			errs <- fmt.Errorf("anthropic API error (model=%s): %s - %s", s.model, resp.Status, string(body))
 			return
 		}
 
@@ -110,12 +116,14 @@ func (s *AnthropicService) StreamChat(ctx context.Context, messages []ChatMessag
 			case "message_stop":
 				return
 			case "error":
+				slog.Error("[AnthropicService] Stream error event", "model", s.model)
 				errs <- fmt.Errorf("anthropic stream error")
 				return
 			}
 		}
 
 		if err := scanner.Err(); err != nil {
+			slog.Error("[AnthropicService] Scanner error", "error", err, "model", s.model)
 			errs <- fmt.Errorf("error reading response: %w", err)
 		}
 	}()

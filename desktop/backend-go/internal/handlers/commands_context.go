@@ -66,8 +66,9 @@ type ContextTask struct {
 }
 
 // loadContextBundle loads relevant context data for a command based on the
-// command's declared context sources.
-func (h *CommandHandler) loadContextBundle(
+// command's declared context sources. It is a package-level function so it can
+// be called from both CommandHandler and ChatHandler without coupling them.
+func loadContextBundle(
 	ctx context.Context,
 	queries *sqlc.Queries,
 	userID string,

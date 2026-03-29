@@ -58,6 +58,6 @@ EXPOSE 8080
 # Health check: Cloud Run uses its own HTTP health probes, but this is useful
 # for local Docker and docker-compose testing
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
+  CMD curl -f http://localhost:${SERVER_PORT:-8080}/health || exit 1
 
 CMD ["/app/server"]

@@ -1,5 +1,20 @@
 package handlers
 
+// responseFormatRules is appended to every command's system prompt to prevent
+// the LLM from leaking raw JSON, database column names, or API structures in
+// its chat responses.
+const responseFormatRules = `
+
+RESPONSE FORMAT RULES (MANDATORY):
+- Write clean, professional prose. Use proper markdown formatting.
+- NEVER output raw JSON, arrays, objects, or code blocks containing data structures.
+- NEVER expose internal field names, database columns, or API response structures.
+- NEVER wrap your response in code fences unless showing actual code the user wrote.
+- Use bullet points, headers, and paragraphs for structure.
+- When confirming an action was taken, write a natural confirmation sentence.
+- Example of WRONG: {"status": "created", "id": "abc-123", "name": "Task 1"}
+- Example of RIGHT: I've created your task: **Task 1**. It's been added to your task list.`
+
 // CommandInfo contains metadata about a slash command
 type CommandInfo struct {
 	Name           string   `json:"name"`
@@ -9,6 +24,15 @@ type CommandInfo struct {
 	Category       string   `json:"category"` // general, business, creative
 	SystemPrompt   string   `json:"-"`        // Hidden from API response
 	ContextSources []string `json:"context_sources"`
+}
+
+// init appends responseFormatRules to every command's SystemPrompt so the LLM
+// never leaks raw JSON or internal field names in chat responses.
+func init() {
+	for k, cmd := range builtInCommands {
+		cmd.SystemPrompt += responseFormatRules
+		builtInCommands[k] = cmd
+	}
 }
 
 // builtInCommands holds all built-in slash commands with their configurations.
@@ -400,5 +424,58 @@ COMPARISON FRAMEWORK:
 
 Present comparisons in a clear, scannable format. Highlight the most important differences.`,
 		ContextSources: []string{"documents", "artifacts"},
+	},
+
+	// Action commands — these also trigger a real database record after the stream.
+	"deal": {
+		Name:        "deal",
+		DisplayName: "Create Deal",
+		Description: "Create a new CRM deal",
+		Icon:        "dollar-sign",
+		Category:    "business",
+		SystemPrompt: `You are a CRM assistant helping to create and track sales deals.
+
+DEAL CREATION:
+1. Confirm the deal name from the user's input
+2. Summarise what you understand about the opportunity
+3. Suggest next steps the sales team should take
+4. Note any key stakeholders or timeline information mentioned
+
+Write a brief, professional confirmation that the deal has been created and outline the immediate next actions.`,
+		ContextSources: []string{"clients", "projects"},
+	},
+	"event": {
+		Name:        "event",
+		DisplayName: "Schedule Event",
+		Description: "Schedule a calendar event",
+		Icon:        "calendar",
+		Category:    "business",
+		SystemPrompt: `You are a scheduling assistant helping to create calendar events.
+
+EVENT SCHEDULING:
+1. Confirm the event title from the user's input
+2. Note any date, time, or duration information mentioned
+3. Identify attendees if specified
+4. Suggest preparation steps or agenda items if relevant
+
+Write a natural confirmation of the event details and any scheduling recommendations.`,
+		ContextSources: []string{"projects"},
+	},
+	"note": {
+		Name:        "note",
+		DisplayName: "Add Note",
+		Description: "Add a daily log entry",
+		Icon:        "edit",
+		Category:    "general",
+		SystemPrompt: `You are a personal assistant helping to capture notes and daily log entries.
+
+NOTE CAPTURE:
+1. Acknowledge the note content from the user's input
+2. Identify any action items or follow-ups embedded in the note
+3. Suggest tags or categories if helpful
+4. Confirm the note has been saved
+
+Write a brief, friendly confirmation that the note has been recorded.`,
+		ContextSources: []string{"conversations"},
 	},
 }

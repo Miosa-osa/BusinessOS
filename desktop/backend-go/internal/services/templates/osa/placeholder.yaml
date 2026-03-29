@@ -1,0 +1,10 @@
+# Placeholder template - OSA templates will be added here
+name: "placeholder"
+display_name: "Placeholder Template"
+description: "Temporary placeholder"
+category: "app-generation"
+version: "1.0.0"
+tags: []
+variables: []
+template: |
+  # Placeholder template

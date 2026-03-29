@@ -49,11 +49,24 @@ type pendingArtifactState struct {
 // thinking traces, artifacts, assistant message, signal log, subconscious observation,
 // context window tracking, conversation title update, and auto-learning triggers.
 func (h *ChatHandler) postProcessStream(ctx context.Context, p postProcessParams) {
+	queries := sqlc.New(h.pool)
+
+	// If no response content was generated, save a minimal placeholder so the
+	// frontend always has an assistant message to render (prevents blank UI).
 	if p.fullResponse == "" {
+		slog.Warn("[PostProcess] Empty assistant response, saving placeholder",
+			"agent_type", string(p.agentType), "focus_mode", p.focusModeStr,
+			"user_id", p.userID)
+		if _, err := queries.CreateMessage(ctx, sqlc.CreateMessageParams{
+			ConversationID:  p.conversationID,
+			Role:            sqlc.MessageroleASSISTANT,
+			Content:         "I wasn't able to generate a response. Please try again.",
+			MessageMetadata: nil,
+		}); err != nil {
+			slog.Error("[PostProcess] Failed to save placeholder message", "error", err)
+		}
 		return
 	}
-
-	queries := sqlc.New(h.pool)
 
 	// Strip thinking tags for clean database storage
 	cleanResponse := stripThinkingTags(p.fullResponse)

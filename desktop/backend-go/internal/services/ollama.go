@@ -98,7 +98,12 @@ func (s *OllamaService) StreamChat(ctx context.Context, messages []ChatMessage, 
 	chunks := make(chan string, 100)
 	errs := make(chan error, 1)
 
-	slog.Info("[OllamaService] StreamChat called with model", "value", s.model)
+	slog.Info("[OllamaService] StreamChat starting",
+		"model", s.model, "base_url", s.baseURL,
+		"message_count", len(messages),
+		"has_system_prompt", systemPrompt != "",
+		"temperature", s.options.Temperature,
+		"max_tokens", s.options.MaxTokens)
 
 	go func() {
 		defer close(chunks)
@@ -137,20 +142,27 @@ func (s *OllamaService) StreamChat(ctx context.Context, messages []ChatMessage, 
 			req.Header.Set("Authorization", "Bearer "+s.apiKey)
 		}
 
+		slog.Debug("[OllamaService] Sending request", "url", s.baseURL+"/api/chat")
 		resp, err := s.client.Do(req)
 		if err != nil {
-			errs <- fmt.Errorf("failed to send request: %w", err)
+			slog.Error("[OllamaService] Request failed", "error", err, "model", s.model, "url", s.baseURL)
+			errs <- fmt.Errorf("failed to send request to %s: %w", s.baseURL, err)
 			return
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			errs <- fmt.Errorf("ollama API error: %s - %s", resp.Status, string(body))
+			slog.Error("[OllamaService] API error response",
+				"status", resp.StatusCode, "body", string(body),
+				"model", s.model, "url", s.baseURL)
+			errs <- fmt.Errorf("ollama API error (model=%s): %s - %s", s.model, resp.Status, string(body))
 			return
 		}
 
+		slog.Debug("[OllamaService] Got 200 OK, reading stream", "model", s.model)
 		scanner := bufio.NewScanner(resp.Body)
+		chunkCount := 0
 		for scanner.Scan() {
 			line := scanner.Text()
 			if line == "" {
@@ -159,24 +171,35 @@ func (s *OllamaService) StreamChat(ctx context.Context, messages []ChatMessage, 
 
 			var chatResp ChatResponse
 			if err := json.Unmarshal([]byte(line), &chatResp); err != nil {
-				continue // Skip malformed lines
+				slog.Warn("[OllamaService] Malformed line", "error", err, "line_preview", line[:min(len(line), 100)])
+				continue
 			}
 
 			if chatResp.Message.Content != "" {
+				chunkCount++
 				select {
 				case chunks <- chatResp.Message.Content:
 				case <-ctx.Done():
+					slog.Warn("[OllamaService] Context cancelled during streaming",
+						"chunks_sent", chunkCount, "model", s.model)
 					return
 				}
 			}
 
 			if chatResp.Done {
+				slog.Info("[OllamaService] Stream complete",
+					"chunks_sent", chunkCount, "model", s.model)
 				return
 			}
 		}
 
 		if err := scanner.Err(); err != nil {
+			slog.Error("[OllamaService] Scanner error", "error", err,
+				"chunks_sent", chunkCount, "model", s.model)
 			errs <- fmt.Errorf("error reading response: %w", err)
+		} else if chunkCount == 0 {
+			slog.Warn("[OllamaService] Stream ended with zero chunks",
+				"model", s.model, "url", s.baseURL)
 		}
 	}()
 
@@ -339,7 +362,7 @@ func (s *OllamaService) GetModel() string {
 
 // GetProvider returns the provider name
 func (s *OllamaService) GetProvider() string {
-	return "ollama"
+	return "ollama_local"
 }
 
 // StreamChatWithUsage streams chat and tracks token usage
@@ -440,7 +463,7 @@ func (s *OllamaService) StreamChatWithUsage(ctx context.Context, messages []Chat
 			OutputTokens: outputTokens,
 			TotalTokens:  inputTokens + outputTokens,
 			Model:        s.model,
-			Provider:     "ollama",
+			Provider:     "ollama_local",
 		})
 	}()
 
@@ -501,7 +524,7 @@ func (s *OllamaService) ChatCompleteWithUsage(ctx context.Context, messages []Ch
 		OutputTokens: chatResp.EvalCount,
 		TotalTokens:  chatResp.PromptEvalCount + chatResp.EvalCount,
 		Model:        s.model,
-		Provider:     "ollama",
+		Provider:     "ollama_local",
 	}
 
 	return chatResp.Message.Content, usage, nil

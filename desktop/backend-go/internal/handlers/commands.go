@@ -128,7 +128,7 @@ func (h *CommandHandler) handleSlashCommand(c *gin.Context, user *middleware.Bet
 	}
 
 	// Load context and build the enhanced prompt.
-	contextBundle := h.loadContextBundle(ctx, queries, user.ID, contextID, projectID, cmdInfo.ContextSources)
+	contextBundle := loadContextBundle(ctx, queries, user.ID, contextID, projectID, cmdInfo.ContextSources)
 	enhancedPrompt := buildCommandPrompt(cmdInfo, req.Message, contextBundle)
 
 	// Assemble conversation history (excluding the message we just saved).

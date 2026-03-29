@@ -41,8 +41,10 @@ func DefaultSessionSecurityConfig() *SessionSecurityConfig {
 
 // Session represents an active terminal session
 type Session struct {
-	ID           string            `json:"id"`
-	UserID       string            `json:"user_id"`
+	ID          string `json:"id"`
+	UserID      string `json:"user_id"`
+	WorkspaceID string `json:"workspace_id"` // OSA workspace ID; defaults to UserID when not explicitly set
+
 	CreatedAt    time.Time         `json:"created_at"`
 	LastActivity time.Time         `json:"last_activity"`
 	Cols         int               `json:"cols"`
