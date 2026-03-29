@@ -53,6 +53,7 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	h.registerLinkedInRoutes(api, auth)
 	h.registerBoardRoutes(api)
 	h.registerPM4PyDashboardRoutes(api, optionalAuth)
+	h.registerOCPMRoutes(api)
 	h.registerVisionRoutes(api)
 	h.registerYawlRoutes(api, auth)
 	h.registerJWTMeRoute(api, jwtAuth)
@@ -123,6 +124,15 @@ func (h *Handlers) registerFIBODealsRoutes(api *gin.RouterGroup, auth gin.Handle
 	}
 	fiboHandler := NewFIBODealsHandler(h.fiboDealsService)
 	RegisterFIBODealsRoutes(api, fiboHandler, auth)
+}
+
+// registerOCPMRoutes wires /api/ocpm routes for Object-Centric Process Mining.
+// Proxies to pm4py-rust (PM4PY_RUST_URL, default http://localhost:8090) and
+// OSA (OSA_URL, default http://localhost:8089). No auth required — callers are
+// internal services using bearer tokens at the service boundary.
+func (h *Handlers) registerOCPMRoutes(api *gin.RouterGroup) {
+	ocpmHandler := NewOCPMHandler("", "") // reads PM4PY_RUST_URL and OSA_URL from env
+	ocpmHandler.RegisterRoutes(api)
 }
 
 // registerJWTMeRoute wires GET /api/me (JWT Bearer auth).
