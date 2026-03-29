@@ -24,30 +24,8 @@ help: ## Show this help message
 # =============================================================================
 
 .PHONY: setup
-setup: ## First-time setup: copy .env files, pull images, start stack
-	@echo ""
-	@printf '$(BOLD)Setting up BusinessOS...$(RESET)\n'
-	@cp -n .env.example .env 2>/dev/null && \
-		printf '  $(GREEN)Created$(RESET) .env from .env.example\n' || \
-		printf '  .env already exists — skipping\n'
-	@cp -n desktop/backend-go/.env.example desktop/backend-go/.env 2>/dev/null && \
-		printf '  $(GREEN)Created$(RESET) desktop/backend-go/.env\n' || \
-		printf '  desktop/backend-go/.env already exists — skipping\n'
-	@echo ""
-	@printf '$(BOLD)Pulling base images...$(RESET)\n'
-	@docker compose pull postgres redis
-	@echo ""
-	@printf '$(BOLD)Starting infrastructure services...$(RESET)\n'
-	@docker compose up -d postgres redis
-	@printf 'Waiting for postgres + redis to be healthy...\n'
-	@bash scripts/wait-healthy.sh postgres redis
-	@echo ""
-	@printf '$(BOLD)Building and starting application services...$(RESET)\n'
-	@docker compose up -d --build backend
-	@bash scripts/wait-healthy.sh backend
-	@docker compose up -d --build frontend
-	@echo ""
-	@bash scripts/print-urls.sh
+setup: ## First-time setup: auto-generate secrets, pull images, start stack
+	@bash scripts/setup.sh
 
 .PHONY: dev
 dev: ## Start all services (build if needed), follow logs

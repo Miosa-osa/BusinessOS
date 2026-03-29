@@ -127,3 +127,9 @@ osa
 
 # Internal/private docs (never commit)
 .internal/
+
+# Merge/backup artifacts
+*.bak
+*.merged
+*.pre-merge-bak
+*.pre-widget-bak

@@ -54,9 +54,42 @@ cd "$ROOT"
 if [[ ! -f .env ]]; then
   cp .env.example .env
   ok "Created .env from .env.example"
-  warn "Edit .env and set the REQUIRED values (POSTGRES_PASSWORD, REDIS_PASSWORD, SECRET_KEY, TOKEN_ENCRYPTION_KEY, REDIS_KEY_HMAC_SECRET) before continuing."
-  printf "\n  Press ENTER when done, or Ctrl-C to exit.\n"
-  read -r
+
+  # Auto-generate required secrets
+  step "Generating security keys..."
+
+  gen_key() {
+    # Generate a URL-safe random key (no special chars that break sed/awk)
+    if command -v openssl &>/dev/null; then
+      openssl rand -hex "$1" 2>/dev/null
+    else
+      head -c "$1" /dev/urandom | od -An -tx1 | tr -d ' \n' | head -c $(( $1 * 2 ))
+    fi
+  }
+
+  set_env_key() {
+    local key="$1" value="$2" tmpfile
+    # Use awk for exact key match (sed regex can match substrings)
+    tmpfile="$(mktemp)"
+    awk -v k="$key" -v v="$value" 'BEGIN{FS=OFS="="} $1==k {$0=k "=" v} 1' .env > "$tmpfile"
+    mv "$tmpfile" .env
+  }
+
+  # Generate in reverse-specificity order to avoid substring collisions
+  set_env_key "REDIS_KEY_HMAC_SECRET" "$(gen_key 32)"
+  ok "Generated REDIS_KEY_HMAC_SECRET"
+
+  set_env_key "TOKEN_ENCRYPTION_KEY" "$(gen_key 32)"
+  ok "Generated TOKEN_ENCRYPTION_KEY"
+
+  set_env_key "SECRET_KEY" "$(gen_key 64)"
+  ok "Generated SECRET_KEY"
+
+  set_env_key "REDIS_PASSWORD" "$(gen_key 32)"
+  ok "Generated REDIS_PASSWORD"
+
+  set_env_key "POSTGRES_PASSWORD" "$(gen_key 32)"
+  ok "Generated POSTGRES_PASSWORD"
 else
   ok ".env already exists"
 fi
@@ -82,14 +115,11 @@ MISSING=()
 [[ -z "${REDIS_KEY_HMAC_SECRET:-}" ]] && MISSING+=("REDIS_KEY_HMAC_SECRET")
 
 if [[ ${#MISSING[@]} -gt 0 ]]; then
-  err "The following required keys are empty in .env:"
+  err "The following required keys are still empty in .env:"
   for key in "${MISSING[@]}"; do
     err "  - $key"
   done
-  printf "\n  Generate them with:\n"
-  printf "    openssl rand -base64 64   # for SECRET_KEY\n"
-  printf "    openssl rand -base64 32   # for all others\n\n"
-  err "Fix .env and run this script again."
+  err "This shouldn't happen with auto-generation. Check .env manually."
   exit 1
 fi
 ok "All required keys are set"

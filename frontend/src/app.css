@@ -1,23 +1,25 @@
 @import 'tailwindcss';
 @import "tw-animate-css";
+@import '$lib/modules/theme/styles/bos-variables.css';
+@import '$lib/modules/theme/styles/variables.css';
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	--color-bg: #ffffff;
-	--color-bg-secondary: #f9fafb;
-	--color-bg-tertiary: #f3f4f6;
-	--color-border: #e5e7eb;
-	--color-border-hover: #d1d5db;
-	--color-text: #111827;
-	--color-text-secondary: #4b5563;
-	--color-text-muted: #9ca3af;
-	--color-primary: #111827;
-	--color-primary-hover: #374151;
-	--color-accent: #111827;
-	--color-success: #059669;
-	--color-warning: #d97706;
-	--color-error: #dc2626;
+	--color-bg: var(--bos-v2-layer-background-primary);
+	--color-bg-secondary: var(--bos-v2-layer-background-secondary);
+	--color-bg-tertiary: var(--bos-v2-layer-background-tertiary);
+	--color-border: var(--bos-border-color);
+	--color-border-hover: var(--dbd);
+	--color-text: var(--bos-text-primary-color);
+	--color-text-secondary: var(--bos-text-secondary-color);
+	--color-text-muted: var(--bos-text-tertiary-color);
+	--color-primary: var(--bos-text-primary-color);
+	--color-primary-hover: var(--bos-text-secondary-color);
+	--color-accent: var(--bos-text-primary-color);
+	--color-success: var(--bos-status-success);
+	--color-warning: var(--bos-status-warning);
+	--color-error: var(--bos-status-error);
 	--radius: 0.625rem;
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.145 0 0);
@@ -60,16 +62,16 @@
 	--orb-glow: rgba(99, 102, 241, 0.4);
 	--orb-inner-glow: rgba(255, 255, 255, 0.3);
 
-	/* ===== MIOSA FOUNDATION DESIGN TOKENS ===== */
-	--dt: #111;        /* primary text */
-	--dt2: #555;       /* secondary text */
-	--dt3: #888;       /* tertiary text */
-	--dt4: #bbb;       /* quaternary text */
-	--dbg: #fff;       /* base background */
-	--dbg2: #f5f5f5;   /* surface */
-	--dbg3: #eee;      /* elevated surface */
-	--dbd: #e0e0e0;    /* primary border */
-	--dbd2: #f0f0f0;   /* subtle border */
+	/* ===== MIOSA FOUNDATION DESIGN TOKENS — aliases to canonical --bos-v2 tokens ===== */
+	--dt:   var(--bos-v2-text-primary);                  /* primary text */
+	--dt2:  var(--bos-v2-text-secondary);                /* secondary text */
+	--dt3:  var(--bos-v2-text-tertiary);                 /* tertiary text */
+	--dt4:  var(--bos-v2-text-disable);                  /* disabled text */
+	--dbg:  var(--bos-v2-layer-background-primary);      /* base background */
+	--dbg2: var(--bos-v2-layer-background-secondary);    /* surface */
+	--dbg3: var(--bos-v2-layer-background-tertiary);     /* elevated surface */
+	--dbd:  var(--bos-border-color);                     /* primary border */
+	--dbd2: var(--dbd);                                  /* subtle border — alias to primary border */
 
 	/* ═══ Configurable Button Tokens ═══ */
 	--btn-h-xs: 24px;
@@ -102,14 +104,27 @@
 	--gradient-ready: linear-gradient(180deg, #E8F9F9 0%, #EFF5FF 100%);
 	--gradient-builder: linear-gradient(180deg, #F0E8FF 0%, #FFE8F5 100%);
 
-	/* Accent Colors (iOS inspired) */
-	--accent-blue: #4A90E2;
-	--accent-purple: #A855F7;
-	--accent-pink: #EC4899;
-	--accent-orange: #FF6B35;
+	/* ===== TASK STATUS & PRIORITY COLOR TOKENS ===== */
+	/* These alias into the bos-variables.css semantic tokens.         */
+	/* Use these vars in all task-related components — never hardcode. */
+	--status-todo:        var(--bos-status-neutral);   /* #6B7280 */
+	--status-in-progress: var(--bos-status-info);      /* #3B82F6 */
+	--status-in-review:   var(--bos-status-accent);    /* #8B5CF6 */
+	--status-done:        var(--bos-status-success);   /* #10B981 */
+	--status-blocked:     var(--bos-status-warning);   /* #F59E0B */
+	--priority-critical:  var(--bos-priority-critical);/* #EF4444 */
+	--priority-high:      var(--bos-priority-high);    /* #F97316 */
+	--priority-medium:    var(--bos-priority-medium);  /* #EAB308 */
+	--priority-low:       var(--bos-status-neutral);   /* #9CA3AF */
+
+	/* Accent Colors — Blue is the ONE accent color across everything */
+	--accent-blue: #3B82F6;
+	--accent-purple: #3B82F6;
+	--accent-pink: #999999;
+	--accent-orange: #777777;
 	--accent-green: #10B981;
-	--accent-indigo: #667eea;
-	--accent-violet: #764ba2;
+	--accent-indigo: #3B82F6;
+	--accent-violet: #3B82F6;
 
 	/* Glassmorphism Variables */
 	--glass-bg: rgba(255, 255, 255, 0.8);
@@ -182,17 +197,10 @@
 }
 
 /* Dark Mode Overrides */
+/* NOTE: --dbg/--dt/--dbd legacy tokens are aliases to --bos-v2 tokens (see :root).
+   They automatically pick up dark values from bos-variables.css .dark overrides.
+   No need to redefine them here. */
 .dark {
-	/* MIOSA Foundation Dark Tokens */
-	--dt: #fff;
-	--dt2: #aaa;
-	--dt3: #777;
-	--dt4: #555;
-	--dbg: #1a1a1a;
-	--dbg2: #242424;
-	--dbg3: #2e2e2e;
-	--dbd: #333;
-	--dbd2: #2a2a2a;
 
 	--orb-gradient-1: #312e81;
 	--orb-gradient-2: #3730a3;
@@ -261,12 +269,12 @@ body {
 }
 
 .dark .btn-primary {
-	background-color: #0A84FF;
-	color: white;
+	background-color: #e8e8e8;
+	color: #0a0a0a;
 }
 
 .dark .btn-primary:hover {
-	background-color: #0070E0;
+	background-color: #d4d4d4;
 }
 
 .btn-secondary {
@@ -320,15 +328,15 @@ body {
 
 /* Card styles - modern rounded */
 .card {
-	background-color: var(--color-bg);
-	border: 1px solid var(--color-border);
-	border-radius: 1rem;
-	padding: 1.5rem;
+	background-color: var(--bos-settings-card-bg);
+	border: 1px solid var(--bos-settings-card-border);
+	border-radius: var(--bos-settings-card-radius);
+	padding: 1rem 1.25rem;
 }
 
 .dark .card {
-	background-color: #2c2c2e;
-	border-color: rgba(255, 255, 255, 0.12);
+	background-color: var(--bos-settings-card-bg);
+	border-color: var(--bos-settings-card-border);
 }
 
 /* Message bubbles - ChatGPT/Apple style */
@@ -351,12 +359,12 @@ body {
 }
 
 .dark .message-bubble-user {
-	background-color: #2563eb;
-	color: white;
+	background-color: var(--bos-btn-cta-bg);
+	color: var(--bos-btn-cta-text);
 }
 .dark .message-bubble-assistant {
-	background-color: rgba(31, 41, 55, 0.6);
-	color: #f3f4f6;
+	background-color: var(--bos-background-tertiary-color);
+	color: var(--bos-text-primary-color);
 }
 
 /* Sidebar */
@@ -366,8 +374,8 @@ body {
 }
 
 .dark .sidebar {
-	background-color: #1c1c1e;
-	border-right-color: rgba(255, 255, 255, 0.12);
+	background-color: var(--bos-background-primary-color);
+	border-right-color: var(--bos-v2-layer-insideBorder-border);
 }
 
 /* Status badges */
@@ -381,78 +389,78 @@ body {
 }
 
 .badge-active {
-	background-color: #dcfce7;
-	color: #166534;
+	background-color: var(--bos-background-success-color);
+	color: var(--bos-success-color);
 }
 
 .badge-paused {
-	background-color: #fef3c7;
-	color: #92400e;
+	background-color: var(--bos-background-warning-color);
+	color: var(--bos-warning-color);
 }
 
 .badge-completed {
-	background-color: #e0e7ff;
-	color: #3730a3;
+	background-color: var(--bos-tag-blue);
+	color: var(--bos-brand-color);
 }
 
 .badge-archived {
-	background-color: #f3f4f6;
-	color: #4b5563;
+	background-color: var(--bos-tag-gray);
+	color: var(--bos-text-secondary-color);
 }
 
-/* Dark mode badge variants */
+/* Dark mode badge variants — tokens already swap in .dark, no overrides needed */
 .dark .badge-active {
-	background-color: #166534;
-	color: #dcfce7;
+	background-color: var(--bos-background-success-color);
+	color: var(--bos-success-color);
 }
 
 .dark .badge-paused {
-	background-color: #92400e;
-	color: #fef3c7;
+	background-color: var(--bos-background-warning-color);
+	color: var(--bos-warning-color);
 }
 
 .dark .badge-completed {
-	background-color: #3730a3;
-	color: #e0e7ff;
+	background-color: var(--bos-tag-blue);
+	color: var(--bos-brand-color);
 }
 
 .dark .badge-archived {
-	background-color: #374151;
-	color: #9ca3af;
+	background-color: var(--bos-tag-gray);
+	color: var(--bos-text-secondary-color);
 }
 
 /* Priority badges */
 .priority-critical {
-	color: #dc2626;
+	color: var(--bos-error-color);
 }
 
 .priority-high {
-	color: #ea580c;
+	color: var(--bos-warning-color);
 }
 
 .priority-medium {
-	color: #ca8a04;
+	color: var(--bos-warning-color);
 }
 
 .priority-low {
-	color: #16a34a;
+	color: var(--bos-success-color);
 }
 
-/* Dark mode priority variants */
+/* Dark mode priority variants — tokens remap in .dark automatically */
 .dark .priority-critical {
-	color: #f87171;
+	color: var(--bos-error-color);
 }
 
 .dark .priority-high {
-	color: #fb923c;
+	color: var(--bos-warning-color);
 }
 
 .dark .priority-medium {
-	color: #fbbf24;
+	color: var(--bos-warning-color);
 }
 
 .dark .priority-low {
-	color: #4ade80;
+	color: var(--bos-success-color);
 }
 
 @theme inline {
@@ -527,17 +535,6 @@ body {
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: oklch(0.5 0 0);
 
-	/* Modern dark gray colors - like Apple's dark mode */
-	--color-bg: #1c1c1e;
-	--color-bg-secondary: #2c2c2e;
-	--color-bg-tertiary: #3a3a3c;
-	--color-border: rgba(255, 255, 255, 0.12);
-	--color-border-hover: rgba(255, 255, 255, 0.2);
-	--color-text: #f5f5f7;
-	--color-text-secondary: #a1a1a6;
-	--color-text-muted: #6e6e73;
-	--color-primary: #ffffff;
-	--color-primary-hover: #e5e5ea;
 }
 
 @layer base {
@@ -553,41 +550,41 @@ body {
 /* Override hardcoded Tailwind classes for dark mode */
 
 /* Background overrides */
-.dark .bg-white { background-color: #1c1c1e !important; }
-.dark .bg-gray-50 { background-color: #2c2c2e !important; }
-.dark .bg-gray-100 { background-color: #3a3a3c !important; }
-.dark .bg-gray-200 { background-color: #48484a !important; }
-.dark .bg-gray-900 { background-color: #0d0d0f !important; }
+.dark .bg-white { background-color: var(--dbg) !important; }
+.dark .bg-gray-50 { background-color: var(--dbg2) !important; }
+.dark .bg-gray-100 { background-color: var(--dbg3) !important; }
+.dark .bg-gray-200 { background-color: var(--dbg3) !important; }
+.dark .bg-gray-900 { background-color: var(--dbg) !important; }
 
 /* Semi-transparent background overrides (opacity modifiers) */
-.dark .bg-gray-50\/50 { background-color: rgba(44, 44, 46, 0.5) !important; }
-.dark .bg-gray-50\/30 { background-color: rgba(44, 44, 46, 0.3) !important; }
-.dark .bg-gray-100\/50 { background-color: rgba(58, 58, 60, 0.5) !important; }
-.dark .bg-white\/50 { background-color: rgba(28, 28, 30, 0.5) !important; }
-.dark .bg-white\/80 { background-color: rgba(28, 28, 30, 0.8) !important; }
-.dark .bg-white\/90 { background-color: rgba(28, 28, 30, 0.9) !important; }
+.dark .bg-gray-50\/50 { background-color: color-mix(in srgb, var(--dbg2) 50%, transparent) !important; }
+.dark .bg-gray-50\/30 { background-color: color-mix(in srgb, var(--dbg2) 30%, transparent) !important; }
+.dark .bg-gray-100\/50 { background-color: color-mix(in srgb, var(--dbg3) 50%, transparent) !important; }
+.dark .bg-white\/50 { background-color: color-mix(in srgb, var(--dbg) 50%, transparent) !important; }
+.dark .bg-white\/80 { background-color: color-mix(in srgb, var(--dbg) 80%, transparent) !important; }
+.dark .bg-white\/90 { background-color: color-mix(in srgb, var(--dbg) 90%, transparent) !important; }
 
 /* Colored badge/status backgrounds for dark mode */
-.dark .bg-emerald-50 { background-color: #1a332b !important; }
-.dark .bg-emerald-100 { background-color: #1a4034 !important; }
-.dark .bg-teal-50 { background-color: #1a332e !important; }
-.dark .bg-teal-100 { background-color: #1a403a !important; }
-.dark .bg-amber-50 { background-color: #3d3520 !important; }
-.dark .bg-amber-100 { background-color: #4d421a !important; }
-.dark .bg-blue-100 { background-color: #1e3a5f !important; }
-.dark .bg-purple-100 { background-color: #2d1f4e !important; }
-.dark .bg-red-100 { background-color: #4d1f1f !important; }
-.dark .bg-green-100 { background-color: #1a3329 !important; }
-.dark .bg-gray-100\/80 { background-color: rgba(58, 58, 60, 0.8) !important; }
+.dark .bg-emerald-50 { background-color: var(--bos-status-success-bg) !important; }
+.dark .bg-emerald-100 { background-color: var(--bos-status-success-bg) !important; }
+.dark .bg-teal-50 { background-color: var(--bos-status-success-bg) !important; }
+.dark .bg-teal-100 { background-color: var(--bos-status-success-bg) !important; }
+.dark .bg-amber-50 { background-color: var(--bos-status-warning-bg) !important; }
+.dark .bg-amber-100 { background-color: var(--bos-status-warning-bg) !important; }
+.dark .bg-blue-100 { background-color: var(--bos-status-info-bg) !important; }
+.dark .bg-purple-100 { background-color: color-mix(in srgb, var(--bos-category-ai) 15%, transparent) !important; }
+.dark .bg-red-100 { background-color: var(--bos-status-error-bg) !important; }
+.dark .bg-green-100 { background-color: var(--bos-status-success-bg) !important; }
+.dark .bg-gray-100\/80 { background-color: color-mix(in srgb, var(--dbg3) 80%, transparent) !important; }
 
 /* Text overrides */
-.dark .text-gray-900 { color: #f5f5f7 !important; }
-.dark .text-gray-800 { color: #e5e5ea !important; }
-.dark .text-gray-700 { color: #d1d1d6 !important; }
-.dark .text-gray-600 { color: #a1a1a6 !important; }
-.dark .text-gray-500 { color: #8e8e93 !important; }
-.dark .text-gray-400 { color: #6e6e73 !important; }
-.dark .text-gray-300 { color: #636366 !important; }
+.dark .text-gray-900 { color: var(--dt) !important; }
+.dark .text-gray-800 { color: var(--dt) !important; }
+.dark .text-gray-700 { color: var(--dt) !important; }
+.dark .text-gray-600 { color: var(--dt2) !important; }
+.dark .text-gray-500 { color: var(--dt2) !important; }
+.dark .text-gray-400 { color: var(--dt3) !important; }
+.dark .text-gray-300 { color: var(--dt3) !important; }
 
 /* Code blocks in dark mode */
 .dark pre code {
@@ -1277,52 +1274,87 @@ body {
 }
 
 .btn-pill-secondary {
-	background: #fff;
-	border: 1px solid rgba(0, 0, 0, 0.1);
-	color: var(--text-primary);
-	box-shadow: var(--shadow-sm);
+	background: var(--dbg2);
+	border: 1px solid var(--dbd);
+	color: var(--dt);
 }
 
 .btn-pill-secondary:hover:not(:disabled) {
-	background: rgba(255, 255, 255, 1);
-	border-color: rgba(0, 0, 0, 0.15);
-	box-shadow: var(--shadow-md);
-}
-
-.dark .btn-pill-secondary {
-	background: rgba(58, 58, 60, 0.8);
-	border-color: rgba(255, 255, 255, 0.1);
-	color: var(--text-primary);
-}
-
-.dark .btn-pill-secondary:hover:not(:disabled) {
-	background: rgba(58, 58, 60, 1);
-	border-color: rgba(255, 255, 255, 0.2);
+	background: var(--dbg3);
+	border-color: var(--dt3);
 }
 
 .btn-pill-ghost {
 	background: transparent;
 	border: 1px solid transparent;
-	color: #666666;
+	color: var(--dt2);
 }
 
 .btn-pill-ghost:hover:not(:disabled) {
-	background: rgba(0, 0, 0, 0.06);
-	border-color: rgba(0, 0, 0, 0.08);
-	color: #1A1A1A;
+	background: var(--dbg2);
+	border-color: var(--dbd);
+	color: var(--dt);
+}
+
+/* ===== CTA BUTTON — Black + Blue Glow (Signature Element) ===== */
+/* The ONE color accent. Used for primary actions: Add, Create, New, Invite. */
+/* Light: black btn + blue glow. Dark: white btn + blue glow. */
+/* Blue pulse = the heartbeat of BusinessOS. */
+.btn-cta {
+	background: var(--bos-btn-cta-bg);
+	color: var(--bos-btn-cta-text);
+	border: 1px solid var(--bos-btn-cta-border, rgba(59, 130, 246, 0.25));
+	border-radius: var(--bos-btn-cta-radius);
+	box-shadow: var(--bos-btn-cta-glow);
+	transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+	cursor: pointer;
+	font-weight: 500;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	padding: 0.5rem 1.125rem;
+	font-size: var(--text-sm);
+	font-family: var(--font-text, -apple-system, BlinkMacSystemFont, sans-serif);
+	position: relative;
+	overflow: hidden;
+	animation: cta-blue-pulse 3s ease-in-out infinite;
+}
+
+/* Glossy sheen overlay */
+.btn-cta::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 50%;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 100%);
+	border-radius: var(--bos-btn-cta-radius) var(--bos-btn-cta-radius) 0 0;
+	pointer-events: none;
+}
+
+.btn-cta:hover:not(:disabled) {
+	background: var(--bos-btn-cta-hover);
+	box-shadow: var(--bos-btn-cta-glow-hover);
 	transform: translateY(-1px);
+	animation: none;
 }
 
-.dark .btn-pill-ghost {
-	background: rgba(255, 255, 255, 0.05);
-	border-color: rgba(255, 255, 255, 0.1);
-	color: #a1a1a6;
+.btn-cta:active:not(:disabled) {
+	background: var(--bos-btn-cta-active);
+	transform: translateY(0);
+	box-shadow: var(--bos-btn-cta-glow);
 }
 
-.dark .btn-pill-ghost:hover:not(:disabled) {
-	background: rgba(255, 255, 255, 0.1);
-	border-color: rgba(255, 255, 255, 0.15);
-	color: #f5f5f7;
+.btn-cta:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Dark mode: black button with subtle blue-tinted sheen */
+.dark .btn-cta::before {
+	background: linear-gradient(180deg, rgba(59, 130, 246, 0.08) 0%, rgba(255, 255, 255, 0.03) 40%, rgba(255, 255, 255, 0) 100%);
 }
 
 /* Button sizes */
@@ -1333,8 +1365,8 @@ body {
 }
 
 .btn-pill-sm {
-	padding: 0.375rem 0.875rem;
-	font-size: var(--text-xs);
+	padding: 0.5rem 1.25rem;
+	font-size: var(--text-sm);
 }
 
 .btn-pill-lg {
@@ -1349,21 +1381,15 @@ body {
 
 /* Icon-only buttons */
 .btn-pill-icon {
-	padding: 0.5rem;
-	min-width: 2rem;
-	min-height: 2rem;
+	padding: 0.625rem;
+	min-width: 2.5rem;
+	min-height: 2.5rem;
 }
 
 .btn-pill-icon.btn-pill-sm {
-	padding: 0.375rem;
-	min-width: 1.75rem;
-	min-height: 1.75rem;
-}
-
-.btn-pill-icon.btn-pill-xs {
-	padding: 0.25rem;
-	min-width: 1.5rem;
-	min-height: 1.5rem;
+	padding: 0.5rem;
+	min-width: 2rem;
+	min-height: 2rem;
 }
 
 .btn-pill-icon.btn-pill-lg {
@@ -2915,6 +2941,19 @@ body {
 }
 
 /* ===== ANIMATIONS ===== */
+
+/* Blue pulse for CTA buttons — alive breathing glow, always visible */
+@keyframes cta-blue-pulse {
+	0%, 100% {
+		box-shadow: var(--bos-btn-cta-glow);
+		border-color: var(--bos-btn-cta-border);
+	}
+	50% {
+		box-shadow: var(--bos-btn-cta-glow-pulse, var(--bos-btn-cta-glow));
+		border-color: rgba(59, 130, 246, 0.5);
+	}
+}
+
 @keyframes pulse-glow {
 	0%, 100% {
 		opacity: 1;
@@ -3004,4 +3043,281 @@ body {
 .backdrop-blur-xl {
 	backdrop-filter: blur(24px);
 	-webkit-backdrop-filter: blur(24px);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL FOUNDATION — Global Design System
+   All modals MUST use these classes for consistency.
+   Tokens: --bos-modal-* from bos-variables.css
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Overlay / Backdrop ─── */
+.bos-modal-overlay {
+	position: fixed;
+	inset: 0;
+	background: var(--bos-modal-backdrop);
+	backdrop-filter: blur(var(--bos-modal-backdrop-blur));
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: var(--bos-z-modal-backdrop);
+	padding: 1rem;
+	animation: bos-fade-in 150ms ease-out;
+}
+
+/* ─── Modal Container ─── */
+.bos-modal {
+	position: relative;
+	background: var(--bos-modal-bg);
+	border: 1px solid var(--bos-modal-border);
+	border-radius: var(--bos-modal-radius);
+	box-shadow: var(--bos-modal-shadow);
+	width: 100%;
+	max-height: 90vh;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	z-index: var(--bos-z-modal);
+	animation: bos-scale-in 200ms ease-out;
+}
+
+/* Size variants */
+.bos-modal--sm { max-width: 400px; }
+.bos-modal--md { max-width: 512px; }
+.bos-modal--lg { max-width: 672px; }
+.bos-modal--xl { max-width: 896px; }
+.bos-modal--full { max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); }
+
+/* ─── Header ─── */
+.bos-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px 20px;
+	border-bottom: 1px solid var(--bos-modal-border);
+	flex-shrink: 0;
+}
+
+.bos-modal-title {
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--bos-text-primary-color);
+	margin: 0;
+	line-height: 1.4;
+}
+
+.bos-modal-subtitle {
+	font-size: 13px;
+	color: var(--bos-text-secondary-color);
+	margin: 2px 0 0;
+}
+
+/* ─── Close Button ─── */
+.bos-modal-close {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border: none;
+	background: transparent;
+	color: var(--bos-text-secondary-color);
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+	transition: background var(--bos-transition-fast), color var(--bos-transition-fast);
+	flex-shrink: 0;
+}
+
+.bos-modal-close:hover {
+	background: var(--bos-hover-color);
+	color: var(--bos-text-primary-color);
+}
+
+/* ─── Body ─── */
+.bos-modal-body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 20px;
+}
+
+/* ─── Footer ─── */
+.bos-modal-footer {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 12px;
+	padding: 16px 20px;
+	border-top: 1px solid var(--bos-modal-border);
+	flex-shrink: 0;
+}
+
+/* ─── Animations ─── */
+@keyframes bos-fade-in {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes bos-scale-in {
+	from { opacity: 0; transform: scale(0.96); }
+	to { opacity: 1; transform: scale(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FORM FOUNDATION — Inputs, Selects, Textareas, Labels
+   Used inside modals and throughout the app.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Labels ─── */
+.bos-label {
+	display: block;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--bos-text-secondary-color);
+	margin-bottom: 6px;
+}
+
+.bos-label--required::after {
+	content: ' *';
+	color: var(--bos-error-color);
+}
+
+/* ─── Inputs & Textareas ─── */
+.bos-input,
+.bos-textarea,
+.bos-select {
+	width: 100%;
+	padding: 9px 12px;
+	font-size: 14px;
+	font-family: inherit;
+	color: var(--bos-text-primary-color);
+	background: var(--bos-v2-layer-background-primary);
+	border: 1px solid var(--bos-border-color);
+	border-radius: var(--radius-sm);
+	outline: none;
+	transition: border-color var(--bos-transition-fast), box-shadow var(--bos-transition-fast);
+	box-sizing: border-box;
+}
+
+.bos-input:focus,
+.bos-textarea:focus,
+.bos-select:focus {
+	border-color: var(--bos-primary-color);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--bos-primary-color) 15%, transparent);
+}
+
+.bos-input::placeholder,
+.bos-textarea::placeholder {
+	color: var(--bos-placeholder-color);
+}
+
+.bos-input:disabled,
+.bos-textarea:disabled,
+.bos-select:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	background: var(--bos-v2-layer-background-secondary);
+}
+
+/* Error state */
+.bos-input--error,
+.bos-textarea--error,
+.bos-select--error {
+	border-color: var(--bos-error-color);
+}
+
+.bos-input--error:focus,
+.bos-textarea--error:focus,
+.bos-select--error:focus {
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--bos-error-color) 15%, transparent);
+}
+
+/* Textarea specific */
+.bos-textarea {
+	resize: vertical;
+	min-height: 80px;
+}
+
+/* Select specific — custom arrow */
+.bos-select {
+	appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%238e8d91' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+	background-size: 16px;
+	padding-right: 32px;
+}
+
+/* ─── Form Groups ─── */
+.bos-form-group {
+	margin-bottom: 16px;
+}
+
+.bos-form-group:last-child {
+	margin-bottom: 0;
+}
+
+.bos-form-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+/* ─── Error Messages ─── */
+.bos-field-error {
+	display: block;
+	font-size: 12px;
+	color: var(--bos-error-color);
+	margin-top: 4px;
+}
+
+.bos-error-banner {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	background: var(--bos-background-error-color);
+	color: var(--bos-error-color);
+	border-radius: var(--radius-sm);
+	font-size: 13px;
+	margin-bottom: 16px;
+}
+
+/* ─── Dropdown Menus (Bits UI overrides) ─── */
+.bos-dropdown {
+	background: var(--bos-modal-bg);
+	border: 1px solid var(--bos-border-color);
+	border-radius: var(--bos-modal-radius);
+	box-shadow: var(--bos-popover-shadow);
+	padding: 4px;
+	z-index: var(--bos-z-modal-nested);
+	animation: bos-scale-in 150ms ease-out;
+}
+
+.bos-dropdown-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	font-size: 13px;
+	color: var(--bos-text-primary-color);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	transition: background var(--bos-transition-fast);
+}
+
+.bos-dropdown-item:hover {
+	background: var(--bos-hover-color);
+}
+
+.bos-dropdown-item--active {
+	background: color-mix(in srgb, var(--bos-primary-color) 10%, transparent);
+	color: var(--bos-primary-color);
+}
+
+/* ─── Character Count ─── */
+.bos-char-count {
+	text-align: right;
+	font-size: 11px;
+	color: var(--bos-text-tertiary-color);
+	margin-top: 4px;
 }
