@@ -13,6 +13,9 @@ const (
 	// A2aAgentNameKey is the OTel attribute key for a2a.agent.name.
 	// Human-readable name of the A2A agent serving the request.
 	A2aAgentNameKey = attribute.Key("a2a.agent.name")
+	// A2aAgentUrlKey is the OTel attribute key for a2a.agent.url.
+	// Endpoint URL of the A2A agent receiving or initiating the call.
+	A2aAgentUrlKey = attribute.Key("a2a.agent.url")
 	// A2aArtifactCountKey is the OTel attribute key for a2a.artifact.count.
 	// Number of output artifacts produced by a completed A2A task.
 	A2aArtifactCountKey = attribute.Key("a2a.artifact.count")
@@ -139,6 +142,9 @@ const (
 	// A2aDisputeResolutionStatusKey is the OTel attribute key for a2a.dispute.resolution_status.
 	// Current resolution status of the A2A dispute.
 	A2aDisputeResolutionStatusKey = attribute.Key("a2a.dispute.resolution_status")
+	// A2aDurationMsKey is the OTel attribute key for a2a.duration_ms.
+	// Duration of the A2A operation in milliseconds.
+	A2aDurationMsKey = attribute.Key("a2a.duration_ms")
 	// A2aEscrowAmountKey is the OTel attribute key for a2a.escrow.amount.
 	// Amount held in escrow for the A2A deal.
 	A2aEscrowAmountKey = attribute.Key("a2a.escrow.amount")
@@ -160,6 +166,9 @@ const (
 	// A2aEscrowStatusKey is the OTel attribute key for a2a.escrow.status.
 	// Current status of the A2A escrow.
 	A2aEscrowStatusKey = attribute.Key("a2a.escrow.status")
+	// A2aJsonrpcMethodKey is the OTel attribute key for a2a.jsonrpc.method.
+	// The JSON-RPC 2.0 method name for an A2A protocol call.
+	A2aJsonrpcMethodKey = attribute.Key("a2a.jsonrpc.method")
 	// A2aKnowledgeTransferIdKey is the OTel attribute key for a2a.knowledge.transfer.id.
 	// Unique identifier for knowledge transfer.
 	A2aKnowledgeTransferIdKey = attribute.Key("a2a.knowledge.transfer.id")
@@ -332,6 +341,11 @@ func A2aAgentId(val string) attribute.KeyValue {
 // A2aAgentName returns an attribute KeyValue for a2a.agent.name.
 func A2aAgentName(val string) attribute.KeyValue {
 	return A2aAgentNameKey.String(val)
+}
+
+// A2aAgentUrl returns an attribute KeyValue for a2a.agent.url.
+func A2aAgentUrl(val string) attribute.KeyValue {
+	return A2aAgentUrlKey.String(val)
 }
 
 // A2aArtifactCount returns an attribute KeyValue for a2a.artifact.count.
@@ -670,6 +684,11 @@ var A2aDisputeResolutionStatusValues = struct {
 	Escalated: "escalated",
 }
 
+// A2aDurationMs returns an attribute KeyValue for a2a.duration_ms.
+func A2aDurationMs(val int64) attribute.KeyValue {
+	return A2aDurationMsKey.Int64(val)
+}
+
 // A2aEscrowAmount returns an attribute KeyValue for a2a.escrow.amount.
 func A2aEscrowAmount(val float64) attribute.KeyValue {
 	return A2aEscrowAmountKey.Float64(val)
@@ -742,6 +761,11 @@ var A2aEscrowStatusValues = struct {
 	Held: "held",
 	Released: "released",
 	Disputed: "disputed",
+}
+
+// A2aJsonrpcMethod returns an attribute KeyValue for a2a.jsonrpc.method.
+func A2aJsonrpcMethod(val string) attribute.KeyValue {
+	return A2aJsonrpcMethodKey.String(val)
 }
 
 // A2aKnowledgeTransferId returns an attribute KeyValue for a2a.knowledge.transfer.id.

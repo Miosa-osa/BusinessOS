@@ -25,6 +25,13 @@ const (
 	// Kind: client
 	// Stability: development
 	A2aCallSpan = "a2a.call"
+	// a2a_cancel is the span name for "a2a.cancel".
+	//
+	// Canceling an A2A task via tasks/cancel JSON-RPC call. Emitted by Canopy.Telemetry.A2AHandler when a task cancel request is processed.
+
+	// Kind: client
+	// Stability: development
+	A2aCancelSpan = "a2a.cancel"
 	// a2a_capability_match is the span name for "a2a.capability.match".
 	//
 	// Matching a capability request to available agents — selecting best provider.
@@ -103,6 +110,13 @@ const (
 	// Kind: producer
 	// Stability: development
 	A2aKnowledgeTransferSpan = "a2a.knowledge.transfer"
+	// a2a_message is the span name for "a2a.message".
+	//
+	// Receiving an A2A message/send JSON-RPC call via A2A.Plug. Emitted by Canopy.Telemetry.A2AHandler when the server receives a message.
+
+	// Kind: server
+	// Stability: development
+	A2aMessageSpan = "a2a.message"
 	// a2a_message_batch is the span name for "a2a.message.batch".
 	//
 	// Batched delivery of multiple A2A messages — aggregates messages for efficient transport.

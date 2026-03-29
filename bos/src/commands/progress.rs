@@ -265,6 +265,6 @@ mod tests {
         tracker.add_stage("Phase 1", 10);
         tracker.add_stage("Phase 2", 20);
         tracker.update_current(5);
-        assert_eq!(tracker.overall_percentage(), 11); // 5/30
+        assert_eq!(tracker.overall_percentage(), 16); // 5/30 * 100 = 16.67 → 16
     }
 }

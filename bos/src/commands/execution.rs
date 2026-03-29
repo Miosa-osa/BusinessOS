@@ -3,7 +3,7 @@
 use super::{BosCommand, CommandError, CommandResult};
 use serde_json::{json, Value};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info, warn};
 
@@ -157,7 +157,7 @@ impl CommandExecutor {
     pub fn execute_with_timeout(
         &self,
         cmd: &BosCommand,
-        executor_fn: impl Fn(&BosCommand) -> CommandResult<Value>,
+        executor_fn: impl Fn(&BosCommand) -> CommandResult<Value> + Send + 'static,
     ) -> CommandResult<Value> {
         use std::sync::mpsc;
         use std::thread;
@@ -264,7 +264,7 @@ impl BatchExecutor {
 
             // Limit concurrent workers
             if handles.len() >= self.max_workers {
-                if let Ok(handle) = handles.pop() {
+                if let Some(handle) = handles.pop() {
                     let _ = handle.join();
                 }
             }
@@ -286,168 +286,3 @@ impl BatchExecutor {
     }
 }
 
-impl Clone for BosCommand {
-    fn clone(&self) -> Self {
-        match self {
-            BosCommand::Discover(args) => {
-                BosCommand::Discover(super::businessos_commands::DiscoverArgs {
-                    log_path: args.log_path.clone(),
-                    algorithm: args.algorithm.clone(),
-                    max_traces: args.max_traces,
-                    activity_filter: args.activity_filter.clone(),
-                    model_id: args.model_id.clone(),
-                })
-            }
-            BosCommand::DiscoverBatch(args) => {
-                BosCommand::DiscoverBatch(super::businessos_commands::BatchArgs {
-                    config_path: args.config_path.clone(),
-                    parallel: args.parallel,
-                    workers: args.workers,
-                })
-            }
-            BosCommand::ListModels(args) => {
-                BosCommand::ListModels(super::businessos_commands::ListModelsArgs {
-                    algorithm_filter: args.algorithm_filter.clone(),
-                    date_from: args.date_from.clone(),
-                    date_to: args.date_to.clone(),
-                    sort_by: args.sort_by.clone(),
-                })
-            }
-            BosCommand::ValidateModel(args) => {
-                BosCommand::ValidateModel(super::businessos_commands::ValidateModelArgs {
-                    model_id: args.model_id.clone(),
-                    check_soundness: args.check_soundness,
-                    check_liveness: args.check_liveness,
-                })
-            }
-            BosCommand::Conform(args) | BosCommand::CheckConformance(args) => {
-                BosCommand::Conform(super::businessos_commands::ConformArgs {
-                    log_path: args.log_path.clone(),
-                    model_id: args.model_id.clone(),
-                    alignment: args.alignment.clone(),
-                })
-            }
-            BosCommand::Statistics(args) => {
-                BosCommand::Statistics(super::businessos_commands::StatisticsArgs {
-                    log_path: args.log_path.clone(),
-                    with_variants: args.with_variants,
-                    with_activities: args.with_activities,
-                    with_durations: args.with_durations,
-                })
-            }
-            BosCommand::QualityCheck(args) => {
-                BosCommand::QualityCheck(super::businessos_commands::QualityCheckArgs {
-                    data_path: args.data_path.clone(),
-                    metrics: args.metrics.clone(),
-                    report: args.report,
-                })
-            }
-            BosCommand::Fingerprint(args) => {
-                BosCommand::Fingerprint(super::businessos_commands::FingerprintArgs {
-                    log_path: args.log_path.clone(),
-                    baseline_model: args.baseline_model.clone(),
-                    algorithm: args.algorithm.clone(),
-                })
-            }
-            BosCommand::Variability(args) => {
-                BosCommand::Variability(super::businessos_commands::VariabilityArgs {
-                    log_path: args.log_path.clone(),
-                    baseline_variant: args.baseline_variant.clone(),
-                    variance_threshold: args.variance_threshold,
-                })
-            }
-            BosCommand::OrgEvolution(args) => {
-                BosCommand::OrgEvolution(super::businessos_commands::OrgEvolutionArgs {
-                    log_path: args.log_path.clone(),
-                    start_date: args.start_date.clone(),
-                    end_date: args.end_date.clone(),
-                    granularity: args.granularity.clone(),
-                })
-            }
-            BosCommand::VariantAnalysis(args) => {
-                BosCommand::VariantAnalysis(super::businessos_commands::VariantAnalysisArgs {
-                    log_path: args.log_path.clone(),
-                    top_n: args.top_n,
-                    similarity_threshold: args.similarity_threshold,
-                })
-            }
-            BosCommand::ExportPetriNet(args) => {
-                BosCommand::ExportPetriNet(super::businessos_commands::ExportArgs {
-                    source_id: args.source_id.clone(),
-                    output_path: args.output_path.clone(),
-                    format: args.format.clone(),
-                    with_metadata: args.with_metadata,
-                })
-            }
-            BosCommand::ExportLog(args) => {
-                BosCommand::ExportLog(super::businessos_commands::ExportArgs {
-                    source_id: args.source_id.clone(),
-                    output_path: args.output_path.clone(),
-                    format: args.format.clone(),
-                    with_metadata: args.with_metadata,
-                })
-            }
-            BosCommand::ImportLog(args) => {
-                BosCommand::ImportLog(super::businessos_commands::ImportArgs {
-                    input_path: args.input_path.clone(),
-                    target_format: args.target_format.clone(),
-                    merge_with: args.merge_with.clone(),
-                })
-            }
-            BosCommand::ExportModel(args) => {
-                BosCommand::ExportModel(super::businessos_commands::ExportArgs {
-                    source_id: args.source_id.clone(),
-                    output_path: args.output_path.clone(),
-                    format: args.format.clone(),
-                    with_metadata: args.with_metadata,
-                })
-            }
-            BosCommand::Construct(args) => {
-                BosCommand::Construct(super::businessos_commands::OntologyArgs {
-                    path: args.path.clone(),
-                    database: args.database.clone(),
-                    mapping: args.mapping.clone(),
-                })
-            }
-            BosCommand::Execute(args) => {
-                BosCommand::Execute(super::businessos_commands::OntologyArgs {
-                    path: args.path.clone(),
-                    database: args.database.clone(),
-                    mapping: args.mapping.clone(),
-                })
-            }
-            BosCommand::Validate(args) => {
-                BosCommand::Validate(super::businessos_commands::OntologyArgs {
-                    path: args.path.clone(),
-                    database: args.database.clone(),
-                    mapping: args.mapping.clone(),
-                })
-            }
-            BosCommand::Compile(args) => {
-                BosCommand::Compile(super::businessos_commands::OntologyArgs {
-                    path: args.path.clone(),
-                    database: args.database.clone(),
-                    mapping: args.mapping.clone(),
-                })
-            }
-            BosCommand::BatchDiscover(args) => {
-                BosCommand::BatchDiscover(super::businessos_commands::BatchDiscoverArgs {
-                    log_directory: args.log_directory.clone(),
-                    pattern: args.pattern.clone(),
-                    algorithm: args.algorithm.clone(),
-                    workers: args.workers,
-                })
-            }
-            BosCommand::BatchConform(args) => {
-                BosCommand::BatchConform(super::businessos_commands::BatchConformArgs {
-                    log_directory: args.log_directory.clone(),
-                    model_id: args.model_id.clone(),
-                    pattern: args.pattern.clone(),
-                    workers: args.workers,
-                })
-            }
-            BosCommand::Help => BosCommand::Help,
-            BosCommand::Version => BosCommand::Version,
-        }
-    }
-}

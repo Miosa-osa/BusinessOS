@@ -320,6 +320,11 @@ impl QueryExecutor {
         Ok(())
     }
 
+    /// Serialize all triples currently in the store as N-Triples.
+    pub fn to_ntriples(&self) -> String {
+        self.store.to_ntriples()
+    }
+
     /// Generate a SPARQL CONSTRUCT query for a table mapping.
     fn generate_construct_for_mapping(
         &self,
