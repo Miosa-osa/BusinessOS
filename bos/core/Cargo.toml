@@ -1,0 +1,34 @@
+[package]
+name = "bos-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "BusinessOS data layer core — ODCS workspace, schema validation, decision records, knowledge base"
+
+[dependencies]
+data-modelling-sdk = { workspace = true }
+
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+sha2 = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+
+# RDF triple store (oxigraph — same versions as obsr)
+oxigraph = { workspace = true }
+oxrdf = { workspace = true }
+
+# PostgreSQL
+postgres = { workspace = true }
+tokio-postgres = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

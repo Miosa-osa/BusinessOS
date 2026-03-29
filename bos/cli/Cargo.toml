@@ -1,0 +1,33 @@
+[package]
+name = "bos"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "BusinessOS data layer CLI — ODCS workspace operations, schema management, and data pipelines"
+
+[[bin]]
+name = "bos"
+path = "src/main.rs"
+
+[dependencies]
+bos-core = { path = "../core" }
+bos-ingest = { path = "../ingest" }
+bos-config = { path = "../config" }
+
+clap = { workspace = true }
+clap_complete = { workspace = true }
+clap_mangen = { workspace = true }
+miette = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+owo-colors = { workspace = true }
+console = { workspace = true }
+indicatif = { workspace = true }

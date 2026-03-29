@@ -1,0 +1,160 @@
+{
+  "prefixes": {
+    "bpmn": "http://www.omg.org/spec/BPMN/20100524/MODEL#"
+  },
+  "mappings": [
+    {
+      "table": "projects",
+      "ontology": "schema.org",
+      "class": "Project",
+      "uri_template": "http://businessos.dev/id/projects/{id}",
+      "properties": [
+        {"column": "id", "predicate": "schema:identifier", "datatype": "xsd:string", "is_primary_key": true},
+        {"column": "name", "predicate": "schema:name"},
+        {"column": "description", "predicate": "schema:description"},
+        {"column": "status", "predicate": "schema:projectStatus", "value_map": {
+          "ACTIVE": "http://schema.org/Active",
+          "PAUSED": "http://schema.org/Paused",
+          "COMPLETED": "http://schema.org/CompletedAction",
+          "ARCHIVED": "http://schema.org/Archived"
+        }},
+        {"column": "priority", "predicate": "schema:priority"},
+        {"column": "start_date", "predicate": "schema:startDate", "datatype": "xsd:date"},
+        {"column": "due_date", "predicate": "schema:endDate", "datatype": "xsd:date"},
+        {"column": "created_at", "predicate": "schema:dateCreated", "datatype": "xsd:dateTime"},
+        {"column": "updated_at", "predicate": "schema:dateModified", "datatype": "xsd:dateTime"},
+        {"column": "user_id", "predicate": "schema:creator", "object_type": "uri", "target_table": "users"},
+        {"column": "client_id", "predicate": "schema:customer", "object_type": "uri", "target_table": "clients"}
+      ]
+    },
+    {
+      "table": "tasks",
+      "ontology": "bpmn+",
+      "class": "Task",
+      "uri_template": "http://businessos.dev/id/tasks/{id}",
+      "properties": [
+        {"column": "id", "predicate": "bpmn:id", "datatype": "xsd:string", "is_primary_key": true},
+        {"column": "title", "predicate": "bpmn:name"},
+        {"column": "description", "predicate": "schema:description"},
+        {"column": "status", "predicate": "bpmn:state", "value_map": {
+          "TODO": "http://www.omg.org/spec/BPMN/20100524/MODEL#Inactive",
+          "IN_PROGRESS": "http://www.omg.org/spec/BPMN/20100524/MODEL#Active",
+          "DONE": "http://www.omg.org/spec/BPMN/20100524/MODEL#Completed"
+        }},
+        {"column": "priority", "predicate": "bpmn:priority"},
+        {"column": "project_id", "predicate": "bpmn:processRef", "object_type": "uri", "target_table": "projects"},
+        {"column": "assignee_id", "predicate": "bpmn:performerRef", "object_type": "uri", "target_table": "team_members"},
+        {"column": "due_date", "predicate": "bpmn:dueDate", "datatype": "xsd:date"},
+        {"column": "created_at", "predicate": "schema:dateCreated", "datatype": "xsd:dateTime"}
+      ]
+    },
+    {
+      "table": "team_members",
+      "ontology": "org",
+      "class": "Member",
+      "uri_template": "http://businessos.dev/id/members/{id}",
+      "properties": [
+        {"column": "id", "predicate": "org:identifier", "datatype": "xsd:string", "is_primary_key": true},
+        {"column": "name", "predicate": "foaf:name"},
+        {"column": "email", "predicate": "foaf:mbox"},
+        {"column": "role", "predicate": "org:role"},
+        {"column": "manager_id", "predicate": "org:reportsTo", "object_type": "uri", "target_table": "team_members"},
+        {"column": "hourly_rate", "predicate": "schema:priceSpecification", "datatype": "xsd:decimal"},
+        {"column": "status", "predicate": "org:status"}
+      ]
+    },
+    {
+      "table": "clients",
+      "ontology": "org",
+      "class": "Organization",
+      "uri_template": "http://businessos.dev/id/clients/{id}",
+      "properties": [
+        {"column": "id", "predicate": "org:identifier", "datatype": "xsd:string", "is_primary_key": true},
+        {"column": "name", "predicate": "foaf:name"},
+        {"column": "type", "predicate": "org:classification"},
+        {"column": "email", "predicate": "foaf:mbox"},
+        {"column": "phone", "predicate": "schema:telephone"},
+        {"column": "website", "predicate": "schema:url", "datatype": "xsd:anyURI"},
+        {"column": "industry", "predicate": "schema:industry"},
+        {"column": "status", "predicate": "org:status"},
+        {"column": "lifetime_value", "predicate": "schema:estimatedSalary", "datatype": "xsd:decimal"}
+      ]
+    },
+    {
+      "table": "contexts",
+      "ontology": "skos",
+      "class": "Concept",
+      "uri_template": "http://businessos.dev/id/contexts/{id}",
+      "properties": [
+        {"column": "id", "predicate": "skos:notation", "datatype": "xsd:string", "is_primary_key": true},
+        {"column": "name", "predicate": "skos:prefLabel"},
+        {"column": "description", "predicate": "skos:definition"},
+        {"column": "type", "predicate": "skos:inScheme"},
+        {"column": "parent_id", "predicate": "skos:broader", "object_type": "uri", "target_table": "contexts"},
+        {"column": "content", "predicate": "schema:text"},
+        {"column": "created_at", "predicate": "schema:dateCreated", "datatype": "xsd:dateTime"}
+      ]
+    },
+    {
+      "table": "conversations",
+      "ontology": "schema.org",
+      "class": "Discussion",
+      "uri_template": "http://businessos.dev/id/conversations/{id}",
+      "properties": [
+        {"column": "id", "predicate": "schema:identifier", "datatype": "xsd:string", "is_primary_key": true},
+        {"column": "title", "predicate": "schema:name"},
+        {"column": "context_id", "predicate": "schema:about", "object_type": "uri", "target_table": "contexts"},
+        {"column": "created_at", "predicate": "schema:dateCreated", "datatype": "xsd:dateTime"},
+        {"column": "updated_at", "predicate": "schema:dateModified", "datatype": "xsd:dateTime"}
+      ]
+    },
+    {
+      "table": "artifacts",
+      "ontology": "prov",
+      "class": "Entity",
+      "uri_template": "http://businessos.dev/id/artifacts/{id}",
+      "properties": [
+        {"column": "id", "predicate": "schema:identifier", "datatype": "xsd:string", "is_primary_key": true},
+        {"column": "title", "predicate": "prov:hadDictionaryMember"},
+        {"column": "type", "predicate": "schema:fileFormat"},
+        {"column": "language", "predicate": "schema:programmingLanguage"},
+        {"column": "content", "predicate": "prov:value"},
+        {"column": "summary", "predicate": "schema:description"},
+        {"column": "project_id", "predicate": "prov:wasGeneratedBy", "object_type": "uri", "target_table": "projects"},
+        {"column": "created_at", "predicate": "schema:dateCreated", "datatype": "xsd:dateTime"}
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from_table": "projects",
+      "to_table": "clients",
+      "property": "schema:customer",
+      "inverse": "schema:projectsOf"
+    },
+    {
+      "from_table": "tasks",
+      "to_table": "projects",
+      "property": "schema:isPartOf",
+      "inverse": "schema:hasPart"
+    },
+    {
+      "from_table": "tasks",
+      "to_table": "team_members",
+      "property": "bpmn:performerRef",
+      "inverse": "bpmn:taskOf"
+    },
+    {
+      "from_table": "team_members",
+      "to_table": "team_members",
+      "property": "org:reportsTo",
+      "inverse": "org:supervises"
+    },
+    {
+      "from_table": "artifacts",
+      "to_table": "conversations",
+      "property": "prov:wasDerivedFrom",
+      "inverse": "prov:generated"
+    }
+  ]
+}

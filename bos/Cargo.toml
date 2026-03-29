@@ -1,0 +1,72 @@
+[workspace]
+members = ["cli", "core", "ingest", "config"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Chatman Systems <sean@chatman.systems>"]
+license = "LGPL-3.0-or-later"
+repository = "https://github.com/chatmangpt/BusinessOS"
+rust-version = "1.75"
+
+[workspace.dependencies]
+# CLI
+clap = { version = "4.5", features = ["derive", "env"] }
+clap_complete = "4.5"
+clap_mangen = "0.2"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
+miette = { version = "7.2", features = ["fancy"] }
+
+# Async
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+toml = "0.8"
+
+# Configuration
+dirs = "6"
+
+# Progress/terminal
+indicatif = "0.17"
+console = "0.15"
+owo-colors = "4"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Hashing
+sha2 = "0.10"
+
+# The key dependency
+data-modelling-sdk = { version = "2.4", features = ["bpmn", "dmn", "openapi"] }
+
+# RDF triple store
+oxigraph = { version = "0.5.6", default-features = false }
+oxrdf = "0.3"
+
+# PostgreSQL
+postgres = "0.19"
+tokio-postgres = "0.7"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

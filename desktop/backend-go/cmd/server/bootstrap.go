@@ -747,6 +747,57 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 	h.SetSorxEngine(sorxEngine)
 	slog.Info("SORX engine initialized (skill execution for EXECUTE mode)")
 
+	// ===== BOS ONTOLOGY BRIDGE =====
+	{
+		bosPath := os.Getenv("BOS_PATH")
+		if bosPath == "" {
+			// Try default location relative to project root
+			candidates := []string{
+				"bos/target/release/bos",
+				"../bos/target/release/bos",
+				"./bos/target/release/bos",
+			}
+			for _, c := range candidates {
+				if _, err := os.Stat(c); err == nil {
+					bosPath = c
+					break
+				}
+			}
+		}
+		dbURL := os.Getenv("DATABASE_URL")
+		mappingPath := os.Getenv("BOS_MAPPING")
+		if mappingPath == "" {
+			candidates := []string{
+				"ontology-mappings.json",
+				"../ontology-mappings.json",
+			}
+			for _, c := range candidates {
+				if _, err := os.Stat(c); err == nil {
+					mappingPath = c
+					break
+				}
+			}
+		}
+
+		if bosPath != "" && dbURL != "" {
+			if _, err := os.Stat(bosPath); err == nil {
+				bosSvc := services.NewBosOntologyService(bosPath, dbURL, mappingPath)
+				h.SetBosOntologyService(bosSvc)
+				slog.Info("bos ontology service initialized",
+					"bos_path", bosPath,
+					"mapping", mappingPath,
+					"routes", "/api/v1/ontology/*",
+				)
+			} else {
+				slog.Warn("bos binary not found, ontology routes disabled",
+					"bos_path", bosPath,
+				)
+			}
+		} else {
+			slog.Info("bos ontology service not configured (BOS_PATH or DATABASE_URL not set)")
+		}
+	}
+
 	// ===== CARRIER =====
 	var carrierClient *carrier.Client
 	{

@@ -35,4 +35,14 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	h.registerIntegrationRoutes(api, auth, optionalAuth)
 	h.registerPlatformRoutes(api, auth)
 	h.registerOSARoutes(api, auth)
+	h.registerOntologyRoutes(api, auth)
+}
+
+// registerOntologyRoutes wires /api/ontology routes via bos CLI bridge.
+func (h *Handlers) registerOntologyRoutes(api *gin.RouterGroup, auth gin.HandlerFunc) {
+	if h.bosOntologyService == nil {
+		return // bos not configured — skip
+	}
+	ontologyHandler := NewOntologyHandler(h.bosOntologyService)
+	RegisterOntologyRoutes(api, ontologyHandler, auth)
 }

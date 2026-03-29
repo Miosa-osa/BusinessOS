@@ -85,6 +85,8 @@ type Handlers struct {
 	// Signal Theory feedback
 	signalHints          feedback.SignalHintProvider // Homeostatic feedback → prompt corrections
 	subconsciousObserver *subconscious.Observer      // Subconscious observer for async pattern detection
+	// Ontology / RDF bridge
+	bosOntologyService *services.BosOntologyService // bos CLI bridge for RDF operations
 }
 
 // NewHandlers creates a new Handlers instance

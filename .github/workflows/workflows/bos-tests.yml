@@ -1,0 +1,77 @@
+name: bos Data Layer Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - main-dev
+      - 'release/**'
+    paths:
+      - 'bos/**'
+      - 'ontology-mappings.json'
+      - '.github/workflows/bos-tests.yml'
+  push:
+    branches:
+      - main
+      - main-dev
+      - 'release/**'
+
+jobs:
+  test:
+    name: Build & Test bos CLI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            bos/target/
+            ~/.cargo/registry/
+            ~/.cargo/git/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('bos/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build bos CLI
+        working-directory: bos
+        run: cargo build --release
+
+      - name: Run tests
+        working-directory: bos
+        run: cargo test --verbose
+
+      - name: Validate ontology mappings
+        run: |
+          ./bos/target/release/bos ontology construct \
+            --mapping ./ontology-mappings.json \
+            --output /tmp/bos-queries/
+
+      - name: Verify generated queries
+        run: |
+          echo "Generated CONSTRUCT queries:"
+          ls -la /tmp/bos-queries/*.rq
+          # Verify all 7 expected tables have queries
+          for table in projects tasks clients team_members contexts conversations artifacts; do
+            test -f "/tmp/bos-queries/${table}.rq" || {
+              echo "ERROR: Missing query for table: ${table}"
+              exit 1
+            }
+            echo "  OK: ${table}.rq"
+          done
+          echo ""
+          echo "All 7 CONSTRUCT queries generated successfully"
+
+      - name: Export ontology as RDF
+        run: |
+          ./bos/target/release/bos ontology export \
+            --mapping ./ontology-mappings.json \
+            --output /tmp/bos-ontology.ttl \
+            --format ttl
+          echo "Ontology exported successfully"
+          wc -l /tmp/bos-ontology.ttl

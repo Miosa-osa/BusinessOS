@@ -1,0 +1,249 @@
+# =============================================================================
+# BusinessOS Backend - Deploy to Cloud Run
+# =============================================================================
+# Triggers on push to main when backend files change.
+# Builds Docker image, pushes to Artifact Registry, deploys to Cloud Run.
+#
+# Required GitHub Secrets (Settings > Secrets > Actions):
+#   GCP_PROJECT_ID        - Google Cloud project ID
+#   GCP_SA_KEY            - Service account JSON key (base64 or raw)
+#   GCP_REGION            - Deployment region (e.g., us-central1)
+#   ALLOWED_ORIGINS       - Comma-separated CORS origins for production
+#
+# Required GCP Secret Manager secrets (accessed via --set-secrets):
+#   DATABASE_URL, REDIS_URL, REDIS_PASSWORD, SECRET_KEY,
+#   REDIS_KEY_HMAC_SECRET, TOKEN_ENCRYPTION_KEY,
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, ANTHROPIC_API_KEY
+#
+# Optional GCP Secret Manager secrets:
+#   GROQ_API_KEY, OPENAI_API_KEY, BRAVE_SEARCH_API_KEY,
+#   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, WEBHOOK_SIGNING_SECRET
+
+name: Deploy Backend to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'desktop/backend-go/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION || 'us-central1' }}
+  SERVICE_NAME: businessos-backend
+  # Use Artifact Registry (GCR is deprecated)
+  IMAGE_NAME: us-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/businessos/backend
+
+jobs:
+  deploy:
+    name: Build and Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      # -----------------------------------------------------------------
+      # Checkout
+      # -----------------------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------
+      # Run tests before deployment
+      # -----------------------------------------------------------------
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.1'
+          cache-dependency-path: desktop/backend-go/go.sum
+
+      - name: Run tests before deployment
+        working-directory: desktop/backend-go
+        run: |
+          echo "Running unit tests before deployment..."
+          go test -short -count=1 ./internal/... || exit 1
+          echo "Tests passed. Proceeding with deployment."
+
+      # -----------------------------------------------------------------
+      # GCP Authentication
+      # -----------------------------------------------------------------
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      # -----------------------------------------------------------------
+      # Docker: Configure, Build, Push
+      # -----------------------------------------------------------------
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-docker.pkg.dev --quiet
+
+      - name: Build Docker image
+        working-directory: desktop/backend-go
+        run: |
+          echo "Building Docker image: ${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          docker build \
+            -t ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.IMAGE_NAME }}:latest \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.IMAGE_NAME }}:latest
+
+      # -----------------------------------------------------------------
+      # Store previous revision for rollback
+      # -----------------------------------------------------------------
+      - name: Get current revision (for rollback)
+        id: prev-revision
+        run: |
+          PREV=$(gcloud run revisions list \
+            --service=${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format="value(metadata.name)" \
+            --limit=1 2>/dev/null || echo "none")
+          echo "revision=$PREV" >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------
+      # Deploy to Cloud Run
+      # SECURITY: Sensitive values use --set-secrets (Secret Manager)
+      # instead of --set-env-vars to avoid plaintext exposure.
+      # -----------------------------------------------------------------
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --platform=managed \
+            --region=${{ env.REGION }} \
+            --allow-unauthenticated \
+            --port=8080 \
+            --memory=512Mi \
+            --cpu=1 \
+            --min-instances=0 \
+            --max-instances=10 \
+            --concurrency=80 \
+            --timeout=300 \
+            --set-env-vars="\
+          ENVIRONMENT=production,\
+          SERVER_PORT=8080,\
+          AI_PROVIDER=anthropic,\
+          ENABLE_LOCAL_MODELS=false,\
+          REDIS_TLS_ENABLED=true,\
+          DATABASE_REQUIRED=true" \
+            --set-env-vars="ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}" \
+            --set-secrets="\
+          DATABASE_URL=DATABASE_URL:latest,\
+          REDIS_URL=REDIS_URL:latest,\
+          REDIS_PASSWORD=REDIS_PASSWORD:latest,\
+          SECRET_KEY=SECRET_KEY:latest,\
+          REDIS_KEY_HMAC_SECRET=REDIS_KEY_HMAC_SECRET:latest,\
+          TOKEN_ENCRYPTION_KEY=TOKEN_ENCRYPTION_KEY:latest,\
+          GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,\
+          GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,\
+          ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest" \
+            --add-cloudsql-instances=${{ secrets.GCP_PROJECT_ID }}:${{ env.REGION }}:businessos-db
+
+      # -----------------------------------------------------------------
+      # Get deployed service URL
+      # -----------------------------------------------------------------
+      - name: Get Cloud Run URL
+        id: deploy-url
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --platform=managed \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Deployed to: $URL"
+
+      # -----------------------------------------------------------------
+      # Smoke Tests (with cold-start retry)
+      # -----------------------------------------------------------------
+      - name: Run smoke tests
+        run: |
+          DEPLOY_URL="${{ steps.deploy-url.outputs.url }}"
+          echo "Running smoke tests against: $DEPLOY_URL"
+
+          # Test 1: Health check (retry for cold start)
+          echo "--- Test 1: Health check ---"
+          for i in 1 2 3 4 5; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 15 "$DEPLOY_URL/health" || true)
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Health check passed (attempt $i)"
+              break
+            fi
+            echo "Attempt $i: HTTP $HTTP_CODE, retrying in 10s..."
+            sleep 10
+            if [ "$i" = "5" ]; then
+              echo "Health check FAILED after 5 attempts"
+              exit 1
+            fi
+          done
+
+          # Test 2: API status
+          echo "--- Test 2: API status ---"
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 10 "$DEPLOY_URL/api/status" || true)
+          if [ "$STATUS_CODE" != "200" ]; then
+            echo "API status check failed: HTTP $STATUS_CODE"
+            exit 1
+          fi
+          echo "API status check passed."
+
+          echo "All smoke tests passed."
+
+      # -----------------------------------------------------------------
+      # Rollback on failure
+      # -----------------------------------------------------------------
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          PREV="${{ steps.prev-revision.outputs.revision }}"
+          if [ "$PREV" != "none" ] && [ -n "$PREV" ]; then
+            echo "Deployment failed - rolling back to $PREV"
+            gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+              --region=${{ env.REGION }} \
+              --to-revisions="$PREV=100"
+            echo "Rollback complete"
+          else
+            echo "No previous revision available for rollback"
+          fi
+
+      # -----------------------------------------------------------------
+      # Deployment summary
+      # -----------------------------------------------------------------
+      - name: Create deployment summary
+        if: always()
+        run: |
+          echo "## Deployment Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Status** | \`${{ job.status }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Service** | \`${{ env.SERVICE_NAME }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Region** | \`${{ env.REGION }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Image** | \`${{ env.IMAGE_NAME }}:${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **URL** | ${{ steps.deploy-url.outputs.url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Commit" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          git log -1 --pretty=%B >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

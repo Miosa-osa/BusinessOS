@@ -83,3 +83,8 @@ func (h *Handlers) SetSandboxHandler(sandboxHandler *SandboxHandler) {
 func (h *Handlers) SetSandboxEditHandler(sandboxEditHandler *SandboxEditHandler) {
 	h.sandboxEditHandler = sandboxEditHandler
 }
+
+// SetBosOntologyService sets the bos ontology service for RDF bridge operations
+func (h *Handlers) SetBosOntologyService(svc *services.BosOntologyService) {
+	h.bosOntologyService = svc
+}
