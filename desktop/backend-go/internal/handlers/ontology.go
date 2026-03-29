@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -9,14 +10,31 @@ import (
 	"github.com/rhl/businessos-backend/internal/services"
 )
 
-// OntologyHandler handles RDF ontology endpoints via bos CLI.
-type OntologyHandler struct {
-	bosService *services.BosOntologyService
+// ontologyBosService abstracts bos CLI operations needed by OntologyHandler.
+// *services.BosOntologyService satisfies this interface automatically.
+type ontologyBosService interface {
+	ListQueries(ctx context.Context) ([]string, error)
+	GetConstructQuery(ctx context.Context, table string) (string, error)
+	ExecuteConstruct(ctx context.Context, table string) (string, error)
+	ExecuteAll(ctx context.Context, format string) (string, error)
+	GenerateQueries(ctx context.Context, outputDir string) (int, error)
+	ExecuteSelect(ctx context.Context, query string) (map[string]interface{}, error)
 }
 
-// NewOntologyHandler constructs an OntologyHandler.
+// OntologyHandler handles RDF ontology endpoints via bos CLI.
+type OntologyHandler struct {
+	bosService ontologyBosService
+}
+
+// NewOntologyHandler constructs an OntologyHandler backed by a real BosOntologyService.
 func NewOntologyHandler(bosService *services.BosOntologyService) *OntologyHandler {
 	return &OntologyHandler{bosService: bosService}
+}
+
+// newOntologyHandlerFromInterface constructs an OntologyHandler from any implementation
+// of ontologyBosService. Used in unit tests to inject stubs.
+func newOntologyHandlerFromInterface(svc ontologyBosService) *OntologyHandler {
+	return &OntologyHandler{bosService: svc}
 }
 
 // RegisterOntologyRoutes wires /api/ontology routes.
@@ -39,6 +57,9 @@ func RegisterOntologyRoutes(api *gin.RouterGroup, h *OntologyHandler, auth gin.H
 
 		// Generate .rq files from mappings
 		ontology.POST("/generate", h.Generate)
+
+		// Execute a raw SPARQL SELECT query and return JSON results
+		ontology.POST("/query", h.QuerySPARQL)
 	}
 }
 
@@ -116,6 +137,30 @@ func (h *OntologyHandler) ExportAll(c *gin.Context) {
 	}
 
 	c.String(http.StatusOK, rdf)
+}
+
+// QuerySPARQL executes a raw SPARQL SELECT query via the bos CLI.
+// POST /api/v1/ontology/query
+// Body: {"query": "SELECT ..."}
+// Returns JSON result from bos, or a structured error response.
+func (h *OntologyHandler) QuerySPARQL(c *gin.Context) {
+	var req struct {
+		Query string `json:"query" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.Error("Invalid query request", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "field 'query' is required"})
+		return
+	}
+
+	result, err := h.bosService.ExecuteSelect(c.Request.Context(), req.Query)
+	if err != nil {
+		slog.Error("SPARQL query execution failed", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("query execution failed: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // Generate triggers bos ontology construct to regenerate .rq files.

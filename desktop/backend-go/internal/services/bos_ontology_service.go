@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -134,6 +135,32 @@ func (s *BosOntologyService) ListQueries(ctx context.Context) ([]string, error) 
 	}
 
 	return tables, nil
+}
+
+// ExecuteSelect runs a SPARQL SELECT query via bos CLI and returns JSON results.
+// The bos CLI is invoked as: bos ontology query --query <sparql>
+// A 30-second context deadline is applied; the raw JSON output is decoded and returned.
+func (s *BosOntologyService) ExecuteSelect(ctx context.Context, query string) (map[string]interface{}, error) {
+	cmdCtx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+
+	args := []string{
+		"ontology", "query",
+		"--query", query,
+	}
+
+	cmd := exec.CommandContext(cmdCtx, s.bosPath, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("bos query failed: %w, output: %s", err, string(output))
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("parse bos query output: %w", err)
+	}
+
+	return result, nil
 }
 
 // GenerateQueries runs bos ontology construct to generate .rq files.
