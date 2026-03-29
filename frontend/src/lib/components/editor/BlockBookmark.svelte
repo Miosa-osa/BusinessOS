@@ -8,7 +8,7 @@
 	let { block }: Props = $props();
 </script>
 
-<div class="bookmark-block rounded-lg border border-gray-200 dark:border-[#3d3d3d] overflow-hidden hover:border-gray-300 dark:hover:border-gray-500 transition-colors">
+<div class="bookmark-block rounded-lg border border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] overflow-hidden hover:border-gray-300 dark:hover:border-gray-500 transition-colors">
 	{#if block.properties?.url}
 		<a
 			href={block.properties.url as string}
@@ -33,7 +33,7 @@
 				</div>
 			</div>
 			{#if block.properties.image}
-				<div class="w-32 bg-gray-100 dark:bg-[#2f2f2f]">
+				<div class="w-32 bg-gray-100 dark:bg-[var(--bos-v2-layer-background-secondary)]">
 					<img src={block.properties.image as string} alt="" class="w-full h-full object-cover" />
 				</div>
 			{/if}

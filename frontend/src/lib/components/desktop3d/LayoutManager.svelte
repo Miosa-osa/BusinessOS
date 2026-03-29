@@ -305,7 +305,7 @@
 	}
 
 	.modal-content {
-		background: white;
+		background: var(--dbg);
 		border-radius: 20px;
 		width: 90%;
 		max-width: 900px;
@@ -332,7 +332,7 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 28px 32px;
-		border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--dbd);
 	}
 
 	.header-content {
@@ -342,14 +342,14 @@
 	}
 
 	.header-icon {
-		color: #3b82f6;
+		color: var(--bos-status-info);
 	}
 
 	.modal-header h2 {
 		margin: 0;
 		font-size: 24px;
 		font-weight: 600;
-		color: #1e293b;
+		color: var(--dt);
 	}
 
 	.close-btn {
@@ -357,14 +357,14 @@
 		border: none;
 		padding: 8px;
 		cursor: pointer;
-		color: #64748b;
+		color: var(--dt2);
 		transition: all 0.2s;
 		border-radius: 8px;
 	}
 
 	.close-btn:hover {
-		background: #f1f5f9;
-		color: #1e293b;
+		background: var(--dbg2);
+		color: var(--dt);
 	}
 
 	.modal-body {
@@ -484,13 +484,13 @@
 		margin: 0;
 		font-size: 18px;
 		font-weight: 600;
-		color: #1e293b;
+		color: var(--dt);
 	}
 
 	.card-date {
 		margin: 4px 0 0 0;
 		font-size: 13px;
-		color: #64748b;
+		color: var(--dt2);
 	}
 
 	.badge {
@@ -509,7 +509,7 @@
 
 	.badge-active {
 		background: #3b82f6;
-		color: white;
+		color: var(--bos-surface-on-color);
 	}
 
 	.delete-btn {
@@ -517,7 +517,7 @@
 		border: none;
 		padding: 8px;
 		cursor: pointer;
-		color: #64748b;
+		color: var(--dt2);
 		transition: all 0.2s;
 		border-radius: 6px;
 	}
@@ -535,7 +535,7 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		color: #64748b;
+		color: var(--dt2);
 		font-size: 14px;
 	}
 
@@ -570,7 +570,7 @@
 
 	.btn-primary {
 		background: linear-gradient(135deg, #3b82f6, #2563eb);
-		color: white;
+		color: var(--bos-surface-on-color);
 	}
 
 	.btn-primary:hover:not(:disabled) {
@@ -579,19 +579,19 @@
 	}
 
 	.btn-secondary {
-		background: white;
+		background: var(--dbg);
 		color: #475569;
-		border: 2px solid #e2e8f0;
+		border: 2px solid var(--dbd);
 	}
 
 	.btn-secondary:hover:not(:disabled) {
-		background: #f8fafc;
+		background: var(--dbg2);
 		border-color: #cbd5e1;
 	}
 
 	.btn-danger {
 		background: linear-gradient(135deg, #ef4444, #dc2626);
-		color: white;
+		color: var(--bos-surface-on-color);
 	}
 
 	.btn-danger:hover:not(:disabled) {
@@ -616,7 +616,7 @@
 	}
 
 	.confirm-content {
-		background: white;
+		background: var(--dbg);
 		border-radius: 16px;
 		width: 90%;
 		max-width: 420px;
@@ -638,18 +638,18 @@
 		margin: 0 0 12px 0;
 		font-size: 20px;
 		font-weight: 600;
-		color: #1e293b;
+		color: var(--dt);
 	}
 
 	.confirm-content p {
 		margin: 0 0 24px 0;
-		color: #64748b;
+		color: var(--dt2);
 		font-size: 15px;
 		line-height: 1.6;
 	}
 
 	.confirm-content strong {
-		color: #1e293b;
+		color: var(--dt);
 		font-weight: 600;
 	}
 

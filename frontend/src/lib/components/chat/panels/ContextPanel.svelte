@@ -62,7 +62,7 @@
 	}
 
 	// Group resources by type
-	let groupedResources = $derived(() => {
+	let groupedResources = $derived.by(() => {
 		const groups: Record<string, ActiveResource[]> = {};
 		for (const resource of resources) {
 			if (!groups[resource.type]) {
@@ -189,7 +189,7 @@
 					<p class="empty-text">Resources Claude is working with will appear here</p>
 				</div>
 			{:else}
-				{#each Object.entries(groupedResources()) as [type, items] (type)}
+				{#each Object.entries(groupedResources) as [type, items] (type)}
 					<div class="resource-section">
 						<div class="section-label">{type.charAt(0).toUpperCase() + type.slice(1)}s</div>
 						{#each items as resource (resource.id)}

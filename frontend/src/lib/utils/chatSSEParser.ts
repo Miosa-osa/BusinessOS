@@ -253,11 +253,17 @@ function mapRawEvent(raw: RawStreamEvent): ChatSSEEvent | null {
       };
     }
 
-    case "error":
+    case "error": {
+      // Error message can be in content (preferred) or data (legacy slash commands)
+      const errMsg =
+        raw.content ??
+        (typeof raw.data === "string" ? raw.data : undefined) ??
+        "Unknown error";
       return {
         type: "error",
-        message: raw.content ?? "Unknown error",
+        message: errMsg,
       };
+    }
 
     case "done":
       return { type: "done" };

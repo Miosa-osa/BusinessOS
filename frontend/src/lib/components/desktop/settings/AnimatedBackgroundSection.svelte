@@ -382,7 +382,7 @@
 	}
 
 	.effect-card.previewing:not(.selected) {
-		background: #fff8e6;
+		background: var(--bos-status-warning-bg);
 		border-color: #ffaa00;
 	}
 
@@ -562,14 +562,14 @@
 		position: absolute;
 		width: 4px;
 		height: 4px;
-		background: #ffff88;
+		background: var(--bos-status-warning);
 		border-radius: 50%;
 		top: 30%;
 		left: 25%;
 		box-shadow:
 			25px 10px 0 #ffff66,
 			10px -8px 0 #ffffaa,
-			40px 15px 0 #ffff88;
+			40px 15px 0 var(--bos-status-warning);
 		animation: fireflyGlow 2s ease-in-out infinite;
 	}
 

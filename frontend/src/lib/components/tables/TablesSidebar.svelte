@@ -89,12 +89,12 @@
 
 <svelte:window on:click={handleWindowClick} />
 
-<div class="flex h-full w-64 flex-col border-r border-gray-200 bg-gray-50">
+<div class="dt2-sidebar flex h-full w-64 flex-col">
 	<!-- Header -->
-	<div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+	<div class="dt2-sidebar__header flex items-center justify-between px-4 py-3">
 		<div class="flex items-center gap-2">
 			<Database class="h-5 w-5 text-blue-600" />
-			<span class="font-semibold text-gray-900">Tables</span>
+			<span class="font-semibold" style="color: var(--dt);">Tables</span>
 		</div>
 		<div class="flex items-center gap-1">
 			<button
@@ -308,37 +308,65 @@
 <!-- Context Menu -->
 {#if contextMenu}
 	<div
-		class="fixed z-50 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+		class="dt2-context-menu fixed w-48 rounded-lg py-1"
 		style="left: {contextMenu.x}px; top: {contextMenu.y}px"
 	>
 		<button
 			type="button"
-			class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+			class="dt2-context-menu__item flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors"
 		>
 			<Edit3 class="h-4 w-4" />
 			Rename
 		</button>
 		<button
 			type="button"
-			class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+			class="dt2-context-menu__item flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors"
 		>
 			<Copy class="h-4 w-4" />
 			Duplicate
 		</button>
 		<button
 			type="button"
-			class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+			class="dt2-context-menu__item flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors"
 		>
 			<Star class="h-4 w-4" />
 			Add to favorites
 		</button>
-		<div class="my-1 border-t border-gray-200"></div>
+		<div class="my-1" style="border-top: 1px solid var(--dbd);"></div>
 		<button
 			type="button"
-			class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+			class="dt2-context-menu__item flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors"
 		>
 			<Trash2 class="h-4 w-4" />
 			Delete
 		</button>
 	</div>
 {/if}
+
+<style>
+	.dt2-sidebar {
+		background: var(--dbg2);
+		border-right: 1px solid var(--dbd);
+		color: var(--dt);
+	}
+
+	.dt2-sidebar__header {
+		border-bottom: 1px solid var(--dbd);
+	}
+
+	.dt2-context-menu {
+		z-index: var(--bos-z-index-popover, 1001);
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
+		box-shadow: var(--shadow-lg);
+	}
+
+	.dt2-context-menu__item {
+		color: var(--dt);
+		border-radius: 6px;
+	}
+
+	.dt2-context-menu__item:hover {
+		background: var(--dbg3);
+	}
+</style>

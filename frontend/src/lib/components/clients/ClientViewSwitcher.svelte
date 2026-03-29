@@ -165,7 +165,6 @@
 	/* ─── Toolbar (cr- prefix, Foundation tokens) ──────────────── */
 	.cr-toolbar {
 		padding: 10px 24px;
-		border-bottom: 1px solid var(--dbd, #e0e0e0);
 		background: var(--dbg2, #f5f5f5);
 	}
 	.cr-toolbar__inner {
@@ -216,7 +215,7 @@
 		box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06);
 	}
 
-	/* Filter buttons — :global needed because bits-ui renders its own elements */
+	/* Filter buttons — :global because bits-ui DropdownMenu.Trigger renders its own element */
 	:global(.cr-toolbar__filter-btn) {
 		display: inline-flex;
 		align-items: center;
@@ -236,14 +235,14 @@
 		background: var(--dbg2, #f5f5f5);
 		border-color: var(--dbd, #e0e0e0);
 	}
-	:global(.cr-toolbar__chevron) {
+	.cr-toolbar__chevron {
 		width: 14px;
 		height: 14px;
 		color: var(--dt3, #888);
 		flex-shrink: 0;
 	}
 
-	/* Dropdown (Foundation CRM pattern) — :global for bits-ui portal */
+	/* Dropdown (Foundation CRM pattern) — :global because bits-ui portals outside component */
 	:global(.cr-dropdown) {
 		z-index: 50;
 		min-width: 160px;
@@ -268,7 +267,8 @@
 		border-radius: 7px;
 		transition: background 0.1s;
 	}
-	:global(.cr-dropdown__item:hover) {
+	:global(.cr-dropdown__item:hover),
+	:global(.cr-dropdown__item[data-highlighted]) {
 		background: var(--dbg2, #f5f5f5);
 	}
 	:global(.cr-dropdown__item--active) {

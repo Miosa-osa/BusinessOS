@@ -424,7 +424,7 @@
 		/* Width/height set dynamically via style attribute */
 		width: var(--window-width, 700px);
 		height: var(--window-height, 450px);
-		background: white;
+		background: var(--dbg);
 		border-radius: 10px;
 		overflow: hidden;
 		box-shadow:
@@ -468,8 +468,8 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 8px 12px;
-		background: #f5f5f5;
-		border-bottom: 1px solid #e0e0e0;
+		background: var(--dbg2);
+		border-bottom: 1px solid var(--dbd);
 		user-select: none;
 		flex-shrink: 0;
 		pointer-events: auto !important;
@@ -480,7 +480,7 @@
 	.module-title {
 		font-size: 13px;
 		font-weight: 600;
-		color: #333;
+		color: var(--dt);
 	}
 
 	.titlebar-right {
@@ -550,12 +550,12 @@
 	.size-btn svg {
 		width: 12px;
 		height: 12px;
-		stroke: #333;
+		stroke: var(--dt);
 	}
 
 	.size-label {
 		font-size: 10px;
-		color: #666;
+		color: var(--dt2);
 		min-width: 60px;
 		text-align: center;
 	}
@@ -563,7 +563,7 @@
 	.window-content {
 		flex: 1;
 		overflow: hidden;
-		background: white;
+		background: var(--dbg);
 	}
 
 	.window-iframe {

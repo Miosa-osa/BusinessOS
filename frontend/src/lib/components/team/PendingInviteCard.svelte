@@ -75,7 +75,7 @@
 			class="btn-pill btn-pill-soft btn-pill-sm td-invite-card__copy-btn"
 		>
 			{#if copied}
-				<Check class="w-4 h-4" style="color: #22c55e;" />
+				<Check class="w-4 h-4" style="color: var(--accent-green);" />
 				Copied
 			{:else}
 				<Copy class="w-4 h-4" />
@@ -117,8 +117,8 @@
 		font-size: 0.6875rem;
 		font-weight: 600;
 		border-radius: 9999px;
-		background: color-mix(in srgb, #f59e0b 12%, transparent);
-		color: #f59e0b;
+		background: color-mix(in srgb, var(--accent-orange) 12%, transparent);
+		color: var(--accent-orange);
 	}
 	.td-invite-card__center {
 		display: flex;
@@ -174,12 +174,12 @@
 		color: var(--dt2, #555);
 	}
 	.td-invite-card__role--admin {
-		background: color-mix(in srgb, #8b5cf6 12%, transparent);
-		color: #8b5cf6;
+		background: color-mix(in srgb, var(--accent-purple) 12%, transparent);
+		color: var(--accent-purple);
 	}
 	.td-invite-card__role--manager {
-		background: color-mix(in srgb, #3b82f6 12%, transparent);
-		color: #3b82f6;
+		background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
+		color: var(--accent-blue);
 	}
 	.td-invite-card__info {
 		display: flex;
@@ -218,14 +218,14 @@
 		padding: 0.5rem 0.75rem;
 		font-size: 0.875rem;
 		font-weight: 500;
-		color: #ef4444;
-		background: color-mix(in srgb, #ef4444 8%, transparent);
+		color: var(--color-error);
+		background: color-mix(in srgb, var(--color-error) 8%, transparent);
 		border: none;
 		border-radius: 0.5rem;
 		cursor: pointer;
 		transition: background 0.15s;
 	}
 	.td-invite-card__revoke-btn:hover {
-		background: color-mix(in srgb, #ef4444 15%, transparent);
+		background: color-mix(in srgb, var(--color-error) 15%, transparent);
 	}
 </style>

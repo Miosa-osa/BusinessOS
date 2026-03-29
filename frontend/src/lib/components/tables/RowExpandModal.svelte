@@ -156,7 +156,7 @@
 {#if isOpen && row}
 	<!-- Backdrop -->
 	<div
-		class="fixed inset-0 z-40 bg-black/30 transition-opacity"
+		class="fixed inset-0 z-40 bg-black/30 dark:bg-black/60 transition-opacity"
 		onclick={onClose}
 		role="button"
 		tabindex="-1"
@@ -165,13 +165,14 @@
 
 	<!-- Slide-over Panel -->
 	<div
-		class="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col bg-white shadow-2xl"
+		class="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col shadow-2xl"
+		style="background: var(--dbg);"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="row-expand-title"
 	>
 		<!-- Header -->
-		<div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+		<div class="flex items-center justify-between px-6 py-4" style="border-bottom: 1px solid var(--dbd);">
 			<div class="flex items-center gap-3">
 				<!-- Navigation -->
 				<div class="flex items-center gap-1">
@@ -184,7 +185,7 @@
 					>
 						<ChevronLeft class="h-5 w-5" />
 					</button>
-					<span class="text-sm text-gray-500">
+					<span class="text-sm" style="color: var(--dt3);">
 						{rowIndex + 1} / {totalRows}
 					</span>
 					<button
@@ -198,10 +199,10 @@
 					</button>
 				</div>
 
-				<div class="h-6 w-px bg-gray-200"></div>
+				<div class="h-6 w-px" style="background: var(--dbd);"></div>
 
 				<!-- Title -->
-				<h2 id="row-expand-title" class="text-lg font-semibold text-gray-900 truncate max-w-md">
+				<h2 id="row-expand-title" class="text-lg font-semibold truncate max-w-md" style="color: var(--dt);">
 					{title}
 				</h2>
 			</div>
@@ -221,10 +222,10 @@
 					</button>
 
 					{#if showMenu}
-						<div class="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+						<div class="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg py-1 shadow-lg" style="border: 1px solid var(--dbd); background: var(--dbg);">
 							<button
 								type="button"
-								class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+								class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-(--dbg2)"
 								onclick={() => {
 									onDuplicate();
 									showMenu = false;
@@ -235,7 +236,7 @@
 							</button>
 							<button
 								type="button"
-								class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+								class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-(--dbg2)"
 								onclick={() => {
 									navigator.clipboard.writeText(window.location.href + '?row=' + row.id);
 									showMenu = false;
@@ -244,10 +245,10 @@
 								<ExternalLink class="h-4 w-4" />
 								Copy link
 							</button>
-							<div class="my-1 border-t border-gray-200"></div>
+							<div class="my-1" style="border-top: 1px solid var(--dbd);"></div>
 							<button
 								type="button"
-								class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+								class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-(--dbg2)"
 								onclick={() => {
 									if (confirm('Delete this row?')) {
 										onDelete();
@@ -276,14 +277,14 @@
 
 		<!-- Content - Scrollable Fields -->
 		<div class="flex-1 overflow-y-auto">
-			<div class="divide-y divide-gray-100">
+			<div class="divide-y" style="border-color: var(--dbd);">
 				{#each visibleColumns as column (column.id)}
 					{@const isEditing = editingField === column.id}
 					{@const value = row.data[column.id]}
 					{@const ColumnIcon = getColumnIcon(column.type)}
 
 					<div
-						class="group px-6 py-4 hover:bg-gray-50 transition-colors"
+						class="group px-6 py-4 transition-colors hover:bg-(--dbg2)"
 						onclick={() => handleFieldClick(column.id)}
 						onkeydown={(e) => e.key === 'Enter' && handleFieldClick(column.id)}
 						role="button"
@@ -291,13 +292,13 @@
 					>
 						<!-- Field Label -->
 						<div class="mb-2 flex items-center gap-2">
-							<svelte:component this={ColumnIcon} class="h-4 w-4 text-gray-400" />
-							<span class="text-sm font-medium text-gray-600">{column.name}</span>
+							<svelte:component this={ColumnIcon} class="h-4 w-4" style="color: var(--dt4);" />
+							<span class="text-sm font-medium" style="color: var(--dt2);">{column.name}</span>
 							{#if column.is_required}
-								<span class="text-red-500">*</span>
+								<span style="color: var(--bos-status-error-text);">*</span>
 							{/if}
 							{#if column.is_primary}
-								<span class="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-600">
+								<span class="rounded px-1.5 py-0.5 text-xs font-medium" style="background: var(--bos-status-info-bg); color: var(--bos-nav-active);">
 									Primary
 								</span>
 							{/if}
@@ -305,9 +306,12 @@
 
 						<!-- Field Value -->
 						<div
-							class="min-h-[40px] rounded-lg border transition-colors {isEditing
-								? 'border-blue-500 bg-white ring-2 ring-blue-500/20'
-								: 'border-transparent bg-transparent group-hover:border-gray-200 group-hover:bg-white'}"
+							class="min-h-10 rounded-lg border transition-colors {isEditing
+								? 'ring-2'
+								: ''}"
+							style={isEditing
+								? 'border-color: var(--bos-nav-active); background: var(--dbg2); ring-color: color-mix(in srgb, var(--bos-nav-active) 20%, transparent);'
+								: 'border-color: transparent; background: transparent;'}
 						>
 							<div class="px-3 py-2">
 								<CellRenderer
@@ -324,7 +328,7 @@
 
 						<!-- Empty state hint -->
 						{#if !value && value !== false && value !== 0 && !isEditing}
-							<p class="mt-1 text-xs text-gray-400">Click to add {column.name.toLowerCase()}</p>
+							<p class="mt-1 text-xs" style="color: var(--dt4);">Click to add {column.name.toLowerCase()}</p>
 						{/if}
 					</div>
 				{/each}
@@ -332,8 +336,8 @@
 		</div>
 
 		<!-- Footer -->
-		<div class="border-t border-gray-200 bg-gray-50 px-6 py-3">
-			<div class="flex items-center justify-between text-xs text-gray-500">
+		<div class="px-6 py-3" style="border-top: 1px solid var(--dbd); background: var(--dbg2);">
+			<div class="flex items-center justify-between text-xs" style="color: var(--dt3);">
 				<div>
 					Created: {new Date(row.created_at).toLocaleString()}
 				</div>

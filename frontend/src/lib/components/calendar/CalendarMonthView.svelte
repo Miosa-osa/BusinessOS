@@ -44,7 +44,7 @@
 	<!-- Day Headers -->
 	<div class="grid grid-cols-7 mb-2">
 		{#each weekDays as day (day)}
-			<div class="text-center text-sm font-medium text-gray-500 py-2">{day}</div>
+			<div class="text-center text-sm font-medium py-2" style="color: var(--dt3)">{day}</div>
 		{/each}
 	</div>
 
@@ -60,15 +60,11 @@
 				onclick={() => onSelectDay(date)}
 				ondblclick={() => onGoToDayView(date)}
 				onkeydown={(e) => { if (e.key === 'Enter') onSelectDay(date); }}
-				class="group min-h-[100px] p-2 border rounded-lg text-left hover:border-gray-400 transition-colors cursor-pointer
-					{isCurrentMonth(date) ? 'bg-white' : 'bg-gray-50'}
-					{todayDate ? 'ring-2 ring-gray-900' : 'border-gray-200'}
-					{selectedDate ? 'ring-2 ring-blue-400 bg-blue-50/50' : ''}"
+				class="group min-h-[100px] p-2 border rounded-lg text-left hover:border-gray-400 transition-colors cursor-pointer {todayDate ? '' : 'border-gray-200'}"
+				style="{isCurrentMonth(date) ? 'background: var(--dbg)' : 'background: var(--dbg2)'}; {selectedDate ? 'box-shadow: 0 0 0 2px var(--bos-nav-active); background: var(--bos-nav-active-bg)' : todayDate ? 'box-shadow: 0 0 0 2px var(--dt)' : ''}"
 			>
 				<div class="flex items-center justify-between">
-					<p class="text-sm font-medium {isCurrentMonth(date) ? 'text-gray-900' : 'text-gray-400'}">
-						{date.getDate()}
-					</p>
+					<p class="text-sm font-medium" style="{isCurrentMonth(date) ? 'color: var(--dt)' : 'color: var(--dt4)'}">{date.getDate()}</p>
 					<button
 						onclick={(e) => { e.stopPropagation(); onOpenCreateModal(date); }}
 						class="btn-pill btn-pill-ghost btn-pill-icon w-5 h-5 opacity-0 group-hover:opacity-100"

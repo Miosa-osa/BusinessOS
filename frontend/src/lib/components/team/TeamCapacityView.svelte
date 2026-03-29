@@ -52,24 +52,24 @@
 	}
 </script>
 
-<div class="td-capacity-page">
+<div class="flex-1 overflow-y-auto p-6">
 	<!-- Header -->
-	<div class="td-capacity-header">
+	<div class="flex items-center justify-between mb-6">
 		<div>
-			<h2 class="td-capacity-title">Team Capacity Overview</h2>
-			<p class="td-capacity-subtitle">{weekRange()}</p>
+			<h2 class="text-lg font-semibold text-gray-900">Team Capacity Overview</h2>
+			<p class="text-sm text-gray-500">{weekRange()}</p>
 		</div>
 	</div>
 
 	{#if members.length === 0}
-		<div class="td-capacity-empty" in:fade={{ duration: 200 }}>
-			<div class="td-capacity-empty__icon">
-				<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<div class="flex flex-col items-center justify-center py-16" in:fade={{ duration: 200 }}>
+			<div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+				<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
 				</svg>
 			</div>
-			<h3 class="td-capacity-empty__title">No capacity data</h3>
-			<p class="td-capacity-empty__sub">Add team members to see capacity overview</p>
+			<h3 class="text-lg font-medium text-gray-900 mb-1">No capacity data</h3>
+			<p class="text-gray-500">Add team members to see capacity overview</p>
 		</div>
 	{:else}
 		<!-- Capacity List -->
@@ -85,7 +85,7 @@
 						{#if member.avatar}
 							<img src={member.avatar} alt={member.name} class="td-avatar td-avatar--md" style="object-fit: cover" />
 						{:else}
-							<div class="td-avatar td-avatar--md" style="background: linear-gradient(135deg, #6366f1, #8b5cf6)">{getInitials(member.name)}</div>
+							<div class="td-avatar td-avatar--md" style="background: var(--bos-avatar-default)">{getInitials(member.name)}</div>
 						{/if}
 						<div class="td-capacity-item__info">
 							<span class="td-capacity-item__name">{member.name}</span>
@@ -187,7 +187,7 @@
 		font-size: 11px;
 		font-weight: 700;
 	}
-	.td-capacity-item__label--overloaded { color: #ef4444; }
+	.td-capacity-item__label--overloaded { color: var(--bos-status-error); }
 	.td-capacity-item__label--caution    { color: #f59e0b; }
 	.td-capacity-item__label--ok         { color: #22c55e; }
 	.td-capacity-summary {
@@ -210,59 +210,9 @@
 		align-items: center;
 		justify-content: center;
 		font-weight: 800;
-		color: #fff;
+		color: var(--bos-surface-on-color);
 		flex-shrink: 0;
 		letter-spacing: -0.02em;
 	}
 	.td-avatar--md { width: 36px; height: 36px; font-size: 13px; }
-
-	/* Header & empty state */
-	.td-capacity-page {
-		flex: 1;
-		overflow-y: auto;
-		padding: 1.5rem;
-	}
-	.td-capacity-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 1.5rem;
-	}
-	.td-capacity-title {
-		font-size: 1.125rem;
-		font-weight: 600;
-		color: var(--dt, #111);
-	}
-	.td-capacity-subtitle {
-		font-size: 0.875rem;
-		color: var(--dt3, #888);
-	}
-	.td-capacity-empty {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 4rem 0;
-	}
-	.td-capacity-empty__icon {
-		width: 4rem;
-		height: 4rem;
-		border-radius: 9999px;
-		background: var(--dbg2, #f5f5f5);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: 1rem;
-		color: var(--dt3, #888);
-	}
-	.td-capacity-empty__title {
-		font-size: 1.125rem;
-		font-weight: 600;
-		color: var(--dt, #111);
-		margin-bottom: 0.25rem;
-	}
-	.td-capacity-empty__sub {
-		color: var(--dt3, #888);
-		font-size: 0.875rem;
-	}
 </style>

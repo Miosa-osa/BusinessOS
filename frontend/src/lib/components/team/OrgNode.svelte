@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { scale } from 'svelte/transition';
 	import StatusBadge from './StatusBadge.svelte';
 
 	type Status = 'available' | 'busy' | 'overloaded' | 'ooo';
@@ -26,10 +25,7 @@
 	}
 </script>
 
-<div
-	class="flex flex-col items-center"
-	in:scale={{ duration: 300, delay: depth * 100 }}
->
+<div class="td-org-node-wrap">
 	<button
 		onclick={onClick}
 		class="td-org-node {depth === 0 ? 'td-org-node--root' : ''}"
@@ -38,7 +34,7 @@
 		{#if avatar}
 			<img src={avatar} alt={name} class="td-avatar td-avatar--md" style="object-fit: cover" />
 		{:else}
-			<div class="td-avatar td-avatar--md" style="background: linear-gradient(135deg, #6366f1, #8b5cf6)">{getInitials(name)}</div>
+			<div class="td-avatar td-avatar--md" style="background: var(--bos-avatar-default)">{getInitials(name)}</div>
 		{/if}
 		<div class="td-org-node__info">
 			<span class="td-org-node__name">{name}</span>
@@ -66,8 +62,8 @@
 		box-shadow: 0 2px 10px rgba(0,0,0,0.06);
 	}
 	.td-org-node--root {
-		border-color: #8b5cf6;
-		box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+		border-color: var(--bos-avatar-default);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--bos-avatar-default) 12%, transparent);
 	}
 	.td-org-node__info {
 		display: flex;
@@ -92,9 +88,14 @@
 		align-items: center;
 		justify-content: center;
 		font-weight: 800;
-		color: #fff;
+		color: var(--bos-surface-on-color);
 		flex-shrink: 0;
 		letter-spacing: -0.02em;
 	}
 	.td-avatar--md { width: 36px; height: 36px; font-size: 13px; }
+	.td-org-node-wrap {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
 </style>

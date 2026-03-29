@@ -29,7 +29,7 @@
 	<div class="modules-showcase">
 		<div id="dashboard-mod" class="module-detail">
 			<div class="module-header">
-				<div class="module-icon" style="background: #E3F2FD; color: #1E88E5;">
+				<div class="module-icon" style="background: var(--bos-status-info-bg); color: var(--bos-status-info);">
 					<PieChart size={24} />
 				</div>
 				<div>
@@ -50,7 +50,7 @@
 
 		<div id="chat-mod" class="module-detail">
 			<div class="module-header">
-				<div class="module-icon" style="background: #E8F5E9; color: #43A047;">
+				<div class="module-icon" style="background: var(--bos-status-success-bg); color: var(--bos-status-success);">
 					<MessageSquare size={24} />
 				</div>
 				<div>
@@ -70,7 +70,7 @@
 
 		<div id="tasks-mod" class="module-detail">
 			<div class="module-header">
-				<div class="module-icon" style="background: #FFF3E0; color: #FB8C00;">
+				<div class="module-icon" style="background: var(--bos-status-warning-bg); color: var(--bos-status-warning);">
 					<CheckSquare size={24} />
 				</div>
 				<div>
@@ -92,7 +92,7 @@
 
 		<div id="projects-mod" class="module-detail">
 			<div class="module-header">
-				<div class="module-icon" style="background: #F3E5F5; color: #8E24AA;">
+				<div class="module-icon" style="background: color-mix(in srgb, var(--bos-category-ai) 12%, transparent); color: var(--bos-category-ai);">
 					<FolderKanban size={24} />
 				</div>
 				<div>
@@ -112,7 +112,7 @@
 
 		<div id="team-mod" class="module-detail">
 			<div class="module-header">
-				<div class="module-icon" style="background: #E0F7FA; color: #00ACC1;">
+				<div class="module-icon" style="background: color-mix(in srgb, var(--bos-category-automation) 12%, transparent); color: var(--bos-category-automation);">
 					<Users size={24} />
 				</div>
 				<div>
@@ -132,7 +132,7 @@
 
 		<div id="calendar-mod" class="module-detail">
 			<div class="module-header">
-				<div class="module-icon" style="background: #FCE4EC; color: #E91E63;">
+				<div class="module-icon" style="background: color-mix(in srgb, var(--bos-category-communication) 12%, transparent); color: var(--bos-category-communication);">
 					<Calendar size={24} />
 				</div>
 				<div>
@@ -155,7 +155,7 @@
 		<h3>Additional Modules</h3>
 		<div class="mini-modules-grid">
 			<div class="mini-module">
-				<div class="mini-icon" style="background: #263238; color: #4CAF50;">
+				<div class="mini-icon" style="background: var(--dbg3); color: var(--bos-status-success);">
 					<Terminal size={18} />
 				</div>
 				<div>
@@ -164,7 +164,7 @@
 				</div>
 			</div>
 			<div class="mini-module">
-				<div class="mini-icon" style="background: #EFEBE9; color: #795548;">
+				<div class="mini-icon" style="background: var(--dbg2); color: var(--dt2);">
 					<Activity size={18} />
 				</div>
 				<div>
@@ -173,7 +173,7 @@
 				</div>
 			</div>
 			<div class="mini-module">
-				<div class="mini-icon" style="background: #E0F2F1; color: #00897B;">
+				<div class="mini-icon" style="background: var(--bos-status-success-bg); color: var(--bos-status-success);">
 					<TrendingUp size={18} />
 				</div>
 				<div>
@@ -182,7 +182,7 @@
 				</div>
 			</div>
 			<div class="mini-module">
-				<div class="mini-icon" style="background: #F5F5F5; color: #616161;">
+				<div class="mini-icon" style="background: var(--dbg2); color: var(--dt2);">
 					<Settings size={18} />
 				</div>
 				<div>

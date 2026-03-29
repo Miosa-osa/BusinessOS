@@ -370,6 +370,10 @@
 		box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 	}
 
+	:global(.dark) .modal-content {
+		background: #1e1e1e;
+	}
+
 	.modal-scroll {
 		flex: 1;
 		min-height: 0;
@@ -396,6 +400,11 @@
 		flex-shrink: 0;
 	}
 
+	:global(.dark) .modal-header {
+		background: #1e1e1e;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
 	.header-text h2 {
 		font-size: 24px;
 		font-weight: 600;
@@ -404,12 +413,20 @@
 		letter-spacing: -0.3px;
 	}
 
+	:global(.dark) .header-text h2 {
+		color: #e6e6e6;
+	}
+
 	.header-text p {
 		font-size: 14px;
 		color: #666;
 		margin: 0;
 		max-width: 650px;
 		line-height: 1.5;
+	}
+
+	:global(.dark) .header-text p {
+		color: #8e8d91;
 	}
 
 	.close-btn {
@@ -422,9 +439,18 @@
 		transition: all 0.15s;
 	}
 
+	:global(.dark) .close-btn {
+		color: #8e8d91;
+	}
+
 	.close-btn:hover {
 		background: #f0f0f0;
 		color: #333;
+	}
+
+	:global(.dark) .close-btn:hover {
+		background: rgba(255, 255, 255, 0.08);
+		color: #e6e6e6;
 	}
 
 	.section-header {
@@ -437,11 +463,19 @@
 		z-index: 1;
 	}
 
+	:global(.dark) .section-header {
+		background: #1e1e1e;
+	}
+
 	.section-header h3 {
 		font-size: 15px;
 		font-weight: 600;
 		color: #333;
 		margin: 0;
+	}
+
+	:global(.dark) .section-header h3 {
+		color: #e6e6e6;
 	}
 
 	.custom-connector-btn {

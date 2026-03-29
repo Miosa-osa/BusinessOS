@@ -205,7 +205,7 @@
 							<p class="text-xs prm-doc-meta">Updated {formatDate(doc.updated_at)}</p>
 						</div>
 						{#if selectedDocumentId === doc.id}
-							<span class="text-purple-500">
+							<span class="prm-doc-active-icon">
 								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -228,7 +228,7 @@
 		<!-- Resize Handle -->
 		<div
 			onmousedown={startPanelResize}
-			class="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-purple-500 transition-colors group"
+			class="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize prm-doc-resize-hover transition-colors group"
 		>
 			<div class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 prm-doc-resize rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
 		</div>
@@ -242,17 +242,17 @@
 					bind:value={documentTitle}
 					onblur={updateDocumentTitle}
 					onkeydown={(e) => e.key === 'Enter' && updateDocumentTitle()}
-					class="flex-1 min-w-0 font-medium prm-doc-input border-none outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 rounded px-1"
+					class="flex-1 min-w-0 font-medium prm-doc-input border-none outline-none prm-doc-input-focus rounded px-1"
 				/>
 			</div>
 			<div class="flex items-center gap-1">
 				<div class="text-xs prm-doc-meta mr-2">
 					{#if $editor.isDirty}
-						<span class="text-amber-500">Unsaved</span>
+						<span class="prm-doc-unsaved">Unsaved</span>
 					{:else if $editor.isSaving}
 						<span>Saving...</span>
 					{:else if $editor.lastSavedAt}
-						<span class="text-green-600">Saved</span>
+						<span class="prm-doc-saved">Saved</span>
 					{/if}
 				</div>
 				<!-- Mode switcher -->
@@ -338,17 +338,17 @@
 						bind:value={documentTitle}
 						onblur={updateDocumentTitle}
 						onkeydown={(e) => e.key === 'Enter' && updateDocumentTitle()}
-						class="flex-1 min-w-0 text-lg font-semibold prm-doc-input border-none outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 rounded px-1"
+						class="flex-1 min-w-0 text-lg font-semibold prm-doc-input border-none outline-none prm-doc-input-focus rounded px-1"
 					/>
 				</div>
 				<div class="flex items-center gap-2">
 					<div class="text-sm prm-doc-meta mr-2">
 						{#if $editor.isDirty}
-							<span class="text-amber-500">Unsaved</span>
+							<span class="prm-doc-unsaved">Unsaved</span>
 						{:else if $editor.isSaving}
 							<span>Saving...</span>
 						{:else if $editor.lastSavedAt}
-							<span class="text-green-600">Saved</span>
+							<span class="prm-doc-saved">Saved</span>
 						{/if}
 					</div>
 					<div class="flex items-center prm-doc-mode-switcher">
@@ -431,17 +431,17 @@
 					bind:value={documentTitle}
 					onblur={updateDocumentTitle}
 					onkeydown={(e) => e.key === 'Enter' && updateDocumentTitle()}
-					class="text-xl font-semibold prm-doc-input border-none outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 rounded px-1"
+					class="text-xl font-semibold prm-doc-input border-none outline-none prm-doc-input-focus rounded px-1"
 				/>
 			</div>
 			<div class="flex items-center gap-2">
 				<div class="text-sm prm-doc-meta mr-4">
 					{#if $editor.isDirty}
-						<span class="text-amber-500">Unsaved changes</span>
+						<span class="prm-doc-unsaved">Unsaved changes</span>
 					{:else if $editor.isSaving}
 						<span>Saving...</span>
 					{:else if $editor.lastSavedAt}
-						<span class="text-green-600">All changes saved</span>
+						<span class="prm-doc-saved">All changes saved</span>
 					{/if}
 				</div>
 				<div class="flex items-center prm-doc-mode-switcher">
@@ -549,9 +549,14 @@
 		border-color: var(--dbd, #e0e0e0);
 	}
 	.prm-doc-item--active {
-		box-shadow: 0 0 0 2px #9333ea;
-		border-color: #9333ea;
+		box-shadow: 0 0 0 2px var(--dt, #111);
+		border-color: var(--dt, #111);
 	}
+	.prm-doc-active-icon { color: var(--dt, #111); }
+	.prm-doc-unsaved { color: var(--dt2, #555); font-style: italic; }
+	.prm-doc-saved { color: var(--dt2, #555); }
+	.prm-doc-input-focus:focus { outline: none; box-shadow: 0 0 0 2px var(--dt, #111); }
+	.prm-doc-resize-hover:hover { background: var(--dt3, #888); }
 	.prm-doc-mode-switcher {
 		border: 1px solid var(--dbd, #e0e0e0);
 		border-radius: 0.5rem;

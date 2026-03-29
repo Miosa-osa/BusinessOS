@@ -124,7 +124,9 @@
 <svelte:window onclick={handleClickOutside} />
 
 <div
-	class="group relative flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:border-gray-300 hover:shadow-md"
+	class="group relative flex flex-col rounded-xl transition-all" style="border: 1px solid var(--dbd); background: var(--dbg); box-shadow: var(--shadow-sm);"
+	onmouseenter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--dbd)'; (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)'; }}
+	onmouseleave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--dbd)'; (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)'; }}
 >
 	<!-- Card Header -->
 	<div class="flex items-start gap-3 p-4">
@@ -142,7 +144,7 @@
 			<!-- Title and Description -->
 			<div class="min-w-0 flex-1">
 				<div class="flex items-center gap-2">
-					<h3 class="truncate font-medium text-gray-900 group-hover:text-blue-600">
+				<h3 class="truncate font-medium group-hover:text-blue-600" style="color: var(--dt);">
 						{table.name}
 					</h3>
 					{#if isFavorite}
@@ -150,7 +152,7 @@
 					{/if}
 				</div>
 				{#if table.description}
-					<p class="mt-0.5 line-clamp-1 text-sm text-gray-500">{table.description}</p>
+					<p class="mt-0.5 line-clamp-1 text-sm" style="color: var(--dt2);">{table.description}</p>
 				{/if}
 			</div>
 		</button>
@@ -168,11 +170,12 @@
 			<!-- Dropdown Menu -->
 			{#if showMenu}
 				<div
-					class="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+					class="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg py-1"
+					style="border: 1px solid var(--dbd); background: var(--dbg); box-shadow: var(--shadow-lg);"
 				>
 					<button
 						type="button"
-						class="flex w-full items-center gap-2 text-left px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+						class="dt2-dropdown-item"
 						onclick={() => handleAction(() => onOpen(table.id))}
 					>
 						<ExternalLink class="h-4 w-4" />
@@ -180,7 +183,7 @@
 					</button>
 					<button
 						type="button"
-						class="flex w-full items-center gap-2 text-left px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+						class="dt2-dropdown-item"
 						onclick={() => handleAction(() => onToggleFavorite(table.id))}
 					>
 						{#if isFavorite}
@@ -191,10 +194,10 @@
 							Add to favorites
 						{/if}
 					</button>
-					<div class="my-1 border-t border-gray-200"></div>
+					<div style="margin: 0.25rem 0; border-top: 1px solid var(--dbd);"></div>
 					<button
 						type="button"
-						class="flex w-full items-center gap-2 text-left px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+						class="dt2-dropdown-item"
 						onclick={() => handleAction(() => onRename(table.id))}
 					>
 						<Edit3 class="h-4 w-4" />
@@ -202,16 +205,16 @@
 					</button>
 					<button
 						type="button"
-						class="flex w-full items-center gap-2 text-left px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+						class="dt2-dropdown-item"
 						onclick={() => handleAction(() => onDuplicate(table.id))}
 					>
 						<Copy class="h-4 w-4" />
 						Duplicate
 					</button>
-					<div class="my-1 border-t border-gray-200"></div>
+					<div style="margin: 0.25rem 0; border-top: 1px solid var(--dbd);"></div>
 					<button
 						type="button"
-						class="flex w-full items-center gap-2 text-left px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+						class="dt2-dropdown-item dt2-dropdown-item--danger"
 						onclick={() => handleAction(() => onDelete(table.id))}
 					>
 						<Trash2 class="h-4 w-4" />
@@ -223,15 +226,15 @@
 	</div>
 
 	<!-- Card Stats -->
-	<div class="flex items-center gap-4 border-t border-gray-100 px-4 py-3">
+	<div class="flex items-center gap-4 px-4 py-3" style="border-top: 1px solid var(--dbd2);">
 		<!-- Row Count -->
-		<div class="flex items-center gap-1.5 text-xs text-gray-500">
+		<div class="flex items-center gap-1.5 text-xs" style="color: var(--dt3);">
 			<Table2 class="h-3.5 w-3.5" />
 			<span>{table.row_count.toLocaleString()} rows</span>
 		</div>
 
 		<!-- Column Count -->
-		<div class="flex items-center gap-1.5 text-xs text-gray-500">
+		<div class="flex items-center gap-1.5 text-xs" style="color: var(--dt3);">
 			<Grid3X3 class="h-3.5 w-3.5" />
 			<span>{table.columns?.length || 0} columns</span>
 		</div>
@@ -246,15 +249,15 @@
 
 	<!-- Column Preview (if available) -->
 	{#if table.columns && table.columns.length > 0}
-		<div class="border-t border-gray-100 px-4 py-3">
+		<div class="px-4 py-3" style="border-top: 1px solid var(--dbd2);">
 			<div class="flex flex-wrap gap-1">
 				{#each table.columns.slice(0, 5) as col}
-					<span class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+					<span class="rounded px-2 py-0.5 text-xs" style="background: var(--dbg2); color: var(--dt2);">
 						{col.name}
 					</span>
 				{/each}
 				{#if table.columns.length > 5}
-					<span class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-400">
+					<span class="rounded px-2 py-0.5 text-xs" style="background: var(--dbg2); color: var(--dt4);">
 						+{table.columns.length - 5}
 					</span>
 				{/if}
@@ -263,8 +266,8 @@
 	{/if}
 
 	<!-- Card Footer -->
-	<div class="flex items-center justify-between border-t border-gray-100 px-4 py-2">
-		<span class="text-xs text-gray-400">
+	<div class="flex items-center justify-between px-4 py-2" style="border-top: 1px solid var(--dbd2);">
+		<span class="text-xs" style="color: var(--dt4);">
 			Updated {getRelativeTime(table.updated_at)}
 		</span>
 
@@ -286,9 +289,38 @@
 					</button>
 				{/each}
 				{#if table.views.length > 3}
-					<span class="text-xs text-gray-400">+{table.views.length - 3}</span>
-				{/if}
+<span class="text-xs" style="color: var(--dt4);">+{table.views.length - 3}</span>
+			{/if}
 			</div>
 		{/if}
 	</div>
 </div>
+
+<style>
+	.dt2-dropdown-item {
+		display: flex;
+		width: 100%;
+		align-items: center;
+		gap: 0.5rem;
+		text-align: left;
+		padding: 0.5rem 0.75rem;
+		border-radius: var(--radius-sm);
+		font-size: var(--text-sm);
+		color: var(--dt2);
+		background: none;
+		border: none;
+		cursor: pointer;
+		transition: background 150ms ease;
+	}
+	.dt2-dropdown-item:hover {
+		background: var(--dbg2);
+		color: var(--dt);
+	}
+	.dt2-dropdown-item--danger {
+		color: var(--color-error, #ef4444);
+	}
+	.dt2-dropdown-item--danger:hover {
+		background: color-mix(in srgb, var(--color-error, #ef4444) 10%, var(--dbg));
+		color: var(--color-error, #ef4444);
+	}
+</style>

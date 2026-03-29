@@ -8,3 +8,6 @@ export { default as MyTasksWidget } from "./MyTasksWidget.svelte";
 export { default as RecentActivityWidget } from "./RecentActivityWidget.svelte";
 export { default as AnalyticsSidepanel } from "./AnalyticsSidepanel.svelte";
 export { default as SignalHealthWidget } from "./SignalHealthWidget.svelte";
+export { default as DashboardRightPanel } from "./DashboardRightPanel.svelte";
+export { default as DashboardEditToolbar } from "./DashboardEditToolbar.svelte";
+export { default as AnalyticsOverviewWidget } from "./AnalyticsOverviewWidget.svelte";

@@ -56,16 +56,24 @@ export function getTypeLabel(type: string): string {
   }
 }
 
-export function getTypeIcon(type: string): string {
-  switch (type) {
-    case "internal":
-      return "🏢";
-    case "client_work":
-      return "👥";
-    case "learning":
-      return "📚";
+/** @deprecated Use Lucide icons (Building2, Users, BookOpen, FolderOpen) directly in templates */
+export function getTypeIcon(_type: string): string {
+  // Emojis removed per design system. Use Lucide Svelte icons in templates instead.
+  return "";
+}
+
+export function getPriorityDotVar(priority: string): string {
+  switch (priority) {
+    case "critical":
+      return "var(--bos-priority-critical)";
+    case "high":
+      return "var(--bos-priority-high)";
+    case "medium":
+      return "var(--bos-priority-medium)";
+    case "low":
+      return "var(--bos-priority-low)";
     default:
-      return "📁";
+      return "var(--bos-status-neutral)";
   }
 }
 

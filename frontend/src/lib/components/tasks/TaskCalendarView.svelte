@@ -28,11 +28,11 @@
 
 	const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-	const priorityColors: Record<Priority, string> = {
-		critical: 'bg-red-500',
-		high: 'bg-orange-500',
-		medium: 'bg-yellow-500',
-		low: 'bg-gray-400'
+	const priorityDotHex: Record<Priority, string> = {
+		critical: '#ef4444',
+		high: '#f97316',
+		medium: '#eab308',
+		low: '#9ca3af'
 	};
 
 	function getMonthDays(date: Date): (Date | null)[] {
@@ -185,7 +185,7 @@
 									}}
 									class="btn-pill btn-pill-soft btn-pill-xs w-full flex items-center gap-1.5 truncate"
 								>
-									<span class="w-1.5 h-1.5 rounded-full flex-shrink-0 {priorityColors[task.priority]}"></span>
+									<span class="w-1.5 h-1.5 rounded-full shrink-0" style="background: {priorityDotHex[task.priority]}"></span>
 									<span class="truncate {task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-700'}">
 										{task.title}
 									</span>

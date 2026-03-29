@@ -12,7 +12,7 @@
 	let {
 		title,
 		count,
-		color = '#6B7280',
+		color = 'var(--status-todo)',
 		collapsed = false,
 		showAddButton = true,
 		onToggle,
@@ -34,10 +34,8 @@
 		>
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 		</svg>
-		<span
-			class="tb-group-pill"
-			style="background-color: {color}; color: #fff;"
-		>
+		<span class="tb-group-pill">
+			<span class="tb-group-dot" style="background: {color}"></span>
 			{title}
 		</span>
 		<span class="tb-group-count">{count}</span>
@@ -68,12 +66,20 @@
 	.tb-group-pill {
 		display: inline-flex;
 		align-items: center;
-		padding: 3px 12px;
-		border-radius: 9999px;
+		gap: 0.375rem;
+		padding: 3px 10px;
+		border-radius: 0.375rem;
 		font-size: 0.8125rem;
-		font-weight: 500;
+		font-weight: 600;
 		line-height: 1.4;
-		letter-spacing: 0.01em;
+		color: var(--dt, #111);
+		background: var(--dbg3, #eee);
+	}
+	.tb-group-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		flex-shrink: 0;
 	}
 	.tb-group-count {
 		font-size: 0.75rem;

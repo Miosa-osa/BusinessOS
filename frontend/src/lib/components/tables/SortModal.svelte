@@ -110,14 +110,15 @@
 
 	<!-- Modal -->
 	<div
-		class="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white shadow-2xl"
+		class="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl shadow-2xl"
+		style="background: var(--dbg);"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="sort-modal-title"
 	>
 		<!-- Header -->
-		<div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-			<h2 id="sort-modal-title" class="text-lg font-semibold text-gray-900">Sort</h2>
+		<div class="flex items-center justify-between px-6 py-4" style="border-bottom: 1px solid var(--dbd);">
+			<h2 id="sort-modal-title" class="text-lg font-semibold" style="color: var(--dt);">Sort</h2>
 			<button
 				type="button"
 				class="btn-pill btn-pill-ghost btn-pill-icon"
@@ -132,13 +133,13 @@
 			{#if localSorts.length === 0}
 				<!-- Empty State -->
 				<div class="py-8 text-center">
-					<div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-						<ArrowUp class="h-6 w-6 text-gray-400" />
+					<div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full" style="background: var(--dbg2);">
+						<ArrowUp class="h-6 w-6" style="color: var(--dt2);" />
 					</div>
-					<p class="mb-4 text-sm text-gray-500">No sorts applied</p>
+					<p class="mb-4 text-sm" style="color: var(--dt2);">No sorts applied</p>
 					<button
 						type="button"
-						class="btn-pill btn-pill-primary btn-pill-sm inline-flex items-center gap-2"
+						class="btn-cta inline-flex items-center gap-2"
 						onclick={addSort}
 					>
 						<Plus class="h-4 w-4" />
@@ -149,20 +150,21 @@
 				<!-- Sort List -->
 				<div class="space-y-3">
 					{#each localSorts as sort, index (sort.id)}
-						<div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+						<div class="flex items-center gap-3 rounded-lg p-3" style="border: 1px solid var(--dbd); background: var(--dbg2);">
 							<!-- Drag Handle (placeholder for future drag-and-drop) -->
-							<div class="cursor-grab text-gray-400">
+							<div class="cursor-grab" style="color: var(--dt2);">
 								<GripVertical class="h-4 w-4" />
 							</div>
 
 							<!-- Sort Order Label -->
-							<span class="text-xs font-medium text-gray-500">
+							<span class="text-xs font-medium" style="color: var(--dt2);">
 								{index === 0 ? 'Sort by' : 'Then by'}
 							</span>
 
 							<!-- Column Selector -->
 							<select
-								class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+								class="flex-1 rounded-lg px-3 py-2 text-sm focus:outline-none"
+								style="border: 1px solid var(--dbd); background: var(--dbg); color: var(--dt);"
 								value={sort.column_id}
 								onchange={(e) => updateSortColumn(sort.id, (e.target as HTMLSelectElement).value)}
 							>
@@ -181,10 +183,10 @@
 								onclick={() => toggleDirection(sort.id)}
 							>
 								{#if sort.direction === 'asc'}
-									<ArrowUp class="h-4 w-4 text-blue-600" />
+									<ArrowUp class="h-4 w-4" style="color: var(--bos-brand-color);" />
 									<span>A → Z</span>
 								{:else}
-									<ArrowDown class="h-4 w-4 text-blue-600" />
+									<ArrowDown class="h-4 w-4" style="color: var(--bos-brand-color);" />
 									<span>Z → A</span>
 								{/if}
 							</button>
@@ -228,7 +230,8 @@
 				{#if availableColumns.length > 0}
 					<button
 						type="button"
-						class="mt-4 flex w-full items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-dashed border-gray-300"
+						class="mt-4 flex w-full items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors border border-dashed"
+						style="border-color: var(--dbd); color: var(--dt2);"
 						onclick={addSort}
 					>
 						<Plus class="h-4 w-4" />
@@ -239,7 +242,7 @@
 		</div>
 
 		<!-- Footer -->
-		<div class="flex items-center justify-between border-t border-gray-200 px-6 py-4">
+		<div class="flex items-center justify-between px-6 py-4" style="border-top: 1px solid var(--dbd);">
 			<button
 				type="button"
 				class="btn-pill btn-pill-ghost btn-pill-sm"
@@ -258,7 +261,7 @@
 				</button>
 				<button
 					type="button"
-					class="btn-pill btn-pill-primary btn-pill-sm"
+					class="btn-cta"
 					onclick={handleSave}
 				>
 					Apply sort

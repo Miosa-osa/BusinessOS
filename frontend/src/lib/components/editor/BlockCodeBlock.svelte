@@ -115,7 +115,7 @@
 
 <div class="code-block rounded-md overflow-hidden border border-gray-200 dark:border-transparent">
 	<!-- Language selector bar -->
-	<div class="flex items-center justify-between px-3 py-1.5 bg-gray-100 dark:bg-[#2f2f2f] border-b border-gray-200 dark:border-[#3d3d3d]">
+	<div class="flex items-center justify-between px-3 py-1.5 bg-gray-100 dark:bg-[var(--bos-v2-layer-background-secondary)] border-b border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)]">
 		<!-- Language picker dropdown -->
 		<div class="relative" bind:this={languagePickerRef}>
 			<button
@@ -130,15 +130,15 @@
 			</button>
 
 			{#if showLanguagePicker}
-				<div class="absolute left-0 top-full mt-1 w-48 max-h-64 bg-white dark:bg-[#252525] rounded-lg shadow-xl border border-gray-200 dark:border-[#3d3d3d] overflow-hidden z-50">
+				<div class="absolute left-0 top-full mt-1 w-48 max-h-64 bg-white dark:bg-[var(--bos-v2-layer-background-overlayPanel)] rounded-lg shadow-xl border border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] overflow-hidden z-50">
 					<!-- Search input -->
-					<div class="p-2 border-b border-gray-200 dark:border-[#3d3d3d]">
+					<div class="p-2 border-b border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)]">
 						<input
 							type="text"
 							bind:value={languageSearchQuery}
 							onkeydown={handleLanguagePickerKeydown}
 							placeholder="Search languages..."
-							class="w-full px-2 py-1.5 text-xs bg-gray-50 dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#3d3d3d] rounded text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+							class="w-full px-2 py-1.5 text-xs bg-gray-50 dark:bg-[var(--bos-v2-layer-background-primary)] border border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] rounded text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
 						/>
 					</div>
 					<!-- Language list -->
@@ -146,7 +146,7 @@
 						{#each filteredLanguages as lang}
 							<button
 								onclick={() => selectLanguage(lang.id)}
-								class="w-full px-3 py-2 text-left text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#2f2f2f] transition-colors flex items-center justify-between"
+								class="w-full px-3 py-2 text-left text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[var(--dbg2)] transition-colors flex items-center justify-between"
 							>
 								<span>{lang.label}</span>
 								{#if block.properties?.language === lang.id}
@@ -186,7 +186,7 @@
 		onblur={onBlur}
 		oninput={onInput}
 		onkeydown={onKeydown}
-		class="bg-gray-50 dark:bg-[#1e1e1e] text-gray-800 dark:text-[#d4d4d4] font-mono text-sm p-4 outline-none min-h-[2.5em] whitespace-pre-wrap block-editable"
+		class="bg-gray-50 dark:bg-[var(--bos-v2-layer-background-primary)] text-gray-800 dark:text-[var(--dt)] font-mono text-sm p-4 outline-none min-h-[2.5em] whitespace-pre-wrap block-editable"
 		class:is-empty={isEmpty}
 	></pre>
 </div>

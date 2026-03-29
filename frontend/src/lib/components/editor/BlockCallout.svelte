@@ -33,7 +33,7 @@
 	}
 </script>
 
-<div class="callout-block flex items-start gap-3 p-4 rounded-md bg-amber-50 dark:bg-[#2f2f2f] border border-amber-200 dark:border-transparent">
+<div class="callout-block flex items-start gap-3 p-4 rounded-md bg-amber-50 dark:bg-[var(--bos-v2-layer-background-secondary)] border border-amber-200 dark:border-transparent">
 	<button
 		class="btn-pill btn-pill-ghost flex-shrink-0 w-6 h-6 flex items-center justify-center"
 		tabindex="-1"
@@ -65,7 +65,7 @@
 	}
 	.block-editable.is-empty:focus:before {
 		content: attr(data-placeholder);
-		color: #6b7280;
+		color: var(--bos-status-neutral);
 		pointer-events: none;
 		position: absolute;
 		font-style: normal;

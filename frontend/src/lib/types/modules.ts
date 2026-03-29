@@ -1,20 +1,20 @@
 // Custom Modules System Types
 
 export type ModuleCategory =
-  | 'productivity'
-  | 'communication'
-  | 'finance'
-  | 'analytics'
-  | 'automation'
-  | 'integration'
-  | 'utilities'
-  | 'custom';
+  | "productivity"
+  | "communication"
+  | "finance"
+  | "analytics"
+  | "automation"
+  | "integration"
+  | "utilities"
+  | "custom";
 
-export type ModuleActionType = 'function' | 'api' | 'workflow';
+export type ModuleActionType = "function" | "api" | "workflow";
 
-export type ModuleVisibility = 'private' | 'workspace' | 'public';
+export type ModuleVisibility = "private" | "workspace" | "public";
 
-export type SharePermission = 'view' | 'install' | 'modify' | 'reshare';
+export type SharePermission = "view" | "install" | "modify" | "reshare";
 
 export interface ModuleAction {
   name: string;
@@ -90,7 +90,7 @@ export interface ModuleShare {
 export interface ModuleFilters {
   category: ModuleCategory | null;
   search: string;
-  sort: 'popular' | 'newest' | 'name' | 'installs';
+  sort: "popular" | "newest" | "name" | "installs";
   visibility: ModuleVisibility | null;
 }
 
@@ -147,23 +147,23 @@ export interface ActionBuilderItem {
 }
 
 export const categoryLabels: Record<ModuleCategory, string> = {
-  productivity: 'Productivity',
-  communication: 'Communication',
-  finance: 'Finance',
-  analytics: 'Analytics',
-  automation: 'Automation',
-  integration: 'Integration',
-  utilities: 'Utilities',
-  custom: 'Custom'
+  productivity: "Productivity",
+  communication: "Communication",
+  finance: "Finance",
+  analytics: "Analytics",
+  automation: "Automation",
+  integration: "Integration",
+  utilities: "Utilities",
+  custom: "Custom",
 };
 
-export const categoryColors: Record<ModuleCategory, string> = {
-  productivity: 'bg-blue-50 text-blue-700 border-blue-200',
-  communication: 'bg-purple-50 text-purple-700 border-purple-200',
-  finance: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  analytics: 'bg-orange-50 text-orange-700 border-orange-200',
-  automation: 'bg-pink-50 text-pink-700 border-pink-200',
-  integration: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  utilities: 'bg-gray-50 text-gray-700 border-gray-200',
-  custom: 'bg-cyan-50 text-cyan-700 border-cyan-200'
+export const categoryHexColors: Record<ModuleCategory, string> = {
+  productivity: "#3b82f6",
+  communication: "#a855f7",
+  finance: "#10b981",
+  analytics: "#f97316",
+  automation: "#ec4899",
+  integration: "#6366f1",
+  utilities: "#6b7280",
+  custom: "#06b6d4",
 };

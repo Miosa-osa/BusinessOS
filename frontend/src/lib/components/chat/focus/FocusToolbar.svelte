@@ -36,7 +36,7 @@
 	<div class="input-row-left">
 		<!-- Attach button -->
 		<button
-			class="btn-pill btn-pill-ghost attach-btn"
+			class="attach-btn"
 			onclick={onAttach}
 			title="Attach files"
 			aria-label="Attach files"
@@ -50,7 +50,7 @@
 		{#if availableContexts.length > 0}
 			<div class="context-selector">
 				<button
-					class="btn-pill btn-pill-ghost context-btn"
+					class="context-btn"
 					onclick={() => showContextDropdown = !showContextDropdown}
 					title="Select context"
 					aria-label="Select context"
@@ -67,7 +67,7 @@
 					<div class="context-dropdown">
 						{#if selectedContextIds.length > 0}
 							<button
-								class="btn-pill btn-pill-ghost context-clear"
+								class="context-clear"
 								onclick={() => {
 									selectedContextIds.forEach(id => onContextToggle?.(id));
 									showContextDropdown = false;
@@ -82,7 +82,7 @@
 						{#each availableContexts as ctx (ctx.id)}
 							{@const isSelected = selectedContextIds.includes(ctx.id)}
 							<button
-								class="btn-pill btn-pill-ghost context-item"
+								class="context-item"
 								class:selected={isSelected}
 								onclick={() => onContextToggle?.(ctx.id)}
 							>
@@ -104,7 +104,7 @@
 
 	<!-- Submit button -->
 	<button
-		class="btn-pill btn-pill-primary submit-btn"
+		class="submit-btn"
 		onclick={onSubmit}
 		disabled={!canSubmit}
 		title={!selectedProjectId ? 'Select a project first' : ''}
@@ -141,7 +141,7 @@
 		height: 36px;
 		border: none;
 		background: transparent;
-		color: var(--color-text-muted, #6b7280);
+		color: var(--dt3);
 		cursor: pointer;
 		border-radius: 8px;
 		transition: all 0.15s ease;
@@ -149,17 +149,8 @@
 	}
 
 	.attach-btn:hover {
-		background: var(--color-bg-secondary, #f3f4f6);
-		color: var(--color-text, #1f2937);
-	}
-
-	:global(.dark) .attach-btn {
-		color: #6e6e73;
-	}
-
-	:global(.dark) .attach-btn:hover {
-		background: #3a3a3c;
-		color: #f5f5f7;
+		background: var(--dbg2);
+		color: var(--dt);
 	}
 
 	/* Context selector */
@@ -174,31 +165,22 @@
 		padding: 8px;
 		border: none;
 		background: transparent;
-		color: var(--color-text-muted, #6b7280);
+		color: var(--dt3);
 		cursor: pointer;
 		border-radius: 8px;
 		transition: all 0.15s ease;
 	}
 
 	.context-btn:hover {
-		background: var(--color-bg-secondary, #f3f4f6);
-		color: var(--color-text, #1f2937);
-	}
-
-	:global(.dark) .context-btn {
-		color: #6e6e73;
-	}
-
-	:global(.dark) .context-btn:hover {
-		background: #3a3a3c;
-		color: #f5f5f7;
+		background: var(--dbg2);
+		color: var(--dt);
 	}
 
 	.context-count {
 		font-size: 11px;
 		font-weight: 600;
-		background: var(--color-primary, #3b82f6);
-		color: white;
+		background: var(--dt);
+		color: var(--dbg);
 		padding: 1px 5px;
 		border-radius: 10px;
 		min-width: 16px;
@@ -210,20 +192,14 @@
 		bottom: 100%;
 		left: 0;
 		margin-bottom: 8px;
-		background: var(--color-bg, white);
-		border: 1px solid var(--color-border, #e5e7eb);
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
 		border-radius: 12px;
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 		min-width: 200px;
 		max-height: 240px;
 		overflow-y: auto;
 		z-index: 50;
-	}
-
-	:global(.dark) .context-dropdown {
-		background: #2c2c2e;
-		border-color: rgba(255, 255, 255, 0.12);
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 	}
 
 	.context-clear {
@@ -234,23 +210,15 @@
 		padding: 10px 14px;
 		border: none;
 		background: transparent;
-		color: var(--color-text-secondary, #6b7280);
+		color: var(--dt3);
 		font-size: 13px;
 		cursor: pointer;
-		border-bottom: 1px solid var(--color-border, #e5e7eb);
+		border-bottom: 1px solid var(--dbd);
 		text-align: left;
 	}
 
 	.context-clear:hover {
-		background: var(--color-bg-secondary, #f3f4f6);
-	}
-
-	:global(.dark) .context-clear {
-		border-color: rgba(255, 255, 255, 0.08);
-	}
-
-	:global(.dark) .context-clear:hover {
-		background: #3a3a3c;
+		background: var(--dbg2);
 	}
 
 	.context-item {
@@ -261,31 +229,19 @@
 		padding: 10px 14px;
 		border: none;
 		background: transparent;
-		color: var(--color-text, #1f2937);
+		color: var(--dt);
 		font-size: 13px;
 		cursor: pointer;
 		text-align: left;
 	}
 
 	.context-item:hover {
-		background: var(--color-bg-secondary, #f3f4f6);
+		background: var(--dbg2);
 	}
 
 	.context-item.selected {
-		color: var(--color-primary, #3b82f6);
-		font-weight: 500;
-	}
-
-	:global(.dark) .context-item {
-		color: #f5f5f7;
-	}
-
-	:global(.dark) .context-item:hover {
-		background: #3a3a3c;
-	}
-
-	:global(.dark) .context-item.selected {
-		color: #0A84FF;
+		color: var(--dt);
+		font-weight: 600;
 	}
 
 	.context-icon {
@@ -299,7 +255,7 @@
 		white-space: nowrap;
 	}
 
-	/* Submit button */
+	/* Submit button — monochromatic */
 	.submit-btn {
 		display: flex;
 		align-items: center;
@@ -307,31 +263,23 @@
 		gap: 8px;
 		align-self: flex-end;
 		padding: 10px 20px;
-		background: var(--color-primary);
-		color: white;
+		background: var(--dt);
+		color: var(--dbg);
 		border: none;
 		border-radius: 24px;
 		font-size: 14px;
 		font-weight: 500;
 		cursor: pointer;
-		transition: all 0.2s ease;
+		transition: opacity 0.15s ease, transform 0.15s ease;
 	}
 
 	.submit-btn:hover:not(:disabled) {
-		background: var(--color-primary-hover);
+		opacity: 0.85;
 		transform: translateY(-1px);
 	}
 
 	.submit-btn:disabled {
-		opacity: 0.5;
+		opacity: 0.35;
 		cursor: not-allowed;
-	}
-
-	:global(.dark) .submit-btn {
-		background: #0A84FF;
-	}
-
-	:global(.dark) .submit-btn:hover:not(:disabled) {
-		background: #0070E0;
 	}
 </style>

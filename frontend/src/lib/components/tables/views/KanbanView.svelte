@@ -38,12 +38,12 @@
 	const groups = $derived.by(() => {
 		if (!groupColumn || !groupColumn.options?.choices) {
 			// If no group column, create a single "All Items" group
-			return [{ id: 'all', label: 'All Items', color: '#64748b', order: 0 }];
+			return [{ id: 'all', label: 'All Items', color: 'var(--dt3, #64748b)', order: 0 }];
 		}
 		// Add an "Uncategorized" group for items without a value
 		return [
 			...groupColumn.options.choices,
-			{ id: '__uncategorized__', label: 'Uncategorized', color: '#94a3b8', order: 999 }
+			{ id: '__uncategorized__', label: 'Uncategorized', color: 'var(--dbd, #94a3b8)', order: 999 }
 		];
 	});
 
@@ -135,7 +135,7 @@
 	{#each groups as group (group.id)}
 		{@const groupRows = rowsByGroup[group.id] || []}
 		<div
-			class="flex w-72 flex-shrink-0 flex-col rounded-lg bg-gray-100"
+			class="dt2-kanban-col flex w-72 flex-shrink-0 flex-col rounded-lg"
 			ondragover={(e) => handleDragOver(e, group.id)}
 			ondragleave={handleDragLeave}
 			ondrop={(e) => handleDrop(e, group.id)}
@@ -147,8 +147,8 @@
 						class="h-3 w-3 rounded-full"
 						style="background-color: {group.color}"
 					></div>
-					<h3 class="text-sm font-semibold text-gray-700">{group.label}</h3>
-					<span class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-500">
+					<h3 class="text-sm font-semibold" style="color: var(--dt);">{group.label}</h3>
+					<span class="dt2-kanban-badge rounded-full px-2 py-0.5 text-xs">
 						{groupRows.length}
 					</span>
 				</div>
@@ -173,18 +173,18 @@
 						ondragstart={(e) => handleDragStart(e, row.id)}
 						ondragend={handleDragEnd}
 						onclick={() => onCardClick(row.id)}
-						class="group w-full rounded-lg border bg-white p-3 text-left shadow-sm transition-shadow hover:shadow-md {draggingRowId ===
+						class="dt2-kanban-card group w-full rounded-lg p-3 text-left transition-shadow hover:shadow-md {draggingRowId ===
 						row.id
 							? 'opacity-50'
 							: ''}"
 					>
 						<!-- Drag Handle -->
 						<div class="mb-2 flex items-center justify-between">
-							<GripVertical class="h-4 w-4 cursor-grab text-gray-300 group-hover:text-gray-400" />
+							<GripVertical class="h-4 w-4 cursor-grab" style="color: var(--dt3);" />
 						</div>
 
 						<!-- Primary Value -->
-						<div class="mb-2 font-medium text-gray-900">
+						<div class="mb-2 font-medium" style="color: var(--dt);">
 							{getDisplayValue(row, primaryColumn) || 'Untitled'}
 						</div>
 
@@ -195,8 +195,8 @@
 									{@const value = getDisplayValue(row, col)}
 									{#if value}
 										<div class="flex items-center gap-2 text-xs">
-											<span class="text-gray-400">{col.name}:</span>
-											<span class="truncate text-gray-600">{value}</span>
+											<span style="color: var(--dt3);">{col.name}:</span>
+											<span class="truncate" style="color: var(--dt2);">{value}</span>
 										</div>
 									{/if}
 								{/each}
@@ -207,7 +207,7 @@
 
 				<!-- Empty State -->
 				{#if groupRows.length === 0}
-					<div class="py-8 text-center text-sm text-gray-400">
+					<div class="py-8 text-center text-sm" style="color: var(--dt3);">
 						No items
 					</div>
 				{/if}
@@ -218,7 +218,7 @@
 				<div class="p-2">
 					<button
 						type="button"
-						class="flex w-full items-center justify-center gap-1 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-dashed border-gray-300"
+						class="dt2-kanban-add flex w-full items-center justify-center gap-1 px-3 py-2 rounded-lg text-sm transition-colors"
 						onclick={() => onAddCard(group.id)}
 					>
 						<Plus class="h-4 w-4" />
@@ -243,3 +243,30 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.dt2-kanban-col {
+		background: var(--dbg2);
+	}
+
+	.dt2-kanban-badge {
+		background: var(--dbg3);
+		color: var(--dt2);
+	}
+
+	.dt2-kanban-card {
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.dt2-kanban-add {
+		border: 1px dashed var(--dbd);
+		color: var(--dt3);
+	}
+
+	.dt2-kanban-add:hover {
+		background: var(--dbg3);
+		color: var(--dt);
+	}
+</style>

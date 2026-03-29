@@ -125,7 +125,7 @@
 
 {#if open}
 	<div
-		class="cr-modal-overlay"
+		class="bos-modal-overlay"
 		onclick={handleClose}
 		role="dialog"
 		aria-modal="true"
@@ -133,19 +133,19 @@
 		transition:fade={{ duration: 150 }}
 	>
 		<div
-			class="cr-modal"
+			class="bos-modal bos-modal--md"
 			onclick={(e) => e.stopPropagation()}
 			role="document"
 			transition:scale={{ duration: 200, start: 0.95 }}
 		>
 			<!-- Header -->
-			<div class="cr-modal__header">
+			<div class="bos-modal-header">
 				<div>
-					<h2 class="cr-modal__title">Add New Client</h2>
-					<p class="cr-modal__subtitle">Create a new client record</p>
+					<h2 class="bos-modal-title">Add New Client</h2>
+					<p class="bos-modal-subtitle">Create a new client record</p>
 				</div>
 				<button
-					class="cr-modal__close"
+					class="bos-modal-close"
 					onclick={handleClose}
 					aria-label="Close modal"
 				>
@@ -156,20 +156,20 @@
 			</div>
 
 			<!-- Form -->
-			<form onsubmit={handleSubmit} class="cr-modal__body">
+			<form onsubmit={handleSubmit} class="bos-modal-body">
 				{#if errorMessage}
-					<div class="cr-modal__error">
-						<p class="cr-modal__error-text">{errorMessage}</p>
+					<div class="bos-error-banner">
+						<p>{errorMessage}</p>
 					</div>
 				{/if}
 
-				<div class="cr-modal__fields">
+				<div style="display:flex;flex-direction:column;gap:16px;">
 					<!-- Type Toggle -->
-					<div class="cr-modal__type-toggle">
+					<div class="type-toggle">
 						<button
 							type="button"
 							onclick={() => (type = 'company')}
-							class="cr-modal__type-btn {type === 'company' ? 'cr-modal__type-btn--active' : ''}"
+							class="type-toggle__btn {type === 'company' ? 'type-toggle__btn--active' : ''}"
 							aria-pressed={type === 'company'}
 						>
 							Company
@@ -177,7 +177,7 @@
 						<button
 							type="button"
 							onclick={() => (type = 'individual')}
-							class="cr-modal__type-btn {type === 'individual' ? 'cr-modal__type-btn--active' : ''}"
+							class="type-toggle__btn {type === 'individual' ? 'type-toggle__btn--active' : ''}"
 							aria-pressed={type === 'individual'}
 						>
 							Individual
@@ -185,8 +185,8 @@
 					</div>
 
 					<!-- Name -->
-					<div class="cr-modal__field">
-						<label for="client-name" class="cr-modal__label">
+					<div style="display:flex;flex-direction:column;">
+						<label for="client-name" class="bos-label">
 							{type === 'company' ? 'Company Name' : 'Full Name'} *
 						</label>
 						<input
@@ -195,46 +195,46 @@
 							bind:value={name}
 							required
 							disabled={submitting}
-							class="cr-modal__input"
+							class="bos-input"
 							placeholder={type === 'company' ? 'Acme Inc.' : 'John Doe'}
 						/>
 					</div>
 
 					<!-- Email & Phone -->
-					<div class="cr-modal__row">
-						<div class="cr-modal__field">
-							<label for="client-email" class="cr-modal__label">Email</label>
+					<div class="bos-form-row">
+						<div style="display:flex;flex-direction:column;">
+							<label for="client-email" class="bos-label">Email</label>
 							<input
 								id="client-email"
 								type="email"
 								bind:value={email}
 								disabled={submitting}
-								class="cr-modal__input"
+								class="bos-input"
 								placeholder="email@example.com"
 							/>
 						</div>
-						<div class="cr-modal__field">
-							<label for="client-phone" class="cr-modal__label">Phone</label>
+						<div style="display:flex;flex-direction:column;">
+							<label for="client-phone" class="bos-label">Phone</label>
 							<input
 								id="client-phone"
 								type="tel"
 								bind:value={phone}
 								disabled={submitting}
-								class="cr-modal__input"
+								class="bos-input"
 								placeholder="+1 (555) 123-4567"
 							/>
 						</div>
 					</div>
 
 					<!-- Status & Source -->
-					<div class="cr-modal__row">
-						<div class="cr-modal__field">
-							<label for="client-status" class="cr-modal__label">Status</label>
+					<div class="bos-form-row">
+						<div style="display:flex;flex-direction:column;">
+							<label for="client-status" class="bos-label">Status</label>
 							<select
 								id="client-status"
 								bind:value={status}
 								disabled={submitting}
-								class="cr-modal__input"
+								class="bos-select"
 							>
 								<option value="lead">Lead</option>
 								<option value="prospect">Prospect</option>
@@ -242,13 +242,13 @@
 								<option value="inactive">Inactive</option>
 							</select>
 						</div>
-						<div class="cr-modal__field">
-							<label for="client-source" class="cr-modal__label">Source</label>
+						<div style="display:flex;flex-direction:column;">
+							<label for="client-source" class="bos-label">Source</label>
 							<select
 								id="client-source"
 								bind:value={source}
 								disabled={submitting}
-								class="cr-modal__input"
+								class="bos-select"
 							>
 								{#each sources as s}
 									<option value={s.value}>{s.label}</option>
@@ -259,25 +259,25 @@
 
 					<!-- Company-specific fields -->
 					{#if type === 'company'}
-						<div class="cr-modal__row">
-							<div class="cr-modal__field">
-								<label for="client-industry" class="cr-modal__label">Industry</label>
+						<div class="bos-form-row">
+							<div style="display:flex;flex-direction:column;">
+								<label for="client-industry" class="bos-label">Industry</label>
 								<input
 									id="client-industry"
 									type="text"
 									bind:value={industry}
 									disabled={submitting}
-									class="cr-modal__input"
+									class="bos-input"
 									placeholder="Technology"
 								/>
 							</div>
-							<div class="cr-modal__field">
-								<label for="client-size" class="cr-modal__label">Company Size</label>
+							<div style="display:flex;flex-direction:column;">
+								<label for="client-size" class="bos-label">Company Size</label>
 								<select
 									id="client-size"
 									bind:value={companySize}
 									disabled={submitting}
-									class="cr-modal__input"
+									class="bos-select"
 								>
 									{#each companySizes as size}
 										<option value={size.value}>{size.label}</option>
@@ -286,28 +286,28 @@
 							</div>
 						</div>
 
-						<div class="cr-modal__field">
-							<label for="client-website" class="cr-modal__label">Website</label>
+						<div style="display:flex;flex-direction:column;">
+							<label for="client-website" class="bos-label">Website</label>
 							<input
 								id="client-website"
 								type="url"
 								bind:value={website}
 								disabled={submitting}
-								class="cr-modal__input"
+								class="bos-input"
 								placeholder="https://example.com"
 							/>
 						</div>
 					{/if}
 
 					<!-- Tags -->
-					<div class="cr-modal__field">
-						<label for="client-tags" class="cr-modal__label">Tags</label>
+					<div style="display:flex;flex-direction:column;">
+						<label for="client-tags" class="bos-label">Tags</label>
 						<input
 							id="client-tags"
 							type="text"
 							bind:value={tagsInput}
 							disabled={submitting}
-							class="cr-modal__input"
+							class="bos-input"
 							placeholder="vip, enterprise, tech (comma separated)"
 						/>
 					</div>
@@ -316,11 +316,11 @@
 					<button
 						type="button"
 						onclick={() => (showMoreFields = !showMoreFields)}
-						class="cr-modal__toggle"
+						class="toggle-link"
 						aria-expanded={showMoreFields}
 					>
 						<svg
-							class="cr-modal__toggle-icon {showMoreFields ? 'cr-modal__toggle-icon--open' : ''}"
+							class="toggle-icon {showMoreFields ? 'toggle-icon--open' : ''}"
 							width="14"
 							height="14"
 							fill="none"
@@ -335,77 +335,77 @@
 
 					{#if showMoreFields}
 						<!-- Address -->
-						<div class="cr-modal__field">
-							<label for="client-address" class="cr-modal__label">Address</label>
+						<div style="display:flex;flex-direction:column;">
+							<label for="client-address" class="bos-label">Address</label>
 							<input
 								id="client-address"
 								type="text"
 								bind:value={address}
 								disabled={submitting}
-								class="cr-modal__input"
+								class="bos-input"
 								placeholder="123 Main St"
 							/>
 						</div>
 
-						<div class="cr-modal__row">
-							<div class="cr-modal__field">
-								<label for="client-city" class="cr-modal__label">City</label>
+						<div class="bos-form-row">
+							<div style="display:flex;flex-direction:column;">
+								<label for="client-city" class="bos-label">City</label>
 								<input
 									id="client-city"
 									type="text"
 									bind:value={city}
 									disabled={submitting}
-									class="cr-modal__input"
+									class="bos-input"
 									placeholder="San Francisco"
 								/>
 							</div>
-							<div class="cr-modal__field">
-								<label for="client-state" class="cr-modal__label">State/Region</label>
+							<div style="display:flex;flex-direction:column;">
+								<label for="client-state" class="bos-label">State/Region</label>
 								<input
 									id="client-state"
 									type="text"
 									bind:value={stateRegion}
 									disabled={submitting}
-									class="cr-modal__input"
+									class="bos-input"
 									placeholder="CA"
 								/>
 							</div>
 						</div>
 
-						<div class="cr-modal__row">
-							<div class="cr-modal__field">
-								<label for="client-zip" class="cr-modal__label">ZIP/Postal Code</label>
+						<div class="bos-form-row">
+							<div style="display:flex;flex-direction:column;">
+								<label for="client-zip" class="bos-label">ZIP/Postal Code</label>
 								<input
 									id="client-zip"
 									type="text"
 									bind:value={zipCode}
 									disabled={submitting}
-									class="cr-modal__input"
+									class="bos-input"
 									placeholder="94102"
 								/>
 							</div>
-							<div class="cr-modal__field">
-								<label for="client-country" class="cr-modal__label">Country</label>
+							<div style="display:flex;flex-direction:column;">
+								<label for="client-country" class="bos-label">Country</label>
 								<input
 									id="client-country"
 									type="text"
 									bind:value={country}
 									disabled={submitting}
-									class="cr-modal__input"
+									class="bos-input"
 									placeholder="United States"
 								/>
 							</div>
 						</div>
 
 						<!-- Notes -->
-						<div class="cr-modal__field">
-							<label for="client-notes" class="cr-modal__label">Notes</label>
+						<div style="display:flex;flex-direction:column;">
+							<label for="client-notes" class="bos-label">Notes</label>
 							<textarea
 								id="client-notes"
 								bind:value={notes}
 								rows="3"
 								disabled={submitting}
-								class="cr-modal__input cr-modal__textarea"
+								class="bos-textarea"
 								placeholder="Additional notes about this client..."
 							></textarea>
 						</div>
@@ -413,7 +413,7 @@
 				</div>
 
 				<!-- Footer -->
-				<div class="cr-modal__actions">
+				<div class="bos-modal-footer">
 					<button
 						type="button"
 						onclick={handleClose}
@@ -436,202 +436,49 @@
 {/if}
 
 <style>
-	/* ─── Modal Overlay (Foundation CRM pattern, cr- prefix) ─── */
-	.cr-modal-overlay {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
+	/* Type toggle */
+	.type-toggle {
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 50;
+		gap: 0.5rem;
 	}
-	.cr-modal {
-		background: var(--dbg, #fff);
-		border-radius: var(--radius-md, 12px);
-		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
-		width: 100%;
-		max-width: 32rem;
-		max-height: 90vh;
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
-		margin: 0 1rem;
-	}
-	:global(.dark) .cr-modal {
-		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
-	}
-
-	/* Header */
-	.cr-modal__header {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		padding: var(--space-4, 1rem) var(--space-6, 1.5rem);
-		border-bottom: 1px solid var(--dbd, #e0e0e0);
-	}
-	.cr-modal__title {
-		font-size: var(--text-lg, 1.125rem);
-		font-weight: var(--font-semibold, 600);
-		color: var(--dt, #111);
-		margin: 0;
-	}
-	.cr-modal__subtitle {
-		font-size: var(--text-sm, 0.875rem);
-		color: var(--dt3, #888);
-		margin: 2px 0 0;
-	}
-	.cr-modal__close {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 28px;
-		height: 28px;
-		border-radius: var(--radius-xs, 4px);
-		border: none;
-		background: transparent;
-		color: var(--dt3, #888);
-		cursor: pointer;
-		transition: background 0.15s, color 0.15s;
-	}
-	.cr-modal__close:hover {
-		background: var(--dbg2, #f5f5f5);
-		color: var(--dt, #111);
-	}
-
-	/* Body */
-	.cr-modal__body {
+	.type-toggle__btn {
 		flex: 1;
-		overflow-y: auto;
-		display: flex;
-		flex-direction: column;
-	}
-
-	/* Error */
-	.cr-modal__error {
-		margin: var(--space-4, 1rem) var(--space-6, 1.5rem) 0;
-		padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
-		border-radius: var(--radius-sm, 8px);
-		background: color-mix(in srgb, #ef4444 10%, var(--dbg, #fff));
-		border: 1px solid color-mix(in srgb, #ef4444 25%, var(--dbd, #e0e0e0));
-	}
-	.cr-modal__error-text {
-		font-size: var(--text-sm, 0.875rem);
-		color: #ef4444;
-		margin: 0;
-		font-weight: 500;
-	}
-
-	/* Fields */
-	.cr-modal__fields {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-4, 1rem);
-		padding: var(--space-4, 1rem) var(--space-6, 1.5rem);
-	}
-	.cr-modal__field {
-		display: flex;
-		flex-direction: column;
-	}
-	.cr-modal__row {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: var(--space-4, 1rem);
-	}
-	.cr-modal__label {
-		font-size: var(--text-sm, 0.875rem);
-		font-weight: var(--font-medium, 500);
-		color: var(--dt2, #555);
-		margin-bottom: var(--space-1, 0.25rem);
-	}
-	.cr-modal__input {
-		width: 100%;
-		padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
-		border: 1px solid var(--dbd, #e0e0e0);
-		border-radius: var(--radius-sm, 8px);
-		font-size: var(--text-sm, 0.875rem);
-		color: var(--dt, #111);
-		background: var(--dbg, #fff);
-		outline: none;
-		transition: border-color 0.15s, box-shadow 0.15s;
-		box-sizing: border-box;
-	}
-	.cr-modal__input:focus {
-		border-color: var(--dt3, #888);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--dt3, #888) 25%, transparent);
-	}
-	.cr-modal__input::placeholder {
-		color: var(--dt4, #bbb);
-	}
-	.cr-modal__input:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
-	.cr-modal__textarea {
-		resize: none;
-		min-height: 5rem;
-	}
-
-	/* Type Toggle */
-	.cr-modal__type-toggle {
-		display: flex;
-		gap: var(--space-2, 0.5rem);
-	}
-	.cr-modal__type-btn {
-		flex: 1;
-		padding: var(--space-2, 0.5rem) var(--space-4, 1rem);
+		padding: 0.5rem 1rem;
 		font-size: var(--text-sm, 0.875rem);
 		font-weight: var(--font-medium, 500);
 		border-radius: var(--radius-sm, 8px);
-		border: 1px solid var(--dbd, #e0e0e0);
+		border: 1px solid var(--bos-border-color);
 		cursor: pointer;
 		transition: background 0.15s, color 0.15s, border-color 0.15s;
-		background: var(--dbg2, #f5f5f5);
-		color: var(--dt2, #555);
+		background: var(--bos-v2-layer-background-secondary);
+		color: var(--bos-text-secondary-color);
 	}
-	.cr-modal__type-btn:hover {
-		background: var(--dbg3, #eee);
-		color: var(--dt, #111);
-	}
-	.cr-modal__type-btn--active {
-		background: var(--dt, #111);
-		color: var(--dbg, #fff);
-		border-color: var(--dt, #111);
-	}
-	.cr-modal__type-btn--active:hover {
-		background: var(--dt, #111);
-		color: var(--dbg, #fff);
+	.type-toggle__btn--active {
+		background: var(--bos-text-primary-color);
+		color: var(--bos-surface-on-color);
+		border-color: var(--bos-text-primary-color);
 	}
 
-	/* Toggle more fields */
-	.cr-modal__toggle {
+	/* Show more toggle link */
+	.toggle-link {
 		display: flex;
 		align-items: center;
-		gap: var(--space-1, 0.25rem);
+		gap: 0.25rem;
 		font-size: var(--text-sm, 0.875rem);
-		color: var(--dt3, #888);
+		color: var(--bos-text-secondary-color);
 		background: none;
 		border: none;
 		cursor: pointer;
 		padding: 0;
 		transition: color 0.15s;
 	}
-	.cr-modal__toggle:hover {
-		color: var(--dt, #111);
+	.toggle-link:hover {
+		color: var(--bos-text-primary-color);
 	}
-	.cr-modal__toggle-icon {
+	.toggle-icon {
 		transition: transform 0.2s;
 	}
-	.cr-modal__toggle-icon--open {
+	.toggle-icon--open {
 		transform: rotate(180deg);
-	}
-
-	/* Actions */
-	.cr-modal__actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-3, 0.75rem);
-		padding: var(--space-4, 1rem) var(--space-6, 1.5rem);
-		border-top: 1px solid var(--dbd, #e0e0e0);
 	}
 </style>

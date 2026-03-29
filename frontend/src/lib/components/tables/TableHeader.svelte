@@ -54,7 +54,7 @@
 
 <svelte:window onclick={handleClickOutside} />
 
-<div class="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
+<div class="dt2-header flex items-center justify-between px-6 py-3">
 	<!-- Left: Table name and views -->
 	<div class="flex items-center gap-4">
 		<!-- Table Icon & Name -->
@@ -77,7 +77,7 @@
 		</div>
 
 		<!-- View Tabs -->
-		<div class="flex items-center gap-1 border-l border-gray-200 pl-4">
+		<div class="flex items-center gap-1 pl-4" style="border-left: 1px solid var(--dbd);">
 			{#each table.views as view}
 				<button
 					type="button"
@@ -107,19 +107,19 @@
 
 				{#if showViewMenu}
 					<div
-						class="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+						class="dt2-dropdown absolute left-0 top-full mt-1 w-48 rounded-lg py-1"
 					>
-						<div class="px-3 py-2 text-xs font-medium uppercase text-gray-400">Add View</div>
+						<div class="px-3 py-2 text-xs font-medium uppercase" style="color: var(--dt3);">Add View</div>
 						{#each VIEW_TYPES as viewType}
 							<button
 								type="button"
-								class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+								class="dt2-dropdown__item flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors"
 								onclick={() => {
 									onCreateView(viewType.type);
 									showViewMenu = false;
 								}}
 							>
-								<svelte:component this={getViewIcon(viewType.type)} class="h-4 w-4 text-gray-400" />
+								<svelte:component this={getViewIcon(viewType.type)} class="h-4 w-4" style="color: var(--dt3);" />
 								{viewType.label}
 							</button>
 						{/each}
@@ -142,3 +142,27 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	.dt2-header {
+		background: var(--dbg);
+		border-bottom: 1px solid var(--dbd);
+		color: var(--dt);
+	}
+
+	.dt2-dropdown {
+		z-index: var(--bos-z-index-popover, 1001);
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
+		box-shadow: var(--shadow-lg);
+	}
+
+	.dt2-dropdown__item {
+		color: var(--dt);
+		border-radius: 6px;
+	}
+
+	.dt2-dropdown__item:hover {
+		background: var(--dbg3);
+	}
+</style>

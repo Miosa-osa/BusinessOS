@@ -4,6 +4,11 @@
  */
 
 import { apiClient } from "$lib/api";
+import {
+  fetchSlashCommands,
+  FALLBACK_COMMANDS,
+  type SlashCommand as ApiSlashCommand,
+} from "$lib/api/commands";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -18,11 +23,15 @@ export interface SearchItem {
   color: string;
 }
 
-export interface SlashCommand {
+/**
+ * SlashCommand shape used by Spotlight UI components.
+ * Re-exported from the shared API type so all consumers share one definition.
+ * The `id` field is derived from `name` for backward compatibility with
+ * SpotlightCommandsDropdown which keys each row on `cmd.id`.
+ */
+export interface SlashCommand extends ApiSlashCommand {
+  /** Derived from `name` for keying in templates. */
   id: string;
-  name: string;
-  description: string;
-  icon: string;
 }
 
 export interface Project {
@@ -141,57 +150,53 @@ export const SEARCH_ITEMS: SearchItem[] = [
   },
 ];
 
-export const SLASH_COMMANDS: SlashCommand[] = [
-  {
-    id: "analyze",
-    name: "/analyze",
-    description: "Analyze content or data",
-    icon: "📊",
-  },
-  {
-    id: "summarize",
-    name: "/summarize",
-    description: "Summarize text or document",
-    icon: "📝",
-  },
-  {
-    id: "explain",
-    name: "/explain",
-    description: "Explain code or concept",
-    icon: "💡",
-  },
-  {
-    id: "generate",
-    name: "/generate",
-    description: "Generate content or code",
-    icon: "✨",
-  },
-  {
-    id: "review",
-    name: "/review",
-    description: "Review and provide feedback",
-    icon: "🔍",
-  },
-  {
-    id: "translate",
-    name: "/translate",
-    description: "Translate to another language",
-    icon: "🌐",
-  },
-  {
-    id: "brainstorm",
-    name: "/brainstorm",
-    description: "Generate ideas",
-    icon: "🧠",
-  },
-  { id: "task", name: "/task", description: "Create a new task", icon: "✅" },
-  {
-    id: "image",
-    name: "/image",
-    description: "Multimodal image search",
-    icon: "🖼️",
-  },
-];
+// ---------------------------------------------------------------------------
+// Dynamic slash commands (loaded from /api/ai/commands)
+// ---------------------------------------------------------------------------
+
+/**
+ * Module-level cache of loaded commands, normalised to the Spotlight shape.
+ * Starts as the fallback set so the dropdown works immediately on first open.
+ */
+let _loadedCommands: SlashCommand[] = normaliseFallback();
+
+/** Convert the shared API fallback list to the Spotlight SlashCommand shape. */
+function normaliseFallback(): SlashCommand[] {
+  return FALLBACK_COMMANDS.map((c) => ({ ...c, id: c.name }));
+}
+
+/**
+ * Normalise a raw API command to the Spotlight SlashCommand shape.
+ * The `name` field from the API is the bare command word (e.g. "analyze");
+ * we keep that as `id` for template keying and as `name` for filtering.
+ */
+function normaliseCommand(c: ApiSlashCommand): SlashCommand {
+  return { ...c, id: c.name };
+}
+
+/**
+ * Fetch slash commands from the shared service and update the module cache.
+ * Safe to call multiple times; the shared service deduplicates in-flight
+ * requests and caches the result after the first successful fetch.
+ *
+ * Call this once when Spotlight opens (inside the `$effect` that reacts to
+ * `open === true`).
+ */
+export async function initSlashCommands(): Promise<void> {
+  const commands = await fetchSlashCommands();
+  if (commands.length > 0) {
+    _loadedCommands = commands.map(normaliseCommand);
+  }
+}
+
+/**
+ * The currently loaded slash commands. Exported for consumers that need the
+ * full list (e.g. to display a static command palette). Prefer using
+ * `filterSlashCommands` for input-driven filtering.
+ */
+export function getLoadedSlashCommands(): SlashCommand[] {
+  return _loadedCommands;
+}
 
 // ---------------------------------------------------------------------------
 // Filtering helpers
@@ -214,9 +219,12 @@ export function filterSearchItems(
 export function filterSlashCommands(input: string): SlashCommand[] {
   if (!input.startsWith("/")) return [];
   const query = input.slice(1).toLowerCase();
-  return SLASH_COMMANDS.filter(
+  if (query.length === 0) return _loadedCommands.slice(0, 8);
+  return _loadedCommands.filter(
     (cmd) =>
-      cmd.id.includes(query) || cmd.description.toLowerCase().includes(query),
+      cmd.id.includes(query) ||
+      cmd.display_name.toLowerCase().includes(query) ||
+      cmd.description.toLowerCase().includes(query),
   );
 }
 

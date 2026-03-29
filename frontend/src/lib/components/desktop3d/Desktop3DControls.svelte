@@ -135,7 +135,7 @@
 		backdrop-filter: blur(12px);
 		border: 1px solid rgba(0, 0, 0, 0.08);
 		border-radius: 10px;
-		color: #666666;
+		color: var(--dt2);
 		cursor: pointer;
 		transition: all 0.2s;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -144,7 +144,7 @@
 	.help-btn:hover {
 		background: rgba(255, 255, 255, 0.95);
 		border-color: rgba(0, 0, 0, 0.12);
-		color: #333333;
+		color: var(--dt);
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 	}
 
@@ -168,7 +168,7 @@
 		border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 		font-weight: 600;
 		font-size: 13px;
-		color: #333333;
+		color: var(--dt);
 	}
 
 	.help-content {
@@ -181,7 +181,7 @@
 		gap: 12px;
 		padding: 8px 10px;
 		font-size: 13px;
-		color: #666666;
+		color: var(--dt2);
 		border-radius: 6px;
 		transition: background 0.15s;
 	}
@@ -199,7 +199,7 @@
 		font-family: inherit;
 		font-size: 11px;
 		font-weight: 500;
-		color: #333333;
+		color: var(--dt);
 		text-align: center;
 	}
 
@@ -212,7 +212,7 @@
 		backdrop-filter: blur(12px);
 		border: 1px solid rgba(0, 0, 0, 0.08);
 		border-radius: 10px;
-		color: #333333;
+		color: var(--dt);
 		font-size: 14px;
 		font-weight: 500;
 		cursor: pointer;
@@ -229,7 +229,7 @@
 	.control-btn.active {
 		background: rgba(74, 158, 255, 0.15);
 		border-color: rgba(74, 158, 255, 0.3);
-		color: #1a73e8;
+		color: var(--bos-status-info);
 	}
 
 	.control-btn:disabled {
@@ -240,7 +240,7 @@
 	.exit-btn {
 		background: rgba(255, 240, 240, 0.9);
 		border-color: rgba(200, 100, 100, 0.2);
-		color: #c53030;
+		color: var(--bos-status-error);
 	}
 
 	.exit-btn:hover {
@@ -251,7 +251,7 @@
 	.voice-btn.active {
 		background: rgba(59, 130, 246, 0.15);
 		border-color: rgba(59, 130, 246, 0.3);
-		color: #3b82f6;
+		color: var(--bos-status-info);
 		animation: voicePulse 1.5s ease-in-out infinite;
 	}
 
@@ -268,7 +268,7 @@
 	:global(.dark) .control-btn {
 		background: rgba(44, 44, 46, 0.85);
 		border-color: rgba(255, 255, 255, 0.12);
-		color: #ffffff;
+		color: var(--dt);
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 	}
 
@@ -281,21 +281,21 @@
 	:global(.dark) .control-btn.active {
 		background: rgba(74, 158, 255, 0.25);
 		border-color: rgba(74, 158, 255, 0.5);
-		color: #6eb5ff;
+		color: var(--bos-status-info);
 	}
 
 	:global(.dark) .control-btn svg {
-		stroke: #ffffff;
+		stroke: currentColor;
 	}
 
 	:global(.dark) .control-btn.active svg {
-		stroke: #6eb5ff;
+		stroke: var(--bos-status-info);
 	}
 
 	:global(.dark) .exit-btn {
 		background: rgba(80, 30, 30, 0.85);
 		border-color: rgba(255, 100, 100, 0.3);
-		color: #ff8888;
+		color: var(--bos-status-error);
 	}
 
 	:global(.dark) .exit-btn:hover {
@@ -304,29 +304,29 @@
 	}
 
 	:global(.dark) .exit-btn svg {
-		stroke: #ff8888;
+		stroke: var(--bos-status-error);
 	}
 
 	:global(.dark) .voice-btn.active {
 		background: rgba(59, 130, 246, 0.25);
 		border-color: rgba(59, 130, 246, 0.5);
-		color: #6eb5ff;
+		color: var(--bos-status-info);
 	}
 
 	:global(.dark) .voice-btn.active svg {
-		stroke: #6eb5ff;
+		stroke: var(--bos-status-info);
 	}
 
 	:global(.dark) .help-btn {
 		background: rgba(44, 44, 46, 0.85);
 		border-color: rgba(255, 255, 255, 0.12);
-		color: #aaaaaa;
+		color: var(--dt3);
 	}
 
 	:global(.dark) .help-btn:hover {
 		background: rgba(58, 58, 60, 0.95);
 		border-color: rgba(255, 255, 255, 0.18);
-		color: #ffffff;
+		color: var(--dt);
 	}
 
 	:global(.dark) .help-tooltip {
@@ -338,11 +338,11 @@
 	:global(.dark) .help-header {
 		background: rgba(255, 255, 255, 0.05);
 		border-color: rgba(255, 255, 255, 0.08);
-		color: #ffffff;
+		color: var(--dt);
 	}
 
 	:global(.dark) .help-item {
-		color: #aaaaaa;
+		color: var(--dt3);
 	}
 
 	:global(.dark) .help-item:hover {
@@ -352,6 +352,6 @@
 	:global(.dark) .help-item kbd {
 		background: rgba(255, 255, 255, 0.1);
 		border-color: rgba(255, 255, 255, 0.15);
-		color: #ffffff;
+		color: var(--dt);
 	}
 </style>

@@ -215,7 +215,7 @@
 	{#if selectedModeName}
 		<div class="selected-mode-badge">
 			<span class="mode-name">{selectedModeName}</span>
-			<button class="btn-pill btn-pill-ghost mode-clear" onclick={onClearMode} aria-label="Clear mode">
+			<button class="mode-clear" onclick={onClearMode} aria-label="Clear mode">
 				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="12" height="12">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
 				</svg>
@@ -283,28 +283,22 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
-		background: var(--color-bg);
-		border: 1px solid var(--color-border);
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
 		border-radius: 16px;
 		padding: 16px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+		transition: border-color 0.15s;
 	}
 
-	:global(.dark) .input-container {
-		background: #2c2c2e;
-		border-color: rgba(255, 255, 255, 0.12);
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+	.input-container:focus-within {
+		border-color: var(--dt3);
 	}
 
 	.input-container.dragging {
-		border-color: var(--color-primary, #3b82f6);
+		border-color: var(--dt2);
 		border-style: dashed;
-		background: rgba(59, 130, 246, 0.05);
-	}
-
-	:global(.dark) .input-container.dragging {
-		border-color: #0A84FF;
-		background: rgba(10, 132, 255, 0.1);
+		background: var(--dbg2);
 	}
 
 	/* Mode badge */
@@ -312,24 +306,16 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
-		background: var(--color-bg-tertiary);
+		background: var(--dbg2);
 		padding: 4px 8px 4px 12px;
 		border-radius: 20px;
 		align-self: flex-start;
 	}
 
-	:global(.dark) .selected-mode-badge {
-		background: #3a3a3c;
-	}
-
 	.mode-name {
 		font-size: 13px;
 		font-weight: 500;
-		color: var(--color-text);
-	}
-
-	:global(.dark) .mode-name {
-		color: #f5f5f7;
+		color: var(--dt);
 	}
 
 	.mode-clear {
@@ -340,24 +326,15 @@
 		height: 18px;
 		border: none;
 		background: transparent;
-		color: var(--color-text-muted);
+		color: var(--dt3);
 		cursor: pointer;
 		border-radius: 50%;
 		transition: all 0.15s ease;
 	}
 
 	.mode-clear:hover {
-		background: var(--color-bg-secondary);
-		color: var(--color-text);
-	}
-
-	:global(.dark) .mode-clear {
-		color: #6e6e73;
-	}
-
-	:global(.dark) .mode-clear:hover {
-		background: #48484a;
-		color: #f5f5f7;
+		background: var(--dbg3);
+		color: var(--dt);
 	}
 
 	/* Textarea */
@@ -365,8 +342,8 @@
 		width: 100%;
 		border: none;
 		background: transparent;
-		font-size: 16px;
-		color: var(--color-text);
+		font-size: 15px;
+		color: var(--dt);
 		resize: none;
 		outline: none;
 		line-height: 1.5;
@@ -375,36 +352,23 @@
 	}
 
 	.focus-input::placeholder {
-		color: var(--color-text-muted);
-	}
-
-	:global(.dark) .focus-input {
-		color: #f5f5f7;
-	}
-
-	:global(.dark) .focus-input::placeholder {
-		color: #6e6e73;
+		color: var(--dt3);
 	}
 
 	/* Drag overlay */
 	.drag-overlay {
 		position: absolute;
 		inset: 0;
-		background: rgba(59, 130, 246, 0.1);
+		background: var(--dbg2);
 		border-radius: 16px;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
-		color: var(--color-primary, #3b82f6);
+		color: var(--dt2);
 		font-size: 14px;
 		font-weight: 500;
 		pointer-events: none;
-	}
-
-	:global(.dark) .drag-overlay {
-		background: rgba(10, 132, 255, 0.15);
-		color: #0A84FF;
 	}
 </style>

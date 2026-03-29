@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Task, TeamMemberListResponse } from '$lib/api';
 	import { api } from '$lib/api';
-	import { getPriorityColor, formatDate } from '$lib/utils/project';
+	import { formatDate, getPriorityDotVar } from '$lib/utils/project';
 
 	interface Props {
 		tasks: Task[];
@@ -246,7 +246,7 @@
 								</div>
 
 								<div class="flex items-center gap-2">
-									<span class="text-xs px-2 py-1 rounded font-medium {getPriorityColor(task.priority)}">{task.priority}</span>
+									<span class="prm-tk-priority-label"><span class="prm-tk-priority-dot" style="background: {getPriorityDotVar(task.priority)}"></span>{task.priority}</span>
 									{#if assignee}
 											<span class="text-xs px-2 py-1 rounded prm-tk-assignee font-medium flex items-center gap-1">
 											<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -345,7 +345,7 @@
 		border-color: var(--dbd, #ccc);
 	}
 	.prm-tk-checkbox:hover {
-		border-color: #9333ea;
+		border-color: var(--dt, #111);
 	}
 	.prm-tk-empty-circle {
 		background: var(--dbg2, #f5f5f5);
@@ -376,15 +376,17 @@
 	.prm-tk-row--subtask {
 		background: var(--dbg2, rgba(245,245,245,0.5));
 	}
-	.prm-tk-stat-value--blue { color: #3b82f6; }
-	.prm-tk-stat-value--green { color: #22c55e; }
-	.prm-tk-stat-value--purple { color: #9333ea; }
+	.prm-tk-stat-value--blue { color: var(--dt, #111); }
+	.prm-tk-stat-value--green { color: var(--dt, #111); }
+	.prm-tk-stat-value--purple { color: var(--dt, #111); }
 	.prm-tk-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; flex-shrink: 0; }
+	.prm-tk-priority-label { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.75rem; font-weight: 500; color: var(--dt2, #555); text-transform: capitalize; }
+	.prm-tk-priority-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 	.prm-tk-dot--gray { background: var(--dt3, #888); }
-	.prm-tk-dot--blue { background: #3b82f6; }
-	.prm-tk-dot--green { background: #22c55e; }
-	.prm-tk-row--dragover { border-top: 2px solid #9333ea; }
-	.prm-tk-checkbox--done { background: #22c55e; border-color: #22c55e; color: #fff; }
-	.prm-tk-overdue { color: #ef4444; }
-	.prm-tk-assignee { background: color-mix(in srgb, #3b82f6 15%, var(--dbg)); color: #3b82f6; }
+	.prm-tk-dot--blue { background: var(--dt2, #555); }
+	.prm-tk-dot--green { background: var(--dt3, #888); }
+	.prm-tk-row--dragover { border-top: 2px solid var(--dt, #111); }
+	.prm-tk-checkbox--done { background: var(--dt, #111); border-color: var(--dt, #111); color: var(--bos-surface-on-color, #fff); }
+	.prm-tk-overdue { color: var(--bos-status-error, #ef4444); }
+	.prm-tk-assignee { background: var(--dbg3, #eee); color: var(--dt, #111); }
 </style>

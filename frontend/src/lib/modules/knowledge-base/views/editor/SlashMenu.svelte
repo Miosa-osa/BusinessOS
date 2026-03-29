@@ -241,9 +241,7 @@
 		selectedIndex = 0;
 	});
 
-	// Export keyboard handler for parent to attach
-	// Using $state wrapper to avoid non_reactive_update warning
-	let handleKeydown = $state((e: KeyboardEvent) => {
+	function handleKeydown(e: KeyboardEvent) {
 		const items = flatItems();
 		if (!items.length) return;
 
@@ -263,7 +261,7 @@
 			e.preventDefault();
 			onClose();
 		}
-	});
+	}
 
 	function handleItemClick(type: BlockType) {
 		onSelect(createBlock(type));
@@ -278,6 +276,7 @@
 		return index + itemIndex;
 	}
 
+	// Export keyboard handler for parent to attach
 	export { handleKeydown };
 </script>
 
@@ -341,28 +340,28 @@
 		z-index: 100;
 		width: 320px;
 		max-height: 400px;
-		background: var(--dbg);
-		border: 1px solid var(--dbd);
+		background: hsl(var(--background));
+		border: 1px solid hsl(var(--border));
 		border-radius: 8px;
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+		box-shadow: 0 4px 16px hsl(var(--foreground) / 0.12);
 		overflow: hidden;
 	}
 
 	.slash-menu__header {
 		padding: 8px 12px;
-		border-bottom: 1px solid var(--dbd);
+		border-bottom: 1px solid hsl(var(--border));
 	}
 
 	.slash-menu__label {
 		font-size: 12px;
 		font-weight: 500;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 	}
 
 	.slash-menu__filter {
 		font-family: ui-monospace, monospace;
 		font-size: 14px;
-		color: var(--dt);
+		color: hsl(var(--foreground));
 	}
 
 	.slash-menu__content {
@@ -379,7 +378,7 @@
 		padding: 8px 8px 4px;
 		font-size: 11px;
 		font-weight: 600;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
 	}
@@ -400,7 +399,7 @@
 
 	.slash-menu__item:hover,
 	.slash-menu__item--selected {
-		background: var(--dbg2);
+		background: hsl(var(--muted));
 	}
 
 	.slash-menu__item-icon {
@@ -409,17 +408,17 @@
 		justify-content: center;
 		width: 40px;
 		height: 40px;
-		background: var(--dbg2);
-		border: 1px solid var(--dbd);
+		background: hsl(var(--muted));
+		border: 1px solid hsl(var(--border));
 		border-radius: 6px;
-		color: var(--dt);
+		color: hsl(var(--foreground));
 		flex-shrink: 0;
 	}
 
 	.slash-menu__item--selected .slash-menu__item-icon {
-		background: rgba(30, 150, 235, 0.1);
-		border-color: rgba(30, 150, 235, 0.3);
-		color: #1e96eb;
+		background: hsl(var(--primary) / 0.1);
+		border-color: hsl(var(--primary) / 0.3);
+		color: hsl(var(--primary));
 	}
 
 	.slash-menu__item-content {
@@ -431,13 +430,13 @@
 	.slash-menu__item-label {
 		font-size: 14px;
 		font-weight: 500;
-		color: var(--dt);
+		color: hsl(var(--foreground));
 		line-height: 1.3;
 	}
 
 	.slash-menu__item-description {
 		font-size: 12px;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		line-height: 1.4;
 		white-space: nowrap;
 		overflow: hidden;
@@ -447,9 +446,9 @@
 	.slash-menu__item-shortcut {
 		font-family: ui-monospace, monospace;
 		font-size: 12px;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		padding: 2px 6px;
-		background: var(--dbg2);
+		background: hsl(var(--muted));
 		border-radius: 4px;
 		flex-shrink: 0;
 		margin-left: auto;
@@ -459,7 +458,7 @@
 	.slash-menu__empty {
 		padding: 24px 16px;
 		text-align: center;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		font-size: 13px;
 	}
 </style>

@@ -197,7 +197,7 @@
 
 <!-- Side Peek Panel (no backdrop - true split view like Notion) -->
 <div
-	class="document-peek relative h-full bg-white dark:bg-[#1c1c1e] flex flex-col border-l border-gray-200 dark:border-gray-700 flex-shrink-0"
+	class="document-peek relative h-full bg-white dark:bg-[var(--bos-background-primary-color)] flex flex-col border-l border-gray-200 dark:border-gray-700 flex-shrink-0"
 	style="width: {width}px;"
 >
 	<!-- Resize Handle (on left edge for dragging) -->
@@ -452,7 +452,7 @@
 	}
 
 	:global(.dark) .block-menu-wrapper :global(.bg-gray-50) {
-		background-color: #1c1c1e !important;
+		background-color: var(--bos-background-primary-color) !important;
 	}
 
 	:global(.dark) .block-menu-wrapper :global(.border-gray-200) {

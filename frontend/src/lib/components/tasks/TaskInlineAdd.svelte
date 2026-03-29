@@ -56,16 +56,23 @@
 		isExpanded = true;
 	}
 
-	const priorityOptions: { value: Priority; label: string; color: string }[] = [
-		{ value: 'critical', label: 'Critical', color: 'bg-red-500' },
-		{ value: 'high', label: 'High', color: 'bg-orange-500' },
-		{ value: 'medium', label: 'Medium', color: 'bg-yellow-500' },
-		{ value: 'low', label: 'Low', color: 'bg-gray-400' }
+	const priorityDotColors: Record<Priority, string> = {
+		critical: '#ef4444',
+		high: '#f97316',
+		medium: '#eab308',
+		low: '#9ca3af'
+	};
+
+	const priorityOptions: { value: Priority; label: string }[] = [
+		{ value: 'critical', label: 'Critical' },
+		{ value: 'high', label: 'High' },
+		{ value: 'medium', label: 'Medium' },
+		{ value: 'low', label: 'Low' }
 	];
 </script>
 
 <div class="px-4 py-2 animate-in fade-in-0">
-	<div class="border border-gray-200 rounded-xl bg-white overflow-hidden focus-within:border-gray-300 focus-within:shadow-sm transition-all">
+	<div class="tia-container">
 		<input
 			bind:this={inputRef}
 			bind:value={title}
@@ -73,11 +80,11 @@
 			onfocus={handleFocus}
 			type="text"
 			placeholder="+ Add a task..."
-			class="w-full px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent"
+			class="tia-input"
 		/>
 
 		{#if isExpanded}
-			<div class="flex items-center justify-between px-3 py-2 border-t border-gray-100 bg-gray-50 animate-in slide-in-from-top-2">
+			<div class="tia-actions-bar animate-in slide-in-from-top-2">
 				<div class="flex items-center gap-2">
 					<!-- Project (if not already set) -->
 					{#if !projectId}
@@ -90,10 +97,10 @@
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Portal>
 								<DropdownMenu.Content
-									class="z-50 min-w-[160px] bg-white border border-gray-200 rounded-xl shadow-lg p-1 animate-in fade-in-0 zoom-in-95"
+									class="z-50 min-w-[160px] tia-dropdown rounded-xl p-1 animate-in fade-in-0 zoom-in-95"
 									sideOffset={4}
 								>
-									<DropdownMenu.Item class="px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg cursor-pointer">
+									<DropdownMenu.Item class="px-3 py-2 text-sm tia-dropdown-item rounded-lg cursor-pointer">
 										No projects yet
 									</DropdownMenu.Item>
 								</DropdownMenu.Content>
@@ -104,20 +111,20 @@
 					<!-- Priority -->
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger class="btn-pill btn-pill-ghost btn-pill-xs flex items-center gap-1">
-							<span class="w-2 h-2 rounded-full {priorityOptions.find(p => p.value === priority)?.color}"></span>
+							<span class="w-2 h-2 rounded-full" style="background: {priorityDotColors[priority]}"></span>
 							{priorityOptions.find(p => p.value === priority)?.label}
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Portal>
 							<DropdownMenu.Content
-								class="z-50 min-w-[140px] bg-white border border-gray-200 rounded-xl shadow-lg p-1 animate-in fade-in-0 zoom-in-95"
+								class="z-50 min-w-[140px] tia-dropdown rounded-xl p-1 animate-in fade-in-0 zoom-in-95"
 								sideOffset={4}
 							>
 								{#each priorityOptions as option}
 									<DropdownMenu.Item
-										class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer"
+										class="flex items-center gap-2 px-3 py-2 text-sm tia-dropdown-item rounded-lg cursor-pointer"
 										onclick={() => priority = option.value}
 									>
-										<span class="w-2 h-2 rounded-full {option.color}"></span>
+										<span class="w-2 h-2 rounded-full" style="background: {priorityDotColors[option.value]}"></span>
 										{option.label}
 									</DropdownMenu.Item>
 								{/each}
@@ -133,7 +140,7 @@
 						>
 							{#if assigneeId}
 								{@const selectedMember = $team.members.find(m => m.id === assigneeId)}
-								<div class="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center text-[10px] font-medium">
+								<div class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-medium" style="background: var(--dbg3, #eee); color: var(--dt, #111)">
 									{selectedMember?.name?.charAt(0) || '?'}
 								</div>
 								<span class="max-w-16 truncate">{selectedMember?.name || 'Assigned'}</span>
@@ -146,31 +153,31 @@
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Portal>
 							<DropdownMenu.Content
-								class="z-50 min-w-[180px] bg-white border border-gray-200 rounded-xl shadow-lg p-1 animate-in fade-in-0 zoom-in-95"
+								class="z-50 min-w-[180px] tia-dropdown rounded-xl p-1 animate-in fade-in-0 zoom-in-95"
 								sideOffset={4}
 							>
 								<DropdownMenu.Item
-									class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer"
+									class="flex items-center gap-2 px-3 py-2 text-sm tia-dropdown-item rounded-lg cursor-pointer"
 									onclick={() => assigneeId = undefined}
 								>
-									<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-4 h-4"  style="color: var(--dt3, #888)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
 									</svg>
 									<span>Unassigned</span>
 									{#if !assigneeId}
-										<svg class="w-4 h-4 ml-auto text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<svg class="w-4 h-4 ml-auto" style="color: var(--dt, #111)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 										</svg>
 									{/if}
 								</DropdownMenu.Item>
 								{#if $team.members.length > 0}
-									<DropdownMenu.Separator class="my-1 h-px bg-gray-200" />
+									<DropdownMenu.Separator class="my-1 h-px" style="background: var(--dbd, #e0e0e0)" />
 									{#each $team.members as member}
 										<DropdownMenu.Item
-											class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer"
+											class="flex items-center gap-2 px-3 py-2 text-sm tia-dropdown-item rounded-lg cursor-pointer"
 											onclick={() => assigneeId = member.id}
 										>
-											<div class="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium flex-shrink-0">
+											<div class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium shrink-0" style="background: var(--dbg3, #eee); color: var(--dt, #111)">
 												{member.name?.charAt(0) || '?'}
 											</div>
 											<span class="truncate">{member.name}</span>
@@ -182,9 +189,9 @@
 										</DropdownMenu.Item>
 									{/each}
 								{:else if $team.loading}
-									<div class="px-3 py-2 text-sm text-gray-500">Loading...</div>
+									<div class="px-3 py-2 text-sm" style="color: var(--dt3, #888)">Loading...</div>
 								{:else}
-									<div class="px-3 py-2 text-sm text-gray-500">No team members</div>
+									<div class="px-3 py-2 text-sm" style="color: var(--dt3, #888)">No team members</div>
 								{/if}
 							</DropdownMenu.Content>
 						</DropdownMenu.Portal>
@@ -218,3 +225,48 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	.tia-container {
+		border: 1px solid var(--dbd, #e0e0e0);
+		border-radius: 0.75rem;
+		background: var(--dbg, #fff);
+		overflow: hidden;
+		transition: all 0.15s;
+	}
+	.tia-container:focus-within {
+		border-color: var(--dt3, #888);
+		box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+	}
+	.tia-input {
+		width: 100%;
+		padding: 0.75rem 1rem;
+		font-size: 0.875rem;
+		color: var(--dt, #111);
+		background: transparent;
+		border: none;
+		outline: none;
+	}
+	.tia-input::placeholder {
+		color: var(--dt4, #bbb);
+	}
+	.tia-actions-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.5rem 0.75rem;
+		border-top: 1px solid var(--dbd2, #f0f0f0);
+		background: var(--dbg2, #f5f5f5);
+	}
+	:global(.tia-dropdown) {
+		background: var(--dbg, #fff);
+		border: 1px solid var(--dbd, #e0e0e0);
+		box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+	}
+	:global(.tia-dropdown-item) {
+		color: var(--dt, #111);
+	}
+	:global(.tia-dropdown-item:hover) {
+		background: var(--dbg2, #f5f5f5);
+	}
+</style>

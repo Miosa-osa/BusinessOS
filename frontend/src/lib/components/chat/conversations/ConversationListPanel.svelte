@@ -131,12 +131,12 @@
 	}
 
 	// Get the list of conversations to display (regular or archived)
-	const displayConversations = $derived(() => {
+	const displayConversations = $derived.by(() => {
 		return showArchived ? archivedConversations : conversations;
 	});
 
-	const filteredConversations = $derived(() => {
-		let filtered = displayConversations();
+	const filteredConversations = $derived.by(() => {
+		let filtered = displayConversations;
 
 		// Apply mode filter (Focus/Chat/All)
 		if (modeFilter === 'focus') {
@@ -180,13 +180,13 @@
 	});
 
 	// Grouped conversations for display
-	const groupedConversations = $derived(() => {
+	const groupedConversations = $derived.by(() => {
 		// Only group if not in pinned or recent tab, and not searching
 		if (filterTab !== 'all' || searchQuery) {
 			return null;
 		}
 
-		const filtered = filteredConversations();
+		const filtered = filteredConversations;
 		// Separate pinned from unpinned
 		const pinned = filtered.filter(c => c.pinned);
 		const unpinned = filtered.filter(c => !c.pinned);
@@ -198,7 +198,7 @@
 	});
 
 	// Get selected project name for display
-	const selectedProjectName = $derived(() => {
+	const selectedProjectName = $derived.by(() => {
 		if (projectFilter === 'all') return 'All Projects';
 		const project = projects.find(p => p.id === projectFilter);
 		return project?.name || 'All Projects';
@@ -292,7 +292,7 @@
 						onclick={() => showProjectDropdown = !showProjectDropdown}
 						class="w-full flex items-center justify-between px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
 					>
-						<span class="text-gray-600 truncate">{selectedProjectName()}</span>
+						<span class="text-gray-600 truncate">{selectedProjectName}</span>
 						<svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 						</svg>
@@ -347,7 +347,7 @@
 
 	<!-- Conversation List -->
 	<div class="flex-1 overflow-y-auto p-2">
-		{#if filteredConversations().length === 0}
+		{#if filteredConversations.length === 0}
 			<div class="flex flex-col items-center justify-center py-12 text-center" in:fade={{ duration: 200 }}>
 				<div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
 					<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -373,11 +373,11 @@
 					{/if}
 				</p>
 			</div>
-		{:else if groupedConversations() && !showArchived}
+		{:else if groupedConversations && !showArchived}
 			<!-- Show grouped view with date headers -->
 			<div class="space-y-4">
 				<!-- Pinned section -->
-				{#if groupedConversations()!.pinned.length > 0}
+				{#if groupedConversations.pinned.length > 0}
 					<div>
 						<div class="sticky top-0 z-10 px-2 py-1.5 bg-card/95 backdrop-blur-sm">
 							<span class="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -388,7 +388,7 @@
 							</span>
 						</div>
 						<div class="space-y-1">
-							{#each groupedConversations()!.pinned as conversation (conversation.id)}
+							{#each groupedConversations!.pinned as conversation (conversation.id)}
 								<div in:fly={{ y: 10, duration: 200 }}>
 									<ConversationListItem
 										{...conversation}
@@ -408,7 +408,7 @@
 				{/if}
 
 				<!-- Date-grouped sections -->
-				{#each groupedConversations()!.groups as group (group.label)}
+				{#each groupedConversations!.groups as group (group.label)}
 					<div>
 						<div class="sticky top-0 z-10 px-2 py-1.5 bg-card/95 backdrop-blur-sm">
 							<span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -438,7 +438,7 @@
 		{:else}
 			<!-- Flat list (for search, pinned tab, recent tab, or archived view) -->
 			<div class="space-y-1">
-				{#each filteredConversations() as conversation (conversation.id)}
+				{#each filteredConversations as conversation (conversation.id)}
 					<div in:fly={{ y: 10, duration: 200 }}>
 						<ConversationListItem
 							{...conversation}

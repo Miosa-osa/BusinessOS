@@ -31,7 +31,7 @@
 
 	const formattedParams = $derived(JSON.stringify(params, null, 2));
 
-	const statusConfig = $derived(() => {
+	const statusConfig = $derived.by(() => {
 		switch (status) {
 			case 'running':
 				return {
@@ -84,19 +84,19 @@
 </script>
 
 <div
-	class="border {statusConfig().borderColor} rounded-xl overflow-hidden {statusConfig().bgColor} shadow-sm"
+	class="border {statusConfig.borderColor} rounded-xl overflow-hidden {statusConfig.bgColor} shadow-sm"
 	id="tool-call-{toolCallId}"
 >
 	<!-- Header -->
 	<button
 		onclick={toggleExpanded}
-		class="btn-pill btn-pill-ghost btn-pill-sm w-full flex items-center gap-2 text-left {statusConfig().headerHover} transition-colors"
+		class="btn-pill btn-pill-ghost btn-pill-sm w-full flex items-center gap-2 text-left {statusConfig.headerHover} transition-colors"
 		aria-expanded={isExpanded}
 		aria-label="{isExpanded ? 'Collapse' : 'Expand'} tool call: {toolName}"
 	>
 		<!-- Chevron -->
 		<svg
-			class="w-4 h-4 {statusConfig().iconColor} transition-transform duration-200 {isExpanded ? 'rotate-90' : ''}"
+			class="w-4 h-4 {statusConfig.iconColor} transition-transform duration-200 {isExpanded ? 'rotate-90' : ''}"
 			fill="none"
 			stroke="currentColor"
 			viewBox="0 0 24 24"
@@ -109,7 +109,7 @@
 		{#if status === 'running'}
 			<!-- Spinner -->
 			<svg
-				class="w-4 h-4 {statusConfig().iconColor} animate-spin"
+				class="w-4 h-4 {statusConfig.iconColor} animate-spin"
 				fill="none"
 				viewBox="0 0 24 24"
 				aria-hidden="true"
@@ -124,7 +124,7 @@
 		{:else if status === 'completed'}
 			<!-- Checkmark -->
 			<svg
-				class="w-4 h-4 {statusConfig().iconColor}"
+				class="w-4 h-4 {statusConfig.iconColor}"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"
@@ -135,7 +135,7 @@
 		{:else}
 			<!-- X mark -->
 			<svg
-				class="w-4 h-4 {statusConfig().iconColor}"
+				class="w-4 h-4 {statusConfig.iconColor}"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"
@@ -146,25 +146,25 @@
 		{/if}
 
 		<!-- Tool Name -->
-		<span class="text-sm font-medium {statusConfig().iconColor} font-mono">{toolName}</span>
+		<span class="text-sm font-medium {statusConfig.iconColor} font-mono">{toolName}</span>
 
 		<!-- Status Badge -->
 		<span
-			class="ml-auto text-xs font-medium px-2 py-0.5 rounded {statusConfig().badgeBg} {statusConfig().badgeText}"
+			class="ml-auto text-xs font-medium px-2 py-0.5 rounded {statusConfig.badgeBg} {statusConfig.badgeText}"
 		>
-			{statusConfig().badgeLabel}
+			{statusConfig.badgeLabel}
 		</span>
 	</button>
 
 	<!-- Expanded Content -->
 	{#if isExpanded}
-		<div class="border-t {statusConfig().borderColor}">
+		<div class="border-t {statusConfig.borderColor}">
 			<!-- Params Section -->
 			<div class="px-3 pt-2 pb-1">
 				<button
 					onclick={toggleParams}
 					onkeydown={toggleParams}
-					class="btn-pill btn-pill-ghost btn-pill-xs flex items-center gap-1.5 {statusConfig().iconColor} opacity-70 hover:opacity-100 transition-opacity mb-1"
+					class="btn-pill btn-pill-ghost btn-pill-xs flex items-center gap-1.5 {statusConfig.iconColor} opacity-70 hover:opacity-100 transition-opacity mb-1"
 					aria-expanded={paramsExpanded}
 					aria-label="{paramsExpanded ? 'Collapse' : 'Expand'} parameters"
 				>
@@ -182,14 +182,14 @@
 
 				{#if paramsExpanded}
 					<pre
-						class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all max-h-48 overflow-y-auto rounded-lg p-2 bg-black/5 {statusConfig().iconColor} opacity-80 params-scroll"
+						class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all max-h-48 overflow-y-auto rounded-lg p-2 bg-black/5 {statusConfig.iconColor} opacity-80 params-scroll"
 					>{formattedParams}</pre>
 				{/if}
 			</div>
 
 			<!-- Result Section -->
 			{#if result !== undefined && result !== ''}
-				<div class="px-3 pb-2 pt-1 border-t {statusConfig().borderColor}">
+				<div class="px-3 pb-2 pt-1 border-t {statusConfig.borderColor}">
 					<button
 						onclick={() => (resultExpanded = !resultExpanded)}
 						onkeydown={(e) => {
@@ -198,7 +198,7 @@
 								resultExpanded = !resultExpanded;
 							}
 						}}
-						class="flex items-center gap-1.5 text-xs font-medium {statusConfig().iconColor} opacity-70 hover:opacity-100 transition-opacity mb-1"
+						class="flex items-center gap-1.5 text-xs font-medium {statusConfig.iconColor} opacity-70 hover:opacity-100 transition-opacity mb-1"
 						aria-expanded={resultExpanded}
 						aria-label="{resultExpanded ? 'Collapse' : 'Expand'} {status === 'error' ? 'error' : 'result'}"
 					>
@@ -215,7 +215,7 @@
 					</button>
 					{#if resultExpanded}
 						<pre
-							class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all max-h-64 overflow-y-auto rounded-lg p-2 bg-black/5 {statusConfig().iconColor} opacity-80 result-scroll"
+							class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all max-h-64 overflow-y-auto rounded-lg p-2 bg-black/5 {statusConfig.iconColor} opacity-80 result-scroll"
 						>{result}</pre>
 					{/if}
 				</div>

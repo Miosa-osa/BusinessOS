@@ -182,28 +182,33 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	{#if saveMessage}
-		<div class="p-3 rounded-lg text-sm {saveMessage.includes('Failed') || saveMessage.includes('Error') ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'}">
+		<div
+			class="p-3 rounded-lg text-sm"
+			style="{saveMessage.includes('Failed') || saveMessage.includes('Error')
+				? 'background: var(--bos-status-error-bg); color: var(--bos-status-error);'
+				: 'background: var(--bos-status-success-bg); color: var(--bos-status-success);'}"
+		>
 			{saveMessage}
 		</div>
 	{/if}
 
 	<!-- Profile Section -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Profile</h2>
-		<div class="flex items-start gap-6">
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Profile</h2>
+		<div class="flex items-start gap-4">
 			<!-- Profile Photo -->
 			<div class="flex-shrink-0">
 				<div class="relative">
 					{#if profilePhotoUrl}
-						<img src={profilePhotoUrl} alt="Profile" class="w-20 h-20 rounded-full object-cover" />
+						<img src={profilePhotoUrl} alt="Profile" class="w-14 h-14 rounded-full object-cover" />
 					{:else}
-						<div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-semibold">
+						<div class="w-14 h-14 rounded-full flex items-center justify-center text-lg font-semibold" style="background: linear-gradient(135deg, var(--bos-nav-active), var(--bos-category-ai)); color: var(--bos-surface-on-color)">
 							{($session.data?.user?.name || 'U').charAt(0).toUpperCase()}
 						</div>
 					{/if}
-					<label class="absolute bottom-0 right-0 w-8 h-8 st-upload-btn rounded-full flex items-center justify-center cursor-pointer transition-colors" aria-label="Upload profile photo">
+					<label class="absolute bottom-0 right-0 w-6 h-6 st-upload-btn rounded-full flex items-center justify-center cursor-pointer transition-colors" aria-label="Upload profile photo">
 						{#if isUploadingPhoto}
 							<svg class="animate-spin h-4 w-4 st-upload-icon" fill="none" viewBox="0 0 24 24">
 								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -221,7 +226,7 @@
 			</div>
 
 			<!-- Profile Info -->
-			<div class="flex-1 space-y-4">
+			<div class="flex-1 space-y-3">
 				{#if isEditingProfile}
 					<div>
 						<label for="edit-name" class="block text-sm font-medium st-label mb-1">Display Name</label>
@@ -229,7 +234,8 @@
 							id="edit-name"
 							type="text"
 							bind:value={editName}
-							class="w-full px-3 py-2 st-input rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							class="w-full px-3 py-2 st-input rounded-lg focus:ring-2 focus:border-transparent"
+						style="--tw-ring-color: var(--bos-status-info)"
 							placeholder="Your name"
 						/>
 					</div>
@@ -281,11 +287,11 @@
 
 	<!-- Password Section -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Password</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Password</h2>
 		{#if showPasswordChange}
 			<div class="space-y-4">
 				{#if passwordError}
-					<div class="p-3 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm">
+					<div class="p-3 rounded-lg text-sm" style="background: var(--bos-status-error-bg); color: var(--bos-status-error);">
 						{passwordError}
 					</div>
 				{/if}
@@ -353,11 +359,11 @@
 
 	<!-- Two-Factor Authentication -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Two-Factor Authentication</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Two-Factor Authentication</h2>
 		<div class="flex items-center justify-between">
 			<div>
 				<p class="font-medium st-title">2FA Status</p>
-				<p class="text-sm {twoFactorEnabled ? 'text-green-600 dark:text-green-400' : 'st-muted'}">
+				<p class="text-sm" style="{twoFactorEnabled ? 'color: var(--bos-status-success)' : ''}" class:st-muted={!twoFactorEnabled}>
 					{twoFactorEnabled ? 'Enabled - Your account is protected' : 'Disabled - Add an extra layer of security'}
 				</p>
 			</div>
@@ -372,7 +378,7 @@
 
 	<!-- Sessions -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Active Sessions</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Active Sessions</h2>
 		{#if isLoadingSessions}
 			<div class="flex items-center justify-center py-4">
 				<svg class="animate-spin h-6 w-6 st-icon" fill="none" viewBox="0 0 24 24">
@@ -394,7 +400,7 @@
 								<p class="font-medium st-title flex items-center gap-2">
 									{activeSession.device}
 									{#if activeSession.current}
-										<span class="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">Current</span>
+										<span class="text-xs px-2 py-0.5 rounded-full" style="background: var(--bos-status-success-bg); color: var(--bos-status-success);">Current</span>
 									{/if}
 								</p>
 								<p class="text-sm st-muted">{activeSession.location} • {activeSession.lastActive}</p>
@@ -403,7 +409,7 @@
 						{#if !activeSession.current}
 							<button
 								onclick={() => revokeSession(activeSession.id)}
-								class="text-sm text-red-600 dark:text-red-400 hover:underline"
+								class="text-sm hover:underline" style="color: var(--bos-status-error)"
 							>
 								Revoke
 							</button>
@@ -423,18 +429,18 @@
 
 	<!-- Privacy & Compliance -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Privacy & Compliance</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Privacy & Compliance</h2>
 		<p class="text-sm st-muted mb-3">
 			Learn how we handle your data and your rights under GDPR and other privacy regulations.
 		</p>
-		<a href="/privacy" target="_blank" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+		<a href="/privacy" target="_blank" class="text-sm hover:underline" style="color: var(--bos-status-info)">
 			View Privacy Policy
 		</a>
 	</div>
 
 	<!-- Data Export -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Data Export</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Data Export</h2>
 		<div class="flex items-center justify-between">
 			<div>
 				<p class="font-medium st-title">Export your data</p>
@@ -459,8 +465,8 @@
 	</div>
 
 	<!-- Danger Zone -->
-	<div class="card border-red-200 dark:border-red-900">
-		<h2 class="text-lg font-medium text-red-600 dark:text-red-400 mb-4">Danger Zone</h2>
+	<div class="card" style="border-color: var(--bos-status-error)">
+		<h2 class="text-xs font-semibold uppercase tracking-wide mb-3" style="color: var(--bos-status-error)">Danger Zone</h2>
 		{#if !showDeleteConfirmation}
 			<div class="flex items-center justify-between">
 				<div>
@@ -475,8 +481,8 @@
 				</button>
 			</div>
 		{:else}
-			<div class="space-y-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-				<p class="text-sm text-red-700 dark:text-red-300">
+			<div class="space-y-4 p-4 rounded-lg" style="background: var(--bos-status-error-bg)">
+				<p class="text-sm" style="color: var(--bos-status-error)">
 					Your account will be scheduled for deletion. All your data will be permanently removed within 30 days.
 					Type <strong>DELETE</strong> to confirm.
 				</p>
@@ -484,7 +490,7 @@
 					type="text"
 					bind:value={deleteConfirmText}
 					placeholder="Type DELETE to confirm"
-					class="w-full px-3 py-2 border border-red-300 dark:border-red-700 rounded-lg st-input"
+					class="w-full px-3 py-2 rounded-lg st-input" style="border-color: var(--bos-status-error)"
 				/>
 				<div class="flex gap-3">
 					<button
@@ -507,25 +513,29 @@
 </div>
 
 <style>
-	.st-title { color: var(--dt, var(--bos-text-primary, #111)); }
-	.st-muted { color: var(--dt3, var(--bos-text-tertiary, #888)); }
-	.st-label { color: var(--dt2, var(--bos-text-secondary, #555)); }
-	.st-icon  { color: var(--dt4, #bbb); }
+	.st-title { color: var(--dt); }
+	.st-muted { color: var(--dt3); }
+	.st-label { color: var(--dt2); }
+	.st-icon  { color: var(--dt4); }
 	.st-input {
-		border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
-		background: var(--dbg, var(--bos-card, #fff));
-		color: var(--dt, var(--bos-text-primary, #111));
+		border: 1px solid var(--dbd);
+		background: var(--dbg);
+		color: var(--dt);
 	}
 	.st-input-disabled {
-		border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
-		background: var(--dbg3, #eee);
-		color: var(--dt3, var(--bos-text-tertiary, #888));
+		border: 1px solid var(--dbd);
+		background: var(--dbg3);
+		color: var(--dt3);
 	}
 	.st-upload-btn {
-		background: var(--dt, var(--bos-text-primary, #111));
+		background: var(--dt);
 	}
 	.st-upload-btn:hover { opacity: 0.85; }
-	.st-upload-icon { color: var(--dbg, var(--bos-card, #fff)); }
-	.st-session-card { background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5)); }
-	.st-avatar-bg { background: var(--dbg3, #eee); }
+	.st-upload-icon { color: var(--dbg); }
+	.st-session-card {
+		background: var(--bos-settings-card-bg);
+		border: 1px solid var(--bos-settings-card-border);
+		border-radius: var(--bos-settings-card-radius);
+	}
+	.st-avatar-bg { background: var(--dbg3); }
 </style>

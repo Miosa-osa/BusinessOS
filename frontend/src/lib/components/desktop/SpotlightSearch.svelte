@@ -10,6 +10,7 @@
 	import {
 		filterSearchItems,
 		filterSlashCommands,
+		initSlashCommands,
 		loadProjects as apiLoadProjects,
 		loadModels as apiLoadModels,
 		type SearchItem,
@@ -131,6 +132,7 @@
 
 	$effect(() => {
 		if (open) {
+			initSlashCommands();
 			apiLoadProjects().then((projects) => {
 				projectsList = projects;
 			});

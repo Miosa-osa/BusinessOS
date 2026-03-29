@@ -48,8 +48,11 @@
 	// Drag and drop state
 	let draggedClient = $state<ClientListResponse | null>(null);
 	let dragOverColumn = $state<ClientStatus | null>(null);
+	// Tracks whether a drag gesture actually started so clicks are not swallowed.
+	let isDragging = false;
 
 	function handleDragStart(e: DragEvent, client: ClientListResponse) {
+		isDragging = true;
 		draggedClient = client;
 		if (e.dataTransfer) {
 			e.dataTransfer.effectAllowed = 'move';
@@ -58,6 +61,11 @@
 	}
 
 	function handleDragEnd() {
+		// Use a microtask delay so the onclick that fires after dragend sees
+		// isDragging=true and skips navigation, then we reset for next time.
+		setTimeout(() => {
+			isDragging = false;
+		}, 0);
 		draggedClient = null;
 		dragOverColumn = null;
 	}
@@ -103,17 +111,17 @@
 
 				<!-- Cards -->
 				<div class="cr-kanban-col__cards">
-					{#each columnClients as client}
+					{#each columnClients as client (client.id)}
 						<div
 							class="cr-kanban-card {draggedClient?.id === client.id ? 'cr-kanban-card--dragging' : ''}"
 							style="--stage-color: {column.color}"
 							draggable="true"
 							ondragstart={(e) => handleDragStart(e, client)}
 							ondragend={handleDragEnd}
-							onclick={() => onClientClick(client.id)}
+							onclick={() => { if (!isDragging) onClientClick(client.id); }}
 							role="button"
 							tabindex="0"
-							onkeypress={(e) => e.key === 'Enter' && onClientClick(client.id)}
+							onkeydown={(e) => e.key === 'Enter' && onClientClick(client.id)}
 							aria-label="View {client.name}"
 						>
 							<div class="cr-kanban-card__bar"></div>
@@ -206,7 +214,7 @@
 		height: 20px;
 		padding: 0 6px;
 		border-radius: 9999px;
-		background: var(--dbg, #fff);
+		background: var(--dbg);
 		border: 1px solid var(--dbd, #e0e0e0);
 		font-size: 10px;
 		font-weight: 700;
@@ -241,7 +249,7 @@
 		padding: 10px 10px 10px 8px;
 		border-radius: 10px;
 		border: 1px solid var(--dbd, #e0e0e0);
-		background: var(--dbg, #fff);
+		background: var(--dbg);
 		overflow: hidden;
 		cursor: grab;
 		transition: border-color 0.12s, box-shadow 0.12s;
@@ -318,8 +326,8 @@
 		font-size: 10px;
 		font-weight: 600;
 	}
-	.cr-type-pill--company { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
-	.cr-type-pill--individual { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
-	:global(.dark) .cr-type-pill--company { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
-	:global(.dark) .cr-type-pill--individual { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
+	.cr-type-pill--company { background: color-mix(in srgb, var(--bos-category-productivity) 10%, transparent); color: #6366f1; }
+	.cr-type-pill--individual { background: color-mix(in srgb, var(--bos-category-ai) 10%, transparent); color: #8b5cf6; }
+	:global(.dark) .cr-type-pill--company { background: color-mix(in srgb, var(--bos-category-productivity) 15%, transparent); color: var(--bos-category-productivity); }
+	:global(.dark) .cr-type-pill--individual { background: color-mix(in srgb, var(--bos-category-ai) 15%, transparent); color: var(--bos-category-ai); }
 </style>

@@ -163,7 +163,7 @@
   .browser-model-card.installed::before { background: linear-gradient(90deg, #22c55e, #16a34a); }
   .browser-model-card.default { border-color: rgba(59,130,246,0.4); background: linear-gradient(135deg, rgba(59,130,246,0.05), transparent); }
   .browser-model-card.default::before { background: linear-gradient(90deg, #3b82f6, #2563eb); }
-  :global(.dark) .browser-model-card { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.08); }
+  :global(.dark) .browser-model-card { background: rgba(255,255,255,0.02); border-color: var(--dbd2); }
   :global(.dark) .browser-model-card.installed { background: linear-gradient(135deg, rgba(34,197,94,0.08), transparent); border-color: rgba(34,197,94,0.4); }
   :global(.dark) .browser-model-card.default { background: linear-gradient(135deg, rgba(59,130,246,0.08), transparent); border-color: rgba(59,130,246,0.4); }
 
@@ -185,13 +185,13 @@
   .cap-badge.rag { background: rgba(6,182,212,0.12); color: #06b6d4; }
   .cap-badge.multilingual { background: rgba(236,72,153,0.12); color: #ec4899; }
   .cap-badge.fast { background: rgba(234,179,8,0.12); color: #eab308; }
-  :global(.dark) .cap-badge.vision { background: rgba(139,92,246,0.2); color: #a78bfa; }
-  :global(.dark) .cap-badge.tools { background: rgba(59,130,246,0.2); color: #60a5fa; }
-  :global(.dark) .cap-badge.coding { background: rgba(34,197,94,0.2); color: #4ade80; }
-  :global(.dark) .cap-badge.reasoning { background: rgba(249,115,22,0.2); color: #fb923c; }
-  :global(.dark) .cap-badge.rag { background: rgba(6,182,212,0.2); color: #22d3ee; }
-  :global(.dark) .cap-badge.multilingual { background: rgba(236,72,153,0.2); color: #f472b6; }
-  :global(.dark) .cap-badge.fast { background: rgba(234,179,8,0.2); color: #facc15; }
+  :global(.dark) .cap-badge.vision { background: color-mix(in srgb, var(--bos-category-ai) 20%, transparent); color: var(--bos-category-ai); }
+  :global(.dark) .cap-badge.tools { background: color-mix(in srgb, var(--bos-status-info) 20%, transparent); color: var(--bos-status-info); }
+  :global(.dark) .cap-badge.coding { background: color-mix(in srgb, var(--bos-status-success) 20%, transparent); color: var(--bos-status-success); }
+  :global(.dark) .cap-badge.reasoning { background: color-mix(in srgb, var(--bos-priority-high) 20%, transparent); color: var(--bos-priority-high); }
+  :global(.dark) .cap-badge.rag { background: color-mix(in srgb, var(--bos-category-automation) 20%, transparent); color: var(--bos-category-automation); }
+  :global(.dark) .cap-badge.multilingual { background: color-mix(in srgb, var(--bos-category-communication) 20%, transparent); color: var(--bos-category-communication); }
+  :global(.dark) .cap-badge.fast { background: color-mix(in srgb, var(--bos-status-warning) 20%, transparent); color: var(--bos-status-warning); }
   .cap-badge-icon-svg { width: 12px; height: 12px; flex-shrink: 0; }
   .cap-badge-label { font-weight: 500; }
 
@@ -202,7 +202,7 @@
   .variant-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 12px; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; cursor: pointer; transition: all 0.2s ease; min-width: 52px; }
   .variant-btn:hover { border-color: var(--color-border-hover); background: var(--color-bg-tertiary); transform: translateY(-1px); }
   .variant-btn.selected { border-color: #3b82f6; background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05)); box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
-  :global(.dark) .variant-btn { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); }
+  :global(.dark) .variant-btn { background: rgba(255,255,255,0.03); border-color: var(--dbd2); }
   :global(.dark) .variant-btn:hover { background: rgba(255,255,255,0.06); }
   :global(.dark) .variant-btn.selected { background: linear-gradient(135deg, rgba(59,130,246,0.25), rgba(59,130,246,0.1)); box-shadow: 0 0 0 2px rgba(59,130,246,0.3); }
   .variant-params { font-size: 12px; font-weight: 700; color: var(--color-text); font-family: 'SF Mono','Menlo',monospace; }
@@ -221,7 +221,7 @@
   .bmc-btn.default-btn { background: rgba(128,128,128,0.15); border: 1px solid var(--color-border); color: var(--color-text); }
   .bmc-btn.default-btn:hover { background: rgba(128,128,128,0.25); }
   .bmc-btn.default-btn.is-default { background: var(--color-primary); border-color: var(--color-primary); color: white; }
-  :global(.dark) .bmc-btn.default-btn { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.15); }
+  :global(.dark) .bmc-btn.default-btn { background: rgba(255,255,255,0.1); border-color: var(--dbd); }
   :global(.dark) .bmc-btn.default-btn:hover { background: rgba(255,255,255,0.15); }
   .bmc-btn.delete-btn { background: transparent; color: var(--color-error); padding: 8px; border: 1px solid var(--color-border); }
   .bmc-btn.delete-btn:hover { background: rgba(220,38,38,0.1); border-color: var(--color-error); }

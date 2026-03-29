@@ -185,10 +185,10 @@
 		></button>
 
 		<!-- Modal -->
-		<div class="relative w-full max-w-md rounded-xl bg-white shadow-2xl">
+		<div class="relative w-full max-w-md rounded-xl shadow-2xl" style="background: var(--dbg);">
 			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-				<h2 id="filter-modal-title" class="text-lg font-semibold text-gray-900">
+			<div class="flex items-center justify-between px-6 py-4" style="border-bottom: 1px solid var(--dbd);">
+				<h2 id="filter-modal-title" class="text-lg font-semibold" style="color: var(--dt);">
 					{editFilter ? 'Edit Filter' : 'Add Filter'}
 				</h2>
 				<button
@@ -203,21 +203,22 @@
 			<!-- Form -->
 			<form onsubmit={handleSubmit} class="p-6">
 				{#if error}
-					<div class="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+					<div class="mb-4 rounded-lg p-3 text-sm" style="background: var(--bos-background-error-color); color: var(--bos-status-error-text);">
 						{error}
 					</div>
 				{/if}
 
 				<!-- Column Selection -->
 				<div class="mb-4">
-					<label for="filter-column" class="mb-1.5 block text-sm font-medium text-gray-700">
+					<label for="filter-column" class="mb-1.5 block text-sm font-medium" style="color: var(--dt2);">
 						Column
 					</label>
 					<select
 						id="filter-column"
 						value={columnId}
 						onchange={(e) => handleColumnChange(e.currentTarget.value)}
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+						class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+						style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt);"
 					>
 						<option value="" disabled>Select a column</option>
 						{#each columns as col}
@@ -228,13 +229,14 @@
 
 				<!-- Operator Selection -->
 				<div class="mb-4">
-					<label for="filter-operator" class="mb-1.5 block text-sm font-medium text-gray-700">
+					<label for="filter-operator" class="mb-1.5 block text-sm font-medium" style="color: var(--dt2);">
 						Condition
 					</label>
 					<select
 						id="filter-operator"
 						bind:value={operator}
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+						class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+						style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt);"
 					>
 						{#each availableOperators as op}
 							<option value={op}>{operatorLabels[op]}</option>
@@ -245,7 +247,7 @@
 				<!-- Value Input -->
 				{#if needsValue}
 					<div class="mb-4">
-						<label for="filter-value" class="mb-1.5 block text-sm font-medium text-gray-700">
+						<label for="filter-value" class="mb-1.5 block text-sm font-medium" style="color: var(--dt2);">
 							Value
 						</label>
 
@@ -254,7 +256,8 @@
 							<select
 								id="filter-value"
 								bind:value
-								class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+								class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+								style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt);"
 							>
 								<option value="">Select an option</option>
 								{#each selectedColumn.options.choices as choice}
@@ -270,9 +273,10 @@
 										name="checkbox-value"
 										checked={value === true}
 										onchange={() => (value = true)}
-										class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+										class="h-4 w-4"
+										style="border-color: var(--dbd); accent-color: var(--bos-brand-color);"
 									/>
-									<span class="text-sm text-gray-700">Checked</span>
+									<span class="text-sm" style="color: var(--dt2);">Checked</span>
 								</label>
 								<label class="flex items-center gap-2">
 									<input
@@ -280,9 +284,10 @@
 										name="checkbox-value"
 										checked={value === false}
 										onchange={() => (value = false)}
-										class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+										class="h-4 w-4"
+										style="border-color: var(--dbd); accent-color: var(--bos-brand-color);"
 									/>
-									<span class="text-sm text-gray-700">Unchecked</span>
+									<span class="text-sm" style="color: var(--dt2);">Unchecked</span>
 								</label>
 							</div>
 						{:else}
@@ -292,7 +297,8 @@
 								type={getInputType(selectedColumn?.type)}
 								bind:value
 								placeholder="Enter value..."
-								class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+								class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+								style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt);"
 							/>
 						{/if}
 					</div>
@@ -301,7 +307,7 @@
 				<!-- Logical Operator (for additional filters) -->
 				{#if editFilter}
 					<div class="mb-6">
-						<label class="mb-1.5 block text-sm font-medium text-gray-700">
+						<label class="mb-1.5 block text-sm font-medium" style="color: var(--dt2);">
 							Combine with
 						</label>
 						<div class="flex gap-4">
@@ -311,9 +317,10 @@
 									name="logical-op"
 									value="and"
 									bind:group={logicalOp}
-									class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+									class="h-4 w-4"
+									style="accent-color: var(--bos-brand-color);"
 								/>
-								<span class="text-sm text-gray-700">AND</span>
+								<span class="text-sm" style="color: var(--dt2);">AND</span>
 							</label>
 							<label class="flex items-center gap-2">
 								<input
@@ -321,9 +328,10 @@
 									name="logical-op"
 									value="or"
 									bind:group={logicalOp}
-									class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+									class="h-4 w-4"
+									style="accent-color: var(--bos-brand-color);"
 								/>
-								<span class="text-sm text-gray-700">OR</span>
+								<span class="text-sm" style="color: var(--dt2);">OR</span>
 							</label>
 						</div>
 					</div>
@@ -340,7 +348,7 @@
 					</button>
 					<button
 						type="submit"
-						class="btn-pill btn-pill-primary btn-pill-sm"
+						class="btn-cta"
 					>
 						{editFilter ? 'Update Filter' : 'Add Filter'}
 					</button>

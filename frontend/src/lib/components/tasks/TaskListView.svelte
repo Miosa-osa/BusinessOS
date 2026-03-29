@@ -56,18 +56,18 @@
 	let showInlineAdd = $state<string | null>(null);
 
 	const statusConfig: Record<TaskStatus, { label: string; color: string; order: number }> = {
-		todo: { label: 'To Do', color: '#6B7280', order: 0 },
-		in_progress: { label: 'In Progress', color: '#3B82F6', order: 1 },
-		in_review: { label: 'In Review', color: '#8B5CF6', order: 2 },
-		done: { label: 'Done', color: '#10B981', order: 3 },
-		blocked: { label: 'Blocked', color: '#F59E0B', order: 4 }
+		todo: { label: 'To Do', color: 'var(--status-todo)', order: 0 },
+		in_progress: { label: 'In Progress', color: 'var(--status-in-progress)', order: 1 },
+		in_review: { label: 'In Review', color: 'var(--status-in-review)', order: 2 },
+		done: { label: 'Done', color: 'var(--status-done)', order: 3 },
+		blocked: { label: 'Blocked', color: 'var(--status-blocked)', order: 4 }
 	};
 
 	const priorityConfig: Record<Priority, { label: string; color: string; order: number }> = {
-		critical: { label: 'Critical', color: '#EF4444', order: 0 },
-		high: { label: 'High', color: '#F97316', order: 1 },
-		medium: { label: 'Medium', color: '#EAB308', order: 2 },
-		low: { label: 'Low', color: '#6B7280', order: 3 }
+		critical: { label: 'Critical', color: 'var(--priority-critical)', order: 0 },
+		high: { label: 'High', color: 'var(--priority-high)', order: 1 },
+		medium: { label: 'Medium', color: 'var(--priority-medium)', order: 2 },
+		low: { label: 'Low', color: 'var(--priority-low)', order: 3 }
 	};
 
 	interface GroupedTasks {
@@ -82,7 +82,7 @@
 		let filtered = showDoneTasks ? tasks : tasks.filter(t => t.status !== 'done');
 
 		if (groupBy === 'none') {
-			return [{ key: 'all', label: 'All Tasks', color: '#6B7280', tasks: filtered, order: 0 }];
+			return [{ key: 'all', label: 'All Tasks', color: 'var(--status-todo)', tasks: filtered, order: 0 }];
 		}
 
 		const groups: Map<string, GroupedTasks> = new Map();
@@ -109,19 +109,19 @@
 				case 'project':
 					key = task.projectId || 'no-project';
 					label = task.projectName || 'No Project';
-					color = task.projectColor || '#6B7280';
+					color = task.projectColor || 'var(--status-todo)';
 					order = task.projectName ? 0 : 999;
 					break;
 				case 'assignee':
 					key = task.assignee?.id || 'unassigned';
 					label = task.assignee?.name || 'Unassigned';
-					color = '#6B7280';
+					color = 'var(--status-todo)';
 					order = task.assignee ? 0 : 999;
 					break;
 				default:
 					key = 'all';
 					label = 'All Tasks';
-					color = '#6B7280';
+					color = 'var(--status-todo)';
 					order = 0;
 			}
 
@@ -221,9 +221,12 @@
 				<p class="tb-empty-text mb-4">Create your first task to start tracking work</p>
 				<button
 					onclick={() => showInlineAdd = 'all'}
-					class="btn-pill btn-pill-primary"
+					class="btn-cta"
 				>
-					+ Create your first task
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+					</svg>
+					Create your first task
 				</button>
 			{:else}
 				<div class="w-full max-w-2xl">

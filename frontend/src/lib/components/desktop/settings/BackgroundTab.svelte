@@ -266,7 +266,7 @@
 	.section-title {
 		font-size: 13px;
 		font-weight: 600;
-		color: #333;
+		color: var(--dt);
 		display: block;
 		margin-bottom: 12px;
 	}
@@ -283,7 +283,7 @@
 		height: 28px;
 		border-radius: 50%;
 		border: 1px solid #ddd;
-		background: white;
+		background: var(--dbg);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
@@ -478,7 +478,7 @@
 		align-items: center;
 		gap: 12px;
 		padding: 12px;
-		background: white;
+		background: var(--dbg);
 		border: 1px solid #e5e5e5;
 		border-radius: 8px;
 	}
@@ -503,7 +503,7 @@
 	.preview-label {
 		font-size: 13px;
 		font-weight: 600;
-		color: #333;
+		color: var(--dt);
 	}
 
 	.preview-status {
@@ -535,7 +535,7 @@
 
 	.remove-btn {
 		padding: 8px 14px;
-		background: #fff;
+		background: var(--dbg);
 		border: 1px solid #dc3545;
 		border-radius: 6px;
 		font-size: 12px;

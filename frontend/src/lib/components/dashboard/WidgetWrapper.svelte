@@ -3,16 +3,14 @@
 
 	interface Props {
 		children: Snippet;
-		/** Optional accent color for left border strip (e.g., 'blue', 'green', 'purple', 'orange', 'pink') */
-		accent?: 'blue' | 'green' | 'purple' | 'orange' | 'pink' | 'cyan' | 'none';
 		/** Extra CSS classes to apply */
 		class?: string;
 	}
 
-	let { children, accent = 'none', class: extraClass = '' }: Props = $props();
+	let { children, class: extraClass = '' }: Props = $props();
 </script>
 
-<div class="widget-card {accent !== 'none' ? `widget-accent-${accent}` : ''} {extraClass}">
+<div class="widget-card {extraClass}">
 	{@render children()}
 </div>
 
@@ -29,26 +27,6 @@
 
 	.widget-card:hover {
 		box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.07));
-	}
-
-	/* Accent left border variants */
-	.widget-accent-blue {
-		border-left: 3px solid #3b82f6;
-	}
-	.widget-accent-green {
-		border-left: 3px solid #22c55e;
-	}
-	.widget-accent-purple {
-		border-left: 3px solid #a855f7;
-	}
-	.widget-accent-orange {
-		border-left: 3px solid #f97316;
-	}
-	.widget-accent-pink {
-		border-left: 3px solid #ec4899;
-	}
-	.widget-accent-cyan {
-		border-left: 3px solid #06b6d4;
 	}
 
 	/* Subtle glass effect — activates automatically in dark mode via token values */

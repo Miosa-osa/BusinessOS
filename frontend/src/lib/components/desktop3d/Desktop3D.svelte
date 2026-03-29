@@ -660,10 +660,10 @@ RESPOND NOW:`;
 		inset: 0;
 		/* Light mode: white top, gray bottom - floating room effect */
 		background: linear-gradient(180deg,
-			#ffffff 0%,
-			#fafafa 30%,
-			#e8e8e8 70%,
-			#c8c8c8 100%
+			var(--dbg) 0%,
+			var(--dbg) 30%,
+			var(--dbg2) 70%,
+			var(--dbd) 100%
 		);
 		overflow: hidden;
 	}
@@ -715,7 +715,7 @@ RESPOND NOW:`;
 	.nav-arrow svg {
 		width: 28px;
 		height: 28px;
-		stroke: #333;
+		stroke: var(--dt);
 	}
 
 	.nav-arrow-left {
@@ -739,7 +739,7 @@ RESPOND NOW:`;
 	}
 
 	:global(.dark) .nav-arrow svg {
-		stroke: #ffffff;
+		stroke: var(--dt);
 	}
 
 	/* Gesture Control Toggle Button */
@@ -754,7 +754,7 @@ RESPOND NOW:`;
 		background: rgba(15, 15, 20, 0.95);
 		border: 1px solid rgba(255, 255, 255, 0.1);
 		border-radius: 12px;
-		color: #fff;
+		color: var(--bos-surface-on-color);
 		font-size: 14px;
 		font-weight: 600;
 		cursor: pointer;
@@ -771,14 +771,14 @@ RESPOND NOW:`;
 	}
 
 	.gesture-toggle-btn.active {
-		background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
-		color: #000;
-		border-color: #00ff00;
+		background: linear-gradient(135deg, var(--bos-status-success) 0%, var(--bos-status-success) 100%);
+		color: var(--dt);
+		border-color: var(--bos-status-success);
 		box-shadow: 0 0 24px rgba(0, 255, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.3);
 	}
 
 	.gesture-toggle-btn.active:hover {
-		background: linear-gradient(135deg, #00ff00 0%, #00dd00 100%);
+		background: linear-gradient(135deg, var(--bos-status-success) 0%, var(--bos-status-success) 100%);
 		box-shadow: 0 0 32px rgba(0, 255, 0, 0.7), 0 8px 24px rgba(0, 0, 0, 0.3);
 	}
 
@@ -789,7 +789,7 @@ RESPOND NOW:`;
 	}
 
 	.gesture-toggle-btn.active svg {
-		stroke: #000;
+		stroke: var(--dt);
 		animation: wave 2s ease-in-out infinite;
 	}
 

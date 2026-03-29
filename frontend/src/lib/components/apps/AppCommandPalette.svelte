@@ -14,7 +14,8 @@
 		Calendar,
 		BarChart3,
 		Wallet,
-		ArrowRight
+		ArrowRight,
+		Plus
 	} from 'lucide-svelte';
 
 	interface Props {
@@ -228,7 +229,7 @@
 		>
 			<!-- Search Input -->
 			<div class="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-				<Search class="w-5 h-5 text-gray-400 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
+				<Search size={20} class="text-gray-400 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
 				<input
 					bind:this={inputElement}
 					type="text"
@@ -269,7 +270,7 @@
 										{isSelected(idx) ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}"
 								>
 									<div class="w-9 h-9 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 flex-shrink-0">
-										<svelte:component this={getAppIcon(app.name)} class="w-5 h-5" strokeWidth={1.5} />
+										<svelte:component this={getAppIcon(app.name)} size={20} strokeWidth={2} />
 									</div>
 									<div class="flex-1 min-w-0">
 										<div class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
@@ -280,7 +281,7 @@
 										</div>
 									</div>
 									{#if isSelected(idx)}
-										<ArrowRight class="w-4 h-4 text-blue-500 flex-shrink-0" />
+										<ArrowRight size={20} class="text-blue-500 flex-shrink-0" />
 									{/if}
 								</button>
 							{/each}
@@ -305,7 +306,7 @@
 										{isSelected(idx) ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}"
 								>
 									<div class="w-9 h-9 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 flex-shrink-0">
-										<svelte:component this={getAppIcon(app.name)} class="w-5 h-5" strokeWidth={1.5} />
+										<svelte:component this={getAppIcon(app.name)} size={20} strokeWidth={2} />
 									</div>
 									<div class="flex-1 min-w-0">
 										<div class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
@@ -316,7 +317,7 @@
 										</div>
 									</div>
 									{#if isSelected(idx)}
-										<ArrowRight class="w-4 h-4 text-blue-500 flex-shrink-0" />
+										<ArrowRight size={20} class="text-blue-500 flex-shrink-0" />
 									{/if}
 								</button>
 							{/each}
@@ -338,7 +339,7 @@
 										{isSelected(idx) ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}"
 								>
 									<div class="w-9 h-9 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 flex-shrink-0">
-										<svelte:component this={getAppIcon(app.name)} class="w-5 h-5" strokeWidth={1.5} />
+										<svelte:component this={getAppIcon(app.name)} size={20} strokeWidth={2} />
 									</div>
 									<div class="flex-1 min-w-0">
 										<div class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
@@ -349,7 +350,7 @@
 										</div>
 									</div>
 									{#if isSelected(idx)}
-										<ArrowRight class="w-4 h-4 text-blue-500 flex-shrink-0" />
+										<ArrowRight size={20} class="text-blue-500 flex-shrink-0" />
 									{/if}
 								</button>
 							{/each}
@@ -365,9 +366,7 @@
 							{flatResults.length > 0 && isSelected(flatResults.length - 1) ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}"
 					>
 						<div class="w-9 h-9 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center text-gray-400 dark:text-gray-500 flex-shrink-0">
-							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-							</svg>
+							<Plus size={20} strokeWidth={2} />
 						</div>
 						<div class="flex-1 min-w-0">
 							<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -378,7 +377,7 @@
 							</div>
 						</div>
 						{#if flatResults.length > 0 && isSelected(flatResults.length - 1)}
-							<ArrowRight class="w-4 h-4 text-blue-500 flex-shrink-0" />
+							<ArrowRight size={20} class="text-blue-500 flex-shrink-0" />
 						{/if}
 					</button>
 				</div>

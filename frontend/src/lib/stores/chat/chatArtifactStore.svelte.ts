@@ -284,53 +284,17 @@ function createChatArtifactStore() {
     }
   }
 
+  // autoSaveArtifact no longer persists to the API — the backend handles
+  // persistence in postProcessStream after the stream ends. This function
+  // is kept for backward-compatibility with any callers that may still
+  // reference it, but it is now a no-op that returns null.
+  // Use loadArtifacts() after the stream ends to sync from the database.
   async function autoSaveArtifact(
-    artifactData: { title: string; type: string; content: string },
-    conversationId: string | null,
-    selectedProjectId: string | null,
+    _artifactData: { title: string; type: string; content: string },
+    _conversationId: string | null,
+    _selectedProjectId: string | null,
   ): Promise<Artifact | null> {
-    const safeType = ALLOWED_ARTIFACT_TYPES.has(
-      artifactData.type as typeof ALLOWED_ARTIFACT_TYPES extends Set<infer T>
-        ? T
-        : never,
-    )
-      ? (artifactData.type as
-          | "proposal"
-          | "sop"
-          | "framework"
-          | "agenda"
-          | "report"
-          | "plan"
-          | "code"
-          | "document"
-          | "markdown"
-          | "other")
-      : "other";
-
-    const { data: savedArtifact } = await handleApiCall(
-      async () =>
-        api.createArtifact({
-          title: artifactData.title,
-          type: safeType,
-          content: artifactData.content,
-          conversation_id: conversationId || undefined,
-          project_id: selectedProjectId || undefined,
-        }),
-      {
-        showErrorToast: true,
-        showSuccessToast: false,
-        errorMessage: "Failed to auto-save artifact",
-      },
-    );
-
-    if (savedArtifact) {
-      await loadArtifacts();
-      selectedArtifact = savedArtifact;
-      viewingArtifactFromMessage = null;
-      artifactsPanelOpen = true;
-      return savedArtifact;
-    }
-
+    // Intentionally empty: backend saves the artifact; frontend syncs via loadArtifacts().
     return null;
   }
 
@@ -602,16 +566,19 @@ function createChatArtifactStore() {
     artifactsPanelOpen = true;
   }
 
-  async function onArtifactComplete(
-    artifact: { title: string; artifactType: string; content: string },
-    conversationId: string | null,
-    selectedProjectId: string | null,
-  ): Promise<void> {
+  function onArtifactComplete(artifact: {
+    title: string;
+    artifactType: string;
+    content: string;
+  }): void {
     const processedContent = artifact.content
       .replace(/\\n/g, "\n")
       .replace(/\\"/g, '"')
       .replace(/\\\\/g, "\\");
 
+    // Update local UI state immediately so the panel renders the artifact
+    // before the backend finishes persisting it. The backend (postProcessStream)
+    // is the single source of truth for persistence — no API call is made here.
     viewingArtifactFromMessage = {
       title: artifact.title,
       type: artifact.artifactType,
@@ -623,16 +590,6 @@ function createChatArtifactStore() {
     artifactCompletedInStream = true;
     generatingArtifactTitle = artifact.title;
     generatingArtifactType = artifact.artifactType;
-
-    await autoSaveArtifact(
-      {
-        title: artifact.title,
-        type: artifact.artifactType,
-        content: processedContent,
-      },
-      conversationId,
-      selectedProjectId,
-    );
   }
 
   // ── Public surface ───────────────────────────────────────────────────────────

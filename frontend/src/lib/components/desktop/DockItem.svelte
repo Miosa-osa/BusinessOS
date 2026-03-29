@@ -358,7 +358,7 @@
 
 	/* Paper */
 	.dock-item.style-paper .dock-icon {
-		background: #FFFFFF !important;
+		background: var(--dbg) !important;
 		border-radius: 8px;
 		box-shadow:
 			0 1px 3px rgba(0, 0, 0, 0.08),
@@ -448,7 +448,7 @@
 
 	/* Brutalist */
 	.dock-item.style-brutalist .dock-icon {
-		background: #fff !important;
+		background: var(--dbg) !important;
 		border-radius: 0;
 		border: 3px solid #000;
 		box-shadow: 4px 4px 0 #000;

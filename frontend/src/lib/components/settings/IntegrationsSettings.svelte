@@ -51,21 +51,26 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	{#if googleMessage}
-		<div class="p-4 rounded-lg {googleMessage.includes('Error') || googleMessage.includes('Failed') ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'}">
+		<div
+			class="p-4 rounded-lg"
+			style="{googleMessage.includes('Error') || googleMessage.includes('Failed')
+				? 'background: var(--bos-status-error-bg); color: var(--bos-status-error);'
+				: 'background: var(--bos-status-success-bg); color: var(--bos-status-success);'}"
+		>
 			{googleMessage}
 		</div>
 	{/if}
 
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Google Calendar</h2>
-		<p class="text-sm st-muted mb-6">
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Google Calendar</h2>
+		<p class="text-sm st-muted mb-4">
 			Connect your Google Calendar to sync events, see your schedule, and let the AI help plan your tasks around your existing commitments.
 		</p>
 
 		{#if googleStatus?.connected}
-			<div class="flex items-center justify-between p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+			<div class="flex items-center justify-between p-4 rounded-lg" style="background: var(--bos-status-success-bg); border: 1px solid var(--bos-status-success)">
 				<div class="flex items-center gap-4">
 					<div class="w-12 h-12 rounded-full st-int-icon-bg flex items-center justify-center shadow-sm">
 						<svg class="w-6 h-6" viewBox="0 0 24 24">
@@ -76,12 +81,12 @@
 						</svg>
 					</div>
 					<div>
-						<p class="font-medium text-green-800 dark:text-green-400">Connected</p>
+						<p class="font-medium" style="color: var(--bos-status-success)">Connected</p>
 						{#if googleStatus.email}
-							<p class="text-sm text-green-600 dark:text-green-500">{googleStatus.email}</p>
+							<p class="text-sm" style="color: var(--bos-status-success)">{googleStatus.email}</p>
 						{/if}
 						{#if googleStatus.connected_at}
-							<p class="text-xs text-green-500 dark:text-green-600">
+							<p class="text-xs" style="color: var(--bos-status-success); opacity: 0.8">
 								Connected {new Date(googleStatus.connected_at).toLocaleDateString()}
 							</p>
 						{/if}
@@ -148,7 +153,7 @@
 	</div>
 
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">More Integrations</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">More Integrations</h2>
 		<p class="text-sm st-muted mb-4">
 			Additional integrations coming soon. Let us know what you'd like to see!
 		</p>
@@ -165,21 +170,22 @@
 </div>
 
 <style>
-	.st-title { color: var(--dt, var(--bos-text-primary, #111)); }
-	.st-muted { color: var(--dt3, var(--bos-text-tertiary, #888)); }
-	.st-label { color: var(--dt2, var(--bos-text-secondary, #555)); }
-	.st-icon  { color: var(--dt4, #bbb); }
+	.st-title { color: var(--dt); }
+	.st-muted { color: var(--dt3); }
+	.st-label { color: var(--dt2); }
+	.st-icon  { color: var(--dt4); }
 	.st-int-disconnected {
-		background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5));
-		border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
+		background: var(--bos-settings-card-bg);
+		border: 1px solid var(--bos-settings-card-border);
+		border-radius: var(--bos-settings-card-radius);
 	}
 	.st-int-icon-bg {
-		background: var(--dbg, var(--bos-card, #fff));
+		background: var(--dbg);
 	}
 	.st-int-coming-soon {
-		border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
+		border: 1px solid var(--dbd);
 	}
 	.st-int-placeholder {
-		background: var(--dbg3, #eee);
+		background: var(--dbg3);
 	}
 </style>

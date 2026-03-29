@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { learning } from '$lib/stores/learning';
 	import type { PersonalizationProfile, DetectedPattern } from '$lib/api/learning';
 
@@ -9,7 +8,7 @@
 	let isSavingPersonalization = $state(false);
 	let saveMessage = $state('');
 
-	onMount(() => {
+	$effect(() => {
 		loadPersonalizationData();
 	});
 
@@ -64,26 +63,31 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	{#if isLoadingPersonalization}
 		<div class="flex items-center justify-center py-12">
 			<div class="animate-spin h-8 w-8 border-2 st-spinner border-t-transparent rounded-full"></div>
 		</div>
 	{:else}
 		{#if saveMessage}
-			<div class="p-3 rounded-lg text-sm {saveMessage.includes('Error') ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'}">
+			<div
+				class="p-3 rounded-lg text-sm"
+				style="{saveMessage.includes('Error')
+					? 'background: var(--bos-status-error-bg); color: var(--bos-status-error);'
+					: 'background: var(--bos-status-success-bg); color: var(--bos-status-success);'}"
+			>
 				{saveMessage}
 			</div>
 		{/if}
 
 		<!-- AI Response Preferences -->
 		<div class="card">
-			<h2 class="text-lg font-medium st-title mb-2">Response Preferences</h2>
+			<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-2">Response Preferences</h2>
 			<p class="text-sm st-muted mb-6">
 				Customize how the AI responds to you. These preferences help personalize your experience.
 			</p>
 
-			<div class="space-y-6">
+			<div class="space-y-4">
 				<!-- Tone -->
 				<div>
 					<span class="block text-sm font-medium st-label mb-2">Preferred Tone</span>
@@ -91,7 +95,7 @@
 						{#each ['formal', 'professional', 'casual', 'friendly'] as tone}
 							<button
 								onclick={() => personalizationProfile && (personalizationProfile.preferred_tone = tone as PersonalizationProfile['preferred_tone'])}
-								class="p-3 rounded-lg border-2 text-sm font-medium transition-colors {personalizationProfile?.preferred_tone === tone
+								class="p-2.5 rounded-lg border text-sm font-medium transition-colors {personalizationProfile?.preferred_tone === tone
 									? 'st-opt-selected'
 									: 'st-opt'}"
 							>
@@ -108,7 +112,7 @@
 						{#each ['concise', 'balanced', 'detailed'] as verbosity}
 							<button
 								onclick={() => personalizationProfile && (personalizationProfile.preferred_verbosity = verbosity as PersonalizationProfile['preferred_verbosity'])}
-								class="p-3 rounded-lg border-2 text-sm font-medium transition-colors {personalizationProfile?.preferred_verbosity === verbosity
+								class="p-2.5 rounded-lg border text-sm font-medium transition-colors {personalizationProfile?.preferred_verbosity === verbosity
 									? 'st-opt-selected'
 									: 'st-opt'}"
 							>
@@ -125,7 +129,7 @@
 						{#each ['prose', 'bullets', 'structured', 'mixed'] as format}
 							<button
 								onclick={() => personalizationProfile && (personalizationProfile.preferred_format = format as PersonalizationProfile['preferred_format'])}
-								class="p-3 rounded-lg border-2 text-sm font-medium transition-colors {personalizationProfile?.preferred_format === format
+								class="p-2.5 rounded-lg border text-sm font-medium transition-colors {personalizationProfile?.preferred_format === format
 									? 'st-opt-selected'
 									: 'st-opt'}"
 							>
@@ -179,7 +183,7 @@
 		<!-- Detected Patterns -->
 		{#if detectedPatterns.length > 0}
 			<div class="card">
-				<h2 class="text-lg font-medium st-title mb-2">Detected Patterns</h2>
+				<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-2">Detected Patterns</h2>
 				<p class="text-sm st-muted mb-4">
 					The AI has learned these patterns from your interactions.
 				</p>
@@ -192,7 +196,14 @@
 							</div>
 							<div class="flex items-center gap-2">
 								<span class="text-xs st-icon">{pattern.observation_count} observations</span>
-								<span class="px-2 py-1 text-xs font-medium rounded-full {pattern.confidence_score >= 0.8 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : pattern.confidence_score >= 0.5 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : 'st-low-confidence'}">
+								<span
+								class="px-2 py-1 text-xs font-medium rounded-full {pattern.confidence_score < 0.5 ? 'st-low-confidence' : ''}"
+								style="{pattern.confidence_score >= 0.8
+									? 'background: var(--bos-status-success-bg); color: var(--bos-status-success);'
+									: pattern.confidence_score >= 0.5
+									? 'background: var(--bos-status-warning-bg); color: var(--bos-status-warning);'
+									: ''}"
+							>
 									{Math.round(pattern.confidence_score * 100)}%
 								</span>
 							</div>
@@ -204,14 +215,14 @@
 
 		<!-- Expertise & Learning Areas -->
 		<div class="card">
-			<h2 class="text-lg font-medium st-title mb-4">Knowledge Areas</h2>
+			<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Knowledge Areas</h2>
 			<div class="space-y-4">
 				<div>
 					<span class="block text-sm font-medium st-label mb-2">Your Expertise</span>
 					<p class="text-sm st-muted mb-2">Areas where you have strong knowledge</p>
 					<div class="flex flex-wrap gap-2">
 						{#each personalizationProfile?.expertise_areas || [] as area}
-							<span class="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded-full text-sm">
+							<span class="px-3 py-1 rounded-full text-sm" style="background: var(--bos-status-info-bg); color: var(--bos-status-info)">
 								{area}
 							</span>
 						{/each}
@@ -226,7 +237,7 @@
 					<p class="text-sm st-muted mb-2">Topics you're actively learning about</p>
 					<div class="flex flex-wrap gap-2">
 						{#each personalizationProfile?.learning_areas || [] as area}
-							<span class="px-3 py-1 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 rounded-full text-sm">
+							<span class="px-3 py-1 rounded-full text-sm" style="background: color-mix(in srgb, var(--bos-category-ai) 12%, transparent); color: var(--bos-category-ai)">
 								{area}
 							</span>
 						{/each}
@@ -243,7 +254,7 @@
 			<button
 				onclick={savePersonalizationProfile}
 				disabled={isSavingPersonalization || !personalizationProfile}
-				class="btn-pill btn-pill-primary btn-pill-sm"
+				class="btn-pill btn-pill-ghost btn btn-primary"
 			>
 				{#if isSavingPersonalization}
 					<svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -260,33 +271,31 @@
 </div>
 
 <style>
-	.card {
-		background: var(--dbg, #fff);
-		border: 1px solid var(--dbd, #e5e7eb);
-		border-radius: 1rem;
-		padding: 1.5rem;
-	}
-	.st-title { color: var(--dt, #111); }
-	.st-muted { color: var(--dt3, #888); }
-	.st-label { color: var(--dt2, #555); }
-	.st-icon  { color: var(--dt4, #bbb); }
-	.st-spinner { border-color: var(--dt, #111); }
-	.st-toggle-on  { background: var(--dt, #111); }
-	.st-toggle-off { background: var(--dbg3, #eee); }
-	.st-toggle-knob { background: var(--dbg, #fff); }
+	.st-title { color: var(--dt); }
+	.st-muted { color: var(--dt3); }
+	.st-label { color: var(--dt2); }
+	.st-icon  { color: var(--dt4); }
+	.st-spinner { border-color: var(--dt); }
+	.st-toggle-on  { background: var(--dt); }
+	.st-toggle-off { background: var(--dbg3); }
+	.st-toggle-knob { background: var(--dbg); }
 	.st-opt-selected {
-		border-color: var(--dt, #111);
-		background: var(--dbg2, #f5f5f5);
-		color: var(--dt, #111);
+		border-color: var(--dt);
+		background: var(--bos-settings-card-bg);
+		color: var(--dt);
 	}
 	.st-opt {
-		border-color: var(--dbd, #e0e0e0);
-		color: var(--dt2, #555);
+		border-color: var(--dbd);
+		color: var(--dt2);
 	}
-	.st-opt:hover { border-color: var(--dt4, #bbb); }
-	.st-pattern-card { background: var(--dbg2, #f5f5f5); }
+	.st-opt:hover { border-color: var(--dt4); }
+	.st-pattern-card {
+		background: var(--bos-settings-card-bg);
+		border: 1px solid var(--bos-settings-card-border);
+		border-radius: var(--bos-settings-card-radius);
+	}
 	.st-low-confidence {
-		background: var(--dbg3, #eee);
-		color: var(--dt2, #555);
+		background: var(--dbg3);
+		color: var(--dt2);
 	}
 </style>

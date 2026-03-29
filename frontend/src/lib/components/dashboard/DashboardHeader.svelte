@@ -21,11 +21,10 @@
 		return 'Working late';
 	};
 
-	// Format date
+	// Format date — compact, no year
 	const formatDate = () => {
 		return new Date().toLocaleDateString('en-US', {
 			weekday: 'long',
-			year: 'numeric',
 			month: 'long',
 			day: 'numeric'
 		});
@@ -98,8 +97,30 @@
 				class="dw-energy-card"
 				in:fly={{ y: 10, duration: 400, delay: 300 }}
 			>
-				<div class="flex items-center justify-between mb-4">
-					<p class="dw-energy-label">How's your energy today?</p>
+				<div class="dw-energy-row">
+					<p class="dw-energy-label">Energy</p>
+					<div class="dw-energy-slider-wrap">
+						<span class="dw-energy-bound">1</span>
+						<input
+							type="range"
+							min="1"
+							max="10"
+							value={sliderValue}
+							oninput={handleSliderChange}
+							class="dw-energy-slider"
+							aria-label="Energy level slider"
+						/>
+						<span class="dw-energy-bound">10</span>
+					</div>
+					<div class="dw-energy-dot" style="background: {getEnergyHex(sliderValue)}"></div>
+					<span class="dw-energy-value">{sliderValue}</span>
+					<span class="dw-energy-text">{getEnergyLabel(sliderValue)}</span>
+					<button
+						onclick={handleEnergySubmit}
+						class="btn-pill btn-pill-primary btn-pill-sm"
+					>
+						Log
+					</button>
 					<button
 						onclick={dismissEnergyCheck}
 						class="btn-pill btn-pill-ghost btn-pill-icon btn-pill-xs"
@@ -115,37 +136,6 @@
 						</svg>
 					</button>
 				</div>
-
-				<!-- Energy Slider -->
-				<div class="space-y-3">
-					<div class="flex items-center gap-4">
-						<span class="dw-energy-bound">1</span>
-						<input
-							type="range"
-							min="1"
-							max="10"
-							value={sliderValue}
-							oninput={handleSliderChange}
-							class="dw-energy-slider"
-							aria-label="Energy level slider"
-						/>
-						<span class="dw-energy-bound text-right">10</span>
-					</div>
-
-					<div class="flex items-center justify-between">
-						<div class="flex items-center gap-2">
-							<div class="dw-energy-dot" style="background: {getEnergyHex(sliderValue)}"></div>
-							<span class="dw-energy-value">{sliderValue}</span>
-							<span class="dw-energy-text">- {getEnergyLabel(sliderValue)}</span>
-						</div>
-						<button
-							onclick={handleEnergySubmit}
-							class="btn-pill btn-pill-primary btn-pill-sm"
-						>
-							Log Energy
-						</button>
-					</div>
-				</div>
 			</div>
 		{/if}
 	</div>
@@ -159,7 +149,7 @@
 
 	.dw-header-content {
 		position: relative;
-		padding: 1.5rem;
+		padding: 1rem 1.5rem;
 	}
 
 	.dw-header-title {
@@ -187,8 +177,8 @@
 	}
 
 	.dw-energy-card {
-		margin-top: 1.5rem;
-		padding: 1rem;
+		margin-top: 0.75rem;
+		padding: 0.625rem 0.875rem;
 		background: color-mix(in srgb, var(--dbg2, #f5f5f5) 80%, transparent);
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
@@ -198,26 +188,43 @@
 		transition: all 300ms ease;
 	}
 
+	.dw-energy-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.dw-energy-slider-wrap {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		flex: 1;
+		min-width: 0;
+	}
+
 	.dw-energy-label {
-		font-size: 0.875rem;
+		font-size: 0.78rem;
 		font-weight: 500;
-		color: var(--dt, #111);
+		color: var(--dt3, #888);
+		white-space: nowrap;
+		flex-shrink: 0;
 	}
 
 	.dw-energy-bound {
-		font-size: 0.75rem;
-		color: var(--dt3, #888);
-		width: 2rem;
+		font-size: 0.7rem;
+		color: var(--dt4, #aaa);
+		flex-shrink: 0;
 	}
 
 	.dw-energy-slider {
 		flex: 1;
-		height: 0.5rem;
+		height: 0.375rem;
 		background: var(--dbd, #e0e0e0);
 		border-radius: 0.5rem;
 		appearance: none;
 		cursor: pointer;
 		accent-color: var(--dt, #111);
+		min-width: 60px;
 	}
 
 	.dw-energy-dot {

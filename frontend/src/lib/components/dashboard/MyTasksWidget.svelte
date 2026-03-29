@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { fly, scale } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 
 	type TaskPriority = 'critical' | 'high' | 'medium' | 'low';
+	type TaskBucket = 'overdue' | 'today' | 'upcoming';
 
 	interface DashboardTask {
 		id: string;
@@ -15,49 +16,44 @@
 
 	interface Props {
 		tasks?: DashboardTask[];
+		isLoading?: boolean;
 		onToggle?: (id: string) => void;
 		onViewAll?: () => void;
 	}
 
-	let { tasks = [], onToggle, onViewAll }: Props = $props();
+	let { tasks = [], isLoading = false, onToggle, onViewAll }: Props = $props();
 
-	// Categorize tasks
-	const categorizedTasks = $derived(() => {
+	// Sort and cap at 5: overdue → today → upcoming
+	const visibleTasks = $derived((): Array<DashboardTask & { bucket: TaskBucket }> => {
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
-		const nextWeek = new Date(today);
-		nextWeek.setDate(nextWeek.getDate() + 7);
 
-		const dueToday: DashboardTask[] = [];
-		const upcoming: DashboardTask[] = [];
-		const overdue: DashboardTask[] = [];
+		const overdue: Array<DashboardTask & { bucket: TaskBucket }> = [];
+		const dueToday: Array<DashboardTask & { bucket: TaskBucket }> = [];
+		const upcoming: Array<DashboardTask & { bucket: TaskBucket }> = [];
 
 		for (const task of tasks.filter((t) => !t.completed)) {
 			if (!task.dueDate) {
-				upcoming.push(task);
+				upcoming.push({ ...task, bucket: 'upcoming' });
 				continue;
 			}
 			const due = new Date(task.dueDate);
 			due.setHours(0, 0, 0, 0);
 
 			if (due < today) {
-				overdue.push(task);
+				overdue.push({ ...task, bucket: 'overdue' });
 			} else if (due.getTime() === today.getTime()) {
-				dueToday.push(task);
-			} else if (due <= nextWeek) {
-				upcoming.push(task);
+				dueToday.push({ ...task, bucket: 'today' });
+			} else {
+				upcoming.push({ ...task, bucket: 'upcoming' });
 			}
 		}
 
-		return { dueToday, upcoming, overdue };
+		return [...overdue, ...dueToday, ...upcoming].slice(0, 5);
 	});
 
-	const priorityColors: Record<TaskPriority, string> = {
-		critical: 'text-red-600 bg-red-50',
-		high: 'text-orange-600 bg-orange-50',
-		medium: 'text-yellow-600 bg-yellow-50',
-		low: 'text-gray-600 bg-gray-50'
-	};
+	const incompleteTotalCount = $derived(tasks.filter((t) => !t.completed).length);
+	const hasMore = $derived(incompleteTotalCount > 5);
 
 	function formatDueDate(dueDate?: string): string {
 		if (!dueDate) return '';
@@ -77,147 +73,405 @@
 	}
 </script>
 
-<div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow duration-300">
-	<div class="flex items-center justify-between mb-4">
-		<div class="flex items-center gap-2">
-			<div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-sm">
-				<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div class="dw-widget">
+	<!-- Header -->
+	<div class="dw-widget-header">
+		<div class="dw-widget-title-group">
+			<div class="dw-widget-icon">
+				<svg class="dw-widget-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
 				</svg>
 			</div>
-			<h2 class="text-base font-semibold text-gray-900">My Tasks</h2>
+			<h2 class="dw-widget-title">My Tasks</h2>
+			{#if incompleteTotalCount > 0}
+				<span class="dw-count-badge">{incompleteTotalCount}</span>
+			{/if}
 		</div>
-		{#if tasks.length > 0}
-			<button
-				onclick={() => onViewAll?.()}
-				class="btn-pill btn-pill-ghost btn-pill-xs"
-			>
-				View All
-				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-				</svg>
-			</button>
-		{/if}
 	</div>
 
-	{#if tasks.length === 0}
-		<div class="text-center py-8">
-			<div class="w-14 h-14 bg-gradient-to-br from-green-100 to-green-50 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
-				<svg class="w-7 h-7 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7" />
-				</svg>
-			</div>
-			<p class="text-sm font-medium text-gray-900 mb-1">All caught up!</p>
-			<p class="text-xs text-gray-500 mb-3">No tasks due soon.</p>
-			<button
-				onclick={() => goto('/tasks')}
-				class="btn-pill btn-pill-ghost btn-pill-sm"
-			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-				</svg>
+	<!-- Skeleton loading state -->
+	{#if isLoading}
+		<div class="dw-tasks-skeleton" aria-hidden="true">
+			{#each [1, 2, 3, 4] as _}
+				<div class="dw-tasks-sk-row">
+					<div class="dw-tasks-sk dw-tasks-sk--check"></div>
+					<div class="dw-tasks-sk-info">
+						<div class="dw-tasks-sk dw-tasks-sk--title"></div>
+						<div class="dw-tasks-sk dw-tasks-sk--sub"></div>
+					</div>
+					<div class="dw-tasks-sk dw-tasks-sk--date"></div>
+				</div>
+			{/each}
+		</div>
+
+	<!-- Empty state -->
+	{:else if tasks.length === 0 || incompleteTotalCount === 0}
+		<div class="dw-empty-state">
+			<svg class="dw-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7" />
+			</svg>
+			<p class="dw-empty-text">All caught up — no tasks due soon</p>
+			<button onclick={() => goto('/tasks')} class="dw-empty-action">
 				Add a task
 			</button>
 		</div>
 	{:else}
-		<div class="space-y-4 max-h-80 overflow-y-auto">
-			<!-- Overdue -->
-			{#if categorizedTasks().overdue.length > 0}
-				<div>
-					<h3 class="text-xs font-medium text-red-600 uppercase tracking-wide mb-2">
-						Overdue ({categorizedTasks().overdue.length})
-					</h3>
-					<div class="space-y-1">
-						{#each categorizedTasks().overdue.slice(0, 3) as task (task.id)}
-							<div
-								class="flex items-center gap-3 p-2 rounded-lg bg-red-50 border border-red-100"
-								in:fly={{ x: -10, duration: 200 }}
-							>
-								<button
-									onclick={() => handleToggle(task.id)}
-									class="flex-shrink-0 w-4 h-4 rounded border-2 border-red-300 hover:border-red-400 transition-colors"
-								></button>
-								<div class="flex-1 min-w-0">
-									<p class="text-sm text-gray-900 truncate">{task.title}</p>
-									{#if task.projectName}
-										<p class="text-xs text-gray-500">{task.projectName}</p>
-									{/if}
-								</div>
-								<span class="text-xs text-red-600 whitespace-nowrap flex items-center gap-1">
-									<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-									</svg>
-									{formatDueDate(task.dueDate)}
-								</span>
-							</div>
-						{/each}
-					</div>
-				</div>
-			{/if}
+		<!-- Task list -->
+		<div class="dw-tasks-list">
+			{#each visibleTasks() as task, index (task.id)}
+				<div
+					class="dw-task-row"
+					in:fly={{ x: -8, duration: 200, delay: index * 40 }}
+				>
+					<!-- Checkbox -->
+					<button
+						onclick={() => handleToggle(task.id)}
+						class="dw-task-checkbox"
+						aria-label="Mark '{task.title}' complete"
+					>
+						<svg class="dw-task-checkbox-check" fill="none" stroke="currentColor" viewBox="0 0 12 12" aria-hidden="true">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 6l3 3 5-5" />
+						</svg>
+					</button>
 
-			<!-- Due Today -->
-			{#if categorizedTasks().dueToday.length > 0}
-				<div>
-					<h3 class="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
-						Due Today ({categorizedTasks().dueToday.length})
-					</h3>
-					<div class="space-y-1">
-						{#each categorizedTasks().dueToday.slice(0, 3) as task (task.id)}
-							<div
-								class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
-								in:fly={{ x: -10, duration: 200 }}
-							>
-								<button
-									onclick={() => handleToggle(task.id)}
-									class="flex-shrink-0 w-4 h-4 rounded border-2 border-gray-300 hover:border-gray-400 transition-colors"
-								></button>
-								<div class="flex-1 min-w-0">
-									<p class="text-sm text-gray-900 truncate">{task.title}</p>
-									{#if task.projectName}
-										<p class="text-xs text-gray-500">{task.projectName}</p>
-									{/if}
-								</div>
-								<span
-									class="text-xs px-2 py-0.5 rounded {priorityColors[task.priority]} capitalize"
-								>
-									{task.priority}
-								</span>
-							</div>
-						{/each}
+					<!-- Task content -->
+					<div class="dw-task-info">
+						<span class="dw-task-title">{task.title}</span>
+						{#if task.projectName}
+							<span class="dw-task-project">{task.projectName}</span>
+						{/if}
 					</div>
-				</div>
-			{/if}
 
-			<!-- Upcoming -->
-			{#if categorizedTasks().upcoming.length > 0}
-				<div>
-					<h3 class="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
-						Upcoming ({categorizedTasks().upcoming.length})
-					</h3>
-					<div class="space-y-1">
-						{#each categorizedTasks().upcoming.slice(0, 3) as task (task.id)}
-							<div
-								class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
-								in:fly={{ x: -10, duration: 200 }}
-							>
-								<button
-									onclick={() => handleToggle(task.id)}
-									class="flex-shrink-0 w-4 h-4 rounded border-2 border-gray-300 hover:border-gray-400 transition-colors"
-								></button>
-								<div class="flex-1 min-w-0">
-									<p class="text-sm text-gray-900 truncate">{task.title}</p>
-									{#if task.projectName}
-										<p class="text-xs text-gray-500">{task.projectName}</p>
-									{/if}
-								</div>
-								<span class="text-xs text-gray-500 whitespace-nowrap">
-									{formatDueDate(task.dueDate)}
-								</span>
-							</div>
-						{/each}
+					<!-- Right side: due date + priority dot -->
+					<div class="dw-task-meta">
+						{#if task.dueDate}
+							<span class="dw-task-due {task.bucket === 'overdue' ? 'dw-task-due--overdue' : ''}">
+								{formatDueDate(task.dueDate)}
+							</span>
+						{/if}
+						<span class="dw-priority-dot dw-priority-dot--{task.priority}" title={task.priority}></span>
 					</div>
 				</div>
-			{/if}
+			{/each}
 		</div>
+
+		<!-- View all footer -->
+		{#if hasMore || onViewAll}
+			<div class="dw-widget-footer">
+				<button onclick={() => onViewAll?.()} class="dw-view-all-link">
+					View all tasks
+					<svg class="dw-chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+					</svg>
+				</button>
+			</div>
+		{/if}
 	{/if}
 </div>
+
+<style>
+	/* ── Widget shell ── */
+	.dw-widget {
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
+		border-radius: 12px;
+		padding: var(--space-4);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	/* ── Header ── */
+	.dw-widget-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.dw-widget-title-group {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.dw-widget-icon {
+		width: 2rem;
+		height: 2rem;
+		border-radius: 8px;
+		background: var(--dbg3);
+		border: 1px solid var(--dbd);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.dw-widget-icon-svg {
+		width: 1rem;
+		height: 1rem;
+		color: var(--dt2);
+	}
+
+	.dw-widget-title {
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--dt);
+		margin: 0;
+	}
+
+	.dw-count-badge {
+		font-size: 0.72rem;
+		font-weight: 700;
+		color: var(--dt3);
+		background: var(--dbg3);
+		border: 1px solid var(--dbd);
+		border-radius: 999px;
+		padding: 0.1rem 0.5rem;
+		line-height: 1.4;
+	}
+
+	/* ── Empty state ── */
+	.dw-empty-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 2rem var(--space-4);
+		gap: var(--space-3);
+		text-align: center;
+	}
+
+	.dw-empty-icon {
+		width: 1.5rem;
+		height: 1.5rem;
+		color: var(--dt3);
+		flex-shrink: 0;
+	}
+
+	.dw-empty-text {
+		font-size: 0.85rem;
+		color: var(--dt2);
+		margin: 0;
+	}
+
+	.dw-empty-action {
+		display: inline-flex;
+		align-items: center;
+		font-size: 0.8rem;
+		color: var(--dt2);
+		background: transparent;
+		border: 1px solid var(--dbd);
+		border-radius: 6px;
+		padding: var(--space-1) var(--space-3);
+		cursor: pointer;
+		transition: border-color 0.15s, color 0.15s, background 0.15s;
+		height: 28px;
+	}
+
+	.dw-empty-action:hover {
+		border-color: var(--dt4);
+		color: var(--dt);
+		background: var(--dbg2);
+	}
+
+	/* ── Skeleton ── */
+	.dw-tasks-skeleton {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.dw-tasks-sk-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-2) var(--space-3);
+		background: var(--dbg2);
+		border: 1px solid var(--dbd);
+		border-radius: 8px;
+	}
+
+	.dw-tasks-sk-info {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+
+	@keyframes dw-tasks-pulse {
+		50% { opacity: 0.5; }
+	}
+
+	.dw-tasks-sk {
+		background: var(--dbg3, color-mix(in srgb, var(--dt) 8%, transparent));
+		animation: dw-tasks-pulse 1.5s ease-in-out infinite;
+		border-radius: 4px;
+		flex-shrink: 0;
+	}
+
+	.dw-tasks-sk--check {
+		width: 1.1rem;
+		height: 1.1rem;
+		border-radius: 4px;
+	}
+
+	.dw-tasks-sk--title {
+		height: 12px;
+		width: 65%;
+		border-radius: 4px;
+	}
+
+	.dw-tasks-sk--sub {
+		height: 10px;
+		width: 40%;
+		border-radius: 3px;
+	}
+
+	.dw-tasks-sk--date {
+		width: 36px;
+		height: 10px;
+		border-radius: 3px;
+	}
+
+	/* ── Task list ── */
+	.dw-tasks-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.dw-task-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-2) var(--space-3);
+		background: var(--dbg2);
+		border: 1px solid var(--dbd);
+		border-radius: 8px;
+		transition: border-color 0.15s, background 0.15s;
+	}
+
+	.dw-task-row:hover {
+		border-color: var(--dt4);
+		background: var(--dbg3);
+	}
+
+	/* ── Checkbox ── */
+	.dw-task-checkbox {
+		flex-shrink: 0;
+		width: 1.1rem;
+		height: 1.1rem;
+		border-radius: 4px;
+		border: 1.5px solid var(--dbd);
+		background: var(--dbg);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: border-color 0.15s, background 0.15s;
+		padding: 0;
+	}
+
+	.dw-task-checkbox:hover {
+		border-color: var(--dt3);
+		background: var(--dbg3);
+	}
+
+	.dw-task-checkbox-check {
+		width: 0.65rem;
+		height: 0.65rem;
+		color: transparent;
+	}
+
+	.dw-task-checkbox:hover .dw-task-checkbox-check {
+		color: var(--dt4);
+	}
+
+	/* ── Task info ── */
+	.dw-task-info {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+
+	.dw-task-title {
+		font-size: 0.83rem;
+		font-weight: 500;
+		color: var(--dt);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.dw-task-project {
+		font-size: 0.72rem;
+		color: var(--dt3);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* ── Task meta (right side) ── */
+	.dw-task-meta {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		flex-shrink: 0;
+	}
+
+	.dw-task-due {
+		font-size: 0.72rem;
+		color: var(--dt3);
+		white-space: nowrap;
+	}
+
+	.dw-task-due--overdue {
+		color: var(--color-error);
+	}
+
+	/* ── Priority dot ── */
+	.dw-priority-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+
+	.dw-priority-dot--critical { background: var(--color-error); }
+	.dw-priority-dot--high     { background: var(--accent-orange); }
+	.dw-priority-dot--medium   { background: var(--accent-blue); }
+	.dw-priority-dot--low      { background: var(--dt3); }
+
+	/* ── Footer ── */
+	.dw-widget-footer {
+		display: flex;
+		justify-content: center;
+		padding-top: var(--space-1);
+		border-top: 1px solid var(--dbd2);
+	}
+
+	.dw-view-all-link {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		font-size: 0.8rem;
+		color: var(--dt3);
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: var(--space-1) var(--space-2);
+		border-radius: 4px;
+		transition: color 0.15s;
+	}
+
+	.dw-view-all-link:hover {
+		color: var(--dt);
+	}
+
+	.dw-chevron-icon {
+		width: 0.8rem;
+		height: 0.8rem;
+	}
+</style>

@@ -156,7 +156,7 @@
 				{#each tagChips as chip (chip.id)}
 					<span
 						class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors"
-						style="background-color: {chip.color || '#f3f4f6'}; color: {chip.color ? '#fff' : '#6b7280'};"
+						style="background-color: {chip.color || 'var(--dbg2)'}; color: {chip.color ? 'var(--bos-surface-on-color)' : 'var(--dt2)'};"
 					>
 						{chip.label}
 					</span>

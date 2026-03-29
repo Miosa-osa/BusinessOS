@@ -159,4 +159,32 @@
 		background: rgba(220, 38, 38, 0.1);
 		color: #B91C1C;
 	}
+
+	/* ===== DARK MODE ===== */
+	:global(.dark) .context-menu {
+		background: rgba(44, 44, 46, 0.95);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark) .context-menu-item {
+		color: #f5f5f7;
+	}
+
+	:global(.dark) .context-menu-item:hover {
+		background: rgba(10, 132, 255, 0.2);
+		color: #0A84FF;
+	}
+
+	:global(.dark) .context-menu-separator {
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	:global(.dark) .context-menu-item--danger {
+		color: #FF453A;
+	}
+
+	:global(.dark) .context-menu-item--danger:hover {
+		background: rgba(255, 69, 58, 0.15);
+		color: #FF453A;
+	}
 </style>

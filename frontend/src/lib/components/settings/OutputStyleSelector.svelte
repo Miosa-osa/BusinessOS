@@ -188,7 +188,7 @@
 
 	.style-card.selected {
 		border-color: var(--dt, var(--bos-text-primary, #111));
-		background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5));
+		background: var(--bos-settings-card-bg);
 	}
 
 	.style-card.disabled {
@@ -271,8 +271,8 @@
 
 	.style-preview {
 		padding: 1rem;
-		background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5));
-		border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
+		background: var(--bos-settings-card-bg);
+		border: 1px solid var(--bos-settings-card-border);
 		border-top: none;
 		border-radius: 0 0 0.75rem 0.75rem;
 		margin-top: -0.5rem;

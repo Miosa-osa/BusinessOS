@@ -177,7 +177,7 @@
 
 	:global(.dark) .memory-filters {
 		border-bottom-color: rgba(255, 255, 255, 0.06);
-		background: #1c1c1e;
+		background: var(--dbg);
 	}
 
 	.quick-filters {
@@ -201,7 +201,7 @@
 	}
 
 	:global(.dark) .filter-label {
-		color: #6e6e73;
+		color: var(--dt3);
 	}
 
 	.type-select {
@@ -221,8 +221,8 @@
 	}
 
 	:global(.dark) .type-select {
-		background: #2c2c2e;
-		color: #f5f5f7;
+		background: var(--dbg2);
+		color: var(--dt);
 		border-color: rgba(255, 255, 255, 0.1);
 	}
 
@@ -248,24 +248,24 @@
 	}
 
 	.filter-btn.active {
-		color: #3b82f6;
-		background: rgba(59, 130, 246, 0.1);
-		border-color: #3b82f6;
+		color: var(--bos-primary-color);
+		background: var(--bos-secondary-color);
+		border-color: var(--bos-primary-color);
 	}
 
 	:global(.dark) .filter-btn {
-		background: #2c2c2e;
-		color: #6e6e73;
+		background: var(--dbg2);
+		color: var(--dt3);
 		border-color: rgba(255, 255, 255, 0.1);
 	}
 
 	:global(.dark) .filter-btn:hover {
-		color: #f5f5f7;
+		color: var(--dt);
 		border-color: rgba(255, 255, 255, 0.2);
 	}
 
 	:global(.dark) .filter-btn.active {
-		background: rgba(59, 130, 246, 0.15);
+		background: color-mix(in srgb, var(--bos-primary-color) 15%, transparent);
 	}
 
 	.advanced-toggle {
@@ -282,7 +282,7 @@
 		font-size: 10px;
 		font-weight: 700;
 		color: white;
-		background: #3b82f6;
+		background: var(--bos-primary-color);
 		border-radius: 50%;
 	}
 
@@ -297,7 +297,7 @@
 	}
 
 	:global(.dark) .advanced-filters {
-		background: #2c2c2e;
+		background: var(--dbg2);
 	}
 
 	@keyframes slideDown {
@@ -333,7 +333,7 @@
 		width: 16px;
 		height: 16px;
 		border-radius: 50%;
-		background: #3b82f6;
+		background: var(--bos-primary-color);
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
@@ -346,7 +346,7 @@
 		width: 16px;
 		height: 16px;
 		border-radius: 50%;
-		background: #3b82f6;
+		background: var(--bos-primary-color);
 		cursor: pointer;
 		border: none;
 		transition: all 0.15s ease;
@@ -357,7 +357,7 @@
 	}
 
 	:global(.dark) .importance-slider {
-		background: #3a3a3c;
+		background: var(--dbg3);
 	}
 
 	.slider-marks {
@@ -369,7 +369,7 @@
 	}
 
 	:global(.dark) .slider-marks {
-		color: #6e6e73;
+		color: var(--dt3);
 	}
 
 	.date-inputs {
@@ -393,12 +393,12 @@
 	}
 
 	.date-input:focus {
-		border-color: #3b82f6;
+		border-color: var(--bos-primary-color);
 	}
 
 	:global(.dark) .date-input {
-		background: #1c1c1e;
-		color: #f5f5f7;
+		background: var(--dbg);
+		color: var(--dt);
 		border-color: rgba(255, 255, 255, 0.1);
 	}
 
@@ -408,7 +408,7 @@
 	}
 
 	:global(.dark) .date-separator {
-		color: #6e6e73;
+		color: var(--dt3);
 	}
 
 	.clear-date-btn {
@@ -430,7 +430,7 @@
 	}
 
 	:global(.dark) .clear-date-btn:hover {
-		background: #3a3a3c;
+		background: var(--dbg3);
 	}
 
 	@media (max-width: 600px) {

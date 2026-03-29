@@ -23,7 +23,7 @@
 		EXPRESS: 'User is expressing a feeling or giving feedback'
 	};
 
-	const weightLabel = $derived(() => {
+	const weightLabel = $derived.by(() => {
 		if (!weight) return '';
 		if (weight < 0.3) return 'Low complexity';
 		if (weight < 0.6) return 'Medium complexity';
@@ -78,7 +78,7 @@
 						<div>
 							<span class="text-gray-400 text-[10px] uppercase tracking-wider">Signal Weight</span>
 							<div class="font-medium text-gray-700">{weight.toFixed(1)}</div>
-							<div class="text-gray-400 text-[10px]">{weightLabel()}</div>
+							<div class="text-gray-400 text-[10px]">{weightLabel}</div>
 						</div>
 					{/if}
 				</div>

@@ -120,20 +120,22 @@
 	}
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
 	role="dialog"
 	aria-modal="true"
 	aria-label="Event details"
+	onclick={onClose}
 >
-	<div class="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-auto">
+	<div class="rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-auto" style="background: var(--dbg); border: 1px solid var(--dbd);" onclick={(e) => e.stopPropagation()}>
 		<div class="p-6">
 			<!-- Header -->
 			<div class="flex items-start justify-between mb-4">
 				<div>
-					<h2 class="text-xl font-semibold text-gray-900">{event.title || 'Untitled Event'}</h2>
+					<h2 class="text-xl font-semibold" style="color: var(--dt);">{event.title || 'Untitled Event'}</h2>
 					{#if event.meeting_type && event.meeting_type !== 'other'}
-						<span class="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-full">
+						<span class="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full" style="background: var(--dbg2); color: var(--dt2);">
 							{event.meeting_type.replace('_', ' ')}
 						</span>
 					{/if}
@@ -148,11 +150,11 @@
 			<div class="space-y-4">
 				<!-- Time -->
 				<div class="flex items-start gap-3">
-					<svg class="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-5 h-5 mt-0.5" style="color: var(--dt3);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
 					</svg>
 					<div>
-						<p class="text-gray-900">
+						<p style="color: var(--dt);">
 							{new Date(event.start_time).toLocaleDateString('en-US', {
 								weekday: 'long',
 								month: 'long',
@@ -160,7 +162,7 @@
 								year: 'numeric'
 							})}
 						</p>
-						<p class="text-sm text-gray-500">
+						<p class="text-sm" style="color: var(--dt3);">
 							{#if event.all_day}
 								All day
 							{:else}
@@ -179,21 +181,21 @@
 				<!-- Location -->
 				{#if event.location}
 					<div class="flex items-start gap-3">
-						<svg class="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-						</svg>
-						<p class="text-gray-900">{event.location}</p>
+					<svg class="w-5 h-5 mt-0.5" style="color: var(--dt3);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+					</svg>
+					<p style="color: var(--dt);">{event.location}</p>
 					</div>
 				{/if}
 
 				<!-- Meeting Link -->
 				{#if event.meeting_link}
 					<div class="flex items-start gap-3">
-						<svg class="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-5 h-5 mt-0.5" style="color: var(--dt3);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
 						</svg>
-						<a href={event.meeting_link} target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+						<a href={event.meeting_link} target="_blank" rel="noopener noreferrer" class="hover:underline" style="color: var(--bos-nav-active);">
 							Join Meeting
 						</a>
 					</div>
@@ -202,10 +204,10 @@
 				<!-- Description -->
 				{#if event.description}
 					<div class="flex items-start gap-3">
-						<svg class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
-						</svg>
-						<div class="text-gray-700 text-sm prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5">
+					<svg class="w-5 h-5 mt-0.5 flex-shrink-0" style="color: var(--dt3);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+					</svg>
+					<div class="text-sm prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5" style="color: var(--dt2);">
 							{@html sanitizeHtml(event.description)}
 						</div>
 					</div>
@@ -214,16 +216,16 @@
 				<!-- Attendees -->
 				{#if event.attendees && event.attendees.length > 0}
 					<div class="flex items-start gap-3">
-						<svg class="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-						</svg>
-						<div>
-							<p class="text-sm font-medium text-gray-700 mb-1">
+					<svg class="w-5 h-5 mt-0.5" style="color: var(--dt3);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+					</svg>
+					<div>
+						<p class="text-sm font-medium mb-1" style="color: var(--dt2);">
 								{event.attendees.length} Attendees
 							</p>
 							<div class="space-y-1">
 								{#each event.attendees as attendee}
-									<p class="text-sm text-gray-600">{attendee.name || attendee.email}</p>
+									<p class="text-sm" style="color: var(--dt2);">{attendee.name || attendee.email}</p>
 								{/each}
 							</div>
 						</div>
@@ -232,12 +234,12 @@
 
 				<!-- Google Calendar Link -->
 				{#if event.html_link}
-					<div class="pt-4 border-t border-gray-200">
-						<a
-							href={event.html_link}
-							target="_blank"
-							rel="noopener noreferrer"
-							class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
+				<div class="pt-4" style="border-top: 1px solid var(--dbd2);">
+					<a
+						href={event.html_link}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="inline-flex items-center gap-2 text-sm" style="color: var(--dt3);"
 						>
 							<svg class="w-4 h-4" viewBox="0 0 24 24">
 								<path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -251,7 +253,7 @@
 				{/if}
 
 				<!-- Meeting Notes & AI -->
-				<div class="pt-4 border-t border-gray-200">
+				<div class="pt-4" style="border-top: 1px solid var(--dbd2);">
 					<button
 						onclick={() => (showNotesSection = !showNotesSection)}
 						class="btn-pill btn-pill-ghost btn-pill-sm flex items-center gap-2 mb-3"
@@ -264,7 +266,7 @@
 						>
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 						</svg>
-						<svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg class="w-4 h-4" style="color: var(--bos-v2-icon-secondary);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
 						</svg>
 						Meeting Notes & AI
@@ -274,7 +276,7 @@
 						<div class="space-y-4">
 							<!-- Notes textarea -->
 							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-1" for="meeting-notes">
+								<label class="block text-sm font-medium mb-1" style="color: var(--dt2);" for="meeting-notes">
 									Meeting Notes / Transcription
 								</label>
 								<textarea
@@ -283,7 +285,8 @@
 									onblur={saveNotes}
 									placeholder="Add meeting notes, transcription, or paste voice recording text here..."
 									rows="4"
-									class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+									class="w-full px-3 py-2 rounded-lg text-sm resize-none focus:outline-none"
+									style="border: 1px solid var(--dbd); background: var(--dbg); color: var(--dt);"
 								></textarea>
 							</div>
 
@@ -330,21 +333,21 @@
 
 							<!-- Summary -->
 							{#if meetingSummary}
-								<div class="p-3 bg-purple-50 rounded-lg">
-									<div class="flex items-center gap-2 text-sm font-medium text-purple-700 mb-2">
+								<div class="p-3 rounded-lg" style="background: var(--dbg2);">
+									<div class="flex items-center gap-2 text-sm font-medium mb-2" style="color: var(--dt2);">
 										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
 										</svg>
 										Summary
 									</div>
-									<p class="text-sm text-gray-700 whitespace-pre-wrap">{meetingSummary}</p>
+									<p class="text-sm whitespace-pre-wrap" style="color: var(--dt2);">{meetingSummary}</p>
 								</div>
 							{/if}
 
 							<!-- Action Items -->
 							{#if actionItems.length > 0}
-								<div class="p-3 bg-blue-50 rounded-lg">
-									<div class="flex items-center gap-2 text-sm font-medium text-blue-700 mb-2">
+								<div class="p-3 rounded-lg" style="background: var(--bos-status-info-bg);">
+									<div class="flex items-center gap-2 text-sm font-medium mb-2" style="color: var(--bos-status-info-text);">
 										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
 										</svg>
@@ -352,8 +355,8 @@
 									</div>
 									<ul class="space-y-2">
 										{#each actionItems as item, index (item.id)}
-											<li class="flex items-start gap-2 text-sm text-gray-700">
-												<span class="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full text-xs font-medium">
+											<li class="flex items-start gap-2 text-sm" style="color: var(--dt2);">
+												<span class="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-xs font-medium" style="background: var(--bos-status-info-bg); color: var(--bos-nav-active);">
 													{index + 1}
 												</span>
 												<span class="flex-1">{item.text}</span>
@@ -374,7 +377,7 @@
 				</div>
 
 				<!-- Action Buttons -->
-				<div class="pt-4 border-t border-gray-200 flex items-center justify-end gap-2">
+				<div class="pt-4 flex items-center justify-end gap-2" style="border-top: 1px solid var(--dbd2);">
 					<button
 						onclick={() => onEdit(event)}
 						class="btn btn-secondary text-sm"

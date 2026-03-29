@@ -76,7 +76,7 @@ export interface Pipeline {
   user_id: string;
   name: string;
   description?: string;
-  pipeline_type?: 'sales' | 'hiring' | 'projects' | 'custom';
+  pipeline_type?: "sales" | "hiring" | "projects" | "custom";
   currency?: string;
   is_default?: boolean;
   is_active?: boolean;
@@ -116,7 +116,7 @@ export interface PipelineStage {
   description?: string;
   position: number;
   probability?: number;
-  stage_type?: 'open' | 'won' | 'lost';
+  stage_type?: "open" | "won" | "lost";
   rotting_days?: number;
   color?: string;
   created_at: string;
@@ -163,9 +163,9 @@ export interface Deal {
   company_id?: string;
   company_name?: string;
   primary_contact_id?: string;
-  status?: 'open' | 'won' | 'lost';
+  status?: "open" | "won" | "lost";
   lost_reason?: string;
-  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  priority?: "low" | "medium" | "high" | "urgent";
   lead_source?: string;
   deal_score?: number;
   custom_fields?: Record<string, unknown>;
@@ -212,13 +212,27 @@ export interface DealStats {
   open_value: number;
   won_value: number;
   lost_value: number;
+  // Extended stats returned by some backend versions
+  total_value?: number;
+  avg_deal_value?: number;
+  avg_close_days?: number;
+  win_rate?: number;
 }
 
 // ============================================================================
 // Activities
 // ============================================================================
 
-export type ActivityType = 'call' | 'email' | 'meeting' | 'demo' | 'note' | 'task' | 'lunch' | 'deadline' | 'other';
+export type ActivityType =
+  | "call"
+  | "email"
+  | "meeting"
+  | "demo"
+  | "note"
+  | "task"
+  | "lunch"
+  | "deadline"
+  | "other";
 
 export interface CRMActivity {
   id: string;
@@ -233,10 +247,10 @@ export interface CRMActivity {
   participants?: string[];
   activity_date: string;
   duration_minutes?: number;
-  call_direction?: 'inbound' | 'outbound';
+  call_direction?: "inbound" | "outbound";
   call_disposition?: string;
   call_recording_url?: string;
-  email_direction?: 'inbound' | 'outbound';
+  email_direction?: "inbound" | "outbound";
   email_message_id?: string;
   meeting_location?: string;
   meeting_url?: string;
@@ -297,6 +311,27 @@ export interface LinkContactData {
 }
 
 // ============================================================================
+// CRM Contact (company-contact relation row returned by ListCompanyContacts)
+// ============================================================================
+
+export interface CRMContact {
+  id: string;
+  contact_id: string;
+  company_id: string;
+  job_title?: string;
+  department?: string;
+  role_type?: string;
+  is_primary?: boolean;
+  is_active?: boolean;
+  started_at?: string;
+  ended_at?: string;
+  created_at: string;
+  updated_at: string;
+  contact_name: string;
+  contact_email?: string;
+}
+
+// ============================================================================
 // API Response Types
 // ============================================================================
 
@@ -326,6 +361,6 @@ export interface ActivitiesResponse {
 }
 
 export interface ContactsResponse {
-  contacts: unknown[];
+  contacts: CRMContact[];
   count: number;
 }

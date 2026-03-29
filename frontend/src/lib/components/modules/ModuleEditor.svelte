@@ -6,14 +6,12 @@
 		name: string;
 		description: string;
 		category: ModuleCategory;
-		icon: string;
 		onNameChange: (value: string) => void;
 		onDescriptionChange: (value: string) => void;
 		onCategoryChange: (value: ModuleCategory) => void;
-		onIconChange: (value: string) => void;
 	}
 
-	let { name, description, category, icon, onNameChange, onDescriptionChange, onCategoryChange, onIconChange }: Props = $props();
+	let { name, description, category, onNameChange, onDescriptionChange, onCategoryChange }: Props = $props();
 
 	const categories: ModuleCategory[] = [
 		'productivity',
@@ -76,23 +74,6 @@
 			{/each}
 		</select>
 	</div>
-
-	<!-- Icon (Emoji picker) -->
-	<div class="am-editor__field">
-		<label class="am-editor__label">
-			Icon (Emoji)
-		</label>
-		<input
-			type="text"
-			value={icon}
-			oninput={(e) => onIconChange(e.currentTarget.value)}
-			placeholder="📦"
-			maxlength="2"
-			class="am-editor__input am-editor__icon-input"
-			aria-label="Module icon emoji"
-		/>
-		<p class="am-editor__hint">Enter an emoji to represent your module</p>
-	</div>
 </div>
 
 <style>
@@ -141,15 +122,5 @@
 		background-position: right 14px center;
 		padding-right: 36px;
 		cursor: pointer;
-	}
-	.am-editor__icon-input {
-		width: 80px;
-		font-size: 24px;
-		text-align: center;
-	}
-	.am-editor__hint {
-		margin-top: 4px;
-		font-size: 12px;
-		color: var(--dt4, #bbb);
 	}
 </style>

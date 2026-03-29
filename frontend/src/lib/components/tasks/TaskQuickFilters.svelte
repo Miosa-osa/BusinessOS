@@ -23,35 +23,86 @@
 	}
 </script>
 
-<div class="tb-quick-filters flex items-center gap-2 px-6 py-3 overflow-x-auto">
+<div class="tqf-bar">
 	{#each filters as filter}
 		{@const count = counts[filter.value]}
 		<button
 			onclick={() => handleFilterClick(filter.value)}
-			class="btn-pill btn-pill-sm flex items-center gap-1.5 whitespace-nowrap {activeFilter === filter.value
-				? 'btn-pill-primary'
-				: 'btn-pill-ghost'}"
+			class="tqf-pill {activeFilter === filter.value ? 'tqf-pill--active' : ''}"
 		>
 			{filter.label}
 			{#if count !== undefined && count > 0}
-				<span class="tb-quick-badge px-1.5 py-0.5 text-xs rounded-full
-					{activeFilter === filter.value ? 'tb-quick-badge--active' : ''}">
-					{count}
-				</span>
+				<span class="tqf-count {activeFilter === filter.value ? 'tqf-count--active' : ''}">{count}</span>
 			{/if}
 		</button>
 	{/each}
 </div>
 
 <style>
-	.tb-quick-filters {
-		background: color-mix(in srgb, var(--dbg2, #f5f5f5) 50%, transparent);
+	.tqf-bar {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.5rem 1.5rem;
+		background: var(--dbg, #fff);
 		border-bottom: 1px solid var(--dbd2, #f0f0f0);
+		overflow-x: auto;
 	}
-	.tb-quick-badge {
+	.tqf-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.25rem 0.75rem;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		border-radius: 0.375rem;
+		border: 1px solid transparent;
+		background: transparent;
+		color: var(--dt3, #888);
+		cursor: pointer;
+		transition: all 0.15s;
+		white-space: nowrap;
+	}
+	.tqf-pill:hover {
+		color: var(--dt, #111);
+		background: var(--dbg2, #f5f5f5);
+	}
+	.tqf-pill--active {
+		color: rgba(59, 130, 246, 1);
+		background: rgba(59, 130, 246, 0.1);
+		border-color: rgba(59, 130, 246, 0.2);
+		font-weight: 600;
+	}
+	.tqf-pill--active:hover {
+		background: rgba(59, 130, 246, 0.15);
+		color: rgba(59, 130, 246, 1);
+	}
+	:global(.dark) .tqf-pill--active {
+		color: rgba(96, 165, 250, 1);
+		background: rgba(59, 130, 246, 0.15);
+		border-color: rgba(59, 130, 246, 0.25);
+	}
+	:global(.dark) .tqf-pill--active:hover {
+		background: rgba(59, 130, 246, 0.2);
+		color: rgba(96, 165, 250, 1);
+	}
+	.tqf-count {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		padding: 0 0.3rem;
+		min-width: 1.125rem;
+		text-align: center;
+		border-radius: 9999px;
 		background: var(--dbg3, #eee);
+		color: var(--dt2, #555);
+		line-height: 1.4;
 	}
-	.tb-quick-badge--active {
-		background: rgba(255,255,255,0.2);
+	.tqf-count--active {
+		background: rgba(59, 130, 246, 0.2);
+		color: rgba(59, 130, 246, 1);
+	}
+	:global(.dark) .tqf-count--active {
+		background: rgba(59, 130, 246, 0.25);
+		color: rgba(96, 165, 250, 1);
 	}
 </style>

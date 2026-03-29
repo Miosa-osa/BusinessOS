@@ -171,43 +171,27 @@
     padding: 6px 10px;
     font-size: 13px;
     font-weight: 600;
-    color: #374151;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    color: var(--bos-v2-text-primary);
+    background: var(--bos-v2-layer-background-primary);
+    border: 1px solid var(--bos-border-color);
     border-radius: 6px;
     cursor: pointer;
     font-family: inherit;
     transition: all 150ms ease;
   }
 
-  :global(.dark) .dropdown-trigger {
-    color: #e5e7eb;
-    background: #1f2937;
-    border-color: #374151;
-  }
-
   .dropdown-trigger:hover {
-    background: #f9fafb;
-    border-color: #d1d5db;
-  }
-
-  :global(.dark) .dropdown-trigger:hover {
-    background: #374151;
-    border-color: #4b5563;
+    background: var(--bos-v2-layer-background-secondary);
+    border-color: var(--bos-v2-layer-insideBorder-border);
   }
 
   .dropdown-trigger.open {
-    background: #f3f4f6;
-    border-color: #d1d5db;
-  }
-
-  :global(.dark) .dropdown-trigger.open {
-    background: #374151;
-    border-color: #4b5563;
+    background: var(--bos-v2-layer-background-secondary);
+    border-color: var(--bos-v2-layer-insideBorder-border);
   }
 
   .chevron {
-    color: #9ca3af;
+    color: var(--bos-v2-text-secondary);
     transition: transform 150ms ease;
   }
 
@@ -220,8 +204,8 @@
     top: calc(100% + 4px);
     left: 0;
     min-width: 240px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: var(--bos-v2-layer-background-overlayPanel);
+    border: 1px solid var(--bos-border-color);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     z-index: 50;
@@ -230,8 +214,6 @@
   }
 
   :global(.dark) .dropdown-menu {
-    background: #1f2937;
-    border-color: #374151;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 
@@ -267,19 +249,11 @@
   }
 
   .version-item:hover {
-    background: #f3f4f6;
-  }
-
-  :global(.dark) .version-item:hover {
-    background: #374151;
+    background: var(--bos-v2-layer-background-secondary);
   }
 
   .version-item.current {
-    background: #f0fdf4;
-  }
-
-  :global(.dark) .version-item.current {
-    background: rgba(16, 185, 129, 0.1);
+    background: color-mix(in srgb, var(--bos-status-success) 8%, transparent);
   }
 
   .version-main {
@@ -291,28 +265,20 @@
   .version-number {
     font-size: 13px;
     font-weight: 600;
-    color: #111827;
-  }
-
-  :global(.dark) .version-number {
-    color: #f3f4f6;
+    color: var(--bos-v2-text-primary);
   }
 
   .current-check {
-    color: #10b981;
+    color: var(--bos-status-success);
   }
 
   .version-label {
     font-size: 12px;
-    color: #6b7280;
+    color: var(--bos-v2-text-secondary);
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  :global(.dark) .version-label {
-    color: #9ca3af;
   }
 
   .version-meta {
@@ -320,21 +286,13 @@
     align-items: center;
     gap: 4px;
     font-size: 11px;
-    color: #9ca3af;
-  }
-
-  :global(.dark) .version-meta {
-    color: #6b7280;
+    color: var(--bos-v2-text-secondary);
   }
 
   .dropdown-divider {
     height: 1px;
-    background: #e5e7eb;
+    background: var(--bos-border-color);
     margin: 4px 0;
-  }
-
-  :global(.dark) .dropdown-divider {
-    background: #374151;
   }
 
   .dropdown-action {
@@ -345,7 +303,7 @@
     padding: 10px 14px;
     font-size: 13px;
     font-weight: 500;
-    color: #374151;
+    color: var(--bos-v2-text-primary);
     background: transparent;
     border: none;
     cursor: pointer;
@@ -354,24 +312,16 @@
     transition: background 150ms ease;
   }
 
-  :global(.dark) .dropdown-action {
-    color: #d1d5db;
-  }
-
   .dropdown-action:hover {
-    background: #f3f4f6;
-  }
-
-  :global(.dark) .dropdown-action:hover {
-    background: #374151;
+    background: var(--bos-v2-layer-background-secondary);
   }
 
   .dropdown-action.primary {
-    color: #6366f1;
+    color: var(--bos-nav-active);
   }
 
   :global(.dark) .dropdown-action.primary {
-    color: #a5b4fc;
+    color: var(--bos-nav-active);
   }
 
   .loading-state,
@@ -381,15 +331,15 @@
     align-items: center;
     gap: 8px;
     padding: 24px;
-    color: #9ca3af;
+    color: var(--bos-v2-text-secondary);
     font-size: 13px;
   }
 
   .spinner {
     width: 20px;
     height: 20px;
-    border: 2px solid #e5e7eb;
-    border-top-color: #6366f1;
+    border: 2px solid var(--bos-border-color);
+    border-top-color: var(--bos-nav-active);
     border-radius: 50%;
     animation: spin 600ms linear infinite;
   }

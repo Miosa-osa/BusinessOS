@@ -328,4 +328,69 @@
 		background: #333;
 		transform: translateY(-1px);
 	}
+
+	/* ===== DARK MODE ===== */
+	:global(.dark) .onboarding-tooltip {
+		background: #2c2c2e;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+	}
+
+	:global(.dark) .tooltip-content h3 {
+		color: #f5f5f7;
+	}
+
+	:global(.dark) .tooltip-content p {
+		color: #a1a1a6;
+	}
+
+	:global(.dark) .tooltip-footer {
+		border-top-color: rgba(255, 255, 255, 0.1);
+	}
+
+	:global(.dark) .step-indicator {
+		color: #6e6e73;
+	}
+
+	:global(.dark) .skip-btn {
+		color: #a1a1a6;
+	}
+
+	:global(.dark) .skip-btn:hover {
+		background: #3a3a3c;
+		color: #f5f5f7;
+	}
+
+	:global(.dark) .next-btn {
+		background: #0A84FF;
+	}
+
+	:global(.dark) .next-btn:hover {
+		background: #409CFF;
+	}
+
+	:global(.dark) .onboarding-welcome {
+		background: #2c2c2e;
+	}
+
+	:global(.dark) .onboarding-welcome h2 {
+		color: #f5f5f7;
+	}
+
+	:global(.dark) .onboarding-welcome p {
+		color: #a1a1a6;
+	}
+
+	:global(.dark) .onboarding-welcome kbd {
+		background: #3a3a3c;
+		border-color: #48484a;
+		color: #f5f5f7;
+	}
+
+	:global(.dark) .get-started-btn {
+		background: #0A84FF;
+	}
+
+	:global(.dark) .get-started-btn:hover {
+		background: #409CFF;
+	}
 </style>

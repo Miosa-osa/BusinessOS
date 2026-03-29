@@ -192,7 +192,7 @@
 		display: flex;
 		justify-content: flex-end;
 		padding-bottom: 0.5rem;
-		border-bottom: 1px solid var(--dbd);
+		border-bottom: 1px solid hsl(var(--border));
 		margin-bottom: 0.5rem;
 	}
 
@@ -203,7 +203,7 @@
 		padding: 0.25rem 0.5rem;
 		background: transparent;
 		border: none;
-		color: #ef4444;
+		color: hsl(var(--destructive));
 		font-size: 0.75rem;
 		cursor: pointer;
 		border-radius: 0.25rem;
@@ -211,7 +211,7 @@
 	}
 
 	.page-icon-picker__remove:hover {
-		background-color: rgba(239, 68, 68, 0.1);
+		background-color: hsl(var(--destructive) / 0.1);
 	}
 
 	.page-icon-picker__search {
@@ -220,14 +220,14 @@
 		gap: 0.5rem;
 		padding: 0.5rem;
 		margin-bottom: 0.5rem;
-		background-color: var(--dbg2);
+		background-color: hsl(var(--muted));
 		border-radius: 0.375rem;
 	}
 
-	:global(.page-icon-picker__search-icon) {
+	.page-icon-picker__search-icon {
 		width: 16px;
 		height: 16px;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		flex-shrink: 0;
 	}
 
@@ -236,12 +236,12 @@
 		border: none;
 		background: transparent;
 		font-size: 0.875rem;
-		color: var(--dt);
+		color: hsl(var(--foreground));
 		outline: none;
 	}
 
 	.page-icon-picker__search-input::placeholder {
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 	}
 
 	.page-icon-picker__grid {
@@ -262,24 +262,24 @@
 		background: transparent;
 		border: none;
 		border-radius: 0.375rem;
-		color: var(--dt);
+		color: hsl(var(--foreground));
 		cursor: pointer;
 		transition: background-color 0.1s;
 	}
 
 	.page-icon-picker__icon:hover {
-		background-color: var(--dbg2);
+		background-color: hsl(var(--muted));
 	}
 
 	.page-icon-picker__icon--selected {
-		background-color: rgba(30, 150, 235, 0.15);
-		color: #1e96eb;
+		background-color: hsl(var(--primary) / 0.15);
+		color: hsl(var(--primary));
 	}
 
 	.page-icon-picker__empty {
 		padding: 1rem;
 		text-align: center;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		font-size: 0.875rem;
 	}
 </style>

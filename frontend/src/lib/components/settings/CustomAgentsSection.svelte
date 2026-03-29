@@ -180,8 +180,8 @@
           </div>
 
           {#if testingAgentId === agent.id}
-            <div class="agent-test-section" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
-              <h4 style="font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem;">Test Agent</h4>
+            <div class="agent-test-section" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+              <h4 style="font-size: 0.875rem; font-weight: 600; color: var(--dt2); margin-bottom: 0.75rem;">Test Agent</h4>
               <AgentTestSandbox {agent} />
             </div>
           {/if}
@@ -585,37 +585,37 @@
   }
 
   :global(.dark) .icon-btn {
-    background: #3a3a3c;
+    background: var(--bos-settings-card-bg);
   }
 
   :global(.dark) .close-btn {
-    background: #3a3a3c;
+    background: var(--bos-settings-card-bg);
   }
 
   :global(.dark) .btn.secondary {
-    background: #3a3a3c;
+    background: var(--bos-settings-card-bg);
   }
 
   :global(.dark) .form-group input,
   :global(.dark) .form-group textarea,
   :global(.dark) .form-group select {
-    background: #1c1c1e;
-    border-color: rgba(255, 255, 255, 0.1);
+    background: var(--dbg);
+    border-color: var(--dbd);
   }
 
   :global(.dark) .input-prefix {
-    background: #1c1c1e;
-    border-color: rgba(255, 255, 255, 0.1);
+    background: var(--dbg);
+    border-color: var(--dbd);
   }
 
   :global(.dark) .modal {
-    background: #2c2c2e;
-    border-color: rgba(255, 255, 255, 0.1);
+    background: var(--dbg2);
+    border-color: var(--dbd);
   }
 
   :global(.dark) .add-btn,
   :global(.dark) .btn.primary {
-    background: #0A84FF;
+    background: var(--bos-nav-active);
     color: white;
   }
 </style>

@@ -7,6 +7,7 @@ export { default as TaskInlineAdd } from './TaskInlineAdd.svelte';
 export { default as TaskListView } from './TaskListView.svelte';
 export { default as TaskBoardView } from './TaskBoardView.svelte';
 export { default as TaskCalendarView } from './TaskCalendarView.svelte';
+export { default as TaskTimelineView } from './TaskTimelineView.svelte';
 export { default as TasksToolbar } from './TasksToolbar.svelte';
 export { default as TaskQuickFilters } from './TaskQuickFilters.svelte';
 export { default as NewTaskModal } from './NewTaskModal.svelte';

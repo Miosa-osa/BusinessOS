@@ -173,8 +173,9 @@
 		color: var(--dt, var(--bos-text-primary, #111));
 	}
 	.st-results-panel {
-		background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5));
-		border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
+		background: var(--bos-settings-card-bg);
+		border: 1px solid var(--bos-settings-card-border);
+		border-radius: var(--bos-settings-card-radius);
 	}
 	.st-results-divider {
 		border-bottom: 1px solid var(--dbd, var(--bos-border, #e0e0e0));

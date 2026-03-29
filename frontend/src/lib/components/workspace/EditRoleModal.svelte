@@ -387,7 +387,7 @@
     width: 100%;
     max-width: 700px;
     max-height: 90vh;
-    background: white;
+    background: var(--dbg);
     border-radius: 0.75rem;
     box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
     display: flex;
@@ -399,7 +399,7 @@
     align-items: flex-start;
     justify-content: space-between;
     padding: 1.5rem;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--dbd);
     flex-shrink: 0;
   }
 
@@ -422,12 +422,12 @@
   .modal-header h2 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #111827;
+    color: var(--dt);
     margin: 0 0 0.25rem 0;
   }
 
   .modal-header p {
-    color: #6b7280;
+    color: var(--dt2);
     font-size: 0.875rem;
     margin: 0;
   }
@@ -439,15 +439,15 @@
     padding: 0.25rem;
     background: transparent;
     border: none;
-    color: #9ca3af;
+    color: var(--dt3);
     cursor: pointer;
     border-radius: 0.25rem;
     transition: all 0.15s;
   }
 
   .close-button:hover {
-    background: #f3f4f6;
-    color: #111827;
+    background: var(--dbg2);
+    color: var(--dt);
   }
 
   .error-message {
@@ -455,15 +455,15 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1.5rem;
-    background: #fef2f2;
-    color: #dc2626;
+    background: var(--bos-background-error-color, #fef2f2);
+    color: var(--bos-error-color);
     font-size: 0.875rem;
   }
 
   .modal-tabs {
     display: flex;
     gap: 0;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--dbd);
     padding: 0 1.5rem;
     flex-shrink: 0;
   }
@@ -473,7 +473,7 @@
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #6b7280;
+    color: var(--dt2);
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
@@ -482,12 +482,12 @@
   }
 
   .tab-button:hover {
-    color: #111827;
+    color: var(--dt);
   }
 
   .tab-button.active {
-    color: #3b82f6;
-    border-bottom-color: #3b82f6;
+    color: var(--bos-primary-color);
+    border-bottom-color: var(--bos-primary-color);
   }
 
   .modal-body {
@@ -511,40 +511,42 @@
     gap: 0.5rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #374151;
+    color: var(--dt2);
   }
 
   .form-group input,
   .form-group textarea {
     padding: 0.625rem 0.875rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--dbd);
     border-radius: 0.375rem;
     font-size: 0.875rem;
+    background: var(--dbg);
+    color: var(--dt);
     transition: all 0.15s;
   }
 
   .form-group input:focus,
   .form-group textarea:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: var(--bos-primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--bos-primary-color) 15%, transparent);
   }
 
   .form-group input.readonly {
-    background: #f9fafb;
-    color: #6b7280;
+    background: var(--dbg2);
+    color: var(--dt2);
   }
 
   .form-group input:disabled,
   .form-group textarea:disabled {
-    background: #f9fafb;
-    color: #9ca3af;
+    background: var(--dbg2);
+    color: var(--dt3);
     cursor: not-allowed;
   }
 
   .field-hint {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--dt2);
     margin: 0;
   }
 
@@ -571,8 +573,8 @@
   }
 
   .color-swatch.selected {
-    border-color: #111827;
-    box-shadow: 0 0 0 2px white, 0 0 0 4px currentColor;
+    border-color: var(--dt);
+    box-shadow: 0 0 0 2px var(--dbg), 0 0 0 4px currentColor;
   }
 
   .color-check {
@@ -582,8 +584,8 @@
   }
 
   .role-info-card {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
+    background: var(--dbg2);
+    border: 1px solid var(--dbd);
     border-radius: 0.5rem;
     padding: 1rem;
     display: flex;
@@ -599,13 +601,13 @@
 
   .info-label {
     font-size: 0.875rem;
-    color: #6b7280;
+    color: var(--dt2);
   }
 
   .info-value {
     font-size: 0.875rem;
     font-weight: 500;
-    color: #111827;
+    color: var(--dt);
   }
 
   .badge {
@@ -617,38 +619,39 @@
   }
 
   .badge.system {
-    background: #dbeafe;
-    color: #1e40af;
+    background: color-mix(in srgb, var(--bos-status-info) 15%, var(--dbg));
+    color: var(--bos-status-info);
   }
 
   .badge.custom {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--bos-status-warning-bg);
+    color: var(--bos-status-warning);
   }
 
   .badge.default {
-    background: #dcfce7;
-    color: #166534;
+    background: color-mix(in srgb, var(--bos-status-success) 15%, var(--dbg));
+    color: var(--bos-status-success);
   }
 
   .danger-zone {
     margin-top: 1rem;
     padding: 1rem;
-    background: #fef2f2;
-    border: 1px solid #fee2e2;
+    background: var(--bos-background-error-color, #fef2f2);
+    border: 1px solid color-mix(in srgb, var(--bos-error-color) 20%, var(--dbg));
     border-radius: 0.5rem;
   }
 
   .danger-zone h3 {
     font-size: 0.875rem;
     font-weight: 600;
-    color: #991b1b;
+    color: var(--bos-error-color);
     margin: 0 0 0.5rem 0;
   }
 
   .danger-zone p {
     font-size: 0.875rem;
-    color: #7f1d1d;
+    color: var(--bos-error-color);
+    opacity: 0.8;
     margin: 0 0 1rem 0;
   }
 
@@ -657,7 +660,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background: #dc2626;
+    background: var(--bos-error-color);
     color: white;
     border: none;
     border-radius: 0.375rem;
@@ -668,7 +671,7 @@
   }
 
   .delete-button:hover:not(:disabled) {
-    background: #b91c1c;
+    filter: brightness(0.9);
   }
 
   .delete-button:disabled {
@@ -687,8 +690,8 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--bos-status-warning-bg);
+    color: var(--bos-status-warning);
     font-size: 0.875rem;
     border-radius: 0.5rem;
   }
@@ -697,7 +700,7 @@
     display: flex;
     gap: 0.75rem;
     padding: 1.5rem;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--dbd);
     flex-shrink: 0;
   }
 
@@ -718,22 +721,22 @@
   }
 
   .cancel-button {
-    background: white;
-    color: #374151;
-    border: 1px solid #d1d5db;
+    background: var(--dbg2);
+    color: var(--dt2);
+    border: 1px solid var(--dbd);
   }
 
   .cancel-button:hover:not(:disabled) {
-    background: #f9fafb;
+    background: var(--dbg3);
   }
 
   .save-button {
-    background: #3b82f6;
+    background: var(--bos-primary-color);
     color: white;
   }
 
   .save-button:hover:not(:disabled) {
-    background: #2563eb;
+    filter: brightness(0.9);
   }
 
   .save-button:disabled {
@@ -756,7 +759,7 @@
   .confirm-dialog {
     width: 100%;
     max-width: 400px;
-    background: white;
+    background: var(--dbg);
     border-radius: 0.75rem;
     padding: 1.5rem;
     text-align: center;
@@ -769,21 +772,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #fef2f2;
-    color: #dc2626;
+    background: var(--bos-background-error-color, #fef2f2);
+    color: var(--bos-error-color);
     border-radius: 50%;
   }
 
   .confirm-dialog h3 {
     font-size: 1.125rem;
     font-weight: 600;
-    color: #111827;
+    color: var(--dt);
     margin: 0 0 0.5rem 0;
   }
 
   .confirm-dialog p {
     font-size: 0.875rem;
-    color: #6b7280;
+    color: var(--dt2);
     margin: 0 0 1.5rem 0;
   }
 
@@ -809,105 +812,27 @@
   }
 
   .confirm-cancel {
-    background: white;
-    color: #374151;
-    border: 1px solid #d1d5db;
+    background: var(--dbg2);
+    color: var(--dt2);
+    border: 1px solid var(--dbd);
   }
 
   .confirm-cancel:hover:not(:disabled) {
-    background: #f9fafb;
+    background: var(--dbg3);
   }
 
   .confirm-delete {
-    background: #dc2626;
+    background: var(--bos-error-color);
     color: white;
   }
 
   .confirm-delete:hover:not(:disabled) {
-    background: #b91c1c;
+    filter: brightness(0.9);
   }
 
   .confirm-delete:disabled,
   .confirm-cancel:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  /* Dark mode */
-  :global(.dark) .modal-content {
-    background: #1f2937;
-  }
-
-  :global(.dark) .modal-header {
-    border-bottom-color: #374151;
-  }
-
-  :global(.dark) .modal-header h2 {
-    color: #f9fafb;
-  }
-
-  :global(.dark) .modal-header p {
-    color: #9ca3af;
-  }
-
-  :global(.dark) .modal-tabs {
-    border-bottom-color: #374151;
-  }
-
-  :global(.dark) .tab-button {
-    color: #9ca3af;
-  }
-
-  :global(.dark) .tab-button:hover {
-    color: #f9fafb;
-  }
-
-  :global(.dark) .form-group label {
-    color: #d1d5db;
-  }
-
-  :global(.dark) .form-group input,
-  :global(.dark) .form-group textarea {
-    background: #111827;
-    border-color: #374151;
-    color: #f9fafb;
-  }
-
-  :global(.dark) .form-group input.readonly {
-    background: #0f172a;
-    color: #9ca3af;
-  }
-
-  :global(.dark) .role-info-card {
-    background: #111827;
-    border-color: #374151;
-  }
-
-  :global(.dark) .info-value {
-    color: #f9fafb;
-  }
-
-  :global(.dark) .modal-footer {
-    border-top-color: #374151;
-  }
-
-  :global(.dark) .cancel-button {
-    background: #111827;
-    border-color: #374151;
-    color: #d1d5db;
-  }
-
-  :global(.dark) .confirm-dialog {
-    background: #1f2937;
-  }
-
-  :global(.dark) .confirm-dialog h3 {
-    color: #f9fafb;
-  }
-
-  :global(.dark) .confirm-cancel {
-    background: #111827;
-    border-color: #374151;
-    color: #d1d5db;
   }
 </style>

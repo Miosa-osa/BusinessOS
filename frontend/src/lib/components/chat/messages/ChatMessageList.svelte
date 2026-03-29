@@ -120,6 +120,39 @@
 		onUpdateInlineTaskAssignee,
 		onRemoveInlineTask,
 	}: Props = $props();
+
+	// Show "Processing..." hint after 5 seconds of waiting for first content
+	let showProcessingHint = $state(false);
+	let processingHintTimer: ReturnType<typeof setTimeout> | null = null;
+
+	$effect(() => {
+		const lastMsg = messages[messages.length - 1];
+		const waitingForContent =
+			isStreaming &&
+			lastMsg?.role === 'assistant' &&
+			!lastMsg?.content &&
+			!lastMsg?.artifacts?.length &&
+			!hasThinking;
+
+		if (waitingForContent) {
+			processingHintTimer = setTimeout(() => {
+				showProcessingHint = true;
+			}, 5000);
+		} else {
+			showProcessingHint = false;
+			if (processingHintTimer !== null) {
+				clearTimeout(processingHintTimer);
+				processingHintTimer = null;
+			}
+		}
+
+		return () => {
+			if (processingHintTimer !== null) {
+				clearTimeout(processingHintTimer);
+				processingHintTimer = null;
+			}
+		};
+	});
 </script>
 
 {#if loadingConversation}
@@ -234,12 +267,17 @@
 							<p class="text-orange-600">Using large model - response may be slower</p>
 						</div>
 					{/if}
+					{#if showProcessingHint}
+						<div class="text-xs text-gray-400 ml-6 mt-1">
+							<p>Still processing — the server is working on your request...</p>
+						</div>
+					{/if}
 				</div>
 			{/if}
 
 			<!-- Message content -->
-			{#if message.content || message.artifacts?.length}
-				{@const extracted = extractThinking(message.content)}
+			{#if message.content || message.artifacts?.length || (!isStreaming && message.role === 'assistant')}
+				{@const extracted = extractThinking(message.content || '')}
 
 				<!-- Thinking panel (persisted, post-stream) -->
 				{#if extracted.thinking}

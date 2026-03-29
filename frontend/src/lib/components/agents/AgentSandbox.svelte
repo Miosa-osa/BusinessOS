@@ -220,10 +220,10 @@
   });
 </script>
 
-<div class="border rounded-lg bg-white shadow-sm overflow-hidden">
-  <div class="p-4 border-b bg-gray-50">
-    <h3 class="text-lg font-semibold text-gray-900">Agent Sandbox</h3>
-    <p class="text-sm text-gray-600 mt-1">Test your agent configuration in real-time</p>
+<div class="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+  <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Agent Sandbox</h3>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Test your agent configuration in real-time</p>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
@@ -237,7 +237,7 @@
           id="test-message"
           bind:value={testMessage}
           disabled={isLoading}
-          class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+          class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
           rows="6"
           placeholder="Enter a test message for the agent..."
         ></textarea>

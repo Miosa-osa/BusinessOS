@@ -72,7 +72,7 @@
 	}
 
 	// Get display content
-	let displayContent = $derived(() => {
+	let displayContent = $derived.by(() => {
 		if (!result) return '';
 		return fullContent || result.content;
 	});
@@ -135,7 +135,7 @@
 			<!-- Content Area -->
 			<div class="flex-1 overflow-y-auto p-6">
 				<div class="prose dark:prose-invert max-w-none">
-					{@html highlightContent(displayContent())}
+					{@html highlightContent(displayContent)}
 				</div>
 			</div>
 

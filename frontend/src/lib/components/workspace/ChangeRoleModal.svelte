@@ -167,7 +167,7 @@
   .modal-content {
     width: 100%;
     max-width: 500px;
-    background: white;
+    background: var(--dbg);
     border-radius: 0.75rem;
     box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   }
@@ -177,18 +177,18 @@
     align-items: flex-start;
     justify-content: space-between;
     padding: 1.5rem;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--dbd);
   }
 
   .modal-header h2 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #111827;
+    color: var(--dt);
     margin: 0 0 0.25rem 0;
   }
 
   .modal-header p {
-    color: #6b7280;
+    color: var(--dt2);
     font-size: 0.875rem;
     margin: 0;
   }
@@ -200,15 +200,15 @@
     padding: 0.25rem;
     background: transparent;
     border: none;
-    color: #9ca3af;
+    color: var(--dt3);
     cursor: pointer;
     border-radius: 0.25rem;
     transition: all 0.15s;
   }
 
   .close-button:hover {
-    background: #f3f4f6;
-    color: #111827;
+    background: var(--dbg2);
+    color: var(--dt);
   }
 
   .error-message {
@@ -216,10 +216,10 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1.5rem;
-    background: #fef2f2;
-    color: #dc2626;
+    background: var(--bos-background-error-color, #fef2f2);
+    color: var(--bos-error-color);
     font-size: 0.875rem;
-    border-bottom: 1px solid #fee2e2;
+    border-bottom: 1px solid color-mix(in srgb, var(--bos-error-color) 20%, var(--dbg));
   }
 
   .modal-body {
@@ -234,7 +234,7 @@
     align-items: center;
     gap: 0.75rem;
     padding: 1rem;
-    background: #f9fafb;
+    background: var(--dbg2);
     border-radius: 0.5rem;
   }
 
@@ -245,7 +245,7 @@
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    color: var(--bos-surface-on-color);
     font-weight: 600;
     font-size: 0.875rem;
     border-radius: 50%;
@@ -255,12 +255,12 @@
   .member-id {
     font-size: 0.875rem;
     font-weight: 500;
-    color: #111827;
+    color: var(--dt);
   }
 
   .current-role {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--dt2);
   }
 
   .form-group {
@@ -275,32 +275,34 @@
     gap: 0.5rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #374151;
+    color: var(--dt2);
   }
 
   .form-group select {
     padding: 0.625rem 0.875rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--dbd);
     border-radius: 0.375rem;
     font-size: 0.875rem;
+    background: var(--dbg);
+    color: var(--dt);
     transition: all 0.15s;
   }
 
   .form-group select:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: var(--bos-primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--bos-primary-color) 15%, transparent);
   }
 
   .form-group select:disabled {
-    background: #f9fafb;
-    color: #9ca3af;
+    background: var(--dbg2);
+    color: var(--dt3);
     cursor: not-allowed;
   }
 
   .field-hint {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--dt2);
     margin: 0;
   }
 
@@ -309,8 +311,8 @@
     align-items: center;
     gap: 0.5rem;
     padding: 1rem;
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--bos-status-warning-bg);
+    color: var(--bos-status-warning);
     font-size: 0.875rem;
     border-radius: 0.375rem;
   }
@@ -319,7 +321,7 @@
     display: flex;
     gap: 0.75rem;
     padding: 1.5rem;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--dbd);
   }
 
   .cancel-button,
@@ -339,74 +341,26 @@
   }
 
   .cancel-button {
-    background: white;
-    color: #374151;
-    border: 1px solid #d1d5db;
+    background: var(--dbg2);
+    color: var(--dt2);
+    border: 1px solid var(--dbd);
   }
 
   .cancel-button:hover:not(:disabled) {
-    background: #f9fafb;
+    background: var(--dbg3);
   }
 
   .save-button {
-    background: #3b82f6;
+    background: var(--bos-primary-color);
     color: white;
   }
 
   .save-button:hover:not(:disabled) {
-    background: #2563eb;
+    filter: brightness(0.9);
   }
 
   .save-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  :global(.dark) .modal-content {
-    background: #1f2937;
-  }
-
-  :global(.dark) .modal-header {
-    border-bottom-color: #374151;
-  }
-
-  :global(.dark) .modal-header h2 {
-    color: #f9fafb;
-  }
-
-  :global(.dark) .modal-header p {
-    color: #9ca3af;
-  }
-
-  :global(.dark) .member-info {
-    background: #111827;
-  }
-
-  :global(.dark) .member-id {
-    color: #f9fafb;
-  }
-
-  :global(.dark) .form-group label {
-    color: #d1d5db;
-  }
-
-  :global(.dark) .form-group select {
-    background: #111827;
-    border-color: #374151;
-    color: #f9fafb;
-  }
-
-  :global(.dark) .modal-footer {
-    border-top-color: #374151;
-  }
-
-  :global(.dark) .cancel-button {
-    background: #111827;
-    border-color: #374151;
-    color: #d1d5db;
-  }
-
-  :global(.dark) .cancel-button:hover:not(:disabled) {
-    background: #0f172a;
   }
 </style>

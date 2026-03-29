@@ -33,7 +33,7 @@
 
 	let showMenu = $state(false);
 	let isEditing = $state(false);
-	let editValue = $state('');
+	let editValue = $state(column.name);
 	let isResizing = $state(false);
 	let startX = $state(0);
 	let startWidth = $state(0);
@@ -107,7 +107,6 @@
 >
 	<div class="bos-table-header__content">
 		{#if isEditing}
-			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				type="text"
 				class="bos-table-header__input"
@@ -177,7 +176,6 @@
 	</div>
 
 	<!-- Resize handle -->
-	<!-- svelte-ignore a11y_no_noninteractive_tabindex a11y_no_noninteractive_element_interactions -->
 	<div
 		class="bos-table-header__resize"
 		onmousedown={handleResizeStart}
@@ -190,8 +188,8 @@
 <style>
 	.bos-table-header {
 		position: relative;
-		background: var(--dbg2);
-		border-bottom: 1px solid var(--dbd);
+		background: var(--bos-v2-layer-background-secondary, #f4f4f5);
+		border-bottom: 1px solid var(--bos-v2-layer-insideBorder-border, rgba(0, 0, 0, 0.1));
 		text-align: left;
 		font-weight: 500;
 		user-select: none;
@@ -224,13 +222,13 @@
 	}
 
 	.bos-table-header__button:hover {
-		background: var(--dbg3);
+		background: var(--bos-v2-layer-background-hoverOverlay, rgba(0, 0, 0, 0.04));
 	}
 
 	.bos-table-header__name {
-		font-size: 14px;
+		font-size: var(--bos-font-sm, 14px);
 		font-weight: 500;
-		color: var(--dt2);
+		color: var(--bos-v2-text-secondary, #8e8d91);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -238,7 +236,7 @@
 
 	.bos-table-header__sort {
 		display: flex;
-		color: var(--dt4);
+		color: var(--bos-v2-icon-secondary, #a9a9ad);
 	}
 
 	.bos-table-header__sort :global(svg) {
@@ -260,7 +258,7 @@
 		border: none;
 		background: transparent;
 		border-radius: 4px;
-		color: var(--dt4);
+		color: var(--bos-v2-icon-secondary, #a9a9ad);
 		cursor: pointer;
 		opacity: 0;
 		transition: opacity 0.15s;
@@ -271,7 +269,7 @@
 	}
 
 	.bos-table-header__menu-trigger:hover {
-		background: var(--dbg3);
+		background: var(--bos-v2-layer-background-hoverOverlay, rgba(0, 0, 0, 0.04));
 	}
 
 	.bos-table-header__menu-trigger :global(svg) {
@@ -283,12 +281,12 @@
 		flex: 1;
 		height: 24px;
 		padding: 2px 8px;
-		border: 1px solid #1e96eb;
+		border: 1px solid var(--bos-brand-color, #1e96eb);
 		border-radius: 4px;
-		font-size: 14px;
+		font-size: var(--bos-font-sm, 14px);
 		font-weight: 500;
-		background: var(--dbg);
-		color: var(--dt);
+		background: var(--bos-v2-layer-background-primary, #ffffff);
+		color: var(--bos-v2-text-primary, #121212);
 		outline: none;
 	}
 
@@ -305,7 +303,7 @@
 
 	.bos-table-header__resize:hover,
 	.bos-table-header--resizing .bos-table-header__resize {
-		background: #1e96eb;
+		background: var(--bos-brand-color, #1e96eb);
 	}
 
 	.bos-table-header__type-section {
@@ -317,7 +315,7 @@
 		padding: 4px 8px;
 		font-size: 12px;
 		font-weight: 600;
-		color: var(--dt3);
+		color: var(--bos-v2-text-tertiary, #bfbfc3);
 		text-transform: uppercase;
 	}
 
@@ -330,18 +328,46 @@
 		border: none;
 		background: transparent;
 		border-radius: 4px;
-		font-size: 14px;
-		color: var(--dt);
+		font-size: var(--bos-font-sm, 14px);
+		color: var(--bos-v2-text-primary, #121212);
 		cursor: pointer;
 		text-align: left;
 	}
 
 	.bos-table-header__type-option:hover {
-		background: var(--dbg3);
+		background: var(--bos-v2-layer-background-hoverOverlay, rgba(0, 0, 0, 0.04));
 	}
 
 	.bos-table-header__type-option--active {
-		background: var(--dbg3);
-		color: #1e96eb;
+		background: var(--bos-v2-layer-background-hoverOverlay, rgba(0, 0, 0, 0.04));
+		color: var(--bos-brand-color, #1e96eb);
+	}
+
+	/* Dark mode */
+	:global(.dark) .bos-table-header {
+		background: var(--bos-v2-layer-background-secondary, #2c2c2c);
+		border-color: var(--bos-v2-layer-insideBorder-border, rgba(255, 255, 255, 0.1));
+	}
+
+	:global(.dark) .bos-table-header__button:hover {
+		background: var(--bos-v2-layer-background-hoverOverlay, rgba(255, 255, 255, 0.08));
+	}
+
+	:global(.dark) .bos-table-header__name {
+		color: var(--bos-v2-text-secondary, #8e8d91);
+	}
+
+	:global(.dark) .bos-table-header__input {
+		background: var(--bos-v2-layer-background-primary, #1e1e1e);
+		color: var(--bos-v2-text-primary, #e6e6e6);
+	}
+
+	:global(.dark) .bos-table-header__type-option {
+		color: var(--bos-v2-text-primary, #e6e6e6);
+	}
+
+	:global(.dark) .bos-table-header__type-option:hover,
+	:global(.dark) .bos-table-header__type-option--active {
+		background: var(--bos-v2-layer-background-hoverOverlay, rgba(255, 255, 255, 0.08));
 	}
 </style>

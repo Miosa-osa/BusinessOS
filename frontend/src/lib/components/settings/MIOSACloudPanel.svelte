@@ -316,12 +316,14 @@
   :global(.st-muted) { color: var(--dt3, var(--bos-text-tertiary, #888)); }
   :global(.st-icon) { color: var(--dt4, #bbb); }
   :global(.st-cloud-card) {
-    border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
-    background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5));
+    border: 1px solid var(--bos-settings-card-border);
+    background: var(--bos-settings-card-bg);
+    border-radius: var(--bos-settings-card-radius);
     color: var(--dt3, var(--bos-text-tertiary, #888));
   }
   :global(.st-cloud-border) {
-    border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
+    border: 1px solid var(--bos-settings-card-border);
+    border-radius: var(--bos-settings-card-radius);
   }
   :global(.st-cloud-code) {
     background: var(--dbg3, #eee);
@@ -331,6 +333,8 @@
     color: var(--dt2, var(--bos-text-secondary, #555));
   }
   :global(.st-cloud-footer) {
-    background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5));
+    background: var(--bos-settings-card-bg);
+    border: 1px solid var(--bos-settings-card-border);
+    border-radius: var(--bos-settings-card-radius);
   }
 </style>

@@ -43,7 +43,6 @@
 
 <div
 	class="td-member-card"
-	onclick={onClick}
 	role="button"
 	tabindex="0"
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
@@ -53,7 +52,7 @@
 		{#if avatar}
 			<img src={avatar} alt={name} class="td-avatar td-avatar--lg" style="object-fit: cover" />
 		{:else}
-			<div class="td-avatar td-avatar--lg" style="background: linear-gradient(135deg, #6366f1, #8b5cf6)">{getInitials(name)}</div>
+			<div class="td-avatar td-avatar--lg" style="background: var(--bos-avatar-default)">{getInitials(name)}</div>
 		{/if}
 		<span class="td-status-dot td-status-dot--{status}"></span>
 	</div>
@@ -81,7 +80,10 @@
 	</div>
 
 	<div class="td-member-card__actions">
-		<a href="/team/{id}" class="btn-pill btn-pill-soft btn-pill-sm" aria-label="View profile of {name}" onclick={(e) => e.stopPropagation()}>View Profile</a>
+		<button
+			class="btn-pill btn-pill-soft btn-pill-sm"
+			onclick={(e) => { e.stopPropagation(); onClick?.(); }}
+		>View Profile</button>
 	</div>
 </div>
 
@@ -173,7 +175,7 @@
 		align-items: center;
 		justify-content: center;
 		font-weight: 800;
-		color: #fff;
+		color: var(--bos-surface-on-color);
 		flex-shrink: 0;
 		letter-spacing: -0.02em;
 	}

@@ -179,7 +179,6 @@
 	const isSolidColor = $derived(cover?.startsWith('#') && cover?.length === 7);
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="editor-header"
 	class:editor-header--has-cover={cover}
@@ -464,7 +463,6 @@
 			</div>
 		{/if}
 
-		<!-- svelte-ignore a11y_missing_content -->
 		<h1
 			class="editor-header__title"
 			contenteditable={!readOnly}
@@ -519,38 +517,38 @@
 		align-items: center;
 		gap: 0.375rem;
 		padding: 0.5rem 0.75rem;
-		background-color: var(--dbg);
+		background-color: hsl(var(--popover) / 0.85);
 		backdrop-filter: blur(8px);
-		border: 1px solid var(--dbd);
+		border: 1px solid hsl(var(--border) / 0.5);
 		border-radius: 0.375rem;
-		color: var(--dt);
+		color: hsl(var(--popover-foreground));
 		font-size: 0.8125rem;
 		font-weight: 500;
 		cursor: pointer;
 		transition: background-color 0.15s, border-color 0.15s;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+		box-shadow: 0 2px 8px hsl(var(--foreground) / 0.1);
 	}
 
 	.editor-header__cover-btn:hover {
-		background-color: var(--dbg2);
-		border-color: var(--dbd);
+		background-color: hsl(var(--popover) / 0.95);
+		border-color: hsl(var(--border));
 	}
 
 	.editor-header__cover-btn--active {
-		background-color: #1e96eb;
-		color: #fff;
-		border-color: #1e96eb;
+		background-color: hsl(var(--primary));
+		color: hsl(var(--primary-foreground));
+		border-color: hsl(var(--primary));
 	}
 
 	.editor-header__cover-btn--active:hover {
-		background-color: rgba(30, 150, 235, 0.9);
-		border-color: rgba(30, 150, 235, 0.9);
+		background-color: hsl(var(--primary) / 0.9);
+		border-color: hsl(var(--primary) / 0.9);
 	}
 
 	/* Cover picker styles - Notion-like tabbed picker */
 	.cover-picker {
 		width: 480px;
-		background: var(--dbg);
+		background: hsl(var(--background));
 		border-radius: 0.5rem;
 		overflow: hidden;
 	}
@@ -558,7 +556,7 @@
 	.cover-picker__tabs {
 		display: flex;
 		padding: 0.5rem 0.75rem;
-		border-bottom: 1px solid var(--dbd);
+		border-bottom: 1px solid hsl(var(--border));
 		gap: 0.25rem;
 	}
 
@@ -569,28 +567,28 @@
 		border-radius: 0.25rem;
 		font-size: 0.875rem;
 		font-weight: 500;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		cursor: pointer;
 		transition: color 0.15s, background-color 0.15s;
 	}
 
 	.cover-picker__tab:hover {
-		color: var(--dt);
-		background-color: var(--dbg2);
+		color: hsl(var(--foreground));
+		background-color: hsl(var(--muted));
 	}
 
 	.cover-picker__tab--active {
-		color: var(--dt);
-		background-color: var(--dbg2);
+		color: hsl(var(--foreground));
+		background-color: hsl(var(--muted));
 	}
 
 	.cover-picker__tab--remove {
 		margin-left: auto;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 	}
 
 	.cover-picker__tab--remove:hover {
-		color: #ef4444;
+		color: hsl(var(--destructive));
 	}
 
 	.cover-picker__content {
@@ -610,7 +608,7 @@
 	.cover-picker__label {
 		font-size: 0.75rem;
 		font-weight: 500;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		margin-bottom: 0.5rem;
 	}
 
@@ -631,7 +629,7 @@
 
 	.cover-picker__color:hover {
 		transform: scale(1.05);
-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+		box-shadow: 0 2px 8px hsl(var(--foreground) / 0.15);
 	}
 
 	.cover-picker__gradients {
@@ -650,7 +648,7 @@ box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 
 	.cover-picker__gradient:hover {
 		transform: scale(1.05);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+		box-shadow: 0 2px 8px hsl(var(--foreground) / 0.15);
 	}
 
 	.cover-picker__images {
@@ -666,13 +664,13 @@ box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 		cursor: pointer;
 		overflow: hidden;
 		padding: 0;
-		background: var(--dbg2);
+		background: hsl(var(--muted));
 		transition: transform 0.15s, box-shadow 0.15s;
 	}
 
 	.cover-picker__image:hover {
 		transform: scale(1.05);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+		box-shadow: 0 2px 8px hsl(var(--foreground) / 0.15);
 	}
 
 	.cover-picker__image img {
@@ -694,23 +692,23 @@ box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 		gap: 0.5rem;
 		width: 100%;
 		padding: 2rem;
-		background: var(--dbg2);
-		border: 2px dashed var(--dbd);
+		background: hsl(var(--muted) / 0.5);
+		border: 2px dashed hsl(var(--border));
 		border-radius: 0.5rem;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		font-size: 0.875rem;
 		cursor: pointer;
 		transition: border-color 0.15s, background-color 0.15s;
 	}
 
 	.cover-picker__upload-btn:hover {
-		border-color: var(--dt3);
-		background: var(--dbg3);
+		border-color: hsl(var(--muted-foreground));
+		background: hsl(var(--muted));
 	}
 
 	.cover-picker__upload-hint {
 		font-size: 0.75rem;
-		color: var(--dt4);
+		color: hsl(var(--muted-foreground) / 0.7);
 	}
 
 	.cover-picker__url-input {
@@ -721,29 +719,29 @@ box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 	.cover-picker__url-input input {
 		flex: 1;
 		padding: 0.625rem 0.875rem;
-		background: var(--dbg2);
-		border: 1px solid var(--dbd);
+		background: hsl(var(--muted));
+		border: 1px solid hsl(var(--border));
 		border-radius: 0.375rem;
 		font-size: 0.875rem;
-		color: var(--dt);
+		color: hsl(var(--foreground));
 	}
 
 	.cover-picker__url-input input::placeholder {
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 	}
 
 	.cover-picker__url-input input:focus {
 		outline: none;
-		border-color: #1e96eb;
+		border-color: hsl(var(--primary));
 	}
 
 	.cover-picker__submit-btn {
 		width: 100%;
 		padding: 0.625rem;
-		background: #1e96eb;
+		background: hsl(var(--primary));
 		border: none;
 		border-radius: 0.375rem;
-		color: #fff;
+		color: hsl(var(--primary-foreground));
 		font-size: 0.875rem;
 		font-weight: 500;
 		cursor: pointer;
@@ -762,7 +760,7 @@ box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 	.cover-picker__link-hint {
 		margin-top: 0.75rem;
 		font-size: 0.75rem;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		text-align: center;
 	}
 
@@ -798,14 +796,14 @@ box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 		background: transparent;
 		border: none;
 		border-radius: 0.375rem;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		font-size: 0.875rem;
 		cursor: pointer;
 		transition: background-color 0.15s;
 	}
 
 	.editor-header__action-btn:hover {
-		background-color: var(--dbg2);
+		background-color: hsl(var(--muted));
 	}
 
 	.editor-header__icon-wrapper {
@@ -823,11 +821,11 @@ box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 		border-radius: 0.5rem;
 		cursor: pointer;
 		transition: background-color 0.15s;
-		color: var(--dt);
+		color: hsl(var(--foreground));
 	}
 
 	.editor-header__icon:hover:not(:disabled) {
-		background-color: var(--dbg2);
+		background-color: hsl(var(--muted));
 	}
 
 	.editor-header__icon svg {
@@ -839,13 +837,13 @@ box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 		font-size: 2.5rem;
 		font-weight: 700;
 		line-height: 1.2;
-		color: var(--dt);
+		color: hsl(var(--foreground));
 		outline: none;
 		word-break: break-word;
 	}
 
 	.editor-header__title:empty::before {
 		content: attr(data-placeholder);
-		color: var(--dt4);
+		color: hsl(var(--muted-foreground) / 0.5);
 	}
 </style>

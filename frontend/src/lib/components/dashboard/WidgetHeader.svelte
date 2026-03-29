@@ -6,7 +6,7 @@
 		title: string;
 		/** Icon snippet to render inside the icon circle */
 		icon?: Snippet;
-		/** Icon circle color variant */
+		/** Icon color variant (kept for API compatibility, no longer renders a background circle) */
 		iconColor?: 'gray' | 'blue' | 'purple' | 'green' | 'cyan' | 'orange';
 		/** Action button label (e.g., "View All", "Edit") */
 		actionLabel?: string;
@@ -29,9 +29,9 @@
 <div class="widget-header">
 	<div class="widget-header-left">
 		{#if icon}
-			<div class="widget-icon widget-icon-{iconColor}">
+			<span class="widget-icon-inline">
 				{@render icon()}
-			</div>
+			</span>
 		{/if}
 		<h2 class="widget-title">{title}</h2>
 	</div>
@@ -62,52 +62,17 @@
 		gap: 0.5rem;
 	}
 
-	.widget-icon {
-		width: 2rem;
-		height: 2rem;
-		border-radius: 0.5rem;
+	.widget-icon-inline {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		box-shadow: var(--bos-shadow-1);
+		flex-shrink: 0;
 	}
 
-	/* Icon uses white SVGs on colored backgrounds  */
-	.widget-icon :global(svg) {
-		width: 1rem;
-		height: 1rem;
-		color: #fff;
-	}
-
-	/* Icon color variants — semantic, intentionally not using theme tokens */
-	.widget-icon-gray {
-		background: linear-gradient(135deg, #374151, #1f2937);
-	}
-	:global(.dark) .widget-icon-gray {
-		background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
-	}
-	:global(.dark) .widget-icon-gray :global(svg) {
-		color: #111827;
-	}
-
-	.widget-icon-blue {
-		background: linear-gradient(135deg, #3b82f6, #2563eb);
-	}
-
-	.widget-icon-purple {
-		background: linear-gradient(135deg, #a855f7, #9333ea);
-	}
-
-	.widget-icon-green {
-		background: linear-gradient(135deg, #22c55e, #16a34a);
-	}
-
-	.widget-icon-cyan {
-		background: linear-gradient(135deg, #06b6d4, #0891b2);
-	}
-
-	.widget-icon-orange {
-		background: linear-gradient(135deg, #f97316, #ea580c);
+	.widget-icon-inline :global(svg) {
+		width: 1.1rem;
+		height: 1.1rem;
+		color: var(--bos-text-secondary, var(--dt2));
 	}
 
 	.widget-title {

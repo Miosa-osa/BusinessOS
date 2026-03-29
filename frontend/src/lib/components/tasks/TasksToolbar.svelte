@@ -2,7 +2,7 @@
 	import { DropdownMenu } from 'bits-ui';
 	import { fly } from 'svelte/transition';
 
-	type ViewMode = 'list' | 'board' | 'calendar';
+	type ViewMode = 'list' | 'board';
 	type GroupBy = 'status' | 'priority' | 'project' | 'assignee' | 'none';
 
 	interface Props {
@@ -13,6 +13,7 @@
 		onGroupByChange?: (groupBy: GroupBy) => void;
 		onSearchChange?: (query: string) => void;
 		onFilterChange?: (filters: Record<string, string[]>) => void;
+		onNewTask?: () => void;
 	}
 
 	let {
@@ -22,36 +23,12 @@
 		onViewChange,
 		onGroupByChange,
 		onSearchChange,
-		onFilterChange
+		onFilterChange,
+		onNewTask
 	}: Props = $props();
 
 	let filterOpen = $state(false);
 	let groupByOpen = $state(false);
-	const dropdownTransitionProps = { transition: fly, transitionConfig: { y: -10, duration: 150 } } as any;
-
-	const viewOptions: { value: ViewMode; label: string; icon: string }[] = [
-		{
-			value: 'list',
-			label: 'List',
-			icon: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-			</svg>`
-		},
-		{
-			value: 'board',
-			label: 'Board',
-			icon: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-			</svg>`
-		},
-		{
-			value: 'calendar',
-			label: 'Calendar',
-			icon: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-			</svg>`
-		}
-	];
 
 	const groupByOptions: { value: GroupBy; label: string }[] = [
 		{ value: 'none', label: 'None' },
@@ -79,74 +56,87 @@
 	}
 </script>
 
-<div class="tb-toolbar flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3">
+<div class="tb-toolbar">
 	<!-- View Switcher -->
-	<div class="flex items-center gap-1 tb-toolbar-seg rounded-lg p-1 flex-shrink-0">
-		{#each viewOptions as option}
-			<button
-				onclick={() => handleViewChange(option.value)}
-				class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-md text-sm transition-colors
-					{view === option.value ? 'tb-toolbar-seg-active font-medium' : 'tb-toolbar-seg-inactive'}"
-			>
-				{@html option.icon}
-				<span>{option.label}</span>
-			</button>
-		{/each}
+	<div class="tb-view-toggle">
+		<button
+			onclick={() => handleViewChange('list')}
+			class="tb-view-btn {view === 'list' ? 'tb-view-btn--active' : ''}"
+			aria-label="List view"
+		>
+			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+			</svg>
+			<span>List</span>
+		</button>
+		<button
+			onclick={() => handleViewChange('board')}
+			class="tb-view-btn {view === 'board' ? 'tb-view-btn--active' : ''}"
+			aria-label="Board view"
+		>
+			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+			</svg>
+			<span>Board</span>
+		</button>
 	</div>
 
 	<!-- Center Actions -->
-	<div class="flex items-center gap-2 flex-shrink-0">
+	<div class="flex items-center gap-2">
 		<!-- Filter Dropdown -->
 		<DropdownMenu.Root bind:open={filterOpen}>
-			<DropdownMenu.Trigger
-				class="btn-pill btn-pill-secondary btn-pill-sm flex items-center gap-2"
-			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<DropdownMenu.Trigger class="tb-action-btn">
+				<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
 				</svg>
 				Filter
-				<svg class="w-3 h-3 tb-toolbar-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<svg class="w-3 h-3 tb-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 				</svg>
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Portal>
 				<DropdownMenu.Content
-					class="z-50 w-64 tb-toolbar-dropdown rounded-xl shadow-lg p-3"
+					class="z-50 w-64 tb-dropdown rounded-xl p-3"
 					sideOffset={4}
-					{...dropdownTransitionProps}
 				>
 					<div class="space-y-4">
-						<!-- Status -->
 						<div>
-							<p class="text-xs font-medium tb-toolbar-meta uppercase mb-2">Status</p>
+							<p class="tb-dropdown-heading">Status</p>
 							<div class="space-y-1">
 								{#each ['To Do', 'In Progress', 'In Review', 'Done', 'Blocked'] as status}
-									<label class="flex items-center gap-2 px-2 py-1.5 tb-toolbar-dropdown-hover rounded cursor-pointer">
-										<input type="checkbox" class="rounded tb-toolbar-check" checked />
-										<span class="text-sm tb-toolbar-label">{status}</span>
+									<label class="tb-dropdown-check-row">
+										<span class="tb-custom-check">
+											<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+											</svg>
+										</span>
+										<input type="checkbox" class="sr-only" checked />
+										<span class="tb-dropdown-label">{status}</span>
 									</label>
 								{/each}
 							</div>
 						</div>
 
-						<!-- Priority -->
 						<div>
-							<p class="text-xs font-medium tb-toolbar-meta uppercase mb-2">Priority</p>
+							<p class="tb-dropdown-heading">Priority</p>
 							<div class="space-y-1">
-								{#each ['Critical', 'High', 'Medium', 'Low'] as priority}
-									<label class="flex items-center gap-2 px-2 py-1.5 tb-toolbar-dropdown-hover rounded cursor-pointer">
-										<input type="checkbox" class="rounded tb-toolbar-check" checked />
-										<span class="text-sm tb-toolbar-label">{priority}</span>
+								{#each ['Critical', 'High', 'Medium', 'Low'] as prio}
+									<label class="tb-dropdown-check-row">
+										<span class="tb-custom-check">
+											<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+											</svg>
+										</span>
+										<input type="checkbox" class="sr-only" checked />
+										<span class="tb-dropdown-label">{prio}</span>
 									</label>
 								{/each}
 							</div>
 						</div>
 
-						<div class="flex items-center justify-between pt-2 tb-toolbar-sep">
-							<button class="btn-pill btn-pill-ghost btn-pill-xs">Clear All</button>
-							<button class="btn-pill btn-pill-primary btn-pill-xs">
-								Apply
-							</button>
+						<div class="flex items-center justify-between pt-2 tb-dropdown-footer">
+							<button class="tb-dropdown-text-btn">Clear All</button>
+							<button class="tb-dropdown-apply-btn">Apply</button>
 						</div>
 					</div>
 				</DropdownMenu.Content>
@@ -156,31 +146,27 @@
 		<!-- Group By Dropdown -->
 		{#if view === 'list'}
 			<DropdownMenu.Root bind:open={groupByOpen}>
-				<DropdownMenu.Trigger
-					class="btn-pill btn-pill-secondary btn-pill-sm flex items-center gap-2"
-				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<DropdownMenu.Trigger class="tb-action-btn">
+					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
 					</svg>
 					Group
-					<svg class="w-3 h-3 tb-toolbar-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-3 h-3 tb-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 					</svg>
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Portal>
 					<DropdownMenu.Content
-					class="z-50 min-w-[160px] tb-toolbar-dropdown rounded-xl shadow-lg p-1"
-					sideOffset={4}
-					{...dropdownTransitionProps}
-				>
-					{#each groupByOptions as option}
-						<DropdownMenu.Item
-							class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors
-								{groupBy === option.value ? 'tb-toolbar-group-active font-medium' : 'tb-toolbar-group-item'}"
-							onclick={() => handleGroupByChange(option.value)}
-						>
-							{#if groupBy === option.value}
-								<svg class="w-4 h-4 tb-toolbar-check-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						class="z-50 min-w-[160px] tb-dropdown rounded-xl p-1"
+						sideOffset={4}
+					>
+						{#each groupByOptions as option}
+							<DropdownMenu.Item
+								class="tb-dropdown-item {groupBy === option.value ? 'tb-dropdown-item--active' : ''}"
+								onclick={() => handleGroupByChange(option.value)}
+							>
+								{#if groupBy === option.value}
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 									</svg>
 								{:else}
@@ -196,8 +182,8 @@
 	</div>
 
 	<!-- Search -->
-	<div class="relative flex-1 sm:flex-none min-w-0 sm:min-w-[200px]">
-		<svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 tb-toolbar-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	<div class="tb-search-wrap">
+		<svg class="tb-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
 		</svg>
 		<input
@@ -205,72 +191,226 @@
 			placeholder="Search tasks..."
 			value={searchQuery}
 			oninput={handleSearchInput}
-			class="w-full sm:w-64 pl-10 pr-4 py-2 text-sm tb-toolbar-input rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+			class="tb-search-input"
 		/>
 	</div>
+
+	<!-- New Task -->
+	{#if onNewTask}
+		<button
+			onclick={onNewTask}
+			class="btn-cta tb-new-task-btn"
+			aria-label="Create new task"
+		>
+			<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+			</svg>
+			<span class="tb-new-task-label">New Task</span>
+		</button>
+	{/if}
 </div>
 
 <style>
 	.tb-toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.625rem 1.5rem;
 		background: var(--dbg, #fff);
 		border-bottom: 1px solid var(--dbd, #e0e0e0);
 	}
-	.tb-toolbar-seg {
-		background: var(--dbg2, #f5f5f5);
+
+	/* ── View toggle (compact segmented) ── */
+	.tb-view-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 1px;
+		border: 1px solid var(--dbd, #e5e7eb);
+		border-radius: 0.5rem;
+		padding: 2px;
+		background: var(--dbg2, #f9fafb);
 	}
-	.tb-toolbar-seg-active {
-		background: var(--dbg, #fff);
-		color: var(--dt, #111);
-		box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,0.05));
+	.tb-view-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.25rem 0.625rem;
+		border-radius: 0.375rem;
+		font-size: 0.8125rem;
+		color: var(--dt3, #888);
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		transition: all 0.15s;
+		white-space: nowrap;
 	}
-	.tb-toolbar-seg-inactive {
+	.tb-view-btn:hover { color: var(--dt, #111); }
+	.tb-view-btn--active {
+		color: var(--dt);
+		background: color-mix(in srgb, var(--dt) 8%, transparent);
+		font-weight: 600;
+	}
+	:global(.dark) .tb-view-btn--active {
+		color: var(--dt);
+		background: color-mix(in srgb, var(--dt) 8%, transparent);
+	}
+
+	/* ── Action buttons (Filter, Group) — :global because DropdownMenu.Trigger renders its own element ── */
+	:global(.tb-action-btn) {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.375rem 0.625rem;
+		font-size: 0.8125rem;
+		font-weight: 500;
 		color: var(--dt2, #555);
-	}
-	.tb-toolbar-seg-inactive:hover {
-		color: var(--dt, #111);
-	}
-	/* :global needed because bits-ui renders its own elements */
-	:global(.tb-toolbar-dropdown) {
 		background: var(--dbg, #fff);
 		border: 1px solid var(--dbd, #e0e0e0);
+		border-radius: 0.5rem;
+		cursor: pointer;
+		transition: all 0.15s;
+		white-space: nowrap;
 	}
-	:global(.tb-toolbar-dropdown-hover:hover) {
+	:global(.tb-action-btn:hover) {
+		color: var(--dt, #111);
+		background: var(--dbg2, #f5f5f5);
+		border-color: var(--dt3, #888);
+	}
+	:global(.tb-chevron) {
+		color: var(--dt4, #bbb);
+		margin-left: -0.125rem;
+	}
+
+	/* ── Dropdown ── */
+	:global(.tb-dropdown) {
+		background: var(--dbg, #fff);
+		border: 1px solid var(--dbd, #e0e0e0);
+		box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+	}
+	:global(.tb-dropdown-heading) {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		color: var(--dt3, #888);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		margin-bottom: 0.5rem;
+	}
+	:global(.tb-dropdown-check-row) {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.375rem 0.5rem;
+		border-radius: 0.375rem;
+		cursor: pointer;
+		transition: background 0.12s;
+	}
+	:global(.tb-dropdown-check-row:hover) {
 		background: var(--dbg2, #f5f5f5);
 	}
-	:global(.tb-toolbar-meta) {
-		color: var(--dt2, #555);
+	:global(.tb-custom-check) {
+		width: 0.875rem;
+		height: 0.875rem;
+		border-radius: 0.1875rem;
+		background: var(--dt);
+		color: var(--dbg);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
 	}
-	:global(.tb-toolbar-label) {
+	:global(.tb-dropdown-label) {
+		font-size: 0.8125rem;
 		color: var(--dt, #111);
 	}
-	:global(.tb-toolbar-check) {
-		border-color: var(--dbd, #e0e0e0);
-	}
-	:global(.tb-toolbar-chevron) {
-		color: var(--dt4, #bbb);
-	}
-	:global(.tb-toolbar-sep) {
+	:global(.tb-dropdown-footer) {
 		border-top: 1px solid var(--dbd2, #f0f0f0);
 	}
-	:global(.tb-toolbar-group-active) {
-		background: var(--dbg2, #f5f5f5);
-		color: var(--dt, #111);
+	:global(.tb-dropdown-text-btn) {
+		font-size: 0.75rem;
+		color: var(--dt3, #888);
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0.25rem 0;
 	}
-	:global(.tb-toolbar-group-item) {
+	:global(.tb-dropdown-text-btn:hover) { color: var(--dt, #111); }
+	:global(.tb-dropdown-apply-btn) {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--dbg);
+		background: var(--dt);
+		border: none;
+		border-radius: 0.375rem;
+		padding: 0.3rem 0.75rem;
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+	:global(.tb-dropdown-apply-btn:hover) { background: var(--dt2); }
+	:global(.tb-dropdown-item) {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.8125rem;
 		color: var(--dt2, #555);
+		border-radius: 0.5rem;
+		cursor: pointer;
+		transition: background 0.12s;
 	}
-	:global(.tb-toolbar-group-item:hover) {
-		background: var(--dbg2, #f5f5f5);
+	:global(.tb-dropdown-item:hover) { background: var(--dbg2, #f5f5f5); }
+	:global(.tb-dropdown-item--active) {
+		color: var(--dt);
+		font-weight: 600;
+		background: color-mix(in srgb, var(--dt) 8%, transparent);
 	}
-	:global(.tb-toolbar-check-icon) {
-		color: var(--dt, #111);
+	:global(.dark .tb-dropdown-item--active) {
+		color: var(--dt);
+		background: color-mix(in srgb, var(--dt) 8%, transparent);
 	}
-	.tb-toolbar-search-icon {
+
+	/* ── Search ── */
+	.tb-search-wrap {
+		position: relative;
+		flex: 1;
+		min-width: 0;
+		max-width: 16rem;
+	}
+	.tb-search-icon {
+		position: absolute;
+		left: 0.75rem;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 1rem;
+		height: 1rem;
 		color: var(--dt4, #bbb);
 	}
-	.tb-toolbar-input {
+	.tb-search-input {
+		width: 100%;
+		padding: 0.375rem 0.75rem 0.375rem 2.25rem;
+		font-size: 0.8125rem;
 		background: var(--dbg2, #f5f5f5);
 		border: 1px solid var(--dbd, #e0e0e0);
+		border-radius: 0.5rem;
 		color: var(--dt, #111);
+		outline: none;
+		transition: border-color 0.15s;
+	}
+	.tb-search-input:focus {
+		border-color: var(--dbd);
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--dt) 10%, transparent);
+	}
+
+	/* ── New Task button (inline with toolbar) ── */
+	.tb-new-task-btn {
+		flex-shrink: 0;
+		white-space: nowrap;
+	}
+	/* Hide label text on very small viewports; icon-only still readable */
+	@media (max-width: 480px) {
+		.tb-new-task-label {
+			display: none;
+		}
 	}
 </style>

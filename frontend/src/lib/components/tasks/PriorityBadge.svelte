@@ -9,42 +9,53 @@
 
 	let { priority, size = 'sm', showLabel = true }: Props = $props();
 
-	const priorityConfig = {
-		critical: {
-			bg: 'bg-red-100',
-			text: 'text-red-700',
-			dot: 'bg-red-500',
-			label: 'Critical'
-		},
-		high: {
-			bg: 'bg-orange-100',
-			text: 'text-orange-700',
-			dot: 'bg-orange-500',
-			label: 'High'
-		},
-		medium: {
-			bg: 'bg-yellow-100',
-			text: 'text-yellow-700',
-			dot: 'bg-yellow-500',
-			label: 'Medium'
-		},
-		low: {
-			bg: 'bg-gray-100',
-			text: 'text-gray-600',
-			dot: 'bg-gray-400',
-			label: 'Low'
-		}
+	const priorityDots: Record<Priority, string> = {
+		critical: 'var(--priority-critical)',
+		high: 'var(--priority-high)',
+		medium: 'var(--priority-medium)',
+		low: 'var(--priority-low)'
 	};
 
-	// Default to 'medium' if priority is null/undefined
-	const normalizedPriority = $derived(priority && priorityConfig[priority] ? priority : 'medium');
-	const config = $derived(priorityConfig[normalizedPriority]);
-	const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm';
+	const priorityLabels: Record<Priority, string> = {
+		critical: 'Critical',
+		high: 'High',
+		medium: 'Medium',
+		low: 'Low'
+	};
+
+	const normalizedPriority = $derived(priority && priorityDots[priority] ? priority : 'medium');
+	const sizeClasses = size === 'sm' ? 'pb-sm' : 'pb-md';
 </script>
 
-<span class="inline-flex items-center gap-1.5 rounded-full font-medium {config.bg} {config.text} {sizeClasses}">
-	<span class="w-1.5 h-1.5 rounded-full {config.dot}"></span>
+<span class="pb-badge {sizeClasses}">
+	<span class="pb-dot" style="background: {priorityDots[normalizedPriority]}"></span>
 	{#if showLabel}
-		{config.label}
+		{priorityLabels[normalizedPriority]}
 	{/if}
 </span>
+
+<style>
+	.pb-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		font-weight: 500;
+		color: var(--dt2, #555);
+		background: var(--dbg2, #f5f5f5);
+		border-radius: 9999px;
+	}
+	.pb-sm {
+		padding: 0.125rem 0.5rem;
+		font-size: 0.75rem;
+	}
+	.pb-md {
+		padding: 0.25rem 0.625rem;
+		font-size: 0.8125rem;
+	}
+	.pb-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+</style>

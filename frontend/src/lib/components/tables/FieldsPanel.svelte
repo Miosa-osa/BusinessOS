@@ -129,14 +129,14 @@
 
 	<!-- Panel (positioned from right) -->
 	<div
-		class="fixed right-0 top-0 z-50 flex h-full w-80 flex-col bg-white shadow-2xl"
+		class="dt2-panel fixed right-0 top-0 z-50 flex h-full w-80 flex-col"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="fields-panel-title"
 	>
 		<!-- Header -->
-		<div class="flex items-center justify-between border-b border-gray-200 px-4 py-4">
-			<h2 id="fields-panel-title" class="text-lg font-semibold text-gray-900">Fields</h2>
+		<div class="flex items-center justify-between px-4 py-4" style="border-bottom: 1px solid var(--dbd);">
+			<h2 id="fields-panel-title" class="text-lg font-semibold" style="color: var(--dt);">Fields</h2>
 			<button
 				type="button"
 				class="btn-pill btn-pill-ghost btn-pill-icon"
@@ -147,21 +147,21 @@
 		</div>
 
 		<!-- Search -->
-		<div class="border-b border-gray-100 px-4 py-3">
+		<div class="px-4 py-3" style="border-bottom: 1px solid var(--dbd2);">
 			<div class="relative">
-				<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+				<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style="color: var(--dt3);" />
 				<input
 					type="text"
 					placeholder="Search fields..."
 					bind:value={searchQuery}
-					class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+					class="dt2-search w-full rounded-lg py-2 pl-9 pr-3 text-sm focus:outline-none"
 				/>
 			</div>
 		</div>
 
 		<!-- Quick Actions -->
-		<div class="flex items-center justify-between border-b border-gray-100 px-4 py-2">
-			<div class="flex items-center gap-4 text-xs text-gray-500">
+		<div class="flex items-center justify-between px-4 py-2" style="border-bottom: 1px solid var(--dbd2);">
+			<div class="flex items-center gap-4 text-xs" style="color: var(--dt3);">
 				<span class="flex items-center gap-1">
 					<Eye class="h-3.5 w-3.5" />
 					{visibleCount} visible
@@ -246,8 +246,8 @@
 		</div>
 
 		<!-- Footer -->
-		<div class="border-t border-gray-200 bg-gray-50 px-4 py-3">
-			<p class="text-xs text-gray-500">
+		<div class="px-4 py-3" style="border-top: 1px solid var(--dbd); background: var(--dbg2);">
+			<p class="text-xs" style="color: var(--dt3);">
 				Tip: Primary field cannot be hidden. Drag to reorder fields in the view.
 			</p>
 		</div>
@@ -255,6 +255,24 @@
 {/if}
 
 <style>
+	.dt2-panel {
+		background: var(--dbg);
+		box-shadow: var(--shadow-2xl, 0 25px 50px -12px rgba(0, 0, 0, 0.25));
+		color: var(--dt);
+	}
+
+	.dt2-search {
+		background: var(--dbg2);
+		border: 1px solid var(--dbd);
+		color: var(--dt);
+	}
+
+	.dt2-search:focus {
+		background: var(--dbg);
+		border-color: var(--dt2-accent, #3b82f6);
+		box-shadow: 0 0 0 1px var(--dt2-accent, #3b82f6);
+	}
+
 	/* Slide-in animation */
 	@keyframes slideInRight {
 		from {

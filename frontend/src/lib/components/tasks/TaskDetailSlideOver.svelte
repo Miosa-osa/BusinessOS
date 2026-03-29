@@ -1,3 +1,9 @@
+<!--
+  DEPRECATED: TaskDetailSlideOver is no longer the primary task detail UI.
+  Task detail is now a full page at /tasks/[id]/+page.svelte.
+  This component is kept for any embed/modal contexts that may still need it,
+  but the tasks list page now navigates to the full page route instead.
+-->
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
 	import TaskCheckbox from './TaskCheckbox.svelte';

@@ -46,7 +46,7 @@
 
 <div class="cr-cards-container">
 	<div class="cr-card-grid">
-		{#each clients as client}
+		{#each clients as client (client.id)}
 			<button
 				onclick={() => onClientClick(client.id)}
 				class="cr-client-card"
@@ -140,7 +140,7 @@
 		padding: 14px;
 		border-radius: 14px;
 		border: 1px solid var(--dbd, #e0e0e0);
-		background: var(--dbg, #fff);
+		background: var(--dbg);
 		text-align: left;
 		cursor: pointer;
 		transition: border-color 0.13s, box-shadow 0.13s;
@@ -258,15 +258,15 @@
 		font-weight: 600;
 		letter-spacing: 0.01em;
 	}
-	.cr-status-pill--active { background: rgba(34, 197, 94, 0.12); color: #16a34a; }
-	.cr-status-pill--lead { background: rgba(107, 114, 128, 0.12); color: #6b7280; }
+	.cr-status-pill--active { background: var(--bos-status-success-bg); color: var(--bos-status-success-text); }
+	.cr-status-pill--lead { background: var(--bos-status-neutral-bg); color: var(--bos-status-neutral-text); }
 	.cr-status-pill--prospect { background: rgba(59, 130, 246, 0.12); color: #2563eb; }
 	.cr-status-pill--inactive { background: rgba(156, 163, 175, 0.12); color: #6b7280; }
 	.cr-status-pill--churned { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
-	:global(.dark) .cr-status-pill--active { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-	:global(.dark) .cr-status-pill--lead { background: rgba(107, 114, 128, 0.15); color: #9ca3af; }
+	:global(.dark) .cr-status-pill--active { background: var(--bos-status-success-bg); color: var(--bos-status-success); }
+	:global(.dark) .cr-status-pill--lead { background: var(--bos-status-neutral-bg); color: var(--bos-status-neutral); }
 	:global(.dark) .cr-status-pill--prospect { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-	:global(.dark) .cr-status-pill--inactive { background: rgba(156, 163, 175, 0.15); color: #9ca3af; }
+	:global(.dark) .cr-status-pill--inactive { background: var(--bos-status-neutral-bg); color: var(--bos-status-neutral); }
 	:global(.dark) .cr-status-pill--churned { background: rgba(239, 68, 68, 0.15); color: #f87171; }
 	.cr-type-pill {
 		display: inline-flex;
@@ -277,10 +277,10 @@
 		font-size: 10px;
 		font-weight: 600;
 	}
-	.cr-type-pill--company { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
-	.cr-type-pill--individual { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
-	:global(.dark) .cr-type-pill--company { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
-	:global(.dark) .cr-type-pill--individual { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
+	.cr-type-pill--company { background: color-mix(in srgb, var(--bos-category-productivity) 10%, transparent); color: #6366f1; }
+	.cr-type-pill--individual { background: color-mix(in srgb, var(--bos-category-ai) 10%, transparent); color: #8b5cf6; }
+	:global(.dark) .cr-type-pill--company { background: color-mix(in srgb, var(--bos-category-productivity) 15%, transparent); color: var(--bos-category-productivity); }
+	:global(.dark) .cr-type-pill--individual { background: color-mix(in srgb, var(--bos-category-ai) 15%, transparent); color: var(--bos-category-ai); }
 
 	/* ─── Deal Badge (Foundation CRM) ──────────────────────────── */
 	.cr-deal-badge {
@@ -289,15 +289,15 @@
 		gap: 3px;
 		padding: 2px 8px;
 		border-radius: 9999px;
-		background: rgba(34, 197, 94, 0.08);
+		background: var(--bos-status-success-bg);
 		border: 1px solid rgba(34, 197, 94, 0.15);
 		font-size: 11px;
 		font-weight: 700;
-		color: #16a34a;
+		color: var(--bos-status-success-text);
 	}
 	:global(.dark) .cr-deal-badge {
-		background: rgba(34, 197, 94, 0.12);
+		background: var(--bos-status-success-bg);
 		border-color: rgba(34, 197, 94, 0.2);
-		color: #4ade80;
+		color: var(--bos-status-success);
 	}
 </style>

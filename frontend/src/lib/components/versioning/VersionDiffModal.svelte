@@ -95,16 +95,16 @@
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
 		onclick={handleBackdropClick}
 	>
-		<div class="diff-modal bg-[#0f0f12] border border-white/10 rounded-xl shadow-2xl flex flex-col overflow-hidden"
+		<div class="diff-modal bg-white dark:bg-[var(--dbg)] border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl flex flex-col overflow-hidden"
 			style="width: 92vw; max-width: 1500px; height: 85vh;"
 		>
 			<!-- Header -->
-			<header class="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-white/[0.02]">
+			<header class="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02]">
 				<div class="flex items-center gap-4">
-					<h2 class="text-sm font-semibold text-white">
+					<h2 class="text-sm font-semibold text-gray-900 dark:text-white">
 						Comparing
 						<span class="text-indigo-400">v{fromDisplayNum}</span>
-						<span class="text-gray-500 mx-1">&rarr;</span>
+						<span class="text-gray-400 dark:text-gray-500 mx-1">&rarr;</span>
 						<span class="text-indigo-400">v{toDisplayNum}</span>
 					</h2>
 
@@ -137,13 +137,13 @@
 			<!-- Body -->
 			<div class="flex flex-1 overflow-hidden">
 				<!-- File list sidebar -->
-				<div class="w-60 border-r border-white/10 overflow-y-auto bg-white/[0.01] flex-shrink-0">
+				<div class="w-60 border-r border-gray-200 dark:border-white/10 overflow-y-auto bg-gray-50/30 dark:bg-white/[0.01] flex-shrink-0">
 					{#if loading}
 						<div class="flex items-center justify-center h-full">
 							<Loader2 size={20} class="animate-spin text-indigo-400" />
 						</div>
 					{:else if changedFiles.length === 0}
-						<div class="flex flex-col items-center justify-center h-full text-gray-500 text-xs p-4 text-center">
+						<div class="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-500 text-xs p-4 text-center">
 							<p>No file changes found</p>
 						</div>
 					{:else}
@@ -152,7 +152,7 @@
 								<button
 									onclick={() => selectedFile = file}
 									class="w-full px-3 py-2 flex items-center gap-2 text-left text-xs transition-colors
-										{selectedFile === file ? 'bg-indigo-500/15 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'}"
+										{selectedFile === file ? 'bg-indigo-500/15 text-indigo-700 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'}"
 								>
 									{#if file.change_type === 'added'}
 										<FilePlus size={14} class="text-emerald-400 flex-shrink-0" />
@@ -164,7 +164,7 @@
 									<div class="min-w-0 flex-1">
 										<div class="truncate font-medium">{getFileName(file.file_path)}</div>
 										{#if getFileDir(file.file_path)}
-											<div class="truncate text-[10px] text-gray-600">{getFileDir(file.file_path)}</div>
+											<div class="truncate text-[10px] text-gray-500 dark:text-gray-600">{getFileDir(file.file_path)}</div>
 										{/if}
 									</div>
 									<div class="flex-shrink-0 text-[10px] tabular-nums">
@@ -205,7 +205,7 @@
 						</div>
 					{:else if selectedFile}
 						<!-- File header -->
-						<div class="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-white/[0.02]">
+						<div class="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02]">
 							<div class="flex items-center gap-2 text-xs">
 								{#if selectedFile.change_type === 'added'}
 									<FilePlus size={14} class="text-emerald-400" />
@@ -214,9 +214,9 @@
 								{:else}
 									<FileEdit size={14} class="text-amber-400" />
 								{/if}
-								<span class="text-gray-300 font-mono">{selectedFile.file_path}</span>
+								<span class="text-gray-600 dark:text-gray-300 font-mono">{selectedFile.file_path}</span>
 								{#if selectedFile.language}
-									<span class="px-1.5 py-0.5 bg-white/5 rounded text-gray-500 text-[10px]">{selectedFile.language}</span>
+									<span class="px-1.5 py-0.5 bg-gray-100 dark:bg-white/5 rounded text-gray-500 dark:text-gray-500 text-[10px]">{selectedFile.language}</span>
 								{/if}
 							</div>
 							<div class="flex items-center gap-1">
@@ -248,7 +248,7 @@
 							/>
 						</div>
 					{:else}
-						<div class="flex items-center justify-center h-full text-gray-500 text-sm">
+						<div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-500 text-sm">
 							Select a file to view changes
 						</div>
 					{/if}

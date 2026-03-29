@@ -113,8 +113,8 @@
 		justify-content: space-between;
 		height: 44px;
 		padding: 0 0.75rem;
-		border-bottom: 1px solid var(--dbd);
-		background-color: var(--dbg);
+		border-bottom: 1px solid hsl(var(--border));
+		background-color: hsl(var(--background));
 	}
 
 	.editor-toolbar__left,
@@ -134,18 +134,18 @@
 		align-items: center;
 		gap: 0.375rem;
 		font-size: 0.75rem;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 	}
 
 	.editor-toolbar__status--saving {
-		color: #1e96eb;
+		color: hsl(var(--primary));
 	}
 
 	.editor-toolbar__spinner {
 		width: 12px;
 		height: 12px;
-		border: 2px solid rgba(30, 150, 235, 0.3);
-		border-top-color: #1e96eb;
+		border: 2px solid hsl(var(--primary) / 0.3);
+		border-top-color: hsl(var(--primary));
 		border-radius: 50%;
 		animation: spin 0.6s linear infinite;
 	}
@@ -165,14 +165,14 @@
 		background: transparent;
 		border: none;
 		border-radius: 4px;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		cursor: pointer;
 		transition: color 0.15s, background-color 0.15s;
 	}
 
 	.toolbar-icon-btn:hover {
-		color: var(--dt);
-		background-color: var(--dbg2);
+		color: hsl(var(--foreground));
+		background-color: hsl(var(--muted) / 0.5);
 	}
 
 	/* Favorite star when active - yellow works in both light/dark modes */
@@ -182,5 +182,14 @@
 
 	.toolbar-icon-btn--favorite :global(svg) {
 		fill: hsl(48 96% 53%); /* amber-400 */
+	}
+
+	/* Slightly brighter in dark mode for better visibility */
+	:global(.dark) .toolbar-icon-btn--favorite {
+		color: hsl(48 96% 60%);
+	}
+
+	:global(.dark) .toolbar-icon-btn--favorite :global(svg) {
+		fill: hsl(48 96% 60%);
 	}
 </style>

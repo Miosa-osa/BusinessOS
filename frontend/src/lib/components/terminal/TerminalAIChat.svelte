@@ -6,6 +6,7 @@
 	import { MODE_COLORS, type OsaMode } from '$lib/stores/osa';
 	import { getThemeColors } from './themes';
 	import { getCSRFToken, initCSRF } from '$lib/api/base';
+	import { fetchSlashCommands, FALLBACK_COMMANDS } from '$lib/api/commands';
 
 	// ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -90,19 +91,18 @@
 	// OSA mode state
 	let osaActiveMode = $state<OsaMode>('ASSIST');
 
-	// ─── Constants ──────────────────────────────────────────────────────────────
+	// ─── Slash commands (loaded from shared API service) ────────────────────────
 
-	const SLASH_COMMANDS: SlashCommand[] = [
-		{ id: '/analyze', label: '/analyze', description: 'Deep analysis of data or concepts' },
-		{ id: '/research', label: '/research', description: 'Research a topic thoroughly' },
-		{ id: '/deep', label: '/deep', description: 'Deep research with 10+ sources' },
-		{ id: '/write', label: '/write', description: 'Write documents, reports, emails' },
-		{ id: '/build', label: '/build', description: 'Build frameworks, SOPs, plans' },
-		{ id: '/plan', label: '/plan', description: 'Create project or action plans' },
-		{ id: '/task', label: '/task', description: 'Create and manage tasks' },
-		{ id: '/client', label: '/client', description: 'Client management operations' },
-		{ id: '/generate', label: '/generate', description: 'Generate an application' }
-	];
+	/**
+	 * Convert the canonical API SlashCommand shape to the local terminal shape.
+	 * The terminal only needs id (prefixed with "/"), label, and description.
+	 */
+	function toTerminalCommand(c: { name: string; description: string }): SlashCommand {
+		return { id: `/${c.name}`, label: `/${c.name}`, description: c.description };
+	}
+
+	/** Start with the fallback set so the dropdown works before the API responds. */
+	let slashCommandList = $state<SlashCommand[]>(FALLBACK_COMMANDS.map(toTerminalCommand));
 
 	const OSA_MODES: { mode: OsaMode; label: string; color: string }[] = [
 		{ mode: 'BUILD', label: 'BUILD', color: MODE_COLORS.BUILD },
@@ -146,7 +146,7 @@
 	});
 
 	const filteredSlashCommands = $derived(
-		SLASH_COMMANDS.filter(cmd =>
+		slashCommandList.filter(cmd =>
 			cmd.id.toLowerCase().includes(slashFilter.toLowerCase())
 		)
 	);
@@ -542,6 +542,13 @@
 
 	onMount(() => {
 		inputEl?.focus();
+		// Load slash commands from the shared API service.
+		// fetchSlashCommands caches the result so this is a no-op on re-mounts.
+		fetchSlashCommands().then((commands) => {
+			if (commands.length > 0) {
+				slashCommandList = commands.map(toTerminalCommand);
+			}
+		});
 	});
 
 	onDestroy(() => {

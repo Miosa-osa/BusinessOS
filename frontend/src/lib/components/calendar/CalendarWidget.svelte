@@ -52,24 +52,8 @@
 		return `${formatTime(start)} - ${formatTime(end)}`;
 	}
 
-	function getMeetingTypeColor(type: string): string {
-		const colors: Record<string, string> = {
-			team: 'bg-blue-100 text-blue-700',
-			sales: 'bg-green-100 text-green-700',
-			onboarding: 'bg-purple-100 text-purple-700',
-			kickoff: 'bg-orange-100 text-orange-700',
-			implementation: 'bg-cyan-100 text-cyan-700',
-			standup: 'bg-indigo-100 text-indigo-700',
-			retrospective: 'bg-pink-100 text-pink-700',
-			planning: 'bg-yellow-100 text-yellow-700',
-			review: 'bg-teal-100 text-teal-700',
-			one_on_one: 'bg-rose-100 text-rose-700',
-			client: 'bg-emerald-100 text-emerald-700',
-			internal: 'bg-slate-100 text-slate-700',
-			external: 'bg-amber-100 text-amber-700',
-			other: 'bg-gray-100 text-gray-700'
-		};
-		return colors[type] || colors.other;
+	function getMeetingTypeStyle(): string {
+		return 'background: var(--dbg2); color: var(--dt2)';
 	}
 
 	function isEventNow(event: CalendarEvent): boolean {
@@ -83,7 +67,7 @@
 <div class="card">
 	{#if showHeader}
 		<div class="flex items-center justify-between mb-4">
-			<h2 class="text-lg font-medium text-gray-900">Today's Schedule</h2>
+			<h2 class="text-lg font-medium" style="color: var(--dt)">Today's Schedule</h2>
 			{#if onViewAll}
 				<button
 					onclick={onViewAll}
@@ -97,15 +81,15 @@
 
 	{#if isLoading}
 		<div class="flex items-center justify-center py-8">
-			<div class="animate-spin h-6 w-6 border-2 border-gray-900 border-t-transparent rounded-full"></div>
+			<div class="animate-spin h-6 w-6 border-2 border-t-transparent rounded-full" style="border-color: var(--dt); border-top-color: transparent"></div>
 		</div>
 	{:else if !isConnected}
 		<div class="text-center py-6">
-			<svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="w-12 h-12 mx-auto mb-3" style="color: var(--dt4)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 			</svg>
-			<p class="text-sm text-gray-500 mb-3">Connect your Google Calendar to see your schedule</p>
-			<a href="/settings?tab=integrations" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+			<p class="text-sm mb-3" style="color: var(--dt3)">Connect your Google Calendar to see your schedule</p>
+			<a href="/settings?tab=integrations" class="text-sm font-medium" style="color: var(--bos-nav-active)">
 				Connect Calendar
 			</a>
 		</div>
@@ -115,39 +99,43 @@
 		</div>
 	{:else if events.length === 0}
 		<div class="text-center py-6">
-			<svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="w-12 h-12 mx-auto mb-3" style="color: var(--dt4)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 			</svg>
-			<p class="text-sm text-gray-500">No events scheduled for today</p>
+			<p class="text-sm" style="color: var(--dt3)">No events scheduled for today</p>
 		</div>
 	{:else}
 		<div class="space-y-3">
 			{#each events as event (event.id)}
 				<div
-					class="flex items-start gap-3 p-3 rounded-lg transition-colors {isEventNow(event) ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'}"
+					class="flex items-start gap-3 p-3 rounded-lg transition-colors"
+					style="{isEventNow(event) ? 'background: var(--bos-nav-active-bg); border: 1px solid var(--dbd)' : 'background: var(--dbg2)'}"
 				>
-					<div class="flex-shrink-0 w-1 h-full min-h-[40px] rounded-full {isEventNow(event) ? 'bg-blue-500' : 'bg-gray-300'}"></div>
+					<div
+						class="flex-shrink-0 w-1 h-full min-h-[40px] rounded-full"
+						style="{isEventNow(event) ? 'background: var(--bos-nav-active)' : 'background: var(--dbd)'}"
+					></div>
 					<div class="flex-1 min-w-0">
 						<div class="flex items-start justify-between gap-2">
-							<p class="font-medium text-gray-900 truncate">
+							<p class="font-medium truncate" style="color: var(--dt)">
 								{event.title || 'Untitled Event'}
 							</p>
 							{#if isEventNow(event)}
-								<span class="flex-shrink-0 px-1.5 py-0.5 text-xs font-medium bg-blue-500 text-white rounded">
+								<span class="flex-shrink-0 px-1.5 py-0.5 text-xs font-medium rounded" style="background: var(--bos-nav-active); color: var(--bos-surface-on-color)">
 									Now
 								</span>
 							{/if}
 						</div>
-						<p class="text-sm text-gray-500">
+						<p class="text-sm" style="color: var(--dt3)">
 							{formatTimeRange(event.start_time, event.end_time, event.all_day)}
 						</p>
 						{#if event.location}
-							<p class="text-xs text-gray-400 mt-1 truncate">
+							<p class="text-xs mt-1 truncate" style="color: var(--dt4)">
 								{event.location}
 							</p>
 						{/if}
 						{#if event.meeting_type && event.meeting_type !== 'other'}
-							<span class="inline-block mt-1.5 px-2 py-0.5 text-xs font-medium rounded-full {getMeetingTypeColor(event.meeting_type)}">
+							<span class="inline-block mt-1.5 px-2 py-0.5 text-xs font-medium rounded-full" style="{getMeetingTypeStyle()}">
 								{event.meeting_type.replace('_', ' ')}
 							</span>
 						{/if}

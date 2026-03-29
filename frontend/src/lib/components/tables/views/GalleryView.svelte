@@ -109,7 +109,7 @@
 		{#each rows as row (row.id)}
 			{@const coverUrl = getCoverImage(row)}
 			<div
-				class="group relative flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition-all hover:border-gray-300 hover:shadow-md"
+				class="dt2-gallery-card group relative flex flex-col overflow-hidden rounded-xl text-left transition-all hover:shadow-md"
 			>
 				<!-- Cover Image -->
 				<button
@@ -121,7 +121,7 @@
 						<img src={coverUrl} alt="" class="h-full w-full object-cover" />
 					{:else}
 						<div class="flex h-full w-full items-center justify-center">
-							<Image class="h-10 w-10 text-gray-300" />
+							<Image class="h-10 w-10" style="color: var(--dt3);" />
 						</div>
 					{/if}
 				</button>
@@ -146,7 +146,7 @@
 					onclick={() => onCardClick(row.id)}
 				>
 					<!-- Primary Value (Title) -->
-					<h3 class="mb-1 truncate font-medium text-gray-900">
+					<h3 class="mb-1 truncate font-medium" style="color: var(--dt);">
 						{getDisplayValue(row, primaryColumn) || 'Untitled'}
 					</h3>
 
@@ -154,7 +154,7 @@
 					{#if secondaryColumn}
 						{@const secondaryValue = getDisplayValue(row, secondaryColumn)}
 						{#if secondaryValue}
-							<p class="mb-3 truncate text-sm text-gray-500">
+							<p class="mb-3 truncate text-sm" style="color: var(--dt2);">
 								{secondaryValue}
 							</p>
 						{/if}
@@ -162,12 +162,12 @@
 
 					<!-- Preview Fields -->
 					{#if previewColumns.length > 0}
-						<div class="mt-auto space-y-2 border-t border-gray-100 pt-3">
+						<div class="mt-auto space-y-2 pt-3" style="border-top: 1px solid var(--dbd2);">
 							{#each previewColumns as col}
 								{@const value = row.data[col.id]}
 								{#if value !== null && value !== undefined}
 									<div class="flex items-center gap-2 text-xs">
-										<span class="shrink-0 text-gray-400">{col.name}:</span>
+										<span class="shrink-0" style="color: var(--dt3);">{col.name}:</span>
 										{#if col.type === 'single_select' && getChoiceColor(value, col)}
 											<span
 												class="truncate rounded-full px-2 py-0.5 text-white"
@@ -176,7 +176,7 @@
 												{formatValue(value, col)}
 											</span>
 										{:else}
-											<span class="truncate text-gray-600">
+											<span class="truncate" style="color: var(--dt2);">
 												{formatValue(value, col)}
 											</span>
 										{/if}
@@ -203,11 +203,11 @@
 	<!-- Empty State -->
 	{#if rows.length === 0}
 		<div class="flex flex-col items-center justify-center py-16">
-			<div class="mb-4 rounded-full bg-gray-100 p-4">
-				<Image class="h-10 w-10 text-gray-400" />
+			<div class="mb-4 rounded-full p-4" style="background: var(--dbg2);">
+				<Image class="h-10 w-10" style="color: var(--dt3);" />
 			</div>
-			<h3 class="mb-1 text-lg font-medium text-gray-900">No items yet</h3>
-			<p class="mb-4 text-sm text-gray-500">Create your first item to get started</p>
+			<h3 class="mb-1 text-lg font-medium" style="color: var(--dt);">No items yet</h3>
+			<p class="mb-4 text-sm" style="color: var(--dt2);">Create your first item to get started</p>
 			<button
 				type="button"
 				class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2"
@@ -219,3 +219,15 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.dt2-gallery-card {
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.dt2-gallery-card:hover {
+		border-color: var(--dt3);
+	}
+</style>

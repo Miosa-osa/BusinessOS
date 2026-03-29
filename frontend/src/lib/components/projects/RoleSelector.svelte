@@ -23,28 +23,28 @@
 			label: 'Project Lead',
 			description: 'Full control - can manage members and settings',
 			icon: Shield,
-			color: '#9333ea'
+			color: 'var(--dt, #111)'
 		},
 		{
 			value: 'contributor',
 			label: 'Contributor',
 			description: 'Can edit and contribute to project',
 			icon: Edit3,
-			color: '#2563eb'
+			color: 'var(--dt2, #555)'
 		},
 		{
 			value: 'reviewer',
 			label: 'Reviewer',
 			description: 'Can review and comment',
 			icon: Users,
-			color: '#16a34a'
+			color: 'var(--dt2, #555)'
 		},
 		{
 			value: 'viewer',
 			label: 'Viewer',
 			description: 'Read-only access',
 			icon: Eye,
-			color: 'var(--dt2, #555)'
+			color: 'var(--dt3, #888)'
 		}
 	];
 
@@ -154,5 +154,5 @@
 		color: var(--dt2, #555);
 		margin-top: 0.125rem;
 	}
-	.prm-role-check { color: #3b82f6; }
+	.prm-role-check { color: var(--dt, #111); }
 </style>

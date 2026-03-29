@@ -1,28 +1,20 @@
 <script lang="ts">
 	import type { CustomModule } from '$lib/types/modules';
 	import { categoryLabels } from '$lib/types/modules';
-	import { Download, Star, Package } from 'lucide-svelte';
-	import { moduleIconMap } from './moduleIcons';
+	import { getCategoryColor } from '$lib/constants/colors';
+	import { getModuleIcon } from '$lib/components/modules/moduleIcons';
+	import { Download, Star } from 'lucide-svelte';
 
 	interface Props {
 		module: CustomModule;
+		compact?: boolean;
 		onClick?: () => void;
 	}
 
-	let { module, onClick }: Props = $props();
+	let { module, compact = false, onClick }: Props = $props();
 
-	const IconComponent = $derived(module.icon ? moduleIconMap[module.icon] ?? null : null);
-
-	const categoryHexColors: Record<string, string> = {
-		productivity: '#3b82f6',
-		communication: '#a855f7',
-		finance: '#10b981',
-		analytics: '#f97316',
-		automation: '#ec4899',
-		integration: '#6366f1',
-		utilities: '#6b7280',
-		custom: '#06b6d4',
-	};
+	const catColor = $derived(getCategoryColor(module.category));
+	const ModIcon = $derived(getModuleIcon(module.icon, module.category));
 
 	function fmtNum(n: number): string {
 		if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'K';
@@ -30,188 +22,260 @@
 	}
 </script>
 
-<button
-	onclick={onClick}
-	class="am-module-card"
-	aria-label="View {module.name}"
->
-	<!-- Header with Icon and Meta -->
-	<div class="am-module-card__header">
-		{#if IconComponent}
-			<div
-				class="am-module-card__icon"
-				style="background: {categoryHexColors[module.category] || '#6366f1'}"
-			>
-				<IconComponent class="w-5 h-5" />
-			</div>
-		{:else}
-			<div class="am-module-card__icon am-module-card__icon--fallback">
-				<Package class="w-5 h-5" />
-			</div>
-		{/if}
-		<div class="am-module-card__meta">
-			<div class="am-module-card__name">{module.name}</div>
-			{#if module.creator_name}
-				<div class="am-module-card__author">by {module.creator_name}</div>
-			{/if}
+{#if compact}
+	<!-- List / Compact Row -->
+	<button onclick={onClick} class="am-row" aria-label="View {module.name}">
+		<div class="am-row__icon" style="background: {catColor}; color: var(--bos-surface-on-color);">
+			<ModIcon class="w-4 h-4" />
 		</div>
-		<span
-			class="am-visibility-badge am-visibility-badge--{module.visibility}"
-		>{module.visibility}</span>
-	</div>
-
-	<!-- Description -->
-	<p class="am-module-card__desc">{module.description}</p>
-
-	<!-- Footer: Category badge + stats -->
-	<div class="am-module-card__footer">
-		<span
-			class="am-cat-badge"
-			style="background: {categoryHexColors[module.category] || '#6366f1'}16; color: {categoryHexColors[module.category] || '#6366f1'}"
-		>{categoryLabels[module.category]}</span>
-		<span class="am-stat" title="Installs">
-			<Download class="w-3 h-3" />
-			{fmtNum(module.install_count)}
+		<div class="am-row__info">
+			<span class="am-row__name">{module.name}</span>
+			<span class="am-row__desc">{module.description}</span>
+		</div>
+		<span class="am-row__cat" style="background: color-mix(in srgb, {catColor} 8%, transparent); color: {catColor};">
+			{categoryLabels[module.category]}
 		</span>
-		<span class="am-stat" title="Stars">
-			<Star class="w-3 h-3" />
-			{fmtNum(module.star_count)}
-		</span>
-		<span class="am-card-version">v{module.version}</span>
-	</div>
-</button>
+		<div class="am-row__stats">
+			<span class="am-row__stat"><Download class="w-3 h-3" />{fmtNum(module.install_count)}</span>
+			<span class="am-row__stat"><Star class="w-3 h-3" />{fmtNum(module.star_count)}</span>
+		</div>
+		<span class="am-row__version">v{module.version}</span>
+		{#if module.creator_name}
+			<span class="am-row__author">{module.creator_name}</span>
+		{/if}
+	</button>
+{:else}
+	<!-- Grid Card -->
+	<button onclick={onClick} class="am-card" aria-label="View {module.name}">
+		<!-- Top: Icon + Title + Badge -->
+		<div class="am-card__header">
+			<div class="am-card__icon" style="background: {catColor}; color: var(--bos-surface-on-color);">
+				<ModIcon class="w-5 h-5" />
+			</div>
+			<div class="am-card__title-area">
+				<h3 class="am-card__name">{module.name}</h3>
+				<span class="am-card__version">v{module.version}</span>
+			</div>
+		</div>
+
+		<!-- Description -->
+		<p class="am-card__desc">{module.description}</p>
+
+		<!-- Footer: Category + Stats + Author -->
+		<div class="am-card__footer">
+			<span class="am-card__cat" style="background: color-mix(in srgb, {catColor} 8%, transparent); color: {catColor};">
+				{categoryLabels[module.category]}
+			</span>
+			<div class="am-card__meta">
+				<span class="am-card__stat" title="Installs">
+					<Download class="w-3 h-3" />
+					{fmtNum(module.install_count)}
+				</span>
+				<span class="am-card__stat" title="Stars">
+					<Star class="w-3 h-3" />
+					{fmtNum(module.star_count)}
+				</span>
+				{#if module.creator_name}
+					<span class="am-card__author">{module.creator_name}</span>
+				{/if}
+			</div>
+		</div>
+	</button>
+{/if}
 
 <style>
 	/* ══════════════════════════════════════════════════════════════ */
-	/*  MODULE CARD (am-) — Foundation AppMarketplace Pattern       */
+	/*  MODULE CARD v2 (am-card-) — Foundation Design Tokens        */
 	/* ══════════════════════════════════════════════════════════════ */
-	.am-module-card {
-		background: rgba(255, 255, 255, 0.04);
-		backdrop-filter: blur(20px);
-		border: 1px solid var(--dbd, #e0e0e0);
-		border-radius: 16px;
-		padding: 16px;
+
+	/* ── Grid Card ─────────────────────────────────────────────── */
+	.am-card {
 		display: flex;
 		flex-direction: column;
-		gap: 10px;
-		cursor: pointer;
-		text-align: left;
 		width: 100%;
-		transition: transform .15s, box-shadow .15s, border-color .15s;
+		text-align: left;
+		padding: 16px;
+		border-radius: 12px;
+		border: 1px solid var(--dbd2);
+		background: var(--dbg);
+		cursor: pointer;
+		transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 	}
-	.am-module-card:hover {
+	.am-card:hover {
+		border-color: var(--dbd);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 		transform: translateY(-2px);
-		box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
-		border-color: var(--dbd2, #f0f0f0);
 	}
 
-	/* Header */
-	.am-module-card__header {
+	.am-card__header {
 		display: flex;
-		align-items: flex-start;
+		align-items: center;
 		gap: 10px;
+		margin-bottom: 10px;
 	}
-	.am-module-card__icon {
+	.am-card__icon {
 		width: 38px;
 		height: 38px;
-		border-radius: 12px;
+		border-radius: 10px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: #fff;
-		font-size: 12px;
-		font-weight: 700;
 		flex-shrink: 0;
 	}
-	.am-module-card__icon--fallback {
-		background: var(--dbg3, #eee);
-		color: var(--dt3, #888);
-	}
-	.am-module-card__meta {
+	.am-card__title-area {
 		flex: 1;
 		min-width: 0;
 	}
-	.am-module-card__name {
-		font-size: 13px;
+	.am-card__name {
+		font-size: 14px;
 		font-weight: 600;
-		color: var(--dt, #111);
+		color: var(--dt);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+		line-height: 1.3;
 	}
-	.am-module-card:hover .am-module-card__name {
-		color: var(--accent-blue, #3b82f6);
+	.am-card:hover .am-card__name {
+		color: var(--dt);
 	}
-	.am-module-card__author {
+	.am-card__version {
 		font-size: 11px;
-		color: var(--dt3, #888);
+		color: var(--dt4);
+		font-weight: 500;
 	}
 
-	/* Description */
-	.am-module-card__desc {
+	.am-card__desc {
 		font-size: 12px;
-		color: var(--dt2, #555);
+		color: var(--dt3);
 		line-height: 1.5;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
-		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
+		margin-bottom: 12px;
 		flex: 1;
 	}
 
-	/* Footer */
-	.am-module-card__footer {
+	.am-card__footer {
 		display: flex;
 		align-items: center;
-		flex-wrap: wrap;
-		gap: 6px;
-		margin-top: auto;
+		justify-content: space-between;
+		gap: 8px;
+		padding-top: 10px;
+		border-top: 1px solid var(--dbd2);
 	}
-
-	/* Shared atoms */
-	.am-cat-badge {
-		display: inline-flex;
-		align-items: center;
-		padding: 2px 8px;
-		border-radius: 999px;
-		font-size: 11px;
-		font-weight: 600;
-	}
-	.am-visibility-badge {
+	.am-card__cat {
 		display: inline-flex;
 		align-items: center;
 		padding: 2px 8px;
 		border-radius: 999px;
 		font-size: 10px;
 		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
+		white-space: nowrap;
 		flex-shrink: 0;
-		margin-left: auto;
 	}
-	.am-visibility-badge--public {
-		background: #10b98122;
-		color: #10b981;
+	.am-card__meta {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-width: 0;
 	}
-	.am-visibility-badge--workspace {
-		background: #6366f122;
-		color: #6366f1;
-	}
-	.am-visibility-badge--private {
-		background: #6b728022;
-		color: #6b7280;
-	}
-	.am-stat {
+	.am-card__stat {
 		display: inline-flex;
 		align-items: center;
 		gap: 3px;
 		font-size: 11px;
-		color: var(--dt3, #888);
+		color: var(--dt3);
 	}
-	.am-card-version {
+	.am-card__author {
 		font-size: 11px;
-		color: var(--dt4, #bbb);
-		margin-left: auto;
+		color: var(--dt4);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* ── List / Compact Row ────────────────────────────────────── */
+	.am-row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		width: 100%;
+		text-align: left;
+		padding: 10px 14px;
+		border-radius: 10px;
+		border: 1px solid var(--dbd2);
+		background: var(--dbg);
+		cursor: pointer;
+		transition: border-color 0.15s, background 0.15s;
+	}
+	.am-row:hover {
+		border-color: var(--dbd);
+		background: var(--dbg2);
+	}
+	.am-row__icon {
+		width: 30px;
+		height: 30px;
+		border-radius: 8px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+	.am-row__info {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
+	.am-row__name {
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--dt);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.am-row__desc {
+		font-size: 11px;
+		color: var(--dt3);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.am-row__cat {
+		display: inline-flex;
+		align-items: center;
+		padding: 2px 8px;
+		border-radius: 999px;
+		font-size: 10px;
+		font-weight: 600;
+		white-space: nowrap;
+		flex-shrink: 0;
+	}
+	.am-row__stats {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-shrink: 0;
+	}
+	.am-row__stat {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+		font-size: 11px;
+		color: var(--dt3);
+	}
+	.am-row__version {
+		font-size: 11px;
+		color: var(--dt4);
+		flex-shrink: 0;
+	}
+	.am-row__author {
+		font-size: 11px;
+		color: var(--dt4);
+		flex-shrink: 0;
+		white-space: nowrap;
 	}
 </style>

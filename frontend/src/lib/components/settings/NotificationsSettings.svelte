@@ -79,10 +79,10 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<!-- Notification Delivery -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Notification Delivery</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Notification Delivery</h2>
 		<div class="space-y-4">
 			<div class="flex items-center justify-between">
 				<div>
@@ -170,7 +170,7 @@
 
 	<!-- Sound Settings -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Sound Settings</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Sound Settings</h2>
 		<div class="space-y-4">
 			<div class="flex items-center justify-between">
 				<div>
@@ -210,7 +210,7 @@
 
 	<!-- Quiet Hours -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Quiet Hours (Do Not Disturb)</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Quiet Hours (Do Not Disturb)</h2>
 		<div class="space-y-4">
 			<div class="flex items-center justify-between">
 				<div>
@@ -257,7 +257,7 @@
 
 	<!-- Notification Categories -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Notification Categories</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Notification Categories</h2>
 		<p class="text-sm st-muted mb-4">Choose which types of notifications to receive</p>
 		<div class="space-y-3">
 			{#each Object.entries(notificationCategories) as [category, enabled] (category)}
@@ -303,8 +303,8 @@
 	<!-- Recent Notifications -->
 	<div class="card">
 		<div class="flex items-center justify-between mb-4">
-			<h2 class="text-lg font-medium st-title">Recent Notifications</h2>
-			<a href="/inbox" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">View all</a>
+			<h2 class="text-xs font-semibold uppercase tracking-wide st-label">Recent Notifications</h2>
+			<a href="/inbox" class="text-sm hover:underline" style="color: var(--bos-status-info)">View all</a>
 		</div>
 		{#if isLoadingNotifications}
 			<div class="flex items-center justify-center py-8">
@@ -321,7 +321,10 @@
 		{:else}
 			<div class="space-y-2">
 				{#each recentNotifications as notification}
-					<div class="flex items-start gap-3 p-3 rounded-lg {notification.read ? 'st-notif-read' : 'bg-blue-50 dark:bg-blue-900/20'}">
+					<div
+					class="flex items-start gap-3 p-3 rounded-lg {notification.read ? 'st-notif-read' : ''}"
+					style="{notification.read ? '' : 'background: var(--bos-status-info-bg)'}"
+				>
 						<span class="text-lg">{getNotificationIcon(notification.type)}</span>
 						<div class="flex-1 min-w-0">
 							<p class="font-medium st-title text-sm">{notification.title}</p>
@@ -329,7 +332,7 @@
 							<p class="text-xs st-icon mt-1">{notification.time}</p>
 						</div>
 						{#if !notification.read}
-							<span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-2"></span>
+							<span class="w-2 h-2 rounded-full flex-shrink-0 mt-2" style="background: var(--bos-status-info)"></span>
 						{/if}
 					</div>
 				{/each}
@@ -361,19 +364,23 @@
 </div>
 
 <style>
-	.st-title { color: var(--dt, var(--bos-text-primary, #111)); }
-	.st-muted { color: var(--dt3, var(--bos-text-tertiary, #888)); }
-	.st-label { color: var(--dt2, var(--bos-text-secondary, #555)); }
-	.st-icon  { color: var(--dt4, #bbb); }
-	.st-toggle-on  { background: var(--dt, var(--bos-text-primary, #111)); }
-	.st-toggle-off { background: var(--dbg3, #eee); }
-	.st-toggle-knob { background: var(--dbg, var(--bos-card, #fff)); }
-	.st-range { background: var(--dbg3, #eee); }
+	.st-title { color: var(--dt); }
+	.st-muted { color: var(--dt3); }
+	.st-label { color: var(--dt2); }
+	.st-icon  { color: var(--dt4); }
+	.st-toggle-on  { background: var(--dt); }
+	.st-toggle-off { background: var(--dbg3); }
+	.st-toggle-knob { background: var(--dbg); }
+	.st-range { background: var(--dbg3); }
 	.st-input {
-		border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
-		background: var(--dbg, var(--bos-card, #fff));
-		color: var(--dt, var(--bos-text-primary, #111));
+		border: 1px solid var(--dbd);
+		background: var(--dbg);
+		color: var(--dt);
 	}
 	.st-cat-divider { border-bottom: 1px solid var(--dbd2, #f0f0f0); }
-	.st-notif-read { background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5)); }
+	.st-notif-read {
+		background: var(--bos-settings-card-bg);
+		border: 1px solid var(--bos-settings-card-border);
+		border-radius: var(--bos-settings-card-radius);
+	}
 </style>

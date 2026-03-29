@@ -253,30 +253,23 @@
 	}
 
 	.focus-title {
-		font-size: 28px;
-		font-weight: 600;
-		color: var(--color-text);
+		font-size: 26px;
+		font-weight: 700;
+		color: var(--dt);
 		margin: 0 0 8px 0;
-	}
-
-	:global(.dark) .focus-title {
-		color: #f5f5f7;
+		letter-spacing: -0.02em;
 	}
 
 	.focus-subtitle {
 		font-size: 15px;
-		color: var(--color-text-secondary);
+		color: var(--dt3);
 		margin: 0;
-	}
-
-	:global(.dark) .focus-subtitle {
-		color: #a1a1a6;
 	}
 
 	.focus-cards {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 10px;
+		gap: 8px;
 		justify-content: center;
 		align-items: center;
 		width: 100%;
@@ -298,31 +291,20 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		padding: 8px 16px;
+		padding: 7px 16px;
 		font-size: 13px;
-		color: var(--color-text-muted, #6b7280);
+		color: var(--dt3);
 		background: transparent;
-		border: 1px solid var(--color-border, #e5e7eb);
+		border: 1px solid var(--dbd);
 		border-radius: 20px;
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 
 	.mode-toggle-btn:hover {
-		color: var(--color-text, #1f2937);
-		background: var(--color-bg-secondary, #f3f4f6);
-		border-color: var(--color-border-hover, #d1d5db);
-	}
-
-	:global(.dark) .mode-toggle-btn {
-		color: #a1a1a6;
-		border-color: rgba(255, 255, 255, 0.12);
-	}
-
-	:global(.dark) .mode-toggle-btn:hover {
-		color: #f5f5f7;
-		background: #3a3a3c;
-		border-color: rgba(255, 255, 255, 0.2);
+		color: var(--dt);
+		background: var(--dbg2);
+		border-color: var(--dt3);
 	}
 
 	/* Responsive */
@@ -333,11 +315,11 @@
 		}
 
 		.focus-title {
-			font-size: 24px;
+			font-size: 22px;
 		}
 
 		.focus-cards {
-			gap: 8px;
+			gap: 6px;
 		}
 	}
 </style>

@@ -8,24 +8,24 @@
 	// Module-to-iframe-URL mapping
 	const MODULE_URLS: Record<string, string> = {
 		platform: '/dashboard',
-		dashboard: '/dashboard?embed=true',
-		chat: '/chat?embed=true',
-		tasks: '/tasks?embed=true',
-		projects: '/projects?embed=true',
-		team: '/team?embed=true',
-		contexts: '/knowledge?embed=true',
-		nodes: '/nodes?embed=true',
-		daily: '/daily?embed=true',
-		settings: '/settings?embed=true',
-		clients: '/clients?embed=true',
-		tables: '/tables?embed=true',
-		communication: '/communication/calendar?embed=true',
-		calendar: '/communication/calendar?embed=true',
-		pages: '/pages?embed=true',
-		knowledge: '/pages?embed=true',
-		'ai-settings': '/settings/ai?embed=true',
-		integrations: '/integrations?embed=true',
-		help: '/help?embed=true'
+		dashboard: '/dashboard',
+		chat: '/chat',
+		tasks: '/tasks',
+		projects: '/projects',
+		team: '/team',
+		contexts: '/knowledge',
+		nodes: '/nodes',
+		daily: '/daily',
+		settings: '/settings',
+		clients: '/clients',
+		tables: '/tables',
+		communication: '/communication/calendar',
+		calendar: '/communication/calendar',
+		pages: '/pages',
+		knowledge: '/pages',
+		'ai-settings': '/settings/ai',
+		integrations: '/integrations',
+		help: '/help'
 	};
 
 	// Iframe titles for accessibility

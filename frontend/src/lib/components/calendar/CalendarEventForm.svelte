@@ -23,17 +23,19 @@
 	}: Props = $props();
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
 	role="dialog"
 	aria-modal="true"
 	aria-label="{editingEvent ? 'Edit event' : 'Create event'}"
+	onclick={onClose}
 >
-	<div class="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-auto">
+	<div class="rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-auto" style="background: var(--dbg); border: 1px solid var(--dbd);" onclick={(e) => e.stopPropagation()}>
 		<div class="p-6">
 			<!-- Header -->
 			<div class="flex items-center justify-between mb-6">
-				<h2 class="text-xl font-semibold text-gray-900">
+				<h2 class="text-xl font-semibold" style="color: var(--dt);">
 					{editingEvent ? 'Edit Event' : 'Create Event'}
 				</h2>
 				<button onclick={onClose} class="btn-pill btn-pill-ghost btn-pill-icon" aria-label="Close">
@@ -44,7 +46,7 @@
 			</div>
 
 			{#if formError}
-				<div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+				<div class="mb-4 p-3 rounded-lg text-sm" style="background: color-mix(in srgb, var(--bos-status-error-text) 10%, var(--dbg)); border: 1px solid color-mix(in srgb, var(--bos-status-error-text) 20%, var(--dbg)); color: var(--bos-status-error-text);">
 					{formError}
 				</div>
 			{/if}
@@ -52,7 +54,7 @@
 			<form onsubmit={(e) => { e.preventDefault(); onSave(); }} class="space-y-4">
 				<!-- Title -->
 				<div>
-					<label for="event-title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+					<label for="event-title" class="block text-sm font-medium mb-1" style="color: var(--dt2);">Title</label>
 					<input
 						id="event-title"
 						type="text"
@@ -65,7 +67,7 @@
 
 				<!-- Description -->
 				<div>
-					<label for="event-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+					<label for="event-description" class="block text-sm font-medium mb-1" style="color: var(--dt2);">Description</label>
 					<textarea
 						id="event-description"
 						bind:value={formData.description}
@@ -81,15 +83,16 @@
 						id="event-allday"
 						type="checkbox"
 						bind:checked={formData.all_day}
-						class="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900"
+						class="w-4 h-4 rounded focus:ring-gray-900"
+						style="color: var(--dt); border-color: var(--dbd);"
 					/>
-					<label for="event-allday" class="text-sm font-medium text-gray-700">All day event</label>
+					<label for="event-allday" class="text-sm font-medium" style="color: var(--dt2);">All day event</label>
 				</div>
 
 				<!-- Start Date/Time -->
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label for="event-start-date" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+						<label for="event-start-date" class="block text-sm font-medium mb-1" style="color: var(--dt2);">Start Date</label>
 						<input
 							id="event-start-date"
 							type="date"
@@ -100,7 +103,7 @@
 					</div>
 					{#if !formData.all_day}
 						<div>
-							<label for="event-start-time" class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+							<label for="event-start-time" class="block text-sm font-medium mb-1" style="color: var(--dt2);">Start Time</label>
 							<input
 								id="event-start-time"
 								type="time"
@@ -114,7 +117,7 @@
 				<!-- End Date/Time -->
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label for="event-end-date" class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+						<label for="event-end-date" class="block text-sm font-medium mb-1" style="color: var(--dt2);">End Date</label>
 						<input
 							id="event-end-date"
 							type="date"
@@ -125,7 +128,7 @@
 					</div>
 					{#if !formData.all_day}
 						<div>
-							<label for="event-end-time" class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+							<label for="event-end-time" class="block text-sm font-medium mb-1" style="color: var(--dt2);">End Time</label>
 							<input
 								id="event-end-time"
 								type="time"
@@ -138,7 +141,7 @@
 
 				<!-- Location -->
 				<div>
-					<label for="event-location" class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+					<label for="event-location" class="block text-sm font-medium mb-1" style="color: var(--dt2);">Location</label>
 					<input
 						id="event-location"
 						type="text"
@@ -150,7 +153,7 @@
 
 				<!-- Meeting Type -->
 				<div>
-					<label for="event-type" class="block text-sm font-medium text-gray-700 mb-1">Meeting Type</label>
+					<label for="event-type" class="block text-sm font-medium mb-1" style="color: var(--dt2);">Meeting Type</label>
 					<select id="event-type" bind:value={formData.meeting_type} class="input w-full">
 						<option value="">No type</option>
 						<option value="team">Team</option>
@@ -172,7 +175,7 @@
 
 				<!-- Meeting Link -->
 				<div>
-					<label for="event-link" class="block text-sm font-medium text-gray-700 mb-1">Meeting Link</label>
+					<label for="event-link" class="block text-sm font-medium mb-1" style="color: var(--dt2);">Meeting Link</label>
 					<input
 						id="event-link"
 						type="url"
@@ -184,7 +187,7 @@
 
 				<!-- Google Sync Info -->
 				{#if connectionStatus?.connected}
-					<div class="flex items-center gap-2 text-sm text-gray-500">
+					<div class="flex items-center gap-2 text-sm" style="color: var(--dt3);">
 						<svg class="w-4 h-4" viewBox="0 0 24 24">
 							<path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
 							<path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>

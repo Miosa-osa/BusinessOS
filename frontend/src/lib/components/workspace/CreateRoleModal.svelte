@@ -351,7 +351,7 @@
     width: 100%;
     max-width: 700px;
     max-height: 90vh;
-    background: white;
+    background: var(--dbg);
     border-radius: 0.75rem;
     box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
     display: flex;
@@ -363,19 +363,19 @@
     align-items: flex-start;
     justify-content: space-between;
     padding: 1.5rem;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--dbd);
     flex-shrink: 0;
   }
 
   .modal-header h2 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #111827;
+    color: var(--dt);
     margin: 0 0 0.25rem 0;
   }
 
   .modal-header p {
-    color: #6b7280;
+    color: var(--dt2);
     font-size: 0.875rem;
     margin: 0;
   }
@@ -387,15 +387,15 @@
     padding: 0.25rem;
     background: transparent;
     border: none;
-    color: #9ca3af;
+    color: var(--dt3);
     cursor: pointer;
     border-radius: 0.25rem;
     transition: all 0.15s;
   }
 
   .close-button:hover {
-    background: #f3f4f6;
-    color: #111827;
+    background: var(--dbg2);
+    color: var(--dt);
   }
 
   .error-message {
@@ -403,8 +403,8 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1.5rem;
-    background: #fef2f2;
-    color: #dc2626;
+    background: var(--bos-background-error-color, #fef2f2);
+    color: var(--bos-error-color);
     font-size: 0.875rem;
   }
 
@@ -426,7 +426,7 @@
   .section-label {
     font-size: 0.875rem;
     font-weight: 600;
-    color: #374151;
+    color: var(--dt2);
   }
 
   .section-toggle {
@@ -435,15 +435,15 @@
     justify-content: space-between;
     width: 100%;
     padding: 0.75rem;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
+    background: var(--dbg2);
+    border: 1px solid var(--dbd);
     border-radius: 0.5rem;
     cursor: pointer;
     transition: all 0.15s;
   }
 
   .section-toggle:hover {
-    background: #f3f4f6;
+    background: var(--dbg3);
   }
 
   .template-grid {
@@ -457,8 +457,8 @@
     flex-direction: column;
     gap: 0.25rem;
     padding: 0.75rem;
-    background: white;
-    border: 2px solid #e5e7eb;
+    background: var(--dbg);
+    border: 2px solid var(--dbd);
     border-radius: 0.5rem;
     text-align: left;
     cursor: pointer;
@@ -466,23 +466,23 @@
   }
 
   .template-card:hover {
-    border-color: #d1d5db;
+    border-color: var(--dbd2);
   }
 
   .template-card.selected {
-    border-color: #3b82f6;
-    background: #eff6ff;
+    border-color: var(--bos-primary-color);
+    background: color-mix(in srgb, var(--bos-primary-color) 8%, var(--dbg));
   }
 
   .template-name {
     font-size: 0.875rem;
     font-weight: 600;
-    color: #111827;
+    color: var(--dt);
   }
 
   .template-desc {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--dt2);
   }
 
   .form-row {
@@ -503,39 +503,41 @@
     gap: 0.5rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #374151;
+    color: var(--dt2);
   }
 
   .form-group input,
   .form-group textarea {
     padding: 0.625rem 0.875rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--dbd);
     border-radius: 0.375rem;
     font-size: 0.875rem;
+    background: var(--dbg);
+    color: var(--dt);
     transition: all 0.15s;
   }
 
   .form-group input:focus,
   .form-group textarea:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: var(--bos-primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--bos-primary-color) 15%, transparent);
   }
 
   .form-group input.error {
-    border-color: #dc2626;
+    border-color: var(--bos-error-color);
   }
 
   .form-group input:disabled,
   .form-group textarea:disabled {
-    background: #f9fafb;
-    color: #9ca3af;
+    background: var(--dbg2);
+    color: var(--dt3);
     cursor: not-allowed;
   }
 
   .field-hint {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--dt2);
     margin: 0;
   }
 
@@ -562,8 +564,8 @@
   }
 
   .color-swatch.selected {
-    border-color: #111827;
-    box-shadow: 0 0 0 2px white, 0 0 0 4px currentColor;
+    border-color: var(--dt);
+    box-shadow: 0 0 0 2px var(--dbg), 0 0 0 4px currentColor;
   }
 
   .color-check {
@@ -578,10 +580,10 @@
 
   .permissions-hint {
     font-size: 0.875rem;
-    color: #6b7280;
+    color: var(--dt2);
     margin: 0;
     padding: 0.75rem;
-    background: #f9fafb;
+    background: var(--dbg2);
     border-radius: 0.375rem;
   }
 
@@ -590,8 +592,8 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem;
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--bos-status-warning-bg);
+    color: var(--bos-status-warning);
     font-size: 0.875rem;
     border-radius: 0.375rem;
   }
@@ -600,7 +602,7 @@
     display: flex;
     gap: 0.75rem;
     padding: 1.5rem;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--dbd);
     flex-shrink: 0;
   }
 
@@ -621,92 +623,26 @@
   }
 
   .cancel-button {
-    background: white;
-    color: #374151;
-    border: 1px solid #d1d5db;
+    background: var(--dbg2);
+    color: var(--dt2);
+    border: 1px solid var(--dbd);
   }
 
   .cancel-button:hover:not(:disabled) {
-    background: #f9fafb;
+    background: var(--dbg3);
   }
 
   .save-button {
-    background: #3b82f6;
+    background: var(--bos-primary-color);
     color: white;
   }
 
   .save-button:hover:not(:disabled) {
-    background: #2563eb;
+    filter: brightness(0.9);
   }
 
   .save-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  /* Dark mode */
-  :global(.dark) .modal-content {
-    background: #1f2937;
-  }
-
-  :global(.dark) .modal-header {
-    border-bottom-color: #374151;
-  }
-
-  :global(.dark) .modal-header h2 {
-    color: #f9fafb;
-  }
-
-  :global(.dark) .modal-header p {
-    color: #9ca3af;
-  }
-
-  :global(.dark) .section-label {
-    color: #f3f4f6;
-  }
-
-  :global(.dark) .section-toggle {
-    background: #111827;
-    border-color: #374151;
-  }
-
-  :global(.dark) .template-card {
-    background: #1f2937;
-    border-color: #374151;
-  }
-
-  :global(.dark) .template-card.selected {
-    border-color: #3b82f6;
-    background: #1e3a8a;
-  }
-
-  :global(.dark) .template-name {
-    color: #f9fafb;
-  }
-
-  :global(.dark) .form-group label {
-    color: #d1d5db;
-  }
-
-  :global(.dark) .form-group input,
-  :global(.dark) .form-group textarea {
-    background: #111827;
-    border-color: #374151;
-    color: #f9fafb;
-  }
-
-  :global(.dark) .permissions-hint {
-    background: #111827;
-    color: #9ca3af;
-  }
-
-  :global(.dark) .modal-footer {
-    border-top-color: #374151;
-  }
-
-  :global(.dark) .cancel-button {
-    background: #111827;
-    border-color: #374151;
-    color: #d1d5db;
   }
 </style>

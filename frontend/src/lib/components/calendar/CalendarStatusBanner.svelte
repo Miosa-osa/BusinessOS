@@ -23,16 +23,31 @@
 
 <!-- Upcoming Events Quick View -->
 {#if upcomingEvents.length > 0}
-	<div class="mx-6 mt-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
+	<div
+		class="mx-6 mt-3 p-4 border rounded-xl"
+		style="background: var(--bos-status-success-bg); border-color: var(--dbd);"
+	>
 		<div class="flex items-center justify-between mb-3">
 			<div class="flex items-center gap-2">
-				<div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-					<svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div
+					class="w-8 h-8 rounded-full flex items-center justify-center"
+					style="background: var(--bos-status-success-bg);"
+				>
+					<svg
+						class="w-4 h-4"
+						style="color: var(--bos-status-success-text);"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
 					</svg>
 				</div>
-				<span class="text-sm font-semibold text-green-900">Upcoming Events</span>
-				<span class="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+				<span class="text-sm font-semibold" style="color: var(--bos-status-success-text);">Upcoming Events</span>
+				<span
+					class="text-xs px-2 py-0.5 rounded-full"
+					style="color: var(--bos-status-success-text); background: var(--bos-status-success-bg);"
+				>
 					{upcomingEvents.length} next
 				</span>
 			</div>
@@ -43,7 +58,7 @@
 					onclick={() => onOpenEventModal(event)}
 					class="btn-pill btn-pill-secondary flex-shrink-0 w-48 p-3 text-left"
 				>
-					<p class="text-xs text-green-600 font-medium mb-1">
+					<p class="text-xs font-medium mb-1" style="color: var(--bos-status-success-text);">
 						{new Date(event.start_time).toLocaleDateString('en-US', {
 							weekday: 'short',
 							month: 'short',
@@ -56,9 +71,9 @@
 							})}
 						{/if}
 					</p>
-					<p class="text-sm font-medium text-gray-900 truncate">{event.title || 'Untitled'}</p>
+					<p class="text-sm font-medium truncate" style="color: var(--dt);">{event.title || 'Untitled'}</p>
 					{#if event.location}
-						<p class="text-xs text-gray-500 truncate mt-0.5">{event.location}</p>
+						<p class="text-xs truncate mt-0.5" style="color: var(--dt3);">{event.location}</p>
 					{/if}
 				</button>
 			{/each}
@@ -68,16 +83,28 @@
 
 <!-- Sync Stats Banner (no events in view but have synced events) -->
 {#if syncStats && syncStats.totalEvents > 0 && events.length === 0 && upcomingEvents.length === 0}
-	<div class="mx-6 mt-3 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
+	<div
+		class="mx-6 mt-3 p-4 border rounded-xl flex items-center justify-between"
+		style="background: var(--bos-status-info-bg); border-color: var(--dbd);"
+	>
 		<div class="flex items-center gap-3">
-			<div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-				<svg class="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+			<div
+				class="w-10 h-10 rounded-full flex items-center justify-center"
+				style="background: var(--bos-status-info-bg);"
+			>
+				<svg
+					class="w-5 h-5"
+					style="color: var(--bos-status-info-text);"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+				>
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 				</svg>
 			</div>
 			<div>
-				<p class="text-sm font-semibold text-blue-900">{syncStats.totalEvents} events synced</p>
-				<p class="text-xs text-blue-700">
+				<p class="text-sm font-semibold" style="color: var(--bos-status-info-text);">{syncStats.totalEvents} events synced</p>
+				<p class="text-xs" style="color: var(--bos-status-info-text);">
 					{#if syncStats.dateRange?.from && syncStats.dateRange?.to}
 						Range: {new Date(syncStats.dateRange.from).toLocaleDateString()} - {new Date(
 							syncStats.dateRange.to
@@ -105,7 +132,7 @@
 
 <!-- Sync Summary Bar -->
 {#if syncStats && syncStats.totalEvents > 0}
-	<div class="mx-6 mt-3 flex items-center justify-between text-xs text-gray-500">
+	<div class="mx-6 mt-3 flex items-center justify-between text-xs" style="color: var(--dt3);">
 		<div class="flex items-center gap-3">
 			<div class="flex items-center gap-1.5">
 				<svg class="w-4 h-4" viewBox="0 0 24 24">
@@ -122,7 +149,7 @@
 			{/if}
 			{#if events.length > 0}
 				<span>&bull;</span>
-				<span class="text-gray-700 font-medium">{events.length} in view</span>
+				<span class="font-medium" style="color: var(--dt2);">{events.length} in view</span>
 			{/if}
 		</div>
 		{#if syncStats.lastSync}

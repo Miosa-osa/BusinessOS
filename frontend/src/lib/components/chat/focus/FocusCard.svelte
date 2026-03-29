@@ -59,10 +59,10 @@
 	.focus-card {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		padding: 10px 16px;
-		background: var(--color-bg-secondary);
-		border: 1px solid var(--color-border);
+		gap: 7px;
+		padding: 8px 14px;
+		background: var(--dbg2);
+		border: 1px solid var(--dbd);
 		border-radius: 24px;
 		cursor: pointer;
 		transition: all 0.15s ease;
@@ -70,72 +70,40 @@
 	}
 
 	.focus-card:hover:not(.selected) {
-		background: var(--color-bg-tertiary);
-		border-color: var(--color-border-hover);
+		background: var(--dbg3);
+		border-color: var(--dt3);
 	}
 
 	.focus-card.selected {
-		background: var(--color-primary);
-		border-color: var(--color-primary);
-		color: white;
-	}
-
-	:global(.dark) .focus-card {
-		background: #2c2c2e;
-		border-color: rgba(255, 255, 255, 0.12);
-	}
-
-	:global(.dark) .focus-card:hover:not(.selected) {
-		background: #3a3a3c;
-		border-color: rgba(255, 255, 255, 0.2);
-	}
-
-	:global(.dark) .focus-card.selected {
-		background: #0A84FF;
-		border-color: #0A84FF;
+		background: var(--dt);
+		border-color: var(--dt);
 	}
 
 	.card-icon {
-		width: 16px;
-		height: 16px;
-		color: var(--color-text-secondary);
+		width: 15px;
+		height: 15px;
+		color: var(--dt2);
 		flex-shrink: 0;
 	}
 
 	.selected .card-icon {
-		color: white;
-	}
-
-	:global(.dark) .card-icon {
-		color: #a1a1a6;
-	}
-
-	:global(.dark) .selected .card-icon {
-		color: white;
+		color: var(--dbg);
 	}
 
 	.card-name {
-		font-size: 14px;
+		font-size: 13px;
 		font-weight: 500;
-		color: var(--color-text);
+		color: var(--dt2);
 	}
 
 	.selected .card-name {
-		color: white;
-	}
-
-	:global(.dark) .card-name {
-		color: #f5f5f7;
-	}
-
-	:global(.dark) .selected .card-name {
-		color: white;
+		color: var(--dbg);
 	}
 
 	.check-icon {
-		width: 14px;
-		height: 14px;
-		color: white;
+		width: 13px;
+		height: 13px;
+		color: var(--dbg);
 		flex-shrink: 0;
 	}
 </style>

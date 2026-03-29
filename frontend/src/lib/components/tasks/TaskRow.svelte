@@ -87,29 +87,8 @@
 		}
 	});
 
-	const tagColors: Record<string, string> = {
-		'Research': '#3B82F6',
-		'Strategy': '#8B5CF6',
-		'UX': '#EC4899',
-		'Design': '#F59E0B',
-		'Engineering': '#10B981',
-		'UI': '#06B6D4',
-		'Foundation': '#8B5CF6',
-		'Mobile': '#F97316',
-		'QA': '#6366F1',
-		'A11y': '#14B8A6',
-		'Testing': '#F43F5E',
-		'Security': '#EF4444',
-		'DevOps': '#0EA5E9',
-		'Docs': '#84CC16',
-		'Communication': '#A855F7',
-		'Management': '#64748B',
-		'Marketing': '#22C55E',
-		'Database': '#D946EF'
-	};
-
-	function getTagColor(tag: string): string {
-		return tagColors[tag] || '#6B7280';
+	function getTagColor(_tag: string): string {
+		return 'var(--dt3, #888)';
 	}
 </script>
 
@@ -172,10 +151,7 @@
 	<div class="tb-col-labels">
 		<div class="flex items-center gap-1 flex-wrap">
 			{#each (tags || []).slice(0, 2) as tag}
-				<span
-					class="tb-row-label-pill"
-					style="background-color: color-mix(in srgb, {getTagColor(tag)} 15%, transparent); color: {getTagColor(tag)};"
-				>
+				<span class="tb-row-label-pill">
 					{tag}
 				</span>
 			{/each}
@@ -248,7 +224,7 @@
 						class="flex items-center gap-3 px-3 py-2 text-sm tb-row-menu-item rounded-lg cursor-pointer transition-colors"
 						onclick={() => onStatusChange?.('done')}
 					>
-						<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg class="w-4 h-4" style="color: var(--dt2, #555)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 						</svg>
 						Mark Done
@@ -363,6 +339,8 @@
 		font-size: 0.6875rem;
 		font-weight: 500;
 		white-space: nowrap;
+		background: var(--dbg3, #eee);
+		color: var(--dt2, #555);
 	}
 	.tb-row-label-overflow {
 		font-size: 0.6875rem;

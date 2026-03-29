@@ -144,7 +144,7 @@
 		<h3 class="app-name">{app.name}</h3>
 		{#if app.isPinned}
 			<div class="pin-indicator" title="Pinned" role="img" aria-label="Pinned app">
-				<Pin size={14} strokeWidth={2} aria-hidden="true" />
+				<Pin size={16} strokeWidth={2} aria-hidden="true" />
 			</div>
 		{/if}
 	</div>
@@ -199,7 +199,7 @@
 					}}
 					aria-label="Open {app.name}"
 				>
-					<Play size={14} strokeWidth={2} />
+					<Play size={16} strokeWidth={2} />
 					Open
 				</button>
 				<button
@@ -210,7 +210,7 @@
 					}}
 					aria-label="Edit {app.name} in terminal"
 				>
-					<Terminal size={14} strokeWidth={2} />
+					<Terminal size={16} strokeWidth={2} />
 					Edit
 				</button>
 			{/if}

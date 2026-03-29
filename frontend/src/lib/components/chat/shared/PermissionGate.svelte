@@ -58,7 +58,7 @@
 	}: Props = $props();
 
 	// Check if user has the required permission
-	const hasRequiredPermission = $derived(() => {
+	const hasRequiredPermission = $derived.by(() => {
 		if (!$currentUserRoleContext) return false;
 
 		// If no specific permission required, just check if role context exists
@@ -86,7 +86,7 @@
 	});
 </script>
 
-{#if hasRequiredPermission()}
+{#if hasRequiredPermission}
 	{@render children?.()}
 {:else if showFallback}
 	{#if fallback}

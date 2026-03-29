@@ -4,12 +4,15 @@
 	interface Props {
 		content: string;
 		timestamp: string;
+		userName?: string;
 		onEdit?: () => void;
 		onCopy?: () => void;
 		onDelete?: () => void;
 	}
 
-	let { content, timestamp, onEdit, onCopy, onDelete }: Props = $props();
+	let { content, timestamp, userName, onEdit, onCopy, onDelete }: Props = $props();
+
+	let userInitial = $derived((userName ?? 'U').charAt(0).toUpperCase());
 
 	let showActions = $state(false);
 
@@ -29,10 +32,11 @@
 	onmouseleave={() => showActions = false}
 	in:fly={{ y: 20, duration: 300 }}
 >
-	<div class="max-w-[75%] relative">
+	<div class="flex items-end gap-2 max-w-[75%]">
+	<div class="relative flex-1">
 		{#if showActions && (onEdit || onCopy || onDelete)}
 			<div
-				class="absolute -top-8 right-0 flex items-center gap-1 bg-white border border-gray-200 rounded-lg shadow-sm px-1 py-0.5"
+				class="absolute -top-8 right-0 flex items-center gap-1 user-action-bar rounded-lg shadow-sm px-1 py-0.5"
 				in:fade={{ duration: 150 }}
 			>
 				{#if onEdit}
@@ -69,14 +73,59 @@
 			</div>
 		{/if}
 
-		<div class="bg-gray-900 text-white px-4 py-3 rounded-2xl rounded-tr-md">
+		<div class="user-bubble px-4 py-3 user-bubble-radius">
 			<p class="text-[15px] leading-relaxed whitespace-pre-wrap">{content}</p>
 		</div>
-		<div class="flex items-center justify-end gap-1.5 mt-1 px-1">
-			<span class="text-xs text-gray-400">{formatTime(timestamp)}</span>
-			<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<div class="flex items-center justify-end gap-1.5 mt-1 px-1 msg-timestamp">
+			<span class="text-xs msg-meta-text">{formatTime(timestamp)}</span>
+			<svg class="w-3.5 h-3.5 msg-meta-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 			</svg>
 		</div>
 	</div>
+	<div class="user-avatar" aria-hidden="true">{userInitial}</div>
+	</div>
 </div>
+
+<style>
+	.user-action-bar {
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
+	}
+
+	.user-bubble {
+		background: var(--dt);
+		color: var(--dbg);
+	}
+
+	.user-bubble-radius {
+		border-radius: 1rem 1rem 0.25rem 1rem;
+	}
+
+	.msg-meta-text {
+		color: var(--dt3);
+	}
+
+	.msg-timestamp {
+		opacity: 0;
+		transition: opacity 0.15s;
+	}
+
+	.group:hover .msg-timestamp {
+		opacity: 1;
+	}
+
+	.user-avatar {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		background: var(--dt);
+		color: var(--dbg);
+		font-size: 11px;
+		font-weight: 600;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+</style>

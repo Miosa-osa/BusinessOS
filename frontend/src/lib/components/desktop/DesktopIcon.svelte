@@ -648,7 +648,7 @@
 	}
 
 	.desktop-icon.style-neon .icon-label {
-		color: #fff;
+		color: var(--bos-surface-on-color);
 		text-shadow: 0 0 10px currentColor;
 	}
 
@@ -888,7 +888,7 @@
 
 	/* Brutalist - bold raw design with thick borders */
 	.desktop-icon.style-brutalist .icon-image {
-		background: #fff !important;
+		background: var(--dbg) !important;
 		border-radius: 0;
 		border: 4px solid #000;
 		box-shadow: 6px 6px 0 #000;
@@ -1439,7 +1439,7 @@
 	.desktop-icon.style-amiga .icon-label {
 		font-family: 'Courier New', monospace;
 		font-size: 10px;
-		color: #fff;
+		color: var(--bos-surface-on-color);
 		background: #0055AA;
 		padding: 1px 4px;
 		text-shadow: none;

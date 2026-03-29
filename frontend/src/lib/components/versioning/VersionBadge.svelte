@@ -65,19 +65,13 @@
     padding: 6px 10px;
     font-size: 13px;
     font-weight: 500;
-    color: #6b7280;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
+    color: var(--bos-v2-text-secondary);
+    background: var(--bos-v2-layer-background-secondary);
+    border: 1px solid var(--bos-border-color);
     border-radius: 6px;
     font-family: inherit;
     cursor: default;
     transition: all 150ms ease;
-  }
-
-  :global(.dark) .version-badge {
-    color: #9ca3af;
-    background: #1f2937;
-    border-color: #374151;
   }
 
   .version-badge.clickable {
@@ -85,54 +79,41 @@
   }
 
   .version-badge.clickable:hover {
-    background: #f3f4f6;
-    border-color: #d1d5db;
-  }
-
-  :global(.dark) .version-badge.clickable:hover {
-    background: #374151;
-    border-color: #4b5563;
+    background: var(--bos-v2-layer-background-tertiary);
+    border-color: var(--bos-v2-layer-insideBorder-border);
   }
 
   .version-badge.unsaved {
-    color: #d97706;
-    background: #fffbeb;
-    border-color: #fde68a;
+    color: var(--bos-status-warning);
+    background: var(--bos-status-warning-bg);
+    border-color: color-mix(in srgb, var(--bos-status-warning) 40%, transparent);
   }
 
   :global(.dark) .version-badge.unsaved {
-    color: #fbbf24;
-    background: rgba(251, 191, 36, 0.1);
-    border-color: rgba(251, 191, 36, 0.3);
+    color: var(--bos-status-warning);
+    background: color-mix(in srgb, var(--bos-status-warning) 10%, transparent);
+    border-color: color-mix(in srgb, var(--bos-status-warning) 30%, transparent);
   }
 
   .version-badge.previewing {
-    color: #6366f1;
-    background: #eef2ff;
-    border-color: #c7d2fe;
+    color: var(--bos-nav-active);
+    background: color-mix(in srgb, var(--bos-nav-active) 8%, var(--dbg));
+    border-color: color-mix(in srgb, var(--bos-nav-active) 30%, transparent);
   }
 
   :global(.dark) .version-badge.previewing {
-    color: #a5b4fc;
-    background: rgba(99, 102, 241, 0.1);
-    border-color: rgba(99, 102, 241, 0.3);
+    color: var(--bos-nav-active);
+    background: color-mix(in srgb, var(--bos-nav-active) 10%, transparent);
+    border-color: color-mix(in srgb, var(--bos-nav-active) 30%, transparent);
   }
 
   .version {
     font-weight: 600;
-    color: #374151;
-  }
-
-  :global(.dark) .version {
-    color: #e5e7eb;
+    color: var(--bos-v2-text-primary);
   }
 
   .separator {
-    color: #d1d5db;
-  }
-
-  :global(.dark) .separator {
-    color: #4b5563;
+    color: var(--bos-border-color);
   }
 
   .icon {
@@ -140,11 +121,11 @@
   }
 
   .icon.saved {
-    color: #10b981;
+    color: var(--bos-status-success);
   }
 
   .dot.unsaved {
-    color: #f59e0b;
+    color: var(--bos-status-warning);
   }
 
   .status {

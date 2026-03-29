@@ -15,6 +15,10 @@
   async function loadInvitations() {
     const workspaceId = $currentWorkspace?.id;
     if (!workspaceId) {
+      // Load mock data in dev mode
+      if (import.meta.env.DEV) {
+        invitations = getMockInvitations();
+      }
       loading = false;
       return;
     }
@@ -24,14 +28,50 @@
       invitations = await getWorkspaceInvites(workspaceId);
     } catch (err) {
       console.error('Failed to load invitations:', err);
+      // Fall back to mock in dev
+      if (import.meta.env.DEV) {
+        invitations = getMockInvitations();
+      }
     } finally {
       loading = false;
     }
   }
 
+  function getMockInvitations(): WorkspaceInvite[] {
+    return [
+      {
+        id: 'inv-1',
+        workspace_id: '00000000-0000-0000-0000-000000000001',
+        email: 'john.doe@example.com',
+        role: 'member',
+        status: 'pending',
+        token: 'abc123',
+        invited_by: 'mock-user-001',
+        expires_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+        created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'inv-2',
+        workspace_id: '00000000-0000-0000-0000-000000000001',
+        email: 'jane.smith@company.com',
+        role: 'admin',
+        status: 'pending',
+        token: 'def456',
+        invited_by: 'mock-user-001',
+        expires_at: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
+        created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+    ];
+  }
+
   async function revokeInvite(id: string) {
     const workspaceId = $currentWorkspace?.id;
-    if (!workspaceId) return;
+    
+    // In dev/mock mode, just remove locally
+    if (!workspaceId || workspaceId.startsWith('mock-')) {
+      invitations = invitations.filter(i => i.id !== id);
+      return;
+    }
 
     try {
       await revokeWorkspaceInvite(workspaceId, id);
@@ -123,11 +163,11 @@
     margin: 0 20px;
     margin-top: 14px;
     padding: 14px;
-    background: #fffbeb;
+    background: var(--bos-status-warning-bg);
     border: 1px solid #fde68a;
     border-radius: 12px;
   }
-  :global(.dark) .td-pending-banner { background: #1c1917; border-color: #44403c; }
+  :global(.dark) .td-pending-banner { background: var(--dbg2); border-color: var(--dbd); }
 
   .td-pending-banner--loading { animation: pulse 1.5s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
@@ -143,7 +183,7 @@
     color: #92400e;
     margin-bottom: 10px;
   }
-  :global(.dark) .td-pending-banner__title { color: #fbbf24; }
+  :global(.dark) .td-pending-banner__title { color: var(--bos-status-warning); }
 
   .td-pending-list {
     display: flex;
@@ -161,7 +201,7 @@
     border: 1px solid #fde68a;
     box-shadow: 0 1px 2px rgba(0,0,0,0.04);
   }
-  :global(.dark) .td-pending-item { background: #292524; border-color: #44403c; }
+  :global(.dark) .td-pending-item { background: var(--dbg2); border-color: var(--dbd); }
 
   .td-pending-item__left {
     display: flex;
@@ -180,7 +220,7 @@
     color: #d97706;
     flex-shrink: 0;
   }
-  :global(.dark) .td-pending-item__icon { background: #44403c; color: #fbbf24; }
+  :global(.dark) .td-pending-item__icon { background: var(--dbg3); color: var(--bos-status-warning); }
 
   .td-pending-item__info {
     display: flex;

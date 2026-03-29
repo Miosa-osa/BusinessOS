@@ -289,14 +289,14 @@
 		background: var(--dbg2, #f5f5f5);
 		color: var(--dt2, #555);
 	}
-	.prm-mp__icon-bg { background: color-mix(in srgb, #3b82f6 12%, var(--dbg)); }
-	.prm-mp__accent-icon { color: #3b82f6; }
-	.prm-mp__error { background: color-mix(in srgb, #ef4444 10%, var(--dbg)); border: 1px solid color-mix(in srgb, #ef4444 25%, var(--dbd)); }
-	.prm-mp__error-icon { color: #ef4444; }
-	.prm-mp__error-text { color: #ef4444; }
-	.prm-mp__search-input:focus { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, #3b82f6 30%, transparent); border-color: #3b82f6; }
+	.prm-mp__icon-bg { background: var(--dbg3, #eee); }
+	.prm-mp__accent-icon { color: var(--dt2, #555); }
+	.prm-mp__error { background: color-mix(in srgb, var(--bos-status-error, #ef4444) 10%, var(--dbg)); border: 1px solid color-mix(in srgb, var(--bos-status-error, #ef4444) 25%, var(--dbd)); }
+	.prm-mp__error-icon { color: var(--bos-status-error, #ef4444); }
+	.prm-mp__error-text { color: var(--bos-status-error, #ef4444); }
+	.prm-mp__search-input:focus { outline: none; box-shadow: 0 0 0 2px var(--dbd, #e0e0e0); border-color: var(--dt, #111); }
 	.prm-mp__role-badge { border-radius: 0.5rem; }
-	.prm-mp__role-badge--lead { background: color-mix(in srgb, #9333ea 12%, var(--dbg)); color: #9333ea; }
-	.prm-mp__role-badge--contributor { background: color-mix(in srgb, #3b82f6 12%, var(--dbg)); color: #3b82f6; }
-	.prm-mp__role-badge--reviewer { background: color-mix(in srgb, #22c55e 12%, var(--dbg)); color: #22c55e; }
+	.prm-mp__role-badge--lead { background: var(--dbg3, #eee); color: var(--dt, #111); font-weight: 600; }
+	.prm-mp__role-badge--contributor { background: var(--dbg3, #eee); color: var(--dt2, #555); }
+	.prm-mp__role-badge--reviewer { background: var(--dbg3, #eee); color: var(--dt2, #555); }
 </style>

@@ -56,6 +56,20 @@
 	let isHovered = $state(false);
 	let contextMenuPosition = $state({ x: 0, y: 0 });
 	let showContextMenu = $state(false);
+	let keepActionsVisible = $state(false);
+	let keepTimer: ReturnType<typeof setTimeout> | null = null;
+
+	// When menu closes, hold the actions visible briefly to prevent flash
+	$effect(() => {
+		if (showMenu) {
+			keepActionsVisible = true;
+			if (keepTimer) clearTimeout(keepTimer);
+		} else if (keepActionsVisible) {
+			keepTimer = setTimeout(() => {
+				keepActionsVisible = false;
+			}, 150);
+		}
+	});
 
 	const paddingLeft = $derived(12 + depth * 16);
 
@@ -175,81 +189,79 @@
 			<Star class="tree-item__favorite" />
 		{/if}
 
-		<!-- Actions (visible on hover) -->
-		{#if isHovered}
-			<div class="tree-item__actions" onclick={(e) => e.stopPropagation()}>
-				<Tooltip content="Add subpage" side="top">
-					<span
-						class="tree-item__action"
-						onclick={onAddChild}
-						onkeydown={(e) => e.key === 'Enter' && onAddChild?.()}
-						role="button"
-						tabindex={0}
-					>
-						<Plus />
+		<!-- Actions (visible on hover via CSS, always rendered to prevent flashing) -->
+		<div class="tree-item__actions" class:tree-item__actions--visible={isHovered || showMenu || keepActionsVisible} onclick={(e) => e.stopPropagation()}>
+			<Tooltip content="Add subpage" side="top">
+				<span
+					class="tree-item__action"
+					onclick={onAddChild}
+					onkeydown={(e) => e.key === 'Enter' && onAddChild?.()}
+					role="button"
+					tabindex={0}
+				>
+					<Plus />
+				</span>
+			</Tooltip>
+
+			<Menu bind:open={showMenu}>
+				{#snippet trigger()}
+					<span class="tree-item__action" role="button" tabindex={0}>
+						<MoreHorizontal />
 					</span>
-				</Tooltip>
+				{/snippet}
 
-				<Menu bind:open={showMenu}>
-					{#snippet trigger()}
-						<span class="tree-item__action" role="button" tabindex={0}>
-							<MoreHorizontal />
-						</span>
+				<MenuItem onSelect={onToggleFavorite}>
+					{#snippet prefix()}
+						<Star class="h-4 w-4" />
 					{/snippet}
-
-					<MenuItem onSelect={onToggleFavorite}>
-						{#snippet prefix()}
-							<Star class="h-4 w-4" />
-						{/snippet}
-						{document.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
-					</MenuItem>
-					<MenuItem onSelect={handleCopyLink}>
-						{#snippet prefix()}
-							<Link2 class="h-4 w-4" />
-						{/snippet}
-						Copy link
-					</MenuItem>
-					<MenuItem onSelect={onDuplicate}>
-						{#snippet prefix()}
-							<Copy class="h-4 w-4" />
-						{/snippet}
-						Duplicate
-					</MenuItem>
-					<MenuItem onSelect={onRename}>
-						{#snippet prefix()}
-							<Pencil class="h-4 w-4" />
-						{/snippet}
-						Rename
-					</MenuItem>
-					<MenuSeparator />
-					<MenuItem onSelect={onMoveTo}>
-						{#snippet prefix()}
-							<FolderInput class="h-4 w-4" />
-						{/snippet}
-						Move to
-					</MenuItem>
-					<MenuItem onSelect={handleOpenInNewTab}>
-						{#snippet prefix()}
-							<ExternalLink class="h-4 w-4" />
-						{/snippet}
-						Open in new tab
-					</MenuItem>
-					<MenuSeparator />
-					<MenuItem onSelect={onArchive}>
-						{#snippet prefix()}
-							<Archive class="h-4 w-4" />
-						{/snippet}
-						{document.is_archived ? 'Unarchive' : 'Archive'}
-					</MenuItem>
-					<MenuItem destructive onSelect={onDelete}>
-						{#snippet prefix()}
-							<Trash2 class="h-4 w-4" />
-						{/snippet}
-						Delete
-					</MenuItem>
-				</Menu>
-			</div>
-		{/if}
+					{document.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+				</MenuItem>
+				<MenuItem onSelect={handleCopyLink}>
+					{#snippet prefix()}
+						<Link2 class="h-4 w-4" />
+					{/snippet}
+					Copy link
+				</MenuItem>
+				<MenuItem onSelect={onDuplicate}>
+					{#snippet prefix()}
+						<Copy class="h-4 w-4" />
+					{/snippet}
+					Duplicate
+				</MenuItem>
+				<MenuItem onSelect={onRename}>
+					{#snippet prefix()}
+						<Pencil class="h-4 w-4" />
+					{/snippet}
+					Rename
+				</MenuItem>
+				<MenuSeparator />
+				<MenuItem onSelect={onMoveTo}>
+					{#snippet prefix()}
+						<FolderInput class="h-4 w-4" />
+					{/snippet}
+					Move to
+				</MenuItem>
+				<MenuItem onSelect={handleOpenInNewTab}>
+					{#snippet prefix()}
+						<ExternalLink class="h-4 w-4" />
+					{/snippet}
+					Open in new tab
+				</MenuItem>
+				<MenuSeparator />
+				<MenuItem onSelect={onArchive}>
+					{#snippet prefix()}
+						<Archive class="h-4 w-4" />
+					{/snippet}
+					{document.is_archived ? 'Unarchive' : 'Archive'}
+				</MenuItem>
+				<MenuItem destructive onSelect={onDelete}>
+					{#snippet prefix()}
+						<Trash2 class="h-4 w-4" />
+					{/snippet}
+					Delete
+				</MenuItem>
+			</Menu>
+		</div>
 	</div>
 
 	<!-- Children -->
@@ -348,16 +360,16 @@
 	}
 
 	.tree-item--active {
-		background: rgba(30, 150, 235, 0.12) !important;
+		background: color-mix(in srgb, var(--accent-blue) 12%, transparent) !important;
 	}
 
 	.tree-item--active .tree-item__title {
 		font-weight: 500;
-		color: #1e96eb;
+		color: var(--accent-blue);
 	}
 
 	.tree-item--active .tree-item__icon {
-		color: #1e96eb;
+		color: var(--accent-blue);
 	}
 
 	.tree-item__chevron {
@@ -436,15 +448,24 @@
 		width: 12px;
 		height: 12px;
 		margin-left: 4px;
-		color: #f59e0b;
-		fill: #f59e0b;
+		color: var(--accent-orange);
+		fill: var(--accent-orange);
 	}
 
-	/* Postfix actions - visible on hover */
+	/* Postfix actions - visible on hover via opacity (always rendered, no flashing) */
 	.tree-item__actions {
 		display: flex;
 		gap: 2px;
 		margin-left: auto;
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.1s ease;
+	}
+
+	.tree-item__actions--visible,
+	.tree-item:hover .tree-item__actions {
+		opacity: 1;
+		pointer-events: auto;
 	}
 
 	.tree-item__action {

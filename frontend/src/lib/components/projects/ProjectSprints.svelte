@@ -226,7 +226,7 @@
 	.prm-sp-velocity-label { display: block; font-size: 0.625rem; font-weight: 600; color: var(--dt3, #6b7280); text-transform: uppercase; margin-bottom: 0.375rem; }
 	.prm-sp-velocity-chart { display: flex; align-items: flex-end; gap: 3px; height: 3rem; }
 	.prm-sp-velocity-col { flex: 1; display: flex; align-items: flex-end; height: 100%; }
-	.prm-sp-velocity-bar { width: 100%; background: color-mix(in srgb, #8b5cf6 60%, var(--dbg3, #e5e7eb)); border-radius: 2px 2px 0 0; min-height: 2px; transition: height 0.3s; }
+	.prm-sp-velocity-bar { width: 100%; background: var(--dt3, #888); border-radius: 2px 2px 0 0; min-height: 2px; transition: height 0.3s; }
 
 	/* Backlog */
 	.prm-sp-backlog { background: var(--dbg, #fff); border: 1px solid var(--dbd, #e5e7eb); border-radius: 0.75rem; padding: 0.75rem; }
@@ -239,10 +239,10 @@
 	.prm-sp-item:hover { background: var(--dbg2, #f9fafb); }
 	.prm-sp-item-drag { color: var(--dt4, #d1d5db); cursor: grab; flex-shrink: 0; }
 	.prm-sp-item-type { font-size: 0.625rem; font-weight: 600; padding: 0.125rem 0.375rem; border-radius: 4px; flex-shrink: 0; text-transform: uppercase; }
-	.prm-sp-type--story { background: color-mix(in srgb, #8b5cf6 12%, var(--dbg, #fff)); color: #8b5cf6; }
-	.prm-sp-type--task { background: color-mix(in srgb, #3b82f6 12%, var(--dbg, #fff)); color: #3b82f6; }
-	.prm-sp-type--done { background: color-mix(in srgb, #22c55e 12%, var(--dbg, #fff)); color: #22c55e; }
-	.prm-sp-type--bug { background: color-mix(in srgb, #ef4444 12%, var(--dbg, #fff)); color: #ef4444; }
+	.prm-sp-type--story { background: var(--dbg3, #eee); color: var(--dt, #111); }
+	.prm-sp-type--task { background: var(--dbg3, #eee); color: var(--dt2, #555); }
+	.prm-sp-type--done { background: var(--dbg3, #eee); color: var(--dt3, #888); }
+	.prm-sp-type--bug { background: var(--dbg3, #eee); color: var(--dt, #111); font-weight: 700; }
 	.prm-sp-type--chore { background: var(--dbg3, #f3f4f6); color: var(--dt3, #6b7280); }
 	.prm-sp-item-title { font-size: 0.8125rem; color: var(--dt, #111); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 	.prm-sp-item-priority { font-size: 0.625rem; color: var(--dt4, #9ca3af); flex-shrink: 0; }

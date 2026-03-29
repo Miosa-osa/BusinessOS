@@ -230,7 +230,9 @@
 						<div class="dw-ap-card p-4 rounded-xl border" transition:scale={{ delay: 200, duration: 200 }}>
 							<div class="flex items-center gap-1.5">
 								<span class="dw-ap-value text-2xl font-semibold tabular-nums">{Math.round($animatedStreak)}</span>
-								<span class="text-lg">🔥</span>
+								<svg class="dw-ap-streak-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13 7h8m0 0l-3-3m3 3l-3 3M3 17h8m0 0l-3-3m3 3l-3 3M8 12h8" />
+								</svg>
 							</div>
 							<div class="dw-ap-label text-sm mt-1">Day Streak</div>
 						</div>
@@ -500,5 +502,13 @@
 	.dw-ap-empty-icon {
 		background: var(--dbg2, var(--bos-hover, #f5f5f5));
 		color: var(--dt3, var(--bos-text-tertiary, #888));
+	}
+
+	/* Streak trend icon */
+	.dw-ap-streak-icon {
+		width: 1rem;
+		height: 1rem;
+		color: var(--dt2, var(--bos-text-secondary, #555));
+		flex-shrink: 0;
 	}
 </style>

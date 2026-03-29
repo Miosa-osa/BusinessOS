@@ -264,14 +264,14 @@
 	.section-title {
 		font-size: 13px;
 		font-weight: 600;
-		color: #333;
+		color: var(--dt);
 		display: block;
 		margin-bottom: 12px;
 	}
 
 	.section-subtitle {
 		font-size: 12px;
-		color: #666;
+		color: var(--dt2);
 		margin: -4px 0 16px 0;
 	}
 
@@ -292,7 +292,7 @@
 		border-radius: 6px;
 		font-size: 12px;
 		font-weight: 500;
-		color: #666;
+		color: var(--dt2);
 		cursor: pointer;
 		transition: all 0.15s ease;
 		white-space: nowrap;
@@ -300,11 +300,11 @@
 
 	.filter-btn:hover {
 		background: rgba(0, 0, 0, 0.04);
-		color: #333;
+		color: var(--dt);
 	}
 
 	.filter-btn.active {
-		background: #fff;
+		background: var(--dbg);
 		color: #0066FF;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 	}
@@ -324,7 +324,7 @@
 		padding: 12px 10px;
 		border: 1.5px solid rgba(0, 0, 0, 0.08);
 		border-radius: 10px;
-		background: #fff;
+		background: var(--dbg);
 		cursor: pointer;
 		transition: all 0.15s ease;
 		text-align: center;
@@ -360,20 +360,20 @@
 	.style-icon.preview-square { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; border-radius: 4px !important; }
 	.style-icon.preview-minimal { background: transparent !important; border: 2px solid #667eea !important; color: #667eea !important; }
 	.style-icon.preview-macos { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; border-radius: 28% !important; }
-	.style-icon.preview-outlined { background: white !important; border: 2.5px solid #667eea !important; color: #667eea !important; }
+	.style-icon.preview-outlined { background: var(--dbg) !important; border: 2.5px solid #667eea !important; color: #667eea !important; }
 	.style-icon.preview-glassmorphism { background: rgba(255, 255, 255, 0.2) !important; backdrop-filter: blur(10px) !important; border: 1px solid rgba(255, 255, 255, 0.4) !important; }
 	.style-icon.preview-neon { background: #1a1a2e !important; box-shadow: 0 0 10px #667eea, 0 0 20px #667eea !important; border: 1.5px solid #667eea !important; }
 	.style-icon.preview-flat { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; box-shadow: none !important; border-radius: 8px !important; }
 	.style-icon.preview-retro { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; border-radius: 0 !important; box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3), inset -2px -2px 0 rgba(0, 0, 0, 0.2) !important; }
-	.style-icon.preview-win95 { border-radius: 0 !important; background: #C0C0C0 !important; border: 2px solid !important; border-color: #DFDFDF #808080 #808080 #DFDFDF !important; color: #000 !important; }
+	.style-icon.preview-win95 { border-radius: 0 !important; background: #C0C0C0 !important; border: 2px solid !important; border-color: #DFDFDF #808080 #808080 #DFDFDF !important; color: var(--dt) !important; }
 	.style-icon.preview-frosted { background: rgba(255, 255, 255, 0.6) !important; backdrop-filter: blur(12px) saturate(180%) !important; border: 1px solid rgba(255, 255, 255, 0.3) !important; }
 	.style-icon.preview-terminal { background: #0a0a0a !important; border: 1.5px solid #00ff00 !important; box-shadow: 0 0 10px rgba(0, 255, 0, 0.3) !important; color: #00ff00 !important; }
 	.style-icon.preview-glow { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; box-shadow: 0 0 15px #667eea, 0 0 30px rgba(102, 126, 234, 0.3) !important; }
-	.style-icon.preview-paper { background: #FFFFFF !important; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important; border-radius: 6px !important; }
+	.style-icon.preview-paper { background: var(--dbg) !important; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important; border-radius: 6px !important; }
 	.style-icon.preview-pixel { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; border-radius: 0 !important; image-rendering: pixelated !important; }
-	.style-icon.preview-brutalist { background: #fff !important; border-radius: 0 !important; border: 3px solid #000 !important; box-shadow: 4px 4px 0 #000 !important; color: #000 !important; }
+	.style-icon.preview-brutalist { background: var(--dbg) !important; border-radius: 0 !important; border: 3px solid #000 !important; box-shadow: 4px 4px 0 #000 !important; color: var(--dt) !important; }
 	.style-icon.preview-depth { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; box-shadow: 0 1px 2px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.07), 0 4px 8px rgba(0,0,0,0.07), 0 8px 16px rgba(0,0,0,0.07) !important; }
-	.style-icon.preview-macos-classic { border-radius: 4px !important; background: linear-gradient(180deg, #EAEAEA 0%, #D4D4D4 50%, #C4C4C4 100%) !important; border: 1px solid #999 !important; color: #333 !important; }
+	.style-icon.preview-macos-classic { border-radius: 4px !important; background: linear-gradient(180deg, #EAEAEA 0%, #D4D4D4 50%, #C4C4C4 100%) !important; border: 1px solid #999 !important; color: var(--dt) !important; }
 	.style-icon.preview-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
 	.style-icon.preview-neumorphism { background: #e0e0e0 !important; box-shadow: 8px 8px 16px #bebebe, -8px -8px 16px #ffffff !important; }
 	.style-icon.preview-material { background: #667eea !important; box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23) !important; }
@@ -393,7 +393,7 @@
 	.style-icon.preview-glitch { background: #ff00ff !important; border: 2px solid #00ffff !important; box-shadow: 2px 2px 0 #ff0000, -2px -2px 0 #00ff00 !important; }
 	.style-icon.preview-chrome { background: linear-gradient(135deg, #f5f5f5 0%, #b0b0b0 50%, #f5f5f5 100%) !important; box-shadow: inset 0 2px 4px rgba(255,255,255,0.9), inset 0 -2px 4px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.2) !important; }
 	.style-icon.preview-rainbow { background: linear-gradient(135deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3) !important; }
-	.style-icon.preview-sketch { background: #fff !important; border: 3px dashed #333 !important; color: #333 !important; }
+	.style-icon.preview-sketch { background: var(--dbg) !important; border: 3px dashed #333 !important; color: var(--dt) !important; }
 	.style-icon.preview-comic { background: #ffeb3b !important; border: 5px solid #000 !important; border-radius: 4px !important; color: #000 !important; }
 	.style-icon.preview-watercolor { background: radial-gradient(circle, rgba(255,182,193,0.8) 0%, rgba(173,216,230,0.6) 100%) !important; backdrop-filter: blur(8px) !important; border: none !important; }
 
@@ -406,12 +406,12 @@
 	.style-name {
 		font-size: 12px;
 		font-weight: 600;
-		color: #333;
+		color: var(--dt);
 	}
 
 	.style-desc {
 		font-size: 10px;
-		color: #666;
+		color: var(--dt2);
 		line-height: 1.3;
 	}
 
@@ -441,12 +441,12 @@
 	.option-name {
 		font-size: 13px;
 		font-weight: 600;
-		color: #333;
+		color: var(--dt);
 	}
 
 	.option-hint {
 		font-size: 11px;
-		color: #666;
+		color: var(--dt2);
 	}
 
 	.option-control {
@@ -489,7 +489,7 @@
 	.value-display {
 		font-size: 13px;
 		font-weight: 600;
-		color: #333;
+		color: var(--dt);
 		min-width: 48px;
 		text-align: right;
 	}
@@ -553,7 +553,7 @@
 		padding: 12px;
 		border-radius: 8px;
 		border: 2px solid #e5e5e5;
-		background: white;
+		background: var(--dbg);
 		cursor: pointer;
 		text-align: left;
 		transition: all 0.15s ease;
@@ -561,7 +561,7 @@
 
 	.library-option:hover {
 		border-color: #ccc;
-		background: #fafafa;
+		background: var(--dbg2);
 	}
 
 	.library-option.selected {
@@ -579,7 +579,7 @@
 	.library-name {
 		font-size: 13px;
 		font-weight: 600;
-		color: #333;
+		color: var(--dt);
 	}
 
 	.library-preview {
@@ -599,7 +599,7 @@
 
 	.library-desc {
 		font-size: 11px;
-		color: #666;
+		color: var(--dt2);
 		margin-bottom: 8px;
 	}
 
@@ -608,9 +608,9 @@
 		justify-content: center;
 		align-items: center;
 		padding: 8px;
-		background: #f8f8f8;
+		background: var(--dbg2);
 		border-radius: 6px;
-		color: #333;
+		color: var(--dt);
 	}
 
 	.stroke-preview.stroke-phosphor svg {
@@ -637,7 +637,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
-		background: white;
+		background: var(--dbg);
 		border-radius: 8px;
 		padding: 8px;
 	}
@@ -656,7 +656,7 @@
 	.toggle-label {
 		font-size: 13px;
 		font-weight: 500;
-		color: #333;
+		color: var(--dt);
 	}
 
 	.toggle-desc {

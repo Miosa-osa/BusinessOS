@@ -1,4 +1,4 @@
-import { request, getApiBaseUrl } from '../base';
+import { request, getApiBaseUrl } from "../base";
 import type {
   AIProvidersResponse,
   AllModelsResponse,
@@ -12,65 +12,71 @@ import type {
   CustomAgent,
   AgentPresetsResponse,
   AgentPreset,
-  SandboxTestRequest
-} from './types';
+  SandboxTestRequest,
+} from "./types";
 
 // AI Providers
 export async function getAIProviders() {
-  return request<AIProvidersResponse>('/ai/providers');
+  return request<AIProvidersResponse>("/ai/providers");
 }
 
 export async function updateAIProvider(provider: string) {
-  return request<{ message: string }>('/ai/provider', {
-    method: 'PUT',
-    body: { provider }
+  return request<{ message: string }>("/ai/provider", {
+    method: "PUT",
+    body: { provider },
   });
 }
 
 export async function getAllModels() {
-  return request<AllModelsResponse>('/ai/models');
+  return request<AllModelsResponse>("/ai/models");
 }
 
 export async function getLocalModels() {
-  return request<LocalModelsResponse>('/ai/models/local');
+  return request<LocalModelsResponse>("/ai/models/local");
 }
 
-export async function pullModel(model: string): Promise<ReadableStream<Uint8Array> | null> {
+export async function pullModel(
+  model: string,
+): Promise<ReadableStream<Uint8Array> | null> {
   const response = await fetch(`${getApiBaseUrl()}/ai/models/pull`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ model })
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ model }),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Pull model failed' }));
-    throw new Error(error.detail || `Failed to pull model (HTTP ${response.status})`);
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Pull model failed" }));
+    throw new Error(
+      error.detail || `Failed to pull model (HTTP ${response.status})`,
+    );
   }
 
   return response.body;
 }
 
 export async function warmupModel(model: string): Promise<WarmupResponse> {
-  return request('/ai/models/warmup', {
-    method: 'POST',
-    body: { model }
+  return request("/ai/models/warmup", {
+    method: "POST",
+    body: { model },
   });
 }
 
 export async function getAISystemInfo() {
-  return request<AISystemInfo>('/ai/system');
+  return request<AISystemInfo>("/ai/system");
 }
 
 export async function saveAPIKey(provider: string, apiKey: string) {
-  return request<{ message: string }>('/ai/api-key', {
-    method: 'POST',
-    body: { provider, api_key: apiKey }
+  return request<{ message: string }>("/ai/api-key", {
+    method: "POST",
+    body: { provider, api_key: apiKey },
   });
 }
 
 export async function getAgentPrompts() {
-  return request<{ agents: AgentInfo[] }>('/ai/agents');
+  return request<{ agents: AgentInfo[] }>("/ai/agents");
 }
 
 export async function getAgentPrompt(id: string) {
@@ -78,13 +84,16 @@ export async function getAgentPrompt(id: string) {
 }
 
 export async function getTools() {
-  return request<{ tools: Tool[] }>('/mcp/tools');
+  return request<{ tools: Tool[] }>("/mcp/tools");
 }
 
-export async function executeTool(toolName: string, args: Record<string, unknown>) {
-  return request<ToolResponse>('/mcp/execute', {
-    method: 'POST',
-    body: { tool_name: toolName, arguments: args }
+export async function executeTool(
+  toolName: string,
+  args: Record<string, unknown>,
+) {
+  return request<ToolResponse>("/mcp/execute", {
+    method: "POST",
+    body: { tool_name: toolName, arguments: args },
   });
 }
 
@@ -95,7 +104,7 @@ export async function executeTool(toolName: string, args: Record<string, unknown
  * @param includeInactive - Include inactive agents in the response
  */
 export async function getCustomAgents(includeInactive = false) {
-  const params = includeInactive ? '?include_inactive=true' : '';
+  const params = includeInactive ? "?include_inactive=true" : "";
   return request<CustomAgentsResponse>(`/ai/custom-agents${params}`);
 }
 
@@ -104,7 +113,9 @@ export async function getCustomAgents(includeInactive = false) {
  * @param id - Agent ID
  */
 export async function getCustomAgent(id: string) {
-  const response = await request<{ agent: CustomAgent }>(`/ai/custom-agents/${id}`);
+  const response = await request<{ agent: CustomAgent }>(
+    `/ai/custom-agents/${id}`,
+  );
   return response.agent;
 }
 
@@ -113,9 +124,9 @@ export async function getCustomAgent(id: string) {
  * @param data - Agent configuration data
  */
 export async function createCustomAgent(data: Partial<CustomAgent>) {
-  const response = await request<{ agent: CustomAgent }>('/ai/custom-agents', {
-    method: 'POST',
-    body: data
+  const response = await request<{ agent: CustomAgent }>("/ai/custom-agents", {
+    method: "POST",
+    body: data,
   });
   return response.agent;
 }
@@ -125,11 +136,17 @@ export async function createCustomAgent(data: Partial<CustomAgent>) {
  * @param id - Agent ID
  * @param data - Partial agent data to update
  */
-export async function updateCustomAgent(id: string, data: Partial<CustomAgent>) {
-  const response = await request<{ agent: CustomAgent }>(`/ai/custom-agents/${id}`, {
-    method: 'PUT',
-    body: data
-  });
+export async function updateCustomAgent(
+  id: string,
+  data: Partial<CustomAgent>,
+) {
+  const response = await request<{ agent: CustomAgent }>(
+    `/ai/custom-agents/${id}`,
+    {
+      method: "PUT",
+      body: data,
+    },
+  );
   return response.agent;
 }
 
@@ -139,7 +156,7 @@ export async function updateCustomAgent(id: string, data: Partial<CustomAgent>) 
  */
 export async function deleteCustomAgent(id: string) {
   return request<{ message: string }>(`/ai/custom-agents/${id}`, {
-    method: 'DELETE'
+    method: "DELETE",
   });
 }
 
@@ -148,14 +165,16 @@ export async function deleteCustomAgent(id: string) {
  * @param category - Category to filter by
  */
 export async function getAgentsByCategory(category: string) {
-  return request<CustomAgentsResponse>(`/ai/custom-agents?category=${encodeURIComponent(category)}`);
+  return request<CustomAgentsResponse>(
+    `/ai/custom-agents/category/${encodeURIComponent(category)}`,
+  );
 }
 
 /**
  * Get all available agent presets
  */
 export async function getAgentPresets() {
-  return request<AgentPresetsResponse>('/ai/agents/presets');
+  return request<AgentPresetsResponse>("/ai/agents/presets");
 }
 
 /**
@@ -172,10 +191,13 @@ export async function getAgentPreset(id: string) {
  * @param name - Name for the new agent (optional, defaults to preset name)
  */
 export async function createFromPreset(presetId: string, name?: string) {
-  const response = await request<{ agent: CustomAgent }>(`/ai/custom-agents/from-preset/${presetId}`, {
-    method: 'POST',
-    body: { name }
-  });
+  const response = await request<{ agent: CustomAgent }>(
+    `/ai/custom-agents/from-preset/${presetId}`,
+    {
+      method: "POST",
+      body: { name },
+    },
+  );
   return response.agent;
 }
 
@@ -185,17 +207,27 @@ export async function createFromPreset(presetId: string, name?: string) {
  * @param message - Test message
  * @returns ReadableStream for SSE streaming or null if streaming is disabled
  */
-export async function testAgent(id: string, message: string): Promise<ReadableStream<Uint8Array> | null> {
-  const response = await fetch(`${getApiBaseUrl()}/ai/custom-agents/${id}/test`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ test_message: message })
-  });
+export async function testAgent(
+  id: string,
+  message: string,
+): Promise<ReadableStream<Uint8Array> | null> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/ai/custom-agents/${id}/test`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ test_message: message }),
+    },
+  );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Test agent failed' }));
-    throw new Error(error.detail || `Failed to test agent (HTTP ${response.status})`);
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Test agent failed" }));
+    throw new Error(
+      error.detail || `Failed to test agent (HTTP ${response.status})`,
+    );
   }
 
   return response.body;
@@ -206,17 +238,23 @@ export async function testAgent(id: string, message: string): Promise<ReadableSt
  * @param config - Agent configuration to test
  * @returns ReadableStream for SSE streaming
  */
-export async function testSandbox(config: SandboxTestRequest): Promise<ReadableStream<Uint8Array> | null> {
-  const response = await fetch(`${getApiBaseUrl()}/ai/custom-agents/test-sandbox`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(config)
+export async function testSandbox(
+  config: SandboxTestRequest,
+): Promise<ReadableStream<Uint8Array> | null> {
+  const response = await fetch(`${getApiBaseUrl()}/ai/custom-agents/sandbox`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(config),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Sandbox test failed' }));
-    throw new Error(error.detail || `Failed to test in sandbox (HTTP ${response.status})`);
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Sandbox test failed" }));
+    throw new Error(
+      error.detail || `Failed to test in sandbox (HTTP ${response.status})`,
+    );
   }
 
   return response.body;

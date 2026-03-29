@@ -67,26 +67,28 @@
 </script>
 
 {#if filters.length > 0}
-	<div class="flex flex-wrap items-center gap-2 border-b border-gray-100 bg-gray-50/50 px-4 py-2">
-		<div class="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+	<div class="flex flex-wrap items-center gap-2 border-b px-4 py-2" style="border-color: var(--dbd); background: color-mix(in srgb, var(--dbg2) 50%, transparent);">
+		<div class="flex items-center gap-1.5 text-xs font-medium" style="color: var(--dt2);">
 			<Filter class="h-3.5 w-3.5" />
 			<span>Filters:</span>
 		</div>
 
 		{#each filters as filter (filter.id)}
 			<div
-				class="group flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs hover:border-blue-300 hover:bg-blue-100"
+				class="group flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-colors"
+				style="border: 1px solid color-mix(in srgb, var(--bos-brand-color) 30%, transparent); background: color-mix(in srgb, var(--bos-brand-color) 8%, transparent);"
 			>
 				<!-- Filter content (clickable for edit) -->
 				<button
 					type="button"
-					class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+					class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm transition-colors"
+					style="color: var(--bos-brand-color); background: transparent;"
 					onclick={() => onEditFilter(filter)}
 				>
-					<span class="font-medium text-blue-700">{getColumnName(filter.column_id)}</span>
-					<span class="text-blue-500">{getOperatorLabel(filter.operator)}</span>
+					<span class="font-medium" style="color: var(--bos-brand-color);">{getColumnName(filter.column_id)}</span>
+					<span style="color: color-mix(in srgb, var(--bos-brand-color) 70%, var(--dt2));">{getOperatorLabel(filter.operator)}</span>
 					{#if needsValue(filter.operator) && filter.value !== undefined}
-						<span class="max-w-[120px] truncate font-medium text-blue-700">
+						<span class="max-w-[120px] truncate font-medium" style="color: var(--bos-brand-color);">
 							"{formatValue(filter.value)}"
 						</span>
 					{/if}
@@ -95,7 +97,8 @@
 				<!-- Remove button -->
 				<button
 					type="button"
-					class="p-0.5 rounded-full hover:bg-blue-200 text-blue-500 transition-colors ml-0.5"
+					class="p-0.5 rounded-full transition-colors ml-0.5"
+					style="color: color-mix(in srgb, var(--bos-brand-color) 70%, var(--dt2));"
 					onclick={() => onRemoveFilter(filter.id)}
 					aria-label="Remove filter"
 				>
@@ -107,7 +110,8 @@
 		<!-- Add filter button -->
 		<button
 			type="button"
-			class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-dashed border-gray-300 transition-colors"
+			class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors border border-dashed"
+			style="color: var(--dt2); border-color: var(--dbd);"
 			onclick={onAddFilter}
 		>
 			<Plus class="h-3 w-3" />
@@ -118,7 +122,8 @@
 		{#if filters.length > 1}
 			<button
 				type="button"
-				class="px-2 py-1 rounded-lg text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors ml-auto"
+				class="px-2 py-1 rounded-lg text-xs transition-colors ml-auto"
+				style="color: var(--dt2);"
 				onclick={onClearAll}
 			>
 				Clear all

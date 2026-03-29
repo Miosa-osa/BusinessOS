@@ -47,7 +47,7 @@
 		}
 
 		const rows: TimelineRow[] = [];
-		const colors = ['#8b5cf6', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#14b8a6'];
+		const colors = ['var(--dt, #111)', 'var(--dt2, #555)', 'var(--dt3, #888)', 'var(--dt4, #bbb)', 'var(--dt2, #555)', 'var(--dt3, #888)'];
 		let colorIdx = 0;
 
 		for (const [assigneeId, assigneeTasks] of tasksByAssignee) {
@@ -192,10 +192,10 @@
 	.prm-tl-legend { display: flex; align-items: center; gap: 1rem; font-size: 0.6875rem; color: var(--dt3, #6b7280); flex-wrap: wrap; }
 	.prm-tl-legend-item { display: flex; align-items: center; gap: 0.375rem; }
 	.prm-tl-legend-dot { width: 0.5rem; height: 0.5rem; border-radius: 2px; }
-	.prm-tl-legend-dot--done { background: color-mix(in srgb, #22c55e 50%, var(--dbg3, #e5e7eb)); }
-	.prm-tl-legend-dot--active { background: #3b82f6; }
+	.prm-tl-legend-dot--done { background: var(--dt4, #bbb); }
+	.prm-tl-legend-dot--active { background: var(--dt, #111); }
 	.prm-tl-legend-dot--upcoming { background: var(--dbg3, #e5e7eb); border: 1px solid var(--dbd, #d1d5db); }
-	.prm-tl-legend-line { width: 0.75rem; height: 2px; background: #ef4444; }
+	.prm-tl-legend-line { width: 0.75rem; height: 2px; background: var(--dt3, #888); }
 	.prm-tl-legend-item--today { margin-left: auto; }
 
 	/* Gantt Grid */
@@ -217,7 +217,7 @@
 		background: var(--dbg, #fff);
 	}
 	.prm-tl-day-header--weekend { background: var(--dbg2, #f9fafb); }
-	.prm-tl-day-header--today { background: color-mix(in srgb, #3b82f6 8%, var(--dbg, #fff)); }
+	.prm-tl-day-header--today { background: var(--dbg2, #f5f5f5); }
 	.prm-tl-day-name { display: block; font-size: 0.625rem; font-weight: 500; color: var(--dt4, #9ca3af); text-transform: uppercase; }
 	.prm-tl-day-num { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--dt, #111); line-height: 1.2; }
 
@@ -244,7 +244,7 @@
 	}
 	.prm-tl-cell { border-right: 1px solid var(--dbd2, #f3f4f6); }
 	.prm-tl-cell--weekend { background: var(--dbg2, #f9fafb); }
-	.prm-tl-cell--today { background: color-mix(in srgb, #3b82f6 5%, transparent); }
+	.prm-tl-cell--today { background: var(--dbg2, #f5f5f5); }
 
 	/* Task Bars */
 	.prm-tl-bar {
@@ -260,12 +260,12 @@
 	}
 	.prm-tl-bar--done { opacity: 0.6; }
 	.prm-tl-bar--upcoming { background: var(--dbg3, #e5e7eb) !important; border: 1px dashed var(--dbd, #d1d5db); }
-	.prm-tl-bar-label { font-size: 0.625rem; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.prm-tl-bar-label { font-size: 0.625rem; font-weight: 600; color: var(--bos-surface-on-color, #fff); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 	.prm-tl-bar--upcoming .prm-tl-bar-label { color: var(--dt3, #6b7280); }
 	.prm-tl-bar--done .prm-tl-bar-label { color: var(--dt3, #6b7280); }
 
 	/* Today Marker */
-	.prm-tl-today-marker { position: absolute; width: 2px; background: #ef4444; z-index: 2; pointer-events: none; }
+	.prm-tl-today-marker { position: absolute; width: 2px; background: var(--bos-status-error, #ef4444); z-index: 2; pointer-events: none; }
 
 	/* Empty State */
 	.prm-tl-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1rem; text-align: center; }
@@ -280,9 +280,9 @@
 	.prm-tl-undated-item { display: flex; align-items: center; gap: 0.375rem; font-size: 0.6875rem; color: var(--dt2, #4b5563); padding: 0.25rem 0.5rem; background: var(--dbg2, #f9fafb); border-radius: 4px; }
 	.prm-tl-undated-dot { width: 0.375rem; height: 0.375rem; border-radius: 50%; flex-shrink: 0; }
 	.prm-tl-undated-dot--todo { background: var(--dt4, #9ca3af); }
-	.prm-tl-undated-dot--in_progress { background: #3b82f6; }
-	.prm-tl-undated-dot--done { background: #22c55e; }
-	.prm-tl-undated-dot--cancelled { background: #ef4444; }
+	.prm-tl-undated-dot--in_progress { background: var(--bos-status-info, #3b82f6); }
+	.prm-tl-undated-dot--done { background: var(--bos-status-success, #22c55e); }
+	.prm-tl-undated-dot--cancelled { background: var(--bos-status-error, #ef4444); }
 	.prm-tl-undated-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 12rem; }
 	.prm-tl-undated-more { font-size: 0.6875rem; color: var(--dt4, #9ca3af); padding: 0.25rem 0.5rem; }
 </style>

@@ -93,29 +93,29 @@
 
 <div class="card">
 	{#if showHeader}
-		<h2 class="text-lg font-medium text-gray-900 mb-4">Upcoming Events</h2>
+		<h2 class="text-lg font-medium mb-4" style="color: var(--dt)">Upcoming Events</h2>
 	{/if}
 
 	{#if isLoading}
 		<div class="flex items-center justify-center py-8">
-			<div class="animate-spin h-6 w-6 border-2 border-gray-900 border-t-transparent rounded-full"></div>
+			<div class="animate-spin h-6 w-6 border-2 border-t-transparent rounded-full" style="border-color: var(--dt)"></div>
 		</div>
 	{:else if error}
-		<div class="text-center py-6 text-red-500">
+		<div class="text-center py-6" style="color: var(--bos-status-error-text)">
 			<p class="text-sm">{error}</p>
 		</div>
 	{:else if events.length === 0}
 		<div class="text-center py-6">
-			<svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="w-12 h-12 mx-auto mb-3" style="color: var(--dt4)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 			</svg>
-			<p class="text-sm text-gray-500">No upcoming events</p>
+			<p class="text-sm" style="color: var(--dt3)">No upcoming events</p>
 		</div>
 	{:else}
 		<div class="space-y-4">
 			{#each Object.entries(groupedEvents()) as [dateKey, dateEvents]}
 				<div>
-					<h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+					<h3 class="text-xs font-semibold uppercase tracking-wider mb-2" style="color: var(--dt3)">
 						{formatDate(dateEvents[0].start_time)}
 					</h3>
 					<div class="space-y-2">
@@ -125,15 +125,15 @@
 								onclick={() => onEventClick?.(event)}
 							>
 								<div class="flex items-start justify-between gap-2">
-									<p class="font-medium text-gray-900 truncate">
+									<p class="font-medium truncate" style="color: var(--dt)">
 										{event.title || 'Untitled Event'}
 									</p>
-									<span class="text-xs text-gray-500 flex-shrink-0">
+									<span class="text-xs shrink-0" style="color: var(--dt3)">
 										{event.all_day ? 'All day' : formatTime(event.start_time)}
 									</span>
 								</div>
 								{#if event.location}
-									<p class="text-xs text-gray-400 mt-1 truncate">
+									<p class="text-xs mt-1 truncate" style="color: var(--dt4)">
 										{event.location}
 									</p>
 								{/if}

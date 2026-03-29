@@ -55,18 +55,18 @@
 
 <svelte:window onclick={handleClickOutside} />
 
-<div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-2">
+<div class="dt2-toolbar flex items-center justify-between px-4 py-2">
 	<!-- Left: Search and Filters -->
 	<div class="flex items-center gap-2">
 		<!-- Search -->
 		<div class="relative">
-			<Search class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+			<Search class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2" style="color: var(--dt3);" />
 			<input
 				type="text"
 				placeholder="Search..."
 				value={searchQuery}
 				oninput={(e) => onSearchChange((e.target as HTMLInputElement).value)}
-				class="w-48 rounded-lg border border-gray-200 bg-white py-1.5 pl-8 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+				class="dt2-search w-48 rounded-lg py-1.5 pl-8 pr-3 text-sm focus:outline-none"
 			/>
 		</div>
 
@@ -121,8 +121,8 @@
 	<div class="flex items-center gap-2">
 		<!-- Selection Actions -->
 		{#if selectedCount > 0}
-			<div class="flex items-center gap-2 border-r border-gray-200 pr-2">
-				<span class="text-sm text-gray-600">{selectedCount} selected</span>
+			<div class="flex items-center gap-2 pr-2" style="border-right: 1px solid var(--dbd);">
+				<span class="text-sm" style="color: var(--dt2);">{selectedCount} selected</span>
 				{#if onDeleteSelected}
 					<button
 						type="button"
@@ -138,7 +138,7 @@
 		<!-- Add Row -->
 		<button
 			type="button"
-			class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-1.5"
+			class="btn-cta flex items-center gap-1.5"
 			onclick={onAddRow}
 		>
 			<Plus class="h-4 w-4" />
@@ -160,12 +160,12 @@
 
 			{#if showMoreMenu}
 				<div
-					class="absolute right-0 top-full z-10 mt-1 w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+					class="dt2-dropdown absolute right-0 top-full mt-1 w-40 rounded-lg py-1"
 				>
 					{#if onExport}
 						<button
 							type="button"
-							class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+							class="dt2-dropdown__item flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors"
 							onclick={() => {
 								onExport();
 								showMoreMenu = false;
@@ -178,7 +178,7 @@
 					{#if onImport}
 						<button
 							type="button"
-							class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+							class="dt2-dropdown__item flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors"
 							onclick={() => {
 								onImport();
 								showMoreMenu = false;
@@ -193,3 +193,38 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	.dt2-toolbar {
+		background: var(--dbg2);
+		border-bottom: 1px solid var(--dbd2);
+		color: var(--dt);
+	}
+
+	.dt2-search {
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
+		color: var(--dt);
+	}
+
+	.dt2-search:focus {
+		border-color: var(--dt2-accent, #3b82f6);
+		box-shadow: 0 0 0 1px var(--dt2-accent, #3b82f6);
+	}
+
+	.dt2-dropdown {
+		z-index: var(--bos-z-index-popover, 1001);
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
+		box-shadow: var(--shadow-lg);
+	}
+
+	.dt2-dropdown__item {
+		color: var(--dt);
+		border-radius: 6px;
+	}
+
+	.dt2-dropdown__item:hover {
+		background: var(--dbg3);
+	}
+</style>

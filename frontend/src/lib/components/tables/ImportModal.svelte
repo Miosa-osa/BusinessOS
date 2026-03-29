@@ -316,16 +316,17 @@
 </script>
 
 {#if isOpen}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+	<div class="fixed inset-0 z-50 flex items-center justify-center" style="background: var(--bos-modal-backdrop);">
 		<div
-			class="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-white shadow-2xl"
+			class="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl shadow-2xl"
+			style="background: var(--bos-modal-bg);"
 			onclick={(e) => e.stopPropagation()}
 		>
 			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-				<div>
-					<h2 class="text-lg font-semibold text-gray-900">Import Data</h2>
-					<p class="text-sm text-gray-500">
+			<div class="import-modal__header" style="border-bottom: 1px solid var(--dbd);">
+				<div class="import-modal__title">
+					<h2 class="text-lg font-semibold" style="color: var(--dt);">Import Data</h2>
+					<p class="text-sm" style="color: var(--dt2);">
 						{#if step === 1}
 							Upload a CSV or Excel file
 						{:else if step === 2}
@@ -336,26 +337,24 @@
 					</p>
 				</div>
 
-				<!-- Progress Steps -->
-				<div class="flex items-center gap-2">
+				<!-- Progress Steps (absolutely centered) -->
+				<div class="import-modal__steps">
 					{#each [1, 2, 3] as s}
-						<div class="flex items-center gap-2">
-							<div
-								class="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors {s <=
-								step
-									? 'bg-blue-600 text-white'
-									: 'bg-gray-100 text-gray-400'}"
-							>
-								{#if s < step}
-									<Check class="h-4 w-4" />
-								{:else}
-									{s}
-								{/if}
-							</div>
-							{#if s < 3}
-								<ChevronRight class="h-4 w-4 text-gray-300" />
+						<div
+							class="import-modal__step"
+							style={s <= step
+								? 'background: var(--bos-nav-active); color: var(--bos-surface-on-color);'
+								: 'background: var(--dbg3); color: var(--dt3);'}
+						>
+							{#if s < step}
+								<Check class="h-4 w-4" />
+							{:else}
+								{s}
 							{/if}
 						</div>
+						{#if s < 3}
+							<ChevronRight class="h-4 w-4" style="color: var(--dt4);" />
+						{/if}
 					{/each}
 				</div>
 
@@ -369,26 +368,27 @@
 				{#if step === 1}
 					<!-- Step 1: File Upload -->
 					<div
-						class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 transition-colors {isDragging
-							? 'border-blue-500 bg-blue-50'
-							: 'border-gray-300 hover:border-gray-400'}"
+						class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 transition-colors"
+						style={isDragging
+							? 'border-color: var(--bos-nav-active); background: var(--bos-nav-active-bg);'
+							: 'border-color: var(--dbd);'}
 						ondrop={handleDrop}
 						ondragover={handleDragOver}
 						ondragleave={handleDragLeave}
 					>
 						{#if isProcessing}
-							<RefreshCw class="mb-4 h-12 w-12 animate-spin text-blue-600" />
-							<p class="text-gray-600">Processing file...</p>
+							<RefreshCw class="mb-4 h-12 w-12 animate-spin" style="color: var(--bos-nav-active);" />
+							<p style="color: var(--dt2);">Processing file...</p>
 						{:else if file}
 							<div class="flex items-center gap-3">
 								{#if file.name.endsWith('.csv')}
-									<FileText class="h-12 w-12 text-green-600" />
+									<FileText class="h-12 w-12" style="color: var(--bos-status-success);" />
 								{:else}
-									<FileSpreadsheet class="h-12 w-12 text-green-600" />
+									<FileSpreadsheet class="h-12 w-12" style="color: var(--bos-status-success);" />
 								{/if}
 								<div>
-									<p class="font-medium text-gray-900">{file.name}</p>
-									<p class="text-sm text-gray-500">
+									<p class="font-medium" style="color: var(--dt);">{file.name}</p>
+									<p class="text-sm" style="color: var(--dt2);">
 										{(file.size / 1024).toFixed(1)} KB
 									</p>
 								</div>
@@ -404,10 +404,10 @@
 								</button>
 							</div>
 						{:else}
-							<Upload class="mb-4 h-12 w-12 text-gray-400" />
-							<p class="mb-2 text-gray-600">
+							<Upload class="mb-4 h-12 w-12" style="color: var(--dt3);" />
+							<p class="mb-2" style="color: var(--dt2);">
 								Drag and drop your file here, or
-								<label class="cursor-pointer text-blue-600 hover:underline">
+								<label class="cursor-pointer hover:underline" style="color: var(--bos-nav-active);">
 									browse
 									<input
 										type="file"
@@ -417,12 +417,12 @@
 									/>
 								</label>
 							</p>
-							<p class="text-sm text-gray-400">Supports CSV and Excel files</p>
+							<p class="text-sm" style="color: var(--dt3);">Supports CSV and Excel files</p>
 						{/if}
 					</div>
 
 					{#if error}
-						<div class="mt-4 flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-red-600">
+						<div class="mt-4 flex items-center gap-2 rounded-lg px-4 py-3" style="background: var(--bos-status-error-bg); color: var(--bos-status-error-text);">
 							<AlertCircle class="h-5 w-5 shrink-0" />
 							<p class="text-sm">{error}</p>
 						</div>
@@ -432,11 +432,12 @@
 					<div class="space-y-6">
 						<!-- Table Name -->
 						<div>
-							<label class="block text-sm font-medium text-gray-700">Table Name</label>
+							<label class="block text-sm font-medium" style="color: var(--dt2);">Table Name</label>
 							<input
 								type="text"
 								bind:value={tableName}
-								class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+								class="mt-1 w-full rounded-lg px-3 py-2 focus:outline-none"
+								style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt);"
 								placeholder="My Table"
 							/>
 						</div>
@@ -446,17 +447,18 @@
 							<input
 								type="checkbox"
 								bind:checked={hasHeaderRow}
-								class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+								class="h-4 w-4 rounded"
+								style="border-color: var(--dbd); accent-color: var(--bos-brand-color);"
 							/>
-							<span class="text-sm text-gray-700">First row contains column headers</span>
+							<span class="text-sm" style="color: var(--dt2);">First row contains column headers</span>
 						</label>
 
 						<!-- Column Configuration Table -->
-						<div class="overflow-x-auto rounded-lg border border-gray-200">
+						<div class="overflow-x-auto rounded-lg" style="border: 1px solid var(--dbd);">
 							<table class="w-full text-sm">
-								<thead class="bg-gray-50">
+								<thead style="background: var(--dbg2);">
 									<tr>
-										<th class="w-10 px-4 py-3 text-left font-medium text-gray-600">
+										<th class="w-10 px-4 py-3 text-left font-medium" style="color: var(--dt2);">
 											<input
 												type="checkbox"
 												checked={previewColumns.every((c) => c.include)}
@@ -467,22 +469,28 @@
 														include: checked
 													}));
 												}}
-												class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+												class="h-4 w-4 rounded"
+												style="border-color: var(--dbd); accent-color: var(--bos-brand-color);"
 											/>
 										</th>
-										<th class="px-4 py-3 text-left font-medium text-gray-600">Column Name</th>
-										<th class="px-4 py-3 text-left font-medium text-gray-600">Type</th>
-										<th class="px-4 py-3 text-left font-medium text-gray-600">Sample Values</th>
+										<th class="px-4 py-3 text-left font-medium" style="color: var(--dt2);">Column Name</th>
+										<th class="px-4 py-3 text-left font-medium" style="color: var(--dt2);">Type</th>
+										<th class="px-4 py-3 text-left font-medium" style="color: var(--dt2);">Sample Values</th>
 									</tr>
 								</thead>
-								<tbody class="divide-y divide-gray-100">
+								<tbody style="border-top: 1px solid var(--dbd);">
 									{#each previewColumns as col, i}
-										<tr class={col.include ? '' : 'bg-gray-50 opacity-50'}>
+										<tr
+											style={col.include
+												? 'border-bottom: 1px solid var(--dbd);'
+												: 'border-bottom: 1px solid var(--dbd); background: var(--dbg2); opacity: 0.5;'}
+										>
 											<td class="px-4 py-3">
 												<input
 													type="checkbox"
 													bind:checked={col.include}
-													class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+													class="h-4 w-4 rounded"
+													style="border-color: var(--dbd); accent-color: var(--bos-brand-color);"
 												/>
 											</td>
 											<td class="px-4 py-3">
@@ -490,14 +498,16 @@
 													type="text"
 													bind:value={col.name}
 													disabled={!col.include}
-													class="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none disabled:bg-gray-100"
+													class="w-full rounded px-2 py-1 text-sm focus:outline-none"
+													style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt);"
 												/>
 											</td>
 											<td class="px-4 py-3">
 												<select
 													bind:value={col.selectedType}
 													disabled={!col.include}
-													class="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none disabled:bg-gray-100"
+													class="w-full rounded px-2 py-1 text-sm focus:outline-none"
+													style="border: 1px solid var(--dbd); background: var(--dbg2); color: var(--dt);"
 												>
 													{#each columnTypes as type}
 														<option value={type.value}>{type.label}</option>
@@ -508,7 +518,7 @@
 												<div class="flex flex-wrap gap-1">
 													{#each col.sampleValues.slice(0, 3) as val}
 														{#if val}
-															<span class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+															<span class="rounded px-2 py-0.5 text-xs" style="background: var(--dbg3); color: var(--dt2);">
 																{val.length > 20 ? val.slice(0, 20) + '...' : val}
 															</span>
 														{/if}
@@ -525,12 +535,12 @@
 					<!-- Step 3: Preview & Confirm -->
 					<div class="space-y-6">
 						<!-- Summary -->
-						<div class="rounded-lg bg-blue-50 p-4">
+						<div class="rounded-lg p-4" style="background: var(--bos-nav-active-bg);">
 							<div class="flex items-center gap-3">
-								<Table2 class="h-8 w-8 text-blue-600" />
+								<Table2 class="h-8 w-8" style="color: var(--bos-nav-active);" />
 								<div>
-									<h3 class="font-medium text-gray-900">{tableName}</h3>
-									<p class="text-sm text-gray-600">
+									<h3 class="font-medium" style="color: var(--dt);">{tableName}</h3>
+									<p class="text-sm" style="color: var(--dt2);">
 										{previewColumns.filter((c) => c.include).length} columns,
 										{rawData.length - (hasHeaderRow ? 1 : 0)} rows
 									</p>
@@ -540,24 +550,24 @@
 
 						<!-- Data Preview -->
 						<div>
-							<h4 class="mb-2 text-sm font-medium text-gray-700">Data Preview</h4>
-							<div class="overflow-x-auto rounded-lg border border-gray-200">
+							<h4 class="mb-2 text-sm font-medium" style="color: var(--dt2);">Data Preview</h4>
+							<div class="overflow-x-auto rounded-lg" style="border: 1px solid var(--dbd);">
 								<table class="w-full text-sm">
-									<thead class="bg-gray-50">
+									<thead style="background: var(--dbg2);">
 										<tr>
 											{#each previewColumns.filter((c) => c.include) as col}
-												<th class="whitespace-nowrap px-4 py-2 text-left font-medium text-gray-600">
+												<th class="whitespace-nowrap px-4 py-2 text-left font-medium" style="color: var(--dt2);">
 													{col.name}
 												</th>
 											{/each}
 										</tr>
 									</thead>
-									<tbody class="divide-y divide-gray-100">
+									<tbody style="border-top: 1px solid var(--dbd);">
 										{#each previewData.slice(0, 5) as row}
-											<tr>
+											<tr style="border-bottom: 1px solid var(--dbd);">
 												{#each previewColumns.filter((c) => c.include) as col}
 													{@const originalIndex = previewColumns.indexOf(col)}
-													<td class="whitespace-nowrap px-4 py-2 text-gray-700">
+													<td class="whitespace-nowrap px-4 py-2" style="color: var(--dt);">
 														{row[originalIndex] || '-'}
 													</td>
 												{/each}
@@ -567,7 +577,7 @@
 								</table>
 							</div>
 							{#if previewData.length > 5}
-								<p class="mt-2 text-center text-xs text-gray-400">
+								<p class="mt-2 text-center text-xs" style="color: var(--dt3);">
 									Showing first 5 of {previewData.length} rows
 								</p>
 							{/if}
@@ -577,7 +587,7 @@
 			</div>
 
 			<!-- Footer -->
-			<div class="flex items-center justify-between border-t border-gray-200 px-6 py-4">
+			<div class="flex items-center justify-between px-6 py-4" style="border-top: 1px solid var(--dbd);">
 				<button
 					type="button"
 					class="btn-pill btn-pill-ghost btn-pill-sm"
@@ -601,7 +611,7 @@
 					{#if step < 3}
 						<button
 							type="button"
-							class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2"
+							class="btn-cta flex items-center gap-2"
 							disabled={step === 1 && !file}
 							onclick={() => step++}
 						>
@@ -611,7 +621,7 @@
 					{:else}
 						<button
 							type="button"
-							class="btn-pill btn-pill-primary btn-pill-sm flex items-center gap-2"
+							class="btn-cta flex items-center gap-2"
 							onclick={handleImport}
 						>
 							<Upload class="h-4 w-4" />
@@ -623,3 +633,35 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	.import-modal__header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 1rem 1.5rem;
+		position: relative;
+	}
+	.import-modal__title {
+		flex-shrink: 0;
+	}
+	.import-modal__steps {
+		position: absolute;
+		left: 50%;
+		transform: translateX(-50%);
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.import-modal__step {
+		display: flex;
+		width: 2rem;
+		height: 2rem;
+		align-items: center;
+		justify-content: center;
+		border-radius: 9999px;
+		font-size: 0.875rem;
+		font-weight: 600;
+		transition: background 0.15s, color 0.15s;
+	}
+</style>

@@ -12,7 +12,8 @@ export type WidgetType =
   | "tasks"
   | "activity"
   | "metric"
-  | "signal";
+  | "signal"
+  | "analytics-overview";
 
 export type WidgetSize = "small" | "medium" | "large";
 

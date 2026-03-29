@@ -125,7 +125,7 @@
 				{#if member.avatar}
 					<img src={member.avatar} alt={member.name} class="td-avatar td-avatar--xl" style="object-fit: cover" />
 				{:else}
-					<div class="td-avatar td-avatar--xl" style="background: linear-gradient(135deg, #6366f1, #8b5cf6)">{getInitials(member.name)}</div>
+					<div class="td-avatar td-avatar--xl" style="background: var(--bos-avatar-default)">{getInitials(member.name)}</div>
 				{/if}
 				<span class="td-status-dot td-status-dot--lg td-status-dot--{member.status}"></span>
 			</div>
@@ -177,15 +177,23 @@
 		</div>
 
 		<div class="td-slideover__section">
-			<span class="td-slideover__section-label">Skills</span>
+			<span class="td-slideover__section-label">Skills ({member.skills.length})</span>
 			{#if member.skills.length > 0}
-				<div class="td-slideover__skills">
+				<div class="td-slideover__skills-grid">
 					{#each member.skills as skill}
-						<span class="td-skill-tag">{skill}</span>
+						<div class="td-skill-item">
+							<span class="td-skill-item__dot"></span>
+							<span class="td-skill-item__text">{skill}</span>
+						</div>
 					{/each}
 				</div>
 			{:else}
-				<span style="font-size: 12px; color: var(--dt4, #bbb);">No skills listed</span>
+				<div class="td-skills-empty">
+					<svg class="td-skills-empty__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+					</svg>
+					<span class="td-skills-empty__text">No skills listed</span>
+				</div>
 			{/if}
 		</div>
 
@@ -236,8 +244,8 @@
 					</button>
 					<button
 						onclick={() => { confirmingDelete = false; onDelete?.(); }}
-						class="btn-pill btn-pill-sm"
-						style="font-size: 11px; background: #ef4444; color: #fff;"
+						class="btn-pill btn-pill-sm td-delete-confirm-btn"
+						style="font-size: 11px;"
 					>
 						Confirm
 					</button>
@@ -245,8 +253,8 @@
 			{:else}
 				<button
 					onclick={() => confirmingDelete = true}
-					class="btn-pill btn-pill-ghost btn-pill-sm"
-					style="color: #ef4444; width: 100%; font-size: 12px;"
+					class="btn-pill btn-pill-ghost btn-pill-sm td-remove-btn"
+					style="width: 100%; font-size: 12px;"
 				>
 					Remove Member
 				</button>
@@ -280,7 +288,7 @@
 		flex-direction: column;
 		overflow-y: auto;
 	}
-	:global(.dark) .td-slideover { background: #1a1a1a; }
+	:global(.dark) .td-slideover { background: var(--dbg); }
 
 	.td-slideover__header {
 		display: flex;
@@ -293,7 +301,7 @@
 		background: var(--dbg, #fff);
 		z-index: 1;
 	}
-	:global(.dark) .td-slideover__header { background: #1a1a1a; }
+	:global(.dark) .td-slideover__header { background: var(--dbg); }
 
 	.td-slideover__title {
 		font-size: 13px;
@@ -371,23 +379,59 @@
 	}
 	.td-slideover__contact-item :global(svg) { color: var(--dt3, #888); flex-shrink: 0; }
 
-	.td-slideover__skills {
-		display: flex;
-		flex-wrap: wrap;
+	.td-slideover__skills-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
 		gap: 6px;
 	}
 
-	.td-skill-tag {
-		display: inline-flex;
+	.td-skill-item {
+		display: flex;
 		align-items: center;
-		height: 22px;
-		padding: 0 10px;
+		gap: 8px;
+		padding: 8px 12px;
+		border-radius: 8px;
+		background: var(--bos-v2-layer-background-secondary, #f4f4f5);
+		border-left: 2px solid var(--bos-border-color, #e3e2e4);
+		transition: background 0.15s;
+	}
+
+	.td-skill-item:hover {
+		background: var(--bos-hover-color, rgba(0, 0, 0, 0.04));
+	}
+
+	.td-skill-item__dot {
+		width: 4px;
+		height: 4px;
 		border-radius: 9999px;
-		border: 1px solid var(--dbd2, #f0f0f0);
-		background: var(--dbg2, #f5f5f5);
-		font-size: 11px;
-		font-weight: 600;
-		color: var(--dt2, #555);
+		background: var(--dt3, #888);
+		flex-shrink: 0;
+	}
+
+	.td-skill-item__text {
+		font-size: 12px;
+		font-weight: 500;
+		color: var(--dt, #111);
+		line-height: 1.2;
+	}
+
+	.td-skills-empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		padding: 16px 0;
+	}
+
+	.td-skills-empty__icon {
+		width: 24px;
+		height: 24px;
+		color: var(--bos-v2-icon-tertiary, #c5c5c5);
+	}
+
+	.td-skills-empty__text {
+		font-size: 12px;
+		color: var(--bos-v2-text-tertiary, #a3a3a3);
 	}
 
 	.td-slideover__activity {
@@ -453,11 +497,13 @@
 		gap: 8px;
 		padding: 10px 12px;
 		border-radius: 10px;
-		background: #fef2f2;
+		background: var(--bos-background-error-color, #fef2f2);
 		font-size: 12px;
-		color: #b91c1c;
+		color: var(--bos-error-color);
 	}
 	.td-slideover__delete-confirm span:first-child { flex: 1; }
+	.td-delete-confirm-btn { background: var(--bos-error-color); color: var(--bos-surface-on-color); }
+	.td-remove-btn { color: var(--bos-error-color); }
 
 	.td-avatar {
 		border-radius: 9999px;
@@ -465,7 +511,7 @@
 		align-items: center;
 		justify-content: center;
 		font-weight: 800;
-		color: #fff;
+		color: var(--bos-surface-on-color);
 		flex-shrink: 0;
 		letter-spacing: -0.02em;
 	}
@@ -484,5 +530,5 @@
 	.td-status-dot--busy { background: #f59e0b; }
 	.td-status-dot--overloaded { background: #ef4444; }
 	.td-status-dot--ooo { background: #9ca3af; }
-	:global(.dark) .td-status-dot { border-color: #1a1a1a; }
+	:global(.dark) .td-status-dot { border-color: var(--dbg); }
 </style>

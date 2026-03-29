@@ -1,320 +1,336 @@
 <script lang="ts">
   import type { CustomAgent } from '$lib/api/ai/types';
-  import { categoryColors } from '$lib/stores/agents';
+  import { categoryLabels } from '$lib/stores/agents';
 
   interface Props {
     agent: CustomAgent;
     onSelect?: (agent: CustomAgent) => void;
     onEdit?: (agent: CustomAgent) => void;
     onDelete?: (agent: CustomAgent) => void;
+    onChat?: (agent: CustomAgent) => void;
     variant?: 'default' | 'compact';
   }
 
-  let { agent, onSelect, onEdit, onDelete, variant = 'default' }: Props = $props();
+  let { agent, onSelect, onEdit, onDelete, onChat, variant = 'default' }: Props = $props();
 
   let showMenu = $state(false);
-  let showDeleteConfirm = $state(false);
 
-  function getInitials(name: string | undefined) {
+  function getInitials(name: string | undefined): string {
     if (!name) return '??';
-    const words = name.split(' ').filter(w => w.length > 0);
+    const words = name.trim().split(/\s+/).filter(Boolean);
     if (words.length === 0) return '??';
-    if (words.length === 1) {
-      // For single word, take first 2 characters
-      return words[0].slice(0, 2).toUpperCase();
-    }
-    // For multiple words, take first character of first two words
-    return words
-      .slice(0, 2)
-      .map((n) => n.charAt(0))
-      .join('')
-      .toUpperCase();
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return (words[0][0] + words[1][0]).toUpperCase();
   }
 
-  function getCategoryColor(category?: string) {
-    if (!category) return categoryColors['uncategorized'];
-    return categoryColors[category] || categoryColors['custom'];
-  }
-
-  function truncateText(text: string, maxLines: number = 2) {
-    // This will be handled by CSS line-clamp
-    return text;
+  function formatUsage(n: number): string {
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+    return String(n);
   }
 
   function handleSelect() {
-    if (onSelect) {
-      onSelect(agent);
-    }
+    onSelect?.(agent);
   }
 
-  function handleEdit() {
+  function handleEdit(e: MouseEvent) {
+    e.stopPropagation();
     showMenu = false;
     onEdit?.(agent);
   }
 
-  function handleDelete() {
-    if (!showDeleteConfirm) {
-      showDeleteConfirm = true;
-      return;
-    }
+  function handleDelete(e: MouseEvent) {
+    e.stopPropagation();
     showMenu = false;
-    showDeleteConfirm = false;
     onDelete?.(agent);
   }
 
-  function handleKeyDown(e: KeyboardEvent) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleSelect();
-    }
-  }
-
-  function handleSelectClick(e: MouseEvent) {
-    e.stopPropagation();
-    handleSelect();
-  }
-
-  function handleMenuClick(e: MouseEvent) {
+  function toggleMenu(e: MouseEvent) {
     e.stopPropagation();
     showMenu = !showMenu;
   }
 
-  function handleMenuClose(e: MouseEvent) {
-    e.stopPropagation();
-    showMenu = false;
-    showDeleteConfirm = false;
-  }
-
-  function handleCancelDelete(e: MouseEvent) {
-    e.stopPropagation();
-    showDeleteConfirm = false;
-    showMenu = false;
-  }
+  $effect(() => {
+    if (!showMenu) return;
+    function close() { showMenu = false; }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') showMenu = false; }
+    const frame = requestAnimationFrame(() => {
+      document.addEventListener('click', close);
+      document.addEventListener('keydown', onKey);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('click', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  });
 </script>
 
 <div
-  class="group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:shadow-lg hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 {onSelect
-    ? 'cursor-pointer'
-    : ''}"
-  class:compact={variant === 'compact'}
-  role="button"
+  class="ac"
+  class:ac--clickable={!!onSelect}
+  class:ac--featured={agent.is_featured}
+  class:ac--inactive={!agent.is_active}
+  class:ac--compact={variant === 'compact'}
+  role={onSelect ? 'button' : undefined}
   tabindex={onSelect ? 0 : -1}
-  onclick={handleSelect}
-  onkeydown={handleKeyDown}
+  onclick={onSelect ? handleSelect : undefined}
+  onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect && (e.preventDefault(), handleSelect())}
+  aria-label={onSelect ? `Open ${agent.display_name}` : undefined}
 >
-  <!-- Header: Avatar + Title + Actions -->
-  <div class="flex items-start gap-4">
-    <!-- Avatar -->
-    <div class="flex-shrink-0">
-      {#if agent.avatar}
-        <img
-          src={agent.avatar}
-          alt={agent.display_name}
-          class="w-12 h-12 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-700"
-        />
+  <!-- Featured accent bar -->
+  {#if agent.is_featured}
+    <div class="ac__featured-bar" aria-hidden="true"></div>
+  {/if}
+
+  <!-- Top row -->
+  <div class="ac__top">
+    <div class="ac__avatar" aria-hidden="true">
+      <span class="ac__initials">{getInitials(agent.display_name)}</span>
+      {#if agent.is_active}
+        <span class="ac__dot ac__dot--active" title="Active"></span>
       {:else}
-        <div
-          class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 flex items-center justify-center ring-2 ring-gray-100 dark:ring-gray-700"
-        >
-          <span class="text-lg font-semibold text-gray-700 dark:text-gray-300"
-            >{getInitials(agent.display_name)}</span
-          >
-        </div>
+        <span class="ac__dot ac__dot--inactive" title="Inactive"></span>
       {/if}
     </div>
 
-    <!-- Content -->
-    <div class="flex-1 min-w-0">
-      <!-- Title and Status -->
-      <div class="flex items-start justify-between gap-2">
-        <div class="flex-1 min-w-0">
-          <h3 class="font-semibold text-gray-900 dark:text-white truncate">
-            {agent.display_name}
-          </h3>
-          <p class="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">
-            @{agent.name}
-          </p>
-        </div>
-
-        <!-- Active/Inactive Indicator -->
-        <div class="flex-shrink-0">
-          {#if agent.is_active}
-            <div
-              class="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full"
-            >
-              <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-              Active
-            </div>
-          {:else}
-            <div
-              class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full"
-            >
-              Inactive
-            </div>
-          {/if}
-        </div>
-      </div>
-
-      <!-- Description -->
-      <p
-        class="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2"
-        title={agent.description || 'No description'}
-      >
-        {agent.description || 'No description provided'}
-      </p>
-
-      <!-- Badges -->
-      <div class="flex flex-wrap gap-2 mt-3">
-        <!-- Category Badge -->
-        {#if agent.category}
-          <span class="text-xs px-2.5 py-1 rounded-full font-medium {getCategoryColor(agent.category)}">
-            {agent.category}
-          </span>
-        {/if}
-
-        <!-- Model Badge -->
-        {#if agent.model_preference}
-          <span
-            class="text-xs px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-mono"
-          >
-            {agent.model_preference}
-          </span>
-        {/if}
-
-        <!-- Usage Count Badge -->
-        {#if agent.times_used !== undefined && agent.times_used > 0}
-          <span
-            class="text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center gap-1"
-          >
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-              />
-            </svg>
-            {agent.times_used}
-          </span>
-        {/if}
-      </div>
+    <div class="ac__info">
+      <h3 class="ac__name">{agent.display_name}</h3>
+      <span class="ac__handle">@{agent.name}</span>
     </div>
-  </div>
 
-  <!-- Divider -->
-  <div class="border-t border-gray-100 dark:border-gray-700 my-4"></div>
-
-  <!-- Actions -->
-  <div class="flex items-center justify-between gap-2">
-    <!-- Select/View Button -->
-    {#if onSelect}
-      <button
-        onclick={handleSelectClick}
-        class="btn-pill btn-pill-soft btn-pill-sm flex-1"
-      >
-        Select
-      </button>
-    {/if}
-
-    <!-- Actions Dropdown -->
     {#if onEdit || onDelete}
-      <div class="relative">
+      <div class="ac__menu-wrap">
         <button
-          onclick={handleMenuClick}
-          class="btn-pill btn-pill-ghost btn-pill-icon"
+          class="ac__menu-btn"
+          onclick={toggleMenu}
           aria-label="More actions"
+          aria-expanded={showMenu}
+          aria-haspopup="menu"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-            />
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="12" cy="5" r="1.5"/>
+            <circle cx="12" cy="12" r="1.5"/>
+            <circle cx="12" cy="19" r="1.5"/>
           </svg>
         </button>
-
         {#if showMenu}
-          <div
-            role="menu"
-            tabindex="-1"
-            class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10"
-            onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
-          >
+          <div class="ac__menu" role="menu" onclick={(e) => e.stopPropagation()}>
             {#if onEdit}
-              <button
-                onclick={handleEdit}
-                class="btn-pill btn-pill-ghost btn-pill-sm w-full text-left flex items-center gap-2"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
+              <button class="ac__menu-item" role="menuitem" onclick={handleEdit}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
                 Edit
               </button>
             {/if}
-
             {#if onDelete}
-              {#if !showDeleteConfirm}
-                <button
-                  onclick={handleDelete}
-                  class="btn-pill btn-pill-ghost btn-pill-sm w-full text-left flex items-center gap-2"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                  Delete
-                </button>
-              {:else}
-                <div class="p-3 bg-red-50 dark:bg-red-900/30 rounded-b-lg">
-                  <p class="text-xs text-red-600 dark:text-red-400 mb-2">
-                    Are you sure? This cannot be undone.
-                  </p>
-                  <div class="flex gap-2">
-                    <button
-                      onclick={handleDelete}
-                      class="btn-pill btn-pill-danger btn-pill-xs flex-1"
-                    >
-                      Delete
-                    </button>
-                    <button
-                      onclick={handleCancelDelete}
-                      class="btn-pill btn-pill-soft btn-pill-xs flex-1"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              {/if}
+              <button class="ac__menu-item ac__menu-item--danger" role="menuitem" onclick={handleDelete}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                </svg>
+                Delete
+              </button>
             {/if}
           </div>
         {/if}
       </div>
     {/if}
   </div>
+
+  <!-- Description -->
+  <p class="ac__desc">{agent.description || 'No description provided.'}</p>
+
+  <!-- Tools row -->
+  {#if agent.tools_enabled && agent.tools_enabled.length > 0}
+    <div class="ac__tools" aria-label="Enabled tools">
+      {#each agent.tools_enabled.slice(0, 3) as tool}
+        <span class="ac__tool">{tool.replace(/_/g, ' ')}</span>
+      {/each}
+      {#if agent.tools_enabled.length > 3}
+        <span class="ac__tool ac__tool--more">+{agent.tools_enabled.length - 3}</span>
+      {/if}
+    </div>
+  {/if}
+
+  <!-- Quick-launch chat button -->
+  {#if onChat}
+    <button
+      class="ac__chat-btn"
+      onclick={(e) => { e.stopPropagation(); onChat?.(agent); }}
+      aria-label="Chat with {agent.display_name}"
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Chat
+    </button>
+  {/if}
+
+  <!-- Footer -->
+  <div class="ac__footer">
+    <div class="ac__footer-left">
+      {#if agent.category}
+        <span class="ac__badge">{categoryLabels[agent.category] ?? agent.category}</span>
+      {/if}
+      {#if agent.model_preference}
+        <span class="ac__model">{agent.model_preference.replace('claude-', '').replace('-4', ' 4')}</span>
+      {/if}
+    </div>
+    {#if agent.times_used && agent.times_used > 0}
+      <span class="ac__usage" title="{agent.times_used} uses">{formatUsage(agent.times_used)} uses</span>
+    {/if}
+  </div>
 </div>
 
-<!-- Click outside to close menu -->
-{#if showMenu}
-  <button
-    class="fixed inset-0 z-0 bg-transparent"
-    onclick={handleMenuClose}
-    aria-hidden="true"
-  ></button>
-{/if}
-
 <style>
-  .line-clamp-2 {
+  /* ═══ AgentCard — BOS Tokens ═══ */
+  .ac {
+    background: var(--dbg, #fff);
+    border: 1px solid var(--dbd, #e0e0e0);
+    border-radius: 12px;
+    padding: 1.125rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+    position: relative;
+    overflow: hidden;
+    outline: none;
+  }
+  .ac--clickable { cursor: pointer; }
+  .ac--clickable:hover {
+    border-color: var(--bos-accent-blue, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08), 0 4px 16px rgba(0,0,0,0.06);
+    transform: translateY(-1px);
+  }
+  .ac--clickable:focus-visible {
+    border-color: var(--bos-accent-blue, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  }
+  .ac--inactive { opacity: 0.55; }
+  .ac--inactive:hover { opacity: 0.85; }
+
+  /* Featured accent */
+  .ac__featured-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--bos-accent-blue, #3b82f6);
+  }
+
+  /* Top row */
+  .ac__top {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .ac__avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 10px;
+    background: var(--dbg3, #eee);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .ac__initials {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--dt2, #555);
+    letter-spacing: 0.02em;
+    user-select: none;
+  }
+  .ac__dot {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 2px solid var(--dbg, #fff);
+  }
+  .ac__dot--active { background: var(--bos-status-success, #22c55e); }
+  .ac__dot--inactive { background: var(--dt4, #ccc); }
+
+  .ac__info {
+    flex: 1;
+    min-width: 0;
+  }
+  .ac__name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--dt, #111);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ac__handle {
+    font-size: 0.6875rem;
+    color: var(--dt3, #888);
+    font-family: var(--bos-font-code-family, monospace);
+  }
+
+  /* Menu */
+  .ac__menu-wrap { position: relative; flex-shrink: 0; }
+  .ac__menu-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--dt3, #888);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s;
+  }
+  .ac__menu-btn:hover { background: var(--dbg2, #f5f5f5); color: var(--dt, #111); }
+  .ac__menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background: var(--dbg, #fff);
+    border: 1px solid var(--dbd, #e0e0e0);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 20;
+    min-width: 128px;
+    padding: 4px;
+  }
+  .ac__menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4375rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
+    color: var(--dt, #111);
+    background: none;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .ac__menu-item:hover { background: var(--dbg2, #f5f5f5); }
+  .ac__menu-item--danger { color: var(--bos-status-error, #ef4444); }
+  .ac__menu-item--danger:hover { background: rgba(239, 68, 68, 0.07); }
+
+  /* Description */
+  .ac__desc {
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    color: var(--dt2, #555);
+    margin: 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -322,15 +338,107 @@
     overflow: hidden;
   }
 
-  .compact {
-    padding: 1rem;
+  /* Tools */
+  .ac__tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3125rem;
+  }
+  .ac__tool {
+    font-size: 0.6875rem;
+    padding: 0.125rem 0.4375rem;
+    border-radius: 4px;
+    background: var(--dbg2, #f5f5f5);
+    color: var(--dt3, #888);
+    white-space: nowrap;
+    text-transform: capitalize;
+  }
+  .ac__tool--more {
+    background: transparent;
+    color: var(--dt4, #bbb);
   }
 
-  .compact h3 {
-    font-size: 0.9rem;
+  /* Footer */
+  .ac__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-top: 0.625rem;
+    border-top: 1px solid var(--dbd2, #f0f0f0);
+    margin-top: auto;
+  }
+  .ac__footer-left {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .ac__badge {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--dt2, #555);
+    background: var(--dbg2, #f5f5f5);
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    text-transform: capitalize;
+    white-space: nowrap;
+  }
+  .ac__model {
+    font-size: 0.6875rem;
+    color: var(--dt3, #888);
+    font-family: var(--bos-font-code-family, monospace);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ac__usage {
+    font-size: 0.6875rem;
+    color: var(--dt3, #888);
+    font-family: var(--bos-font-number-family, monospace);
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
-  .compact .line-clamp-2 {
-    font-size: 0.8rem;
+  /* Chat button */
+  .ac__chat-btn {
+    width: 100%;
+    padding: 0.4375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--dbd, #e0e0e0);
+    border-radius: 7px;
+    background: var(--dbg2, #f5f5f5);
+    color: var(--dt2, #555);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    transition: all 0.15s;
+    opacity: 0;
+    transform: translateY(4px);
+    pointer-events: none;
   }
+  .ac:hover .ac__chat-btn,
+  .ac:focus-within .ac__chat-btn {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .ac__chat-btn:hover {
+    background: var(--dt, #111);
+    color: var(--dbg, #fff);
+    border-color: var(--dt, #111);
+  }
+
+  /* Compact variant */
+  .ac--compact { padding: 0.875rem; gap: 0.5rem; }
+  .ac--compact .ac__avatar { width: 2rem; height: 2rem; border-radius: 8px; }
+  .ac--compact .ac__initials { font-size: 0.6875rem; }
+  .ac--compact .ac__name { font-size: 0.8125rem; }
+  .ac--compact .ac__desc { font-size: 0.75rem; -webkit-line-clamp: 1; line-clamp: 1; }
+  .ac--compact .ac__tools { display: none; }
+  .ac--compact .ac__chat-btn { display: none; }
 </style>

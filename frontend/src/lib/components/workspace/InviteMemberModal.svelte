@@ -153,35 +153,36 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    padding: 1rem;
+    padding: var(--space-4);
   }
 
   .modal-content {
     width: 100%;
     max-width: 500px;
-    background: white;
-    border-radius: 0.75rem;
-    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    background: var(--dbg);
+    border: 1px solid var(--dbd);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xl);
   }
 
   .modal-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    padding: 1.5rem;
-    border-bottom: 1px solid #e5e7eb;
+    padding: var(--space-6);
+    border-bottom: 1px solid var(--dbd);
   }
 
   .modal-header h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #111827;
-    margin: 0 0 0.25rem 0;
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
+    color: var(--dt);
+    margin: 0 0 var(--space-1) 0;
   }
 
   .modal-header p {
-    color: #6b7280;
-    font-size: 0.875rem;
+    color: var(--dt2);
+    font-size: var(--text-sm);
     margin: 0;
   }
 
@@ -189,103 +190,105 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.25rem;
+    padding: var(--space-1);
     background: transparent;
     border: none;
-    color: #9ca3af;
+    color: var(--dt3);
     cursor: pointer;
-    border-radius: 0.25rem;
-    transition: all 0.15s;
+    border-radius: var(--radius-xs);
+    transition: all 150ms ease;
   }
 
   .close-button:hover {
-    background: #f3f4f6;
-    color: #111827;
+    background: var(--dbg2);
+    color: var(--dt);
   }
 
   .error-message {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: #fef2f2;
-    color: #dc2626;
-    font-size: 0.875rem;
-    border-bottom: 1px solid #fee2e2;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-6);
+    background: color-mix(in srgb, var(--color-error) 10%, var(--dbg));
+    color: var(--color-error);
+    font-size: var(--text-sm);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-error) 20%, var(--dbg));
   }
 
   .success-message {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
-    padding: 3rem 1.5rem;
-    background: #f0fdf4;
-    color: #16a34a;
-    font-size: 1rem;
+    gap: var(--space-3);
+    padding: 3rem var(--space-6);
+    background: color-mix(in srgb, var(--color-success) 10%, var(--dbg));
+    color: var(--color-success);
+    font-size: var(--text-base);
     text-align: center;
   }
 
   .success-message strong {
-    color: #15803d;
+    color: var(--color-success);
   }
 
   .modal-body {
-    padding: 1.5rem;
+    padding: var(--space-6);
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: var(--space-5);
   }
 
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .form-group label {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #374151;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--dt2);
   }
 
   .form-group input,
   .form-group select {
     padding: 0.625rem 0.875rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    transition: all 0.15s;
+    border: 1px solid var(--dbd);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    background: var(--dbg);
+    color: var(--dt);
+    transition: all 150ms ease;
   }
 
   .form-group input:focus,
   .form-group select:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue) 15%, transparent);
   }
 
   .form-group input:disabled,
   .form-group select:disabled {
-    background: #f9fafb;
-    color: #9ca3af;
+    background: var(--dbg2);
+    color: var(--dt4);
     cursor: not-allowed;
   }
 
   .field-hint {
-    font-size: 0.75rem;
-    color: #6b7280;
+    font-size: var(--text-xs);
+    color: var(--dt3);
     margin: 0;
   }
 
   .modal-footer {
     display: flex;
-    gap: 0.75rem;
-    padding: 1.5rem;
-    border-top: 1px solid #e5e7eb;
+    gap: var(--space-3);
+    padding: var(--space-6);
+    border-top: 1px solid var(--dbd);
   }
 
   .cancel-button,
@@ -294,78 +297,38 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1.25rem;
+    gap: var(--space-2);
+    padding: 0.625rem var(--space-5);
     border: none;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    font-weight: 500;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 150ms ease;
   }
 
   .cancel-button {
-    background: white;
-    color: #374151;
-    border: 1px solid #d1d5db;
+    background: var(--dbg2);
+    color: var(--dt2);
+    border: 1px solid var(--dbd);
   }
 
   .cancel-button:hover:not(:disabled) {
-    background: #f9fafb;
+    background: var(--dbg3);
+    color: var(--dt);
   }
 
   .send-button {
-    background: #3b82f6;
-    color: white;
+    background: var(--accent-blue);
+    color: #fff;
   }
 
   .send-button:hover:not(:disabled) {
-    background: #2563eb;
+    filter: brightness(1.1);
   }
 
   .send-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  :global(.dark) .modal-content {
-    background: #1f2937;
-  }
-
-  :global(.dark) .modal-header {
-    border-bottom-color: #374151;
-  }
-
-  :global(.dark) .modal-header h2 {
-    color: #f9fafb;
-  }
-
-  :global(.dark) .modal-header p {
-    color: #9ca3af;
-  }
-
-  :global(.dark) .form-group label {
-    color: #d1d5db;
-  }
-
-  :global(.dark) .form-group input,
-  :global(.dark) .form-group select {
-    background: #111827;
-    border-color: #374151;
-    color: #f9fafb;
-  }
-
-  :global(.dark) .modal-footer {
-    border-top-color: #374151;
-  }
-
-  :global(.dark) .cancel-button {
-    background: #111827;
-    border-color: #374151;
-    color: #d1d5db;
-  }
-
-  :global(.dark) .cancel-button:hover:not(:disabled) {
-    background: #0f172a;
   }
 </style>

@@ -1,0 +1,259 @@
+<script lang="ts">
+	import { learning } from '$lib/stores/learning';
+	import type { PersonalizationProfile, DetectedPattern } from '$lib/api/learning';
+
+	let personalizationProfile = $state<PersonalizationProfile | null>(null);
+	let detectedPatterns = $state<DetectedPattern[]>([]);
+	let isLoadingPersonalization = $state(false);
+	let isSavingPersonalization = $state(false);
+	let saveMessage = $state('');
+
+	$effect(() => {
+		loadPersonalizationData();
+	});
+
+	async function loadPersonalizationData() {
+		isLoadingPersonalization = true;
+		try {
+			const [profile, patterns] = await Promise.all([
+				learning.loadProfile(),
+				learning.detectPatterns().catch(() => [] as DetectedPattern[])
+			]);
+			personalizationProfile = profile;
+			detectedPatterns = patterns;
+		} catch (error) {
+			console.error('Error loading personalization data:', error);
+			personalizationProfile = {
+				user_id: '',
+				preferred_tone: 'professional',
+				preferred_verbosity: 'balanced',
+				preferred_format: 'structured',
+				prefers_examples: true,
+				prefers_analogies: false,
+				prefers_code_samples: false,
+				prefers_visual_aids: false,
+				expertise_areas: [],
+				learning_areas: [],
+				common_topics: [],
+				most_active_hours: [],
+				total_conversations: 0,
+				total_feedback_given: 0,
+				positive_feedback_ratio: 0.5,
+				profile_completeness: 0
+			};
+			detectedPatterns = [];
+		} finally {
+			isLoadingPersonalization = false;
+		}
+	}
+
+	async function savePersonalizationProfile() {
+		if (!personalizationProfile) return;
+		isSavingPersonalization = true;
+		try {
+			await learning.updateProfile(personalizationProfile);
+			saveMessage = 'Personalization settings saved!';
+			setTimeout(() => (saveMessage = ''), 2000);
+		} catch (error) {
+			console.error('Error saving personalization:', error);
+			saveMessage = 'Error saving personalization settings';
+		} finally {
+			isSavingPersonalization = false;
+		}
+	}
+</script>
+
+<div class="space-y-6">
+	{#if isLoadingPersonalization}
+		<div class="flex items-center justify-center py-12">
+			<div class="animate-spin h-8 w-8 border-2 border-gray-900 dark:border-white border-t-transparent rounded-full"></div>
+		</div>
+	{:else}
+		{#if saveMessage}
+			<div class="p-3 rounded-lg text-sm {saveMessage.includes('Error') ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'}">
+				{saveMessage}
+			</div>
+		{/if}
+
+		<!-- AI Response Preferences -->
+		<div class="card">
+			<h2 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Response Preferences</h2>
+			<p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+				Customize how the AI responds to you. These preferences help personalize your experience.
+			</p>
+
+			<div class="space-y-6">
+				<!-- Tone -->
+				<div>
+					<span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Preferred Tone</span>
+					<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+						{#each ['formal', 'professional', 'casual', 'friendly'] as tone}
+							<button
+								onclick={() => personalizationProfile && (personalizationProfile.preferred_tone = tone as PersonalizationProfile['preferred_tone'])}
+								class="p-3 rounded-lg border-2 text-sm font-medium transition-colors {personalizationProfile?.preferred_tone === tone
+									? 'border-gray-900 dark:border-white bg-gray-50 dark:bg-gray-700'
+									: 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}"
+							>
+								{tone.charAt(0).toUpperCase() + tone.slice(1)}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Verbosity -->
+				<div>
+					<span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Response Length</span>
+					<div class="grid grid-cols-3 gap-3">
+						{#each ['concise', 'balanced', 'detailed'] as verbosity}
+							<button
+								onclick={() => personalizationProfile && (personalizationProfile.preferred_verbosity = verbosity as PersonalizationProfile['preferred_verbosity'])}
+								class="p-3 rounded-lg border-2 text-sm font-medium transition-colors {personalizationProfile?.preferred_verbosity === verbosity
+									? 'border-gray-900 dark:border-white bg-gray-50 dark:bg-gray-700'
+									: 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}"
+							>
+								{verbosity.charAt(0).toUpperCase() + verbosity.slice(1)}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Format -->
+				<div>
+					<span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Response Format</span>
+					<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+						{#each ['prose', 'bullets', 'structured', 'mixed'] as format}
+							<button
+								onclick={() => personalizationProfile && (personalizationProfile.preferred_format = format as PersonalizationProfile['preferred_format'])}
+								class="p-3 rounded-lg border-2 text-sm font-medium transition-colors {personalizationProfile?.preferred_format === format
+									? 'border-gray-900 dark:border-white bg-gray-50 dark:bg-gray-700'
+									: 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}"
+							>
+								{format.charAt(0).toUpperCase() + format.slice(1)}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Toggles -->
+				<div class="space-y-4">
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="font-medium text-gray-900 dark:text-white">Include Examples</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">AI will include relevant examples in responses</p>
+						</div>
+						<button
+							aria-label="Toggle include examples"
+							onclick={() => personalizationProfile && (personalizationProfile.prefers_examples = !personalizationProfile.prefers_examples)}
+							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {personalizationProfile?.prefers_examples
+								? 'bg-gray-900 dark:bg-white'
+								: 'bg-gray-200 dark:bg-gray-600'}"
+						>
+							<span class="inline-block h-4 w-4 transform rounded-full transition-transform {personalizationProfile?.prefers_examples
+								? 'translate-x-6 bg-white dark:bg-gray-900'
+								: 'translate-x-1 bg-white dark:bg-gray-300'}"></span>
+						</button>
+					</div>
+
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="font-medium text-gray-900 dark:text-white">Include Code Samples</p>
+							<p class="text-sm text-gray-500 dark:text-gray-400">AI will include code snippets when relevant</p>
+						</div>
+						<button
+							aria-label="Toggle include code samples"
+							onclick={() => personalizationProfile && (personalizationProfile.prefers_code_samples = !personalizationProfile.prefers_code_samples)}
+							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {personalizationProfile?.prefers_code_samples
+								? 'bg-gray-900 dark:bg-white'
+								: 'bg-gray-200 dark:bg-gray-600'}"
+						>
+							<span class="inline-block h-4 w-4 transform rounded-full transition-transform {personalizationProfile?.prefers_code_samples
+								? 'translate-x-6 bg-white dark:bg-gray-900'
+								: 'translate-x-1 bg-white dark:bg-gray-300'}"></span>
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Detected Patterns -->
+		{#if detectedPatterns.length > 0}
+			<div class="card">
+				<h2 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Detected Patterns</h2>
+				<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+					The AI has learned these patterns from your interactions.
+				</p>
+				<div class="space-y-3">
+					{#each detectedPatterns as pattern}
+						<div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+							<div>
+								<p class="font-medium text-gray-900 dark:text-white text-sm">{pattern.pattern_key}</p>
+								<p class="text-xs text-gray-500 dark:text-gray-400">{pattern.pattern_value}</p>
+							</div>
+							<div class="flex items-center gap-2">
+								<span class="text-xs text-gray-400 dark:text-gray-500">{pattern.observation_count} observations</span>
+								<span class="px-2 py-1 text-xs font-medium rounded-full {pattern.confidence_score >= 0.8 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : pattern.confidence_score >= 0.5 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}">
+									{Math.round(pattern.confidence_score * 100)}%
+								</span>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		<!-- Expertise & Learning Areas -->
+		<div class="card">
+			<h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Knowledge Areas</h2>
+			<div class="space-y-4">
+				<div>
+					<span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Your Expertise</span>
+					<p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Areas where you have strong knowledge</p>
+					<div class="flex flex-wrap gap-2">
+						{#each personalizationProfile?.expertise_areas || [] as area}
+							<span class="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded-full text-sm">
+								{area}
+							</span>
+						{/each}
+						{#if !personalizationProfile?.expertise_areas?.length}
+							<span class="text-sm text-gray-400 dark:text-gray-500 italic">No expertise areas detected yet</span>
+						{/if}
+					</div>
+				</div>
+
+				<div>
+					<span class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Learning Interests</span>
+					<p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Topics you're actively learning about</p>
+					<div class="flex flex-wrap gap-2">
+						{#each personalizationProfile?.learning_areas || [] as area}
+							<span class="px-3 py-1 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 rounded-full text-sm">
+								{area}
+							</span>
+						{/each}
+						{#if !personalizationProfile?.learning_areas?.length}
+							<span class="text-sm text-gray-400 dark:text-gray-500 italic">No learning areas detected yet</span>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Save Button -->
+		<div class="flex justify-end">
+			<button
+				onclick={savePersonalizationProfile}
+				disabled={isSavingPersonalization || !personalizationProfile}
+				class="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+			>
+				{#if isSavingPersonalization}
+					<svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+					</svg>
+					Saving...
+				{:else}
+					Save Preferences
+				{/if}
+			</button>
+		</div>
+	{/if}
+</div>

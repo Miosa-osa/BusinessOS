@@ -479,7 +479,7 @@
 	}
 </script>
 
-<div class="relative w-full h-full min-h-[500px] bg-[#0f0f11] rounded-xl overflow-hidden">
+<div class="relative w-full h-full min-h-[500px] bg-gray-50 dark:bg-[#0f0f11] rounded-xl overflow-hidden">
 	<!-- 3D Canvas Container -->
 	<div bind:this={container} class="w-full h-full"></div>
 

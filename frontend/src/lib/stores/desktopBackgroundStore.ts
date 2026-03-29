@@ -673,6 +673,7 @@ export function isBackgroundDark(backgroundId: string): boolean {
 export function getBackgroundCSS(
   backgroundId: string,
   customUrl?: string | null,
+  isDark?: boolean,
 ): { background: string; backgroundSize?: string } {
   // Handle custom background
   if (backgroundId === "custom" && customUrl) {
@@ -680,6 +681,14 @@ export function getBackgroundCSS(
       background: `url(${customUrl})`,
       backgroundSize: "cover",
     };
+  }
+
+  // If dark mode is active and background is light, use a dark equivalent
+  if (isDark && !isBackgroundDark(backgroundId)) {
+    const bg = desktopBackgrounds.find((b) => b.id === backgroundId);
+    if (bg && (bg.type === "solid" || bg.type === "gradient")) {
+      return { background: "#1c1c1e" };
+    }
   }
 
   const bg = desktopBackgrounds.find((b) => b.id === backgroundId);

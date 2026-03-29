@@ -158,14 +158,13 @@
   .dialog {
     width: 100%;
     max-width: 420px;
-    background: #ffffff;
+    background: var(--bos-v2-layer-background-primary);
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     animation: slideIn 200ms ease-out;
   }
 
   :global(.dark) .dialog {
-    background: #1f2937;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   }
 
@@ -194,35 +193,23 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #eef2ff;
-    color: #6366f1;
+    background: var(--bos-tag-purple);
+    color: var(--bos-nav-active);
     border-radius: 10px;
     flex-shrink: 0;
-  }
-
-  :global(.dark) .dialog-icon {
-    background: rgba(99, 102, 241, 0.15);
   }
 
   .dialog-title {
     font-size: 16px;
     font-weight: 600;
-    color: #111827;
+    color: var(--bos-v2-text-primary);
     margin: 0;
-  }
-
-  :global(.dark) .dialog-title {
-    color: #f3f4f6;
   }
 
   .dialog-subtitle {
     font-size: 13px;
-    color: #6b7280;
+    color: var(--bos-v2-text-secondary);
     margin: 2px 0 0 0;
-  }
-
-  :global(.dark) .dialog-subtitle {
-    color: #9ca3af;
   }
 
   .close-btn {
@@ -232,7 +219,7 @@
     width: 28px;
     height: 28px;
     margin-left: auto;
-    color: #9ca3af;
+    color: var(--bos-v2-text-secondary);
     background: transparent;
     border: none;
     border-radius: 6px;
@@ -241,13 +228,8 @@
   }
 
   .close-btn:hover:not(:disabled) {
-    color: #6b7280;
-    background: #f3f4f6;
-  }
-
-  :global(.dark) .close-btn:hover:not(:disabled) {
-    color: #d1d5db;
-    background: #374151;
+    color: var(--bos-v2-text-primary);
+    background: var(--bos-v2-layer-background-secondary);
   }
 
   .close-btn:disabled {
@@ -262,12 +244,8 @@
 
   .description {
     font-size: 14px;
-    color: #374151;
+    color: var(--bos-v2-text-primary);
     margin: 0 0 12px 0;
-  }
-
-  :global(.dark) .description {
-    color: #d1d5db;
   }
 
   .checklist {
@@ -284,53 +262,37 @@
     align-items: flex-start;
     gap: 8px;
     font-size: 13px;
-    color: #374151;
-  }
-
-  :global(.dark) .checklist li {
-    color: #d1d5db;
+    color: var(--bos-v2-text-primary);
   }
 
   .check {
-    color: #10b981;
+    color: var(--bos-status-success);
     font-weight: 600;
     flex-shrink: 0;
   }
 
   .checklist strong {
-    color: #111827;
-  }
-
-  :global(.dark) .checklist strong {
-    color: #f3f4f6;
+    color: var(--bos-v2-text-primary);
   }
 
   .info-box {
     display: flex;
     gap: 10px;
     padding: 12px;
-    background: #f0fdf4;
+    background: color-mix(in srgb, var(--bos-status-success) 8%, transparent);
     border-radius: 8px;
   }
 
-  :global(.dark) .info-box {
-    background: rgba(16, 185, 129, 0.1);
-  }
-
   .info-box :global(.info-icon) {
-    color: #10b981;
+    color: var(--bos-status-success);
     flex-shrink: 0;
     margin-top: 1px;
   }
 
   .info-box p {
     font-size: 13px;
-    color: #065f46;
+    color: var(--bos-v2-text-primary);
     margin: 0;
-  }
-
-  :global(.dark) .info-box p {
-    color: #6ee7b7;
   }
 
   /* Footer */
@@ -339,11 +301,7 @@
     justify-content: flex-end;
     gap: 8px;
     padding: 16px 20px;
-    border-top: 1px solid #e5e7eb;
-  }
-
-  :global(.dark) .dialog-footer {
-    border-top-color: #374151;
+    border-top: 1px solid var(--bos-border-color);
   }
 
   .btn {
@@ -366,42 +324,31 @@
   }
 
   .btn-secondary {
-    color: #374151;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-  }
-
-  :global(.dark) .btn-secondary {
-    color: #d1d5db;
-    background: #374151;
-    border-color: #4b5563;
+    color: var(--bos-v2-text-primary);
+    background: var(--bos-v2-layer-background-primary);
+    border: 1px solid var(--bos-border-color);
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background: #f9fafb;
-    border-color: #d1d5db;
-  }
-
-  :global(.dark) .btn-secondary:hover:not(:disabled) {
-    background: #4b5563;
+    background: var(--bos-v2-layer-background-secondary);
+    border-color: var(--bos-v2-layer-insideBorder-border);
   }
 
   .btn-primary {
-    color: #ffffff;
-    background: #6366f1;
-    border: 1px solid #6366f1;
+    color: var(--bos-surface-on-color);
+    background: var(--bos-nav-active);
+    border: 1px solid var(--bos-nav-active);
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: #4f46e5;
-    border-color: #4f46e5;
+    filter: brightness(0.9);
   }
 
   .spinner {
     width: 14px;
     height: 14px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: #ffffff;
+    border: 2px solid color-mix(in srgb, var(--bos-surface-on-color) 30%, transparent);
+    border-top-color: var(--bos-surface-on-color);
     border-radius: 50%;
     animation: spin 600ms linear infinite;
   }

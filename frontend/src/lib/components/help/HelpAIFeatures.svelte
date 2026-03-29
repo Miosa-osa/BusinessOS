@@ -17,7 +17,7 @@
 <section id="ai-features" class="help-section">
 	<div class="section-header">
 		<div class="section-icon gradient-purple">
-			<Sparkles size={24} />
+			<Sparkles size={20} strokeWidth={2} />
 		</div>
 		<div>
 			<h1>AI Features</h1>
@@ -35,7 +35,7 @@
 		<div class="mode-grid">
 			<div class="mode-card research">
 				<div class="mode-header">
-					<FileSearch size={24} />
+					<FileSearch size={20} strokeWidth={2} />
 					<h3>Research Mode</h3>
 				</div>
 				<p>Search the web and your documents for information. Perfect for market research,
@@ -56,7 +56,7 @@
 
 			<div class="mode-card analyze">
 				<div class="mode-header">
-					<BarChart3 size={24} />
+					<BarChart3 size={20} strokeWidth={2} />
 					<h3>Analyze Mode</h3>
 				</div>
 				<p>Deep analysis of data, situations, or documents. Get insights, identify patterns,
@@ -77,7 +77,7 @@
 
 			<div class="mode-card write">
 				<div class="mode-header">
-					<PenTool size={24} />
+					<PenTool size={20} strokeWidth={2} />
 					<h3>Write Mode</h3>
 				</div>
 				<p>Create professional content - documents, emails, proposals, blog posts,
@@ -98,7 +98,7 @@
 
 			<div class="mode-card build">
 				<div class="mode-header">
-					<Hammer size={24} />
+					<Hammer size={20} strokeWidth={2} />
 					<h3>Build Mode</h3>
 				</div>
 				<p>Strategy, planning, and framework creation. Build SOPs, project plans,
@@ -119,7 +119,7 @@
 		</div>
 
 		<div class="tip-card">
-			<Lightbulb size={18} />
+			<Lightbulb size={20} strokeWidth={2} />
 			<div>
 				<strong>Pro Tip:</strong> Use "Do More" mode for general conversation without a specific focus.
 				The AI adapts to your needs and can switch modes mid-conversation if needed.
@@ -131,7 +131,7 @@
 		<h2>AI Chat Interface</h2>
 		<div class="feature-list">
 			<div class="feature-item">
-				<div class="item-icon"><MessageSquare size={18} /></div>
+				<div class="item-icon"><MessageSquare size={20} strokeWidth={2} /></div>
 				<div class="item-content">
 					<h4>Full Chat Module</h4>
 					<p>Open the Chat module for extended conversations. Your chat history is saved,
@@ -139,7 +139,7 @@
 				</div>
 			</div>
 			<div class="feature-item">
-				<div class="item-icon"><Zap size={18} /></div>
+				<div class="item-icon"><Zap size={20} strokeWidth={2} /></div>
 				<div class="item-content">
 					<h4>Quick Chat Bar</h4>
 					<p>The chat bar above your dock provides instant access. Ask quick questions
@@ -147,7 +147,7 @@
 				</div>
 			</div>
 			<div class="feature-item">
-				<div class="item-icon"><Mic size={18} /></div>
+				<div class="item-icon"><Mic size={20} strokeWidth={2} /></div>
 				<div class="item-content">
 					<h4>Voice Input</h4>
 					<p>Click the microphone to speak your message. Audio is transcribed in real-time
@@ -155,7 +155,7 @@
 				</div>
 			</div>
 			<div class="feature-item">
-				<div class="item-icon"><Wand2 size={18} /></div>
+				<div class="item-icon"><Wand2 size={20} strokeWidth={2} /></div>
 				<div class="item-content">
 					<h4>AI Artifacts</h4>
 					<p>When AI generates documents, code, or structured content, it appears as an

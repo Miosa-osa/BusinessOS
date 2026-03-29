@@ -96,14 +96,12 @@ export async function initCSRF(): Promise<void> {
     if (response.ok) {
       await response.json();
       if (import.meta.env.DEV) {
-        if (import.meta.env.DEV) {
-          console.log(
-            "[CSRF] Token initialized:",
-            document.cookie.includes("csrf_token")
-              ? "cookie set"
-              : "cookie missing",
-          );
-        }
+        console.log(
+          "[CSRF] Token initialized:",
+          document.cookie.includes("csrf_token")
+            ? "cookie set"
+            : "cookie missing",
+        );
       }
     } else {
       console.error("[CSRF] Init failed, status:", response.status);
@@ -330,7 +328,7 @@ export async function request<T>(
     method = "GET",
     body,
     headers = {},
-    timeout,
+    timeout = 10_000,
     skipCache = false,
     skipAuthRedirect = false,
   } = options;
@@ -380,7 +378,11 @@ export async function request<T>(
 
       if (!response.ok) {
         // Handle 401 for non-auth endpoints: session expired, redirect to login
-        if (response.status === 401 && !endpoint.includes("/auth/") && !skipAuthRedirect) {
+        if (
+          response.status === 401 &&
+          !endpoint.includes("/auth/") &&
+          !skipAuthRedirect
+        ) {
           const { clearSession } = await import("$lib/auth-client");
           const { goto } = await import("$app/navigation");
           clearSession();

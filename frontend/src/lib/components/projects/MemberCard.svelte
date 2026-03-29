@@ -45,17 +45,8 @@
 		}
 	}
 
-	function getRoleColor(role: ProjectRole): { bg: string; text: string; border: string } {
-		switch (role) {
-			case 'lead':
-				return { bg: 'rgba(147,51,234,0.12)', text: '#7c3aed', border: 'rgba(147,51,234,0.25)' };
-			case 'contributor':
-				return { bg: 'rgba(37,99,235,0.12)', text: '#2563eb', border: 'rgba(37,99,235,0.25)' };
-			case 'reviewer':
-				return { bg: 'rgba(22,163,74,0.12)', text: '#16a34a', border: 'rgba(22,163,74,0.25)' };
-			case 'viewer':
-				return { bg: 'var(--dbg2, #f5f5f5)', text: 'var(--dt2, #555)', border: 'var(--dbd, #e0e0e0)' };
-		}
+	function getRoleColor(_role: ProjectRole): { bg: string; text: string; border: string } {
+		return { bg: 'var(--dbg2, #f5f5f5)', text: 'var(--dt, #111)', border: 'var(--dbd, #e0e0e0)' };
 	}
 
 	function getRoleLabel(role: ProjectRole): string {
@@ -106,13 +97,7 @@
 					class="w-12 h-12 rounded-full object-cover"
 				/>
 			{:else}
-				<div
-					class="w-12 h-12 rounded-full prm-member-card__avatar-gradient flex items-center justify-center"
-				>
-					<span class="text-white font-semibold text-sm">
-						{getInitials(member.user_name || member.user_id)}
-					</span>
-				</div>
+				<div class="prm-member-card__avatar">{getInitials(member.user_name || member.user_id)}</div>
 			{/if}
 		</div>
 
@@ -203,7 +188,7 @@
 		transition: box-shadow 0.2s;
 	}
 	.prm-member-card:hover {
-		box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+		box-shadow: var(--bos-shadow-2);
 	}
 	.prm-member-card__name {
 		font-weight: 600;
@@ -243,8 +228,20 @@
 	.prm-member-card__meta {
 		color: var(--dt3, #888);
 	}
-	.prm-member-card__you-badge { background: color-mix(in srgb, #3b82f6 12%, var(--dbg)); color: #3b82f6; }
-	.prm-member-card__danger-item { color: #ef4444; }
-	.prm-member-card__danger-item:hover { background: color-mix(in srgb, #ef4444 10%, var(--dbg)); }
-	.prm-member-card__avatar-gradient { background: linear-gradient(135deg, #3b82f6, #9333ea); }
+	.prm-member-card__you-badge { background: var(--dbg3, #eee); color: var(--dt, #111); }
+	.prm-member-card__danger-item { color: var(--bos-status-error, #ef4444); }
+	.prm-member-card__danger-item:hover { background: color-mix(in srgb, var(--bos-status-error, #ef4444) 10%, var(--dbg)); }
+	.prm-member-card__avatar {
+		width: 3rem;
+		height: 3rem;
+		border-radius: 50%;
+		background: var(--dt3, #888);
+		color: #fff;
+		font-size: 0.875rem;
+		font-weight: 600;
+		line-height: 3rem;
+		text-align: center;
+		flex-shrink: 0;
+		letter-spacing: 0.02em;
+	}
 </style>

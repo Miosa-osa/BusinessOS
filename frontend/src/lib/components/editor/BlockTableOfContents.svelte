@@ -3,7 +3,7 @@
 </script>
 
 <!-- Table of Contents - auto-generated from headings -->
-<div class="toc-block p-4 rounded-lg bg-gray-50 dark:bg-[#1e1e1e] border border-gray-200 dark:border-[#3d3d3d]">
+<div class="toc-block p-4 rounded-lg bg-gray-50 dark:bg-[var(--bos-v2-layer-background-primary)] border border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)]">
 	<div class="flex items-center gap-2 mb-3 text-gray-600 dark:text-gray-400">
 		<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />

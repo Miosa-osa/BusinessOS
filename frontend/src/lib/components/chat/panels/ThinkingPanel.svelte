@@ -39,14 +39,14 @@
 	let { trace, isStreaming = false, isExpanded = $bindable(false) }: Props = $props();
 
 	// Helper to get content from either format
-	const getContent = $derived(() => {
+	const getContent = $derived.by(() => {
 		if ('content' in trace && trace.content) return trace.content;
 		if ('thinking_content' in trace && trace.thinking_content) return trace.thinking_content;
 		return null;
 	});
 
 	// Helper to get steps from trace
-	const getSteps = $derived(() => {
+	const getSteps = $derived.by(() => {
 		if ('steps' in trace && trace.steps) return trace.steps;
 		return null;
 	});
@@ -78,7 +78,7 @@
 
 	// Estimate token count (rough approximation: 4 chars per token)
 	$effect(() => {
-		const content = getContent();
+		const content = getContent;
 		if (!trace.metadata?.tokenCount && content) {
 			const estimated = Math.ceil(content.length / 4);
 			if (!trace.metadata) {
@@ -148,9 +148,9 @@
 	{#if isExpanded}
 		<div class="border-t border-amber-200 bg-amber-50/30">
 			<!-- Steps Display -->
-			{#if getSteps() && getSteps()!.length > 0}
+			{#if getSteps && getSteps.length > 0}
 				<div class="px-4 py-3 space-y-3 max-h-72 overflow-y-auto">
-					{#each getSteps()! as step, index}
+					{#each getSteps as step, index}
 						<div class="space-y-1">
 							<!-- Step Header -->
 							<div class="flex items-center gap-2">
@@ -179,7 +179,7 @@
 			{:else}
 				<!-- Fallback: Display raw content if no steps -->
 				<div class="px-4 pb-3 pt-2 text-sm text-amber-800/90 whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-72 overflow-y-auto">
-					{getContent() || ''}
+					{getContent || ''}
 					{#if isStreaming}
 						<span class="inline-block w-1.5 h-4 bg-amber-500 animate-pulse ml-0.5"></span>
 					{/if}

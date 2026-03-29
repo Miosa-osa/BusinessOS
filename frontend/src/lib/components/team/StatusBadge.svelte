@@ -78,5 +78,5 @@
 	.td-status-badge__dot--ooo { background: #9ca3af; }
 	.td-status-dot--ooo { background: #9ca3af; }
 
-	:global(.dark) .td-status-dot { border-color: #1a1a1a; }
+	:global(.dark) .td-status-dot { border-color: var(--dbg); }
 </style>

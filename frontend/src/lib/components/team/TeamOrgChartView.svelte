@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { fade } from 'svelte/transition';
 	import OrgNode from './OrgNode.svelte';
 
 	type Status = 'available' | 'busy' | 'overloaded' | 'ooo';
@@ -105,7 +104,6 @@
 
 <div class="td-orgchart">
 	<!-- Org Chart Canvas -->
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
 		class="td-orgchart__canvas"
 		onmousedown={handleMouseDown}
@@ -117,11 +115,11 @@
 		aria-label="Organization chart"
 	>
 		<div
-			class="absolute inset-0 flex items-start justify-center pt-12 transition-transform duration-100"
-			style="transform: translate({panX}px, {panY}px) scale({scale})"
+			class="td-orgchart__inner"
+			style="transform: translate({panX}px, {panY}px) scale({scale}); transform-origin: center top;"
 		>
 			{#if orgTree().length === 0}
-				<div class="td-orgchart__empty" in:fade={{ duration: 200 }}>
+				<div class="td-orgchart__empty">
 					<div class="td-orgchart__empty-icon">
 						<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -132,7 +130,7 @@
 				</div>
 			{:else}
 				<!-- Render org tree -->
-				<div class="flex flex-col items-center">
+				<div class="td-orgchart__tree">
 					{#each orgTree() as root (root.id)}
 						{@render orgBranch(root)}
 					{/each}
@@ -228,13 +226,24 @@
 	}
 	.td-orgchart__canvas {
 		flex: 1;
-		overflow: hidden;
+		overflow: auto;
 		background: var(--dbg2);
-		position: relative;
 		cursor: grab;
+		padding: 2rem;
 	}
 	.td-orgchart__canvas:active {
 		cursor: grabbing;
+	}
+	.td-orgchart__inner {
+		display: flex;
+		justify-content: center;
+		min-width: max-content;
+		transition: transform 100ms ease;
+	}
+	.td-orgchart__tree {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 	}
 
 	/* ── Controls Bar ── */

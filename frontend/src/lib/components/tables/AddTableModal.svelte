@@ -95,7 +95,7 @@
 {#if open}
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+		class="bos-modal-overlay"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="modal-title"
@@ -104,55 +104,58 @@
 		<!-- Backdrop -->
 		<button
 			type="button"
-			class="btn-pill btn-pill-ghost absolute inset-0 cursor-default"
+			class="absolute inset-0 cursor-default"
 			onclick={handleClose}
 			aria-label="Close modal"
 		></button>
 
 		<!-- Modal -->
-		<div
-			class="relative w-full max-w-lg rounded-xl bg-white shadow-2xl"
-		>
+		<form onsubmit={handleSubmit} class="bos-modal bos-modal--md">
 			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-				<h2 id="modal-title" class="text-lg font-semibold text-gray-900">Create New Table</h2>
+			<div class="bos-modal-header">
+				<h2 id="modal-title" class="bos-modal-title">Create New Table</h2>
 				<button
 					type="button"
 					onclick={handleClose}
-					class="btn-pill btn-pill-ghost btn-pill-icon"
+					class="bos-modal-close"
+					aria-label="Close modal"
 				>
-					<X class="h-5 w-5" />
+					<X class="h-4 w-4" />
 				</button>
 			</div>
 
-			<!-- Form -->
-			<form onsubmit={handleSubmit} class="p-6">
+			<!-- Body -->
+			<div class="bos-modal-body">
 				{#if error}
-					<div class="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+					<div class="bos-error-banner mb-4">
 						{error}
 					</div>
 				{/if}
 
 				<!-- Source Selection -->
 				<div class="mb-6">
-					<label class="mb-2 block text-sm font-medium text-gray-700">Start from</label>
+					<label class="bos-label mb-2">Start from</label>
 					<div class="grid grid-cols-3 gap-3">
 						{#each sourceOptions as option}
 							<button
 								type="button"
-								class="btn-pill btn-pill-soft flex flex-col items-center p-4 text-center border-2 {source ===
-								option.value
-									? 'border-blue-500 bg-blue-50'
-									: 'border-gray-200 hover:border-gray-300'}"
+								class="flex flex-col items-center p-4 text-center rounded-lg border-2 transition-colors"
+								style={source === option.value
+									? 'border-color: var(--bos-primary-color); background: color-mix(in srgb, var(--bos-primary-color) 10%, var(--bos-modal-bg));'
+									: 'border-color: var(--bos-border-color); background: transparent;'}
 								onclick={() => (source = option.value)}
 							>
 								<option.icon
-									class="mb-2 h-6 w-6 {source === option.value ? 'text-blue-600' : 'text-gray-400'}"
+									class="mb-2 h-6 w-6"
+									style={source === option.value
+										? 'color: var(--bos-primary-color);'
+										: 'color: var(--bos-text-secondary-color);'}
 								/>
 								<span
-									class="text-sm font-medium {source === option.value
-										? 'text-blue-600'
-										: 'text-gray-700'}"
+									class="text-sm font-medium"
+									style={source === option.value
+										? 'color: var(--bos-primary-color);'
+										: 'color: var(--bos-text-primary-color);'}
 								>
 									{option.label}
 								</span>
@@ -163,22 +166,22 @@
 
 				<!-- Name -->
 				<div class="mb-4">
-					<label for="table-name" class="mb-1.5 block text-sm font-medium text-gray-700">
-						Table Name <span class="text-red-500">*</span>
+					<label for="table-name" class="bos-label bos-label--required mb-1.5">
+						Table Name
 					</label>
 					<input
 						id="table-name"
 						type="text"
 						bind:value={name}
 						placeholder="e.g., Customer Database"
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+						class="bos-input w-full"
 						required
 					/>
 				</div>
 
 				<!-- Description -->
-				<div class="mb-6">
-					<label for="table-description" class="mb-1.5 block text-sm font-medium text-gray-700">
+				<div class="mb-0">
+					<label for="table-description" class="bos-label mb-1.5">
 						Description
 					</label>
 					<textarea
@@ -186,32 +189,32 @@
 						bind:value={description}
 						placeholder="What is this table for?"
 						rows="2"
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+						class="bos-textarea w-full"
 					></textarea>
 				</div>
+			</div>
 
-				<!-- Actions -->
-				<div class="flex justify-end gap-3">
-					<button
-						type="button"
-						onclick={handleClose}
-						class="btn-pill btn-pill-ghost btn-pill-sm"
-					>
-						Cancel
-					</button>
-					<button
-						type="submit"
-						disabled={loading || !name.trim()}
-						class="btn-pill btn-pill-primary btn-pill-sm"
-					>
-						{#if loading}
-							Creating...
-						{:else}
-							Create Table
-						{/if}
-					</button>
-				</div>
-			</form>
-		</div>
+			<!-- Footer -->
+			<div class="bos-modal-footer">
+				<button
+					type="button"
+					onclick={handleClose}
+					class="btn-pill btn-pill-ghost btn-pill-sm"
+				>
+					Cancel
+				</button>
+				<button
+					type="submit"
+					disabled={loading || !name.trim()}
+					class="btn-cta"
+				>
+					{#if loading}
+						Creating...
+					{:else}
+						Create Table
+					{/if}
+				</button>
+			</div>
+		</form>
 	</div>
 {/if}

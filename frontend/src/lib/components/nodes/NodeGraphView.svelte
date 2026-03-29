@@ -601,7 +601,7 @@
 	}
 </script>
 
-<div class="relative w-full h-full min-h-[500px] bg-[#0f0f11] rounded-xl overflow-hidden">
+<div class="relative w-full h-full min-h-[500px] bg-gray-50 dark:bg-[#0f0f11] rounded-xl overflow-hidden">
 	<!-- 3D Canvas Container -->
 	<div bind:this={container} class="w-full h-full"></div>
 
@@ -752,7 +752,7 @@
 
 	<!-- Empty state -->
 	{#if flatNodes.length === 0}
-		<div class="absolute inset-0 flex flex-col items-center justify-center bg-[#0f0f11]">
+		<div class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-[#0f0f11]">
 			<div class="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center mb-4">
 				<svg class="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />

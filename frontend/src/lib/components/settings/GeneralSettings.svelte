@@ -44,23 +44,23 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<!-- Appearance -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Appearance</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Appearance</h2>
 		<div class="space-y-4">
 			<div>
 				<span class="block text-sm font-medium st-label mb-2">Theme</span>
 				<div class="flex gap-3">
 					<button
 						onclick={() => (theme = 'light')}
-						class="flex-1 p-4 rounded-lg border-2 transition-colors {theme === 'light'
+						class="flex-1 p-3 rounded-lg border transition-colors {theme === 'light'
 							? 'st-opt-selected'
 							: 'st-opt'}"
 					>
 						<div class="flex items-center gap-3">
-							<div class="w-10 h-10 rounded-lg st-theme-light-icon flex items-center justify-center">
-								<svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+							<div class="w-8 h-8 rounded-lg st-theme-light-icon flex items-center justify-center">
+								<svg class="w-4 h-4" style="color: var(--bos-status-warning)" fill="currentColor" viewBox="0 0 24 24">
 									<path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
 								</svg>
 							</div>
@@ -72,13 +72,13 @@
 					</button>
 					<button
 						onclick={() => (theme = 'dark')}
-						class="flex-1 p-4 rounded-lg border-2 transition-colors {theme === 'dark'
+						class="flex-1 p-3 rounded-lg border transition-colors {theme === 'dark'
 							? 'st-opt-selected'
 							: 'st-opt'}"
 					>
 						<div class="flex items-center gap-3">
-							<div class="w-10 h-10 rounded-lg bg-gray-900 flex items-center justify-center">
-								<svg class="w-5 h-5 text-gray-100" fill="currentColor" viewBox="0 0 24 24">
+							<div class="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center">
+								<svg class="w-4 h-4 text-gray-100" fill="currentColor" viewBox="0 0 24 24">
 									<path fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clip-rule="evenodd" />
 								</svg>
 							</div>
@@ -95,7 +95,7 @@
 
 	<!-- Privacy -->
 	<div class="card">
-		<h2 class="text-lg font-medium st-title mb-4">Privacy</h2>
+		<h2 class="text-xs font-semibold uppercase tracking-wide st-label mb-3">Privacy</h2>
 		<div class="flex items-center justify-between">
 			<div>
 				<p class="font-medium st-title">Share anonymous analytics</p>
@@ -141,24 +141,24 @@
 </div>
 
 <style>
-	.st-title { color: var(--dt, var(--bos-text-primary, #111)); }
-	.st-muted { color: var(--dt3, var(--bos-text-tertiary, #888)); }
-	.st-label { color: var(--dt2, var(--bos-text-secondary, #555)); }
+	.st-title { color: var(--dt); }
+	.st-muted { color: var(--dt3); }
+	.st-label { color: var(--dt2); }
 	.st-opt-selected {
-		border-color: var(--dt, var(--bos-text-primary, #111));
-		background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5));
-		color: var(--dt, var(--bos-text-primary, #111));
+		border-color: var(--dt);
+		background: var(--bos-settings-card-bg);
+		color: var(--dt);
 	}
 	.st-opt {
-		border-color: var(--dbd, var(--bos-border, #e0e0e0));
-		color: var(--dt2, var(--bos-text-secondary, #555));
+		border-color: var(--dbd);
+		color: var(--dt2);
 	}
-	.st-opt:hover { border-color: var(--dt4, #bbb); }
+	.st-opt:hover { border-color: var(--dt4); }
 	.st-theme-light-icon {
-		background: var(--dbg, var(--bos-card, #fff));
-		border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
 	}
-	.st-toggle-on  { background: var(--dt, var(--bos-text-primary, #111)); }
-	.st-toggle-off { background: var(--dbg3, #eee); }
-	.st-toggle-knob { background: var(--dbg, var(--bos-card, #fff)); }
+	.st-toggle-on  { background: var(--dt); }
+	.st-toggle-off { background: var(--dbg3); }
+	.st-toggle-knob { background: var(--dbg); }
 </style>

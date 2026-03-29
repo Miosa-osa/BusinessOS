@@ -301,22 +301,22 @@
 	class="flex-1 overflow-auto"
 	onscroll={handleScroll}
 >
-	<table class="w-full border-collapse">
+	<table class="dt2-table w-full border-collapse">
 		<!-- Header -->
-		<thead class="sticky top-0 z-10 bg-gray-50">
+		<thead class="dt2-thead sticky top-0 z-10">
 			<tr>
 				<!-- Checkbox column -->
-				<th class="w-10 border-b border-r border-gray-200 bg-gray-50 px-2 py-2">
+				<th class="dt2-th w-10 px-2 py-2">
 					<input
 						type="checkbox"
 						checked={allSelected}
 						onchange={onSelectAll}
-						class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+						class="h-4 w-4 rounded"
 					/>
 				</th>
 
 				<!-- Row number column -->
-				<th class="w-12 border-b border-r border-gray-200 bg-gray-50 px-2 py-2 text-center text-xs font-medium text-gray-500">
+				<th class="dt2-th w-12 px-2 py-2 text-center text-xs font-medium">
 					#
 				</th>
 
@@ -324,12 +324,12 @@
 				{#each columns as column, colIndex}
 					{@const ColumnIcon = getColumnIcon(column.type)}
 					<th
-						class="relative border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-sm font-medium text-gray-700"
+						class="dt2-th relative px-3 py-2 text-left text-sm font-medium"
 						style="width: {getColumnWidth(column)}px; min-width: {getColumnWidth(column)}px;"
 					>
 						<div class="flex items-center gap-2">
 							<!-- Column type icon -->
-							<svelte:component this={ColumnIcon} class="h-4 w-4 flex-shrink-0 text-gray-400" />
+							<svelte:component this={ColumnIcon} class="dt2-icon h-4 w-4 flex-shrink-0" />
 							<span class="truncate">{column.name}</span>
 							{#if column.is_primary}
 								<span class="rounded bg-blue-100 px-1 py-0.5 text-[10px] font-medium text-blue-600">Primary</span>
@@ -351,7 +351,7 @@
 				{/each}
 
 				<!-- Add column button -->
-				<th class="w-10 border-b border-gray-200 bg-gray-50 px-2 py-2">
+				<th class="dt2-th w-10 px-2 py-2" style="border-right: none;">
 					<button
 						type="button"
 						class="btn-pill btn-pill-ghost flex h-6 w-6 items-center justify-center"
@@ -376,22 +376,22 @@
 			{#each visibleRows as row, localRowIndex (row.id)}
 				{@const actualRowIndex = virtualRowRange.start + localRowIndex}
 				<tr
-					class="group hover:bg-blue-50/50"
-					class:bg-blue-50={selectedRowIds.has(row.id)}
+					class="dt2-row group"
+					class:dt2-row--selected={selectedRowIds.has(row.id)}
 					style="height: {ROW_HEIGHT}px;"
 				>
 					<!-- Checkbox -->
-					<td class="border-b border-r border-gray-100 bg-white px-2 py-1">
+					<td class="dt2-td px-2 py-1">
 						<input
 							type="checkbox"
 							checked={selectedRowIds.has(row.id)}
 							onclick={(e) => handleRowSelect(actualRowIndex, e.shiftKey)}
-							class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+							class="h-4 w-4 rounded"
 						/>
 					</td>
 
 					<!-- Row number (actual row number, not visible index) -->
-					<td class="border-b border-r border-gray-100 bg-white px-2 py-1 text-center text-xs text-gray-400">
+					<td class="dt2-td dt2-td--muted px-2 py-1 text-center text-xs">
 						{actualRowIndex + 1}
 					</td>
 
@@ -402,7 +402,7 @@
 						{@const isFocused =
 							focusedCell?.rowIndex === actualRowIndex && focusedCell?.colIndex === colIndex}
 						<td
-							class="border-b border-r border-gray-100 bg-white p-0"
+							class="dt2-td p-0"
 							style="width: {getColumnWidth(column)}px; min-width: {getColumnWidth(column)}px;"
 						>
 							<div
@@ -428,7 +428,7 @@
 					{/each}
 
 					<!-- Empty cell for add column -->
-					<td class="border-b border-gray-100 bg-white"></td>
+					<td class="dt2-td" style="border-right: none;"></td>
 				</tr>
 			{/each}
 
@@ -441,10 +441,10 @@
 
 			<!-- Add row button -->
 			<tr>
-				<td colspan={columns.length + 3} class="border-b border-gray-100 bg-white p-0">
+				<td colspan={columns.length + 3} class="dt2-td p-0" style="border-right: none;">
 					<button
 						type="button"
-						class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+						class="dt2-add-row flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors"
 						onclick={onAddRow}
 					>
 						<Plus class="h-4 w-4" />
@@ -457,19 +457,72 @@
 </div>
 
 <style>
+	/* dt2- Data Table Foundation tokens */
+	:global(.dt2-thead) {
+		background: var(--dbg2);
+	}
+
+	:global(.dt2-th) {
+		background: var(--dbg2);
+		border-bottom: 1px solid var(--dbd);
+		border-right: 1px solid var(--dbd);
+		color: var(--dt2);
+	}
+
+	:global(.dt2-icon) {
+		color: var(--dt3);
+	}
+
+	:global(.dt2-td) {
+		background: var(--dbg);
+		border-bottom: 1px solid var(--dbd2);
+		border-right: 1px solid var(--dbd2);
+		color: var(--dt);
+	}
+
+	:global(.dt2-td--muted) {
+		color: var(--dt3);
+	}
+
+	:global(.dt2-row:hover) {
+		background: var(--dbg2);
+	}
+
+	:global(.dt2-row:hover .dt2-td) {
+		background: var(--dbg2);
+	}
+
+	:global(.dt2-row--selected) {
+		background: rgba(30, 150, 235, 0.08);
+	}
+
+	:global(.dt2-row--selected .dt2-td) {
+		background: rgba(30, 150, 235, 0.08);
+	}
+
+	:global(.dt2-add-row) {
+		color: var(--dt3);
+		border-radius: 0;
+	}
+
+	:global(.dt2-add-row:hover) {
+		background: var(--dbg3);
+		color: var(--dt);
+	}
+
 	/* Cell focus ring - NocoDB-style */
 	.cell-container:focus {
 		outline: none;
 	}
 
 	.cell-focused {
-		box-shadow: inset 0 0 0 2px #3b82f6;
-		background-color: #eff6ff;
+		box-shadow: inset 0 0 0 2px var(--dt2-accent, #3b82f6);
+		background-color: var(--dbg2);
 	}
 
 	.cell-editing {
-		box-shadow: inset 0 0 0 2px #2563eb;
-		background-color: #ffffff;
+		box-shadow: inset 0 0 0 2px var(--dt2-accent-strong, #2563eb);
+		background-color: var(--dbg);
 	}
 
 	/* Custom scrollbar */
@@ -479,15 +532,15 @@
 	}
 
 	div::-webkit-scrollbar-track {
-		background: #f1f1f1;
+		background: var(--dbg2);
 	}
 
 	div::-webkit-scrollbar-thumb {
-		background: #c1c1c1;
+		background: var(--dbd);
 		border-radius: 4px;
 	}
 
 	div::-webkit-scrollbar-thumb:hover {
-		background: #a1a1a1;
+		background: var(--dt3);
 	}
 </style>

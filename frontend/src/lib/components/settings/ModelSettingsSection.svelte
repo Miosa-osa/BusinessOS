@@ -252,14 +252,14 @@
   .presets-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   .presets-label { font-size: 13px; color: var(--color-text-tertiary); margin-right: 4px; }
   .preset-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 12px; font-weight: 500; border-radius: 8px; border: 1px solid var(--color-border); background: rgba(255,255,255,0.05); color: var(--color-text-secondary); cursor: pointer; transition: all 0.15s ease; }
-  :global(.dark) .preset-btn { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
+  :global(.dark) .preset-btn { background: rgba(255,255,255,0.05); border-color: var(--dbd); }
   :global(:not(.dark)) .preset-btn { background: rgba(0,0,0,0.02); }
   .preset-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--color-primary); color: var(--color-primary); }
   :global(:not(.dark)) .preset-btn:hover { background: rgba(0,0,0,0.05); }
   .preset-icon { width: 16px; height: 16px; flex-shrink: 0; }
 
   .settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-  .setting-card { padding: 18px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 12px; }
+  .setting-card { padding: 18px; background: var(--bos-settings-card-bg); border: 1px solid var(--bos-settings-card-border); border-radius: var(--bos-settings-card-radius); }
   .setting-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .setting-header label { font-weight: 500; font-size: 14px; }
   .setting-value { font-size: 14px; font-weight: 600; color: var(--color-primary); font-family: monospace; }
@@ -280,8 +280,7 @@
   .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .save-btn { padding: 10px 16px; background: var(--color-primary); color: var(--color-bg); border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
   .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  :global(.dark) .setting-value { color: #0A84FF; }
-  :global(.dark) .setting-card { background: #2c2c2e; border-color: rgba(255,255,255,0.1); }
+  :global(.dark) .setting-value { color: var(--bos-nav-active); }
 
   /* Default Model */
   .default-model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
@@ -291,5 +290,5 @@
   .dm-name { font-weight: 600; font-size: 14px; }
   .dm-size, .dm-desc { font-size: 12px; color: var(--color-text-muted); }
   .dm-check { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; color: var(--color-success); }
-  :global(.dark) .default-model-btn.selected { border-color: #0A84FF; background: rgba(10,132,255,0.1); }
+  :global(.dark) .default-model-btn.selected { border-color: var(--bos-nav-active); background: rgba(10,132,255,0.1); }
 </style>

@@ -159,7 +159,7 @@
 {#if $editor.slashMenuPosition}
 	<div
 		data-slash-menu
-		class="slash-menu fixed z-50 w-80 bg-white dark:bg-[#252525] rounded-xl shadow-2xl border border-gray-200 dark:border-[#3d3d3d] overflow-hidden"
+		class="slash-menu fixed z-50 w-80 bg-white dark:bg-[var(--bos-v2-layer-background-overlayPanel)] rounded-xl shadow-2xl border border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] overflow-hidden"
 		style="left: {$editor.slashMenuPosition.x}px; top: {$editor.slashMenuPosition.y}px;"
 		transition:fly={{ y: -8, duration: 150 }}
 	>
@@ -175,7 +175,7 @@
 						{@const globalIdx = getGlobalIndex('suggested', idx)}
 						<div
 							class="menu-item w-full px-3 py-2 flex items-center gap-3 text-left transition-colors cursor-pointer
-								{globalIdx === selectedIndex ? 'bg-gray-100 dark:bg-[#3d3d3d]' : 'hover:bg-gray-50 dark:hover:bg-[#2f2f2f]'}"
+								{globalIdx === selectedIndex ? 'bg-gray-100 dark:bg-[var(--bos-v2-layer-background-tertiary)]' : 'hover:bg-gray-50 dark:hover:bg-[var(--bos-v2-layer-background-secondary)]'}"
 							onclick={() => selectBlockType(blockType.type)}
 							onmouseenter={() => selectedIndex = globalIdx}
 							role="button"
@@ -193,12 +193,12 @@
 										</svg>
 									</button>
 									{#if showIconPicker}
-										<div class="absolute left-0 top-full mt-1 z-[100] w-48 max-h-48 bg-white dark:bg-[#252525] rounded-lg shadow-xl border border-gray-200 dark:border-[#3d3d3d] overflow-y-auto p-2 grid grid-cols-5 gap-1">
+										<div class="absolute left-0 top-full mt-1 z-[100] w-48 max-h-48 bg-white dark:bg-[var(--bos-v2-layer-background-overlayPanel)] rounded-lg shadow-xl border border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] overflow-y-auto p-2 grid grid-cols-5 gap-1">
 											{#each iconPresets as preset}
 												<button
 													onclick={(e) => { e.stopPropagation(); selectIcon(preset.id); }}
 													class="w-8 h-8 rounded-md flex items-center justify-center transition-colors
-														{selectedPageIcon === preset.id ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-[#3d3d3d] text-gray-500'}"
+														{selectedPageIcon === preset.id ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-[var(--dbg2)] text-gray-500'}"
 													title={preset.id}
 												>
 													<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -210,7 +210,7 @@
 									{/if}
 								</div>
 							{:else}
-								<div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-[#2f2f2f] border border-gray-200 dark:border-[#3d3d3d] flex items-center justify-center text-gray-500 dark:text-gray-400">
+								<div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-[var(--bos-v2-layer-background-secondary)] border border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] flex items-center justify-center text-gray-500 dark:text-gray-400">
 									<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" d={getIconSvg(blockType.icon)} />
 									</svg>
@@ -221,7 +221,7 @@
 								<div class="text-xs text-gray-500">{blockType.description}</div>
 							</div>
 							{#if blockType.keyboardShortcut}
-								<kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-[#3d3d3d] border border-gray-200 dark:border-[#4d4d4d] rounded text-gray-500 dark:text-gray-400">
+								<kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-[var(--bos-v2-layer-background-tertiary)] border border-gray-200 dark:border-[var(--bos-v2-layer-background-tertiary)] rounded text-gray-500 dark:text-gray-400">
 									{blockType.keyboardShortcut}
 								</kbd>
 							{/if}
@@ -231,14 +231,14 @@
 
 				<!-- BASIC BLOCKS SECTION -->
 				{#if sections.basic.length > 0}
-					<div class="px-3 pt-3 pb-1.5 {sections.suggested.length > 0 ? 'border-t border-gray-200 dark:border-[#3d3d3d] mt-1' : ''}">
+					<div class="px-3 pt-3 pb-1.5 {sections.suggested.length > 0 ? 'border-t border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] mt-1' : ''}">
 						<p class="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Basic blocks</p>
 					</div>
 					{#each sections.basic as blockType, idx}
 						{@const globalIdx = getGlobalIndex('basic', idx)}
 						<div
 							class="menu-item w-full px-3 py-2 flex items-center gap-3 text-left transition-colors cursor-pointer
-								{globalIdx === selectedIndex ? 'bg-gray-100 dark:bg-[#3d3d3d]' : 'hover:bg-gray-50 dark:hover:bg-[#2f2f2f]'}"
+								{globalIdx === selectedIndex ? 'bg-gray-100 dark:bg-[var(--bos-v2-layer-background-tertiary)]' : 'hover:bg-gray-50 dark:hover:bg-[var(--bos-v2-layer-background-secondary)]'}"
 							onclick={() => selectBlockType(blockType.type)}
 							onmouseenter={() => selectedIndex = globalIdx}
 							role="button"
@@ -256,12 +256,12 @@
 										</svg>
 									</button>
 									{#if showIconPicker}
-										<div class="absolute left-0 top-full mt-1 z-[100] w-48 max-h-48 bg-white dark:bg-[#252525] rounded-lg shadow-xl border border-gray-200 dark:border-[#3d3d3d] overflow-y-auto p-2 grid grid-cols-5 gap-1">
+										<div class="absolute left-0 top-full mt-1 z-[100] w-48 max-h-48 bg-white dark:bg-[var(--bos-v2-layer-background-overlayPanel)] rounded-lg shadow-xl border border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] overflow-y-auto p-2 grid grid-cols-5 gap-1">
 											{#each iconPresets as preset}
 												<button
 													onclick={(e) => { e.stopPropagation(); selectIcon(preset.id); }}
 													class="w-8 h-8 rounded-md flex items-center justify-center transition-colors
-														{selectedPageIcon === preset.id ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-[#3d3d3d] text-gray-500'}"
+														{selectedPageIcon === preset.id ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-[var(--dbg2)] text-gray-500'}"
 													title={preset.id}
 												>
 													<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -273,7 +273,7 @@
 									{/if}
 								</div>
 							{:else}
-								<div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-[#2f2f2f] border border-gray-200 dark:border-[#3d3d3d] flex items-center justify-center text-gray-500 dark:text-gray-400">
+								<div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-[var(--bos-v2-layer-background-secondary)] border border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] flex items-center justify-center text-gray-500 dark:text-gray-400">
 									<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" d={getIconSvg(blockType.icon)} />
 									</svg>
@@ -284,7 +284,7 @@
 								<div class="text-xs text-gray-500">{blockType.description}</div>
 							</div>
 							{#if blockType.keyboardShortcut}
-								<kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-[#3d3d3d] border border-gray-200 dark:border-[#4d4d4d] rounded text-gray-500 dark:text-gray-400">
+								<kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-[var(--bos-v2-layer-background-tertiary)] border border-gray-200 dark:border-[var(--bos-v2-layer-background-tertiary)] rounded text-gray-500 dark:text-gray-400">
 									{blockType.keyboardShortcut}
 								</kbd>
 							{/if}
@@ -297,7 +297,7 @@
 					{#each filteredTypes as blockType, idx}
 						<div
 							class="menu-item w-full px-3 py-2 flex items-center gap-3 text-left transition-colors cursor-pointer
-								{idx === selectedIndex ? 'bg-gray-100 dark:bg-[#3d3d3d]' : 'hover:bg-gray-50 dark:hover:bg-[#2f2f2f]'}"
+								{idx === selectedIndex ? 'bg-gray-100 dark:bg-[var(--bos-v2-layer-background-tertiary)]' : 'hover:bg-gray-50 dark:hover:bg-[var(--bos-v2-layer-background-secondary)]'}"
 							onclick={() => selectBlockType(blockType.type)}
 							onmouseenter={() => selectedIndex = idx}
 							role="button"
@@ -317,12 +317,12 @@
 									</button>
 									<!-- Icon picker dropdown -->
 									{#if showIconPicker}
-										<div class="absolute left-0 top-full mt-1 z-[100] w-48 max-h-48 bg-white dark:bg-[#252525] rounded-lg shadow-xl border border-gray-200 dark:border-[#3d3d3d] overflow-y-auto p-2 grid grid-cols-5 gap-1">
+										<div class="absolute left-0 top-full mt-1 z-[100] w-48 max-h-48 bg-white dark:bg-[var(--bos-v2-layer-background-overlayPanel)] rounded-lg shadow-xl border border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] overflow-y-auto p-2 grid grid-cols-5 gap-1">
 											{#each iconPresets as preset}
 												<button
 													onclick={(e) => { e.stopPropagation(); selectIcon(preset.id); }}
 													class="w-8 h-8 rounded-md flex items-center justify-center transition-colors
-														{selectedPageIcon === preset.id ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-[#3d3d3d] text-gray-500'}"
+														{selectedPageIcon === preset.id ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-[var(--dbg2)] text-gray-500'}"
 													title={preset.id}
 												>
 													<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -334,7 +334,7 @@
 									{/if}
 								</div>
 							{:else}
-								<div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-[#2f2f2f] border border-gray-200 dark:border-[#3d3d3d] flex items-center justify-center text-gray-500 dark:text-gray-400">
+								<div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-[var(--bos-v2-layer-background-secondary)] border border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] flex items-center justify-center text-gray-500 dark:text-gray-400">
 									<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" d={getIconSvg(blockType.icon)} />
 									</svg>
@@ -345,7 +345,7 @@
 								<div class="text-xs text-gray-500">{blockType.description}</div>
 							</div>
 							{#if blockType.keyboardShortcut}
-								<kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-[#3d3d3d] border border-gray-200 dark:border-[#4d4d4d] rounded text-gray-500 dark:text-gray-400">
+								<kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-[var(--bos-v2-layer-background-tertiary)] border border-gray-200 dark:border-[var(--bos-v2-layer-background-tertiary)] rounded text-gray-500 dark:text-gray-400">
 									{blockType.keyboardShortcut}
 								</kbd>
 							{/if}
@@ -362,12 +362,12 @@
 		</div>
 
 		<!-- Filter Footer -->
-		<div class="px-3 py-2 border-t border-gray-200 dark:border-[#3d3d3d] bg-gray-50 dark:bg-[#2a2a2a] flex items-center gap-2">
+		<div class="px-3 py-2 border-t border-gray-200 dark:border-[var(--bos-v2-layer-insideBorder-border)] bg-gray-50 dark:bg-[var(--bos-v2-layer-background-secondary)] flex items-center gap-2">
 			<span class="text-gray-400 dark:text-gray-500 text-sm">/</span>
 			<span class="flex-1 text-sm {$editor.slashMenuQuery ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}">
 				{$editor.slashMenuQuery || 'Filter...'}
 			</span>
-			<kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-[#3d3d3d] rounded text-gray-500 dark:text-gray-400">esc</kbd>
+			<kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-[var(--bos-v2-layer-background-tertiary)] rounded text-gray-500 dark:text-gray-400">esc</kbd>
 		</div>
 	</div>
 {/if}
@@ -400,20 +400,21 @@
 	}
 
 	.slash-menu > div:first-child::-webkit-scrollbar-thumb {
-		background: #d1d5db;
+		background: var(--bos-status-neutral);
 		border-radius: 3px;
 	}
 
 	.slash-menu > div:first-child::-webkit-scrollbar-thumb:hover {
-		background: #9ca3af;
+		background: var(--bos-status-neutral);
+		opacity: 0.8;
 	}
 
 	/* Dark theme scrollbar */
 	:global(.dark) .slash-menu > div:first-child::-webkit-scrollbar-thumb {
-		background: #4d4d4d;
+		background: var(--dbd);
 	}
 
 	:global(.dark) .slash-menu > div:first-child::-webkit-scrollbar-thumb:hover {
-		background: #5d5d5d;
+		background: var(--dbd2);
 	}
 </style>

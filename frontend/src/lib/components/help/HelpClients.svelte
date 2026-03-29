@@ -47,25 +47,25 @@
 		</p>
 		<div class="pipeline-stages">
 			<div class="stage">
-				<div class="stage-dot" style="background: #64B5F6;"></div>
+				<div class="stage-dot" style="background: var(--bos-status-info);"></div>
 				<h5>Qualification</h5>
 				<p>Initial assessment of fit and potential</p>
 			</div>
 			<div class="stage-arrow">→</div>
 			<div class="stage">
-				<div class="stage-dot" style="background: #FFB74D;"></div>
+				<div class="stage-dot" style="background: var(--bos-status-warning);"></div>
 				<h5>Proposal</h5>
 				<p>Preparing and presenting your offer</p>
 			</div>
 			<div class="stage-arrow">→</div>
 			<div class="stage">
-				<div class="stage-dot" style="background: #BA68C8;"></div>
+				<div class="stage-dot" style="background: var(--bos-category-ai);"></div>
 				<h5>Negotiation</h5>
 				<p>Discussing terms and finalizing details</p>
 			</div>
 			<div class="stage-arrow">→</div>
 			<div class="stage">
-				<div class="stage-dot" style="background: #81C784;"></div>
+				<div class="stage-dot" style="background: var(--bos-status-success);"></div>
 				<h5>Closed</h5>
 				<p>Deal won (or lost) - final outcome</p>
 			</div>

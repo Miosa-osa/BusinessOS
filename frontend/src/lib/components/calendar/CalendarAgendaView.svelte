@@ -19,11 +19,11 @@
 <div class="p-6">
 	{#if events.length === 0}
 		<div class="text-center py-12">
-			<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="mx-auto h-12 w-12" style="color: var(--dt4)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 			</svg>
-			<h3 class="mt-2 text-sm font-semibold text-gray-900">No events in this period</h3>
-			<p class="mt-1 text-sm text-gray-500">
+			<h3 class="mt-2 text-sm font-semibold" style="color: var(--dt)">No events in this period</h3>
+			<p class="mt-1 text-sm" style="color: var(--dt3)">
 				{#if syncStats && syncStats.totalEvents > 0}
 					You have {syncStats.totalEvents} events synced from
 					{syncStats.dateRange?.from
@@ -51,11 +51,11 @@
 					<div class="flex items-start gap-4">
 						<!-- Date/Time column -->
 						<div class="flex-shrink-0 text-center w-16">
-							<p class="text-xs text-gray-500 uppercase">
+							<p class="text-xs uppercase" style="color: var(--dt3)">
 								{new Date(event.start_time).toLocaleDateString('en-US', { weekday: 'short' })}
 							</p>
-							<p class="text-2xl font-bold text-gray-900">{new Date(event.start_time).getDate()}</p>
-							<p class="text-xs text-gray-500">
+							<p class="text-2xl font-bold" style="color: var(--dt)">{new Date(event.start_time).getDate()}</p>
+							<p class="text-xs" style="color: var(--dt3)">
 								{new Date(event.start_time).toLocaleDateString('en-US', { month: 'short' })}
 							</p>
 						</div>
@@ -63,7 +63,7 @@
 						<!-- Event Details -->
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-2">
-								<h3 class="text-base font-semibold text-gray-900 truncate">
+								<h3 class="text-base font-semibold truncate" style="color: var(--dt)">
 									{event.title || 'Untitled Event'}
 								</h3>
 								{#if event.source === 'google'}
@@ -76,13 +76,13 @@
 									</svg>
 								{/if}
 								{#if event.meeting_type && event.meeting_type !== 'other'}
-									<span class="inline-block px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-full">
+									<span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full" style="background: var(--dbg2); color: var(--dt2)">
 										{event.meeting_type.replace('_', ' ')}
 									</span>
 								{/if}
 							</div>
 
-							<p class="text-sm text-gray-500 mt-1">
+							<p class="text-sm mt-1" style="color: var(--dt3)">
 								{#if event.all_day}
 									All day
 								{:else}
@@ -97,7 +97,7 @@
 							</p>
 
 							{#if event.location}
-								<p class="text-sm text-gray-500 mt-1 flex items-center gap-1">
+								<p class="text-sm mt-1 flex items-center gap-1" style="color: var(--dt3)">
 									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
 									</svg>
@@ -106,7 +106,7 @@
 							{/if}
 
 							{#if event.description}
-								<p class="text-sm text-gray-400 mt-1 line-clamp-2">{event.description}</p>
+								<p class="text-sm mt-1 line-clamp-2" style="color: var(--dt4)">{event.description}</p>
 							{/if}
 						</div>
 
@@ -115,14 +115,14 @@
 							<div class="flex-shrink-0 flex -space-x-2">
 								{#each event.attendees.slice(0, 3) as attendee}
 									<div
-										class="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600"
+										class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-medium" style="background: var(--dbg3); color: var(--dt2)"
 										title={attendee.email}
 									>
 										{(attendee.name || attendee.email || '?').charAt(0).toUpperCase()}
 									</div>
 								{/each}
 								{#if event.attendees.length > 3}
-									<div class="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-500">
+									<div class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-medium" style="background: var(--dbg2); color: var(--dt3)">
 										+{event.attendees.length - 3}
 									</div>
 								{/if}

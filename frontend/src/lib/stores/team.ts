@@ -177,6 +177,10 @@ function createTeamStore() {
 			update((s) => ({ ...s, error: null }));
 		},
 
+		/** Seed store with mock data for design/layout work — remove before production. */
+		_seedMockData(members: TeamMemberListResponse[]) {
+			update((s) => ({ ...s, members, loading: false, error: null }));
+		}
 	};
 }
 

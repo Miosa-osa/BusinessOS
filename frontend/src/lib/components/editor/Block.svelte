@@ -382,10 +382,10 @@
 		<BlockTableOfContents />
 	{:else if block.type === 'columns'}
 		<div class="columns-block grid grid-cols-2 gap-4 p-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
-			<div class="min-h-[100px] rounded bg-gray-50 dark:bg-[#1e1e1e] p-3 flex items-center justify-center">
+			<div class="min-h-[100px] rounded bg-gray-50 dark:bg-[var(--bos-v2-layer-background-primary)] p-3 flex items-center justify-center">
 				<span class="text-xs text-gray-400 dark:text-gray-500">Column 1 - Click to add blocks</span>
 			</div>
-			<div class="min-h-[100px] rounded bg-gray-50 dark:bg-[#1e1e1e] p-3 flex items-center justify-center">
+			<div class="min-h-[100px] rounded bg-gray-50 dark:bg-[var(--bos-v2-layer-background-primary)] p-3 flex items-center justify-center">
 				<span class="text-xs text-gray-400 dark:text-gray-500">Column 2 - Click to add blocks</span>
 			</div>
 		</div>
@@ -424,7 +424,7 @@
 	h2.block-editable.is-empty:before,
 	h3.block-editable.is-empty:before {
 		content: attr(data-placeholder);
-		color: #6b7280;
+		color: var(--bos-status-neutral);
 		pointer-events: none;
 		position: absolute;
 		font-style: normal;
@@ -434,13 +434,13 @@
 	/* Dark mode text selection */
 	.block-editable::selection {
 		background-color: rgba(59, 130, 246, 0.4);
-		color: #ffffff;
+		color: var(--bos-surface-on-color);
 	}
 
 	/* For webkit browsers (Chrome, Safari) */
 	.block-editable::-webkit-selection {
 		background-color: rgba(59, 130, 246, 0.4);
-		color: #ffffff;
+		color: var(--bos-surface-on-color);
 	}
 
 	/* Ensure no weird background on focus */
@@ -464,7 +464,7 @@
 		left: 0;
 		right: 0;
 		height: 3px;
-		background: linear-gradient(90deg, #3b82f6, #60a5fa);
+		background: linear-gradient(90deg, var(--bos-status-info), var(--bos-nav-active));
 		border-radius: 2px;
 		z-index: 10;
 		box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
@@ -477,7 +477,7 @@
 		left: 0;
 		right: 0;
 		height: 3px;
-		background: linear-gradient(90deg, #3b82f6, #60a5fa);
+		background: linear-gradient(90deg, var(--bos-status-info), var(--bos-nav-active));
 		border-radius: 2px;
 		z-index: 10;
 		box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);

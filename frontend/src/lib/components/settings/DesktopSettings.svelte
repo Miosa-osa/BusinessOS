@@ -108,8 +108,15 @@
 			<!-- Accessibility -->
 			<div class="flex items-center justify-between p-4 rounded-lg st-perm-card">
 				<div class="flex items-center gap-4">
-					<div class="w-10 h-10 rounded-lg {accessibilityGranted ? 'bg-green-100 dark:bg-green-900/30' : 'bg-yellow-100 dark:bg-yellow-900/30'} flex items-center justify-center">
-						<svg class="w-5 h-5 {accessibilityGranted ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+					<div
+						class="w-10 h-10 rounded-lg flex items-center justify-center"
+						style="{accessibilityGranted ? 'background: var(--bos-status-success-bg)' : 'background: var(--bos-status-warning-bg)'}"
+					>
+						<svg
+							class="w-5 h-5"
+							style="{accessibilityGranted ? 'color: var(--bos-status-success)' : 'color: var(--bos-status-warning)'}"
+							fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+						>
 							<path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
 						</svg>
 					</div>
@@ -122,7 +129,7 @@
 				</div>
 				<div class="flex items-center gap-2">
 					{#if accessibilityGranted}
-						<span class="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
+						<span class="flex items-center gap-1.5 text-sm" style="color: var(--bos-status-success)">
 							<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
 								<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
 							</svg>
@@ -222,8 +229,8 @@
 		</div>
 
 		{#if !accessibilityGranted}
-			<div class="mt-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
-				<p class="text-sm text-yellow-800 dark:text-yellow-400">
+			<div class="mt-4 p-3 rounded-lg" style="background: var(--bos-status-warning-bg); border: 1px solid var(--bos-status-warning)">
+				<p class="text-sm" style="color: var(--bos-status-warning)">
 					Enable Accessibility permission above to use global shortcuts.
 				</p>
 			</div>
@@ -232,20 +239,20 @@
 </div>
 
 <style>
-	.st-title { color: var(--dt, var(--bos-text-primary, #111)); }
-	.st-muted { color: var(--dt3, var(--bos-text-tertiary, #888)); }
-	.st-icon  { color: var(--dt3, var(--bos-text-tertiary, #888)); }
-	.st-perm-card { border: 1px solid var(--dbd, var(--bos-border, #e0e0e0)); }
-	.st-icon-bg { background: var(--dbg3, #eee); }
+	.st-title { color: var(--dt); }
+	.st-muted { color: var(--dt3); }
+	.st-icon  { color: var(--dt3); }
+	.st-perm-card { border: 1px solid var(--dbd); }
+	.st-icon-bg { background: var(--dbg3); }
 	.st-btn-secondary {
-		background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5));
-		color: var(--dt, var(--bos-text-primary, #111));
-		border-color: var(--dbd, var(--bos-border, #e0e0e0));
+		background: var(--dbg2);
+		color: var(--dt);
+		border-color: var(--dbd);
 	}
-	.st-shortcut-row { background: var(--dbg2, var(--bos-bg-secondary, #f5f5f5)); }
+	.st-shortcut-row { background: var(--dbg2); }
 	.st-kbd {
-		background: var(--dbg, var(--bos-card, #fff));
-		border: 1px solid var(--dbd, var(--bos-border, #e0e0e0));
-		color: var(--dt, var(--bos-text-primary, #111));
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
+		color: var(--dt);
 	}
 </style>

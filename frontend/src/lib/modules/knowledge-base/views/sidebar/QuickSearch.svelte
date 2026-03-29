@@ -118,7 +118,6 @@
 	<div class="quick-search">
 		<div class="quick-search__input-wrapper">
 			<Search class="quick-search__search-icon h-4 w-4" />
-			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				type="text"
 				class="quick-search__input"
@@ -202,8 +201,8 @@
 		padding: 1rem;
 	}
 
-	:global(.quick-search__search-icon) {
-		color: var(--dt3);
+	.quick-search__search-icon {
+		color: hsl(var(--muted-foreground));
 	}
 
 	.quick-search__input {
@@ -212,18 +211,18 @@
 		border: none;
 		outline: none;
 		font-size: 1rem;
-		color: var(--dt);
+		color: hsl(var(--foreground));
 	}
 
 	.quick-search__input::placeholder {
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 	}
 
 	.quick-search__spinner {
 		width: 16px;
 		height: 16px;
-		border: 2px solid rgba(128, 128, 128, 0.3);
-		border-top-color: var(--dt3);
+		border: 2px solid hsl(var(--muted-foreground) / 0.3);
+		border-top-color: hsl(var(--muted-foreground));
 		border-radius: 50%;
 		animation: spin 0.6s linear infinite;
 	}
@@ -232,7 +231,7 @@
 		to { transform: rotate(360deg); }
 	}
 
-	:global(.quick-search__results) {
+	.quick-search__results {
 		max-height: 300px;
 		padding: 0.5rem;
 	}
@@ -244,7 +243,7 @@
 	.quick-search__section-title {
 		font-size: 0.75rem;
 		font-weight: 500;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 	}
@@ -265,7 +264,7 @@
 
 	.quick-search__item:hover,
 	.quick-search__item--selected {
-		background-color: var(--dbg3);
+		background-color: hsl(var(--accent));
 	}
 
 	.quick-search__item-icon {
@@ -275,20 +274,20 @@
 		width: 20px;
 		height: 20px;
 		font-size: 14px;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 	}
 
 	.quick-search__item-title {
 		flex: 1;
 		font-size: 0.875rem;
-		color: var(--dt);
+		color: hsl(var(--foreground));
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
-	:global(.quick-search__item-arrow) {
-		color: var(--dt3);
+	.quick-search__item-arrow {
+		color: hsl(var(--muted-foreground));
 	}
 
 	.quick-search__empty {
@@ -298,7 +297,7 @@
 		justify-content: center;
 		gap: 0.5rem;
 		padding: 2rem;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 		text-align: center;
 	}
 
@@ -312,7 +311,7 @@
 		display: flex;
 		gap: 1rem;
 		font-size: 0.75rem;
-		color: var(--dt3);
+		color: hsl(var(--muted-foreground));
 	}
 
 	.quick-search__hint kbd {
@@ -321,7 +320,7 @@
 		padding: 0.125rem 0.375rem;
 		margin-right: 0.25rem;
 		border-radius: 0.25rem;
-		background-color: var(--dbg2);
+		background-color: hsl(var(--muted));
 		font-family: ui-monospace, monospace;
 		font-size: 0.625rem;
 	}

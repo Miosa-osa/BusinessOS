@@ -130,7 +130,7 @@
 	<!-- Dropdown -->
 	{#if showDropdown && choices.length > 0}
 		<div
-			class="absolute left-0 top-full z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+			class="dt2-dropdown absolute left-0 top-full mt-1 w-48 rounded-lg py-1"
 			onclick={(e) => e.stopPropagation()}
 			role="listbox"
 		>
@@ -138,7 +138,7 @@
 				{@const isSelected = selectedIds.includes(choice.id)}
 				<button
 					type="button"
-					class="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+					class="dt2-dropdown__item flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors"
 					onclick={() => handleSelect(choice)}
 					role="option"
 					aria-selected={isSelected}
@@ -167,3 +167,21 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.dt2-dropdown {
+		z-index: var(--bos-z-index-popover, 1001);
+		background: var(--dbg);
+		border: 1px solid var(--dbd);
+		box-shadow: var(--shadow-lg);
+	}
+
+	.dt2-dropdown__item {
+		color: var(--dt);
+		border-radius: 6px;
+	}
+
+	.dt2-dropdown__item:hover {
+		background: var(--dbg3);
+	}
+</style>

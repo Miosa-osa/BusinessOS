@@ -135,7 +135,7 @@
 	<!-- Content: Generating | Message Artifact | Selected Artifact | List -->
 	{#if generatingArtifact}
 		<!-- Live Generation View -->
-		<div class="flex-1 flex flex-col overflow-hidden bg-[#1c1c1e]">
+		<div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-[#1c1c1e]">
 			<div class="p-4 border-b border-white/10 flex-shrink-0">
 				<div class="flex items-center gap-3">
 					<div class="w-10 h-10 rounded-lg {generatingArtifactType ? getArtifactColor(generatingArtifactType) : 'bg-white/10 text-gray-300'} flex items-center justify-center flex-shrink-0 relative">
@@ -166,7 +166,7 @@
 				</div>
 			</div>
 			<div class="flex-1 overflow-y-auto p-4">
-				<div class="prose prose-sm dark:prose-invert max-w-none" style="--tw-prose-body: #f5f5f7; --tw-prose-headings: #fff; --tw-prose-bold: #fff;">
+				<div class="prose prose-sm dark:prose-invert max-w-none" style="--tw-prose-body: var(--dt); --tw-prose-headings: var(--dt); --tw-prose-bold: var(--dt);">
 					{@html renderMarkdown(generatingArtifactContent || 'Waiting for content...')}
 					<span class="inline-block w-2 h-4 bg-green-500 animate-pulse ml-0.5"></span>
 				</div>
@@ -175,7 +175,7 @@
 
 	{:else if viewingArtifactFromMessage}
 		<!-- Viewing artifact from message -->
-		<div class="flex-1 flex flex-col overflow-hidden bg-[#1c1c1e]">
+		<div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-[#1c1c1e]">
 			<div class="p-4 border-b border-white/10 flex-shrink-0">
 				<div class="flex items-start gap-3">
 					<div class="w-10 h-10 rounded-lg {getArtifactColor(viewingArtifactFromMessage.type)} flex items-center justify-center flex-shrink-0">
@@ -229,7 +229,7 @@
 
 	{:else if selectedArtifact}
 		<!-- Artifact Detail View (from API) -->
-		<div class="flex-1 flex flex-col overflow-hidden bg-[#1c1c1e]">
+		<div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-[#1c1c1e]">
 			<div class="p-4 border-b border-white/10 flex-shrink-0">
 				<div class="flex items-start gap-3">
 					<div class="w-10 h-10 rounded-lg {getArtifactColor(selectedArtifact.type)} flex items-center justify-center flex-shrink-0">
@@ -273,7 +273,7 @@
 
 	{:else}
 		<!-- Artifacts List -->
-		<div class="flex-1 overflow-y-auto bg-[#1c1c1e]">
+		<div class="flex-1 overflow-y-auto bg-gray-50 dark:bg-[#1c1c1e]">
 			{#if loadingArtifacts}
 				<div class="flex items-center justify-center h-32">
 					<div class="animate-spin h-6 w-6 border-2 border-white/30 border-t-transparent rounded-full"></div>
