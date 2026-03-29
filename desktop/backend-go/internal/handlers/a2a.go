@@ -10,8 +10,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/idempotency"
+	"github.com/rhl/businessos-backend/internal/observability"
 	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // ---------------------------------------------------------------------------
@@ -79,24 +82,36 @@ func NewA2AHandler(a2aClient *services.A2AClient) *A2AHandler {
 // DiscoverAgent handles POST /api/integrations/a2a/agents/discover
 // Fetches the agent card from a remote A2A agent and caches the connection.
 func (h *A2AHandler) DiscoverAgent(c *gin.Context) {
+	ctx, span := observability.StartA2ASpan(c, "a2a.discover_agent")
+	defer span.End()
+
 	var req discoverAgentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		span.SetStatus(codes.Error, "invalid_request")
+		span.RecordError(err)
 		utils.RespondInvalidRequest(c, slog.Default(), err)
 		return
 	}
 
+	span.SetAttributes(attribute.String("a2a.agent_url", req.AgentURL))
+
 	if err := validateAgentURL(req.AgentURL); err != nil {
+		span.SetStatus(codes.Error, "invalid_url")
+		span.RecordError(err)
 		utils.RespondBadRequest(c, slog.Default(), err.Error())
 		return
 	}
 
-	card, err := h.a2aClient.DiscoverAgent(c.Request.Context(), req.AgentURL)
+	card, err := h.a2aClient.DiscoverAgent(ctx, req.AgentURL)
 	if err != nil {
+		span.SetStatus(codes.Error, "discovery_failed")
+		span.RecordError(err)
 		slog.Error("A2A agent discovery failed", "url", req.AgentURL, "error", err)
 		utils.RespondBadRequest(c, slog.Default(), "Agent discovery failed: "+err.Error())
 		return
 	}
 
+	span.SetStatus(codes.Ok, "agent_discovered")
 	c.JSON(http.StatusOK, gin.H{
 		"agent_card": card,
 	})

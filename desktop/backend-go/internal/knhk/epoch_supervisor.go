@@ -232,12 +232,12 @@ func (s *EpochSupervisor) GetTierStatus(tier OperationTier) map[string]interface
 	s.failuresMu.RUnlock()
 
 	return map[string]interface{}{
-		"tier":             tier.Name,
-		"current_ops":      currentCount,
-		"max_ops":          tier.MaxOpsPerMin,
-		"recent_failures":  failures,
-		"circuit_open":     s.circuitOpen,
-		"timeout_ms":       tier.TimeoutMs.Milliseconds(),
+		"tier":            tier.Name,
+		"current_ops":     currentCount,
+		"max_ops":         tier.MaxOpsPerMin,
+		"recent_failures": failures,
+		"circuit_open":    s.circuitOpen,
+		"timeout_ms":      tier.TimeoutMs.Milliseconds(),
 	}
 }
 
