@@ -421,12 +421,12 @@ describe('Agents Store', () => {
             matches = matches && (
               a.name.toLowerCase().includes(search) ||
               a.display_name.toLowerCase().includes(search) ||
-              a.description?.toLowerCase().includes(search)
+              (a.description?.toLowerCase().includes(search) ?? false)
             );
           }
 
           if (state.filters.status === 'active') {
-            matches = matches && a.is_active;
+            matches = matches && (a.is_active ?? false);
           } else if (state.filters.status === 'inactive') {
             matches = matches && !a.is_active;
           }

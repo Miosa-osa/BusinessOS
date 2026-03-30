@@ -4,6 +4,7 @@
 	interface Props extends Partial<FormFieldConfig> {
 		value: string | number | boolean | string[];
 		error?: string;
+		onchange?: () => void;
 	}
 
 	let {
@@ -45,9 +46,9 @@
 			{required}
 			{disabled}
 			{placeholder}
-			{minLength}
-			{maxLength}
-			autocomplete={autoComplete ?? undefined}
+			minlength={minLength}
+			maxlength={maxLength}
+			autocomplete={autoComplete as any}
 			bind:value
 			class="input input-bordered w-full {error ? 'input-error' : ''}"
 		/>
@@ -111,7 +112,8 @@
 				type="checkbox"
 				{required}
 				disabled={!!disabled}
-				bind:checked={value}
+				checked={value as boolean}
+				onchange={(e) => { value = (e.currentTarget as HTMLInputElement).checked; }}
 				class="checkbox checkbox-primary"
 			/>
 			<span class="label-text">{label}</span>

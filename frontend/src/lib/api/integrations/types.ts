@@ -240,6 +240,7 @@ export interface IntegrationProviderInfo {
   skills: string[];
   status: IntegrationStatus;
   // Rich UI display fields
+  logo_url?: string;
   auto_live_sync?: boolean;
   est_nodes?: string;
   initial_sync?: string;
@@ -264,6 +265,7 @@ export interface UserIntegration {
   skills: string[];
   modules: string[];
   metadata?: Record<string, unknown>;
+  oauth_provider?: string;
   // New fields from enhanced API
   sync_stats?: IntegrationSyncStats;
   sync_history?: SyncHistoryEntry[];

@@ -41,9 +41,9 @@
 
 	// Sample data for testing
 	const sampleUsers = [
-		{ id: '1', name: 'John Smith', email: 'john@acme.com', avatar: null },
-		{ id: '2', name: 'Sarah Chen', email: 'sarah@acme.com', avatar: null },
-		{ id: '3', name: 'Mike Johnson', email: 'mike@acme.com', avatar: null }
+		{ id: '1', name: 'John Smith', email: 'john@acme.com', avatar: undefined },
+		{ id: '2', name: 'Sarah Chen', email: 'sarah@acme.com', avatar: undefined },
+		{ id: '3', name: 'Mike Johnson', email: 'mike@acme.com', avatar: undefined }
 	];
 
 	const statusOptions = [

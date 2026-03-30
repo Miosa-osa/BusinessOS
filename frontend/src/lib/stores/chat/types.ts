@@ -11,8 +11,7 @@ import type {
   ContextListItem,
   CustomAgent,
 } from "$lib/api";
-import type { DelegatedTask } from "$lib/components/chat/panels/ProgressPanel.svelte";
-import type { ActiveResource } from "$lib/components/chat/panels/ContextPanel.svelte";
+import type { DelegatedTask, ActiveResource } from "$lib/components/chat/panels/types";
 
 // Re-export types that live in ChatStreamManager
 export type {

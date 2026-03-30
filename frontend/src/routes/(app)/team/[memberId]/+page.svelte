@@ -23,12 +23,12 @@
 		loading = true;
 		error = null;
 		try {
-			const data = await team.loadMember(memberId);
+			const data = await team.loadMember(memberId ?? '');
 			if (data) {
 				member = data;
 			} else {
 				// Try mock data fallback
-				const mockMember = getMockMember(memberId);
+				const mockMember = getMockMember(memberId ?? '');
 				if (mockMember) {
 					member = mockMember;
 				} else {
@@ -37,7 +37,7 @@
 			}
 		} catch {
 			// Backend unavailable — try mock data
-			const mockMember = getMockMember(memberId);
+			const mockMember = getMockMember(memberId ?? '');
 			if (mockMember) {
 				member = mockMember;
 			} else {

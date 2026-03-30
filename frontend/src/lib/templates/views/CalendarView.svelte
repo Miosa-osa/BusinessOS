@@ -109,7 +109,7 @@
 
 		const field = fields.find(f => f.id === config.colorField);
 		if (field?.type === 'status' && field.config?.options) {
-			const option = field.config.options.find((o: { value: string; color?: string }) => o.value === colorValue);
+			const option = (field.config.options as Array<{ value: string; color?: string }>).find((o) => o.value === colorValue);
 			if (option?.color) {
 				return `var(--tpl-status-${option.color}, ${option.color})`;
 			}

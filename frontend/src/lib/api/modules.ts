@@ -11,6 +11,8 @@ import type {
   ModuleVisibility
 } from '$lib/types/modules';
 
+export type { CreateModuleData, UpdateModuleData, ShareModuleData };
+
 // Module CRUD operations
 
 export async function getModules(params?: {

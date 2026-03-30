@@ -118,7 +118,7 @@
 		onclose?.();
 	}
 
-	const fieldOptions = $derived(fields.map(f => ({ value: f.id, label: f.label })));
+	const fieldOptions = $derived(fields.map(f => ({ value: f.id, label: f.label ?? f.name ?? f.id })));
 </script>
 
 <div class="tpl-filter-builder">
@@ -169,7 +169,7 @@
 							{#if condition.operator !== 'is_empty' && condition.operator !== 'is_not_empty'}
 								{#if field?.type === 'select' || field?.type === 'status'}
 									<TemplateSelect
-										options={(field.config?.options || []).map((o: { value: string; label?: string }) => ({ value: o.value, label: o.label || o.value }))}
+										options={(field.config?.options as Array<{ value: string; label?: string }> || []).map((o) => ({ value: o.value, label: o.label || o.value }))}
 										value={String(condition.value || '')}
 										size="sm"
 										onchange={(e) => updateCondition(condition.id, { value: (e.target as HTMLSelectElement).value })}

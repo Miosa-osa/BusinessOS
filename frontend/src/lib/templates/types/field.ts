@@ -30,6 +30,7 @@ export type FieldType =
 export interface BaseField {
   id: string;
   name: string;
+  label?: string;
   type: FieldType;
   description?: string;
   required?: boolean;
@@ -38,6 +39,7 @@ export interface BaseField {
   width?: number; // Column width in pixels
   minWidth?: number;
   maxWidth?: number;
+  config?: Record<string, unknown>;
 }
 
 /** Text field */
@@ -84,6 +86,7 @@ export interface CheckboxField extends BaseField {
 }
 
 /** Select/Status field option */
+export type StatusOption = SelectOption;
 export interface SelectOption {
   value: string;
   label: string;

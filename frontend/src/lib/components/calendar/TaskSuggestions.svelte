@@ -314,10 +314,10 @@
 								</p>
 								<div class="flex items-center gap-2 mt-0.5">
 									<span
-										style="{formatDueDateStyle(suggestion.suggested_due_date)}"
+										style="{formatDueDateStyle(suggestion.suggested_due_date ?? '')}"
 										class="text-xs px-1.5 py-0.5 rounded"
 									>
-										{formatDueDate(suggestion.suggested_due_date)}
+										{formatDueDate(suggestion.suggested_due_date ?? '')}
 									</span>
 									<span style="color: var(--dt3)" class="text-xs truncate">
 										{suggestion.related_event_title}
@@ -507,8 +507,8 @@
 					</span>
 					<span style="background: var(--dt3)" class="w-1 h-1 rounded-full"></span>
 					<span>
-						{new Date(response.analysis_period.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –
-						{new Date(response.analysis_period.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+						{new Date(response.analysis_period?.start ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –
+						{new Date(response.analysis_period?.end ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
 					</span>
 				</div>
 			{/if}
@@ -547,10 +547,10 @@
 												{suggestion.priority}
 											</span>
 											<span
-												style="{formatDueDateStyle(suggestion.suggested_due_date)}"
+												style="{formatDueDateStyle(suggestion.suggested_due_date ?? '')}"
 												class="text-xs px-2 py-1 rounded-full"
 											>
-												Due: {formatDueDate(suggestion.suggested_due_date)}
+												Due: {formatDueDate(suggestion.suggested_due_date ?? '')}
 											</span>
 										</div>
 										<h4 style="color: var(--dt1)" class="font-semibold text-base">{suggestion.title}</h4>
@@ -635,10 +635,10 @@
 												{suggestion.priority}
 											</span>
 											<span
-												style="{formatDueDateStyle(suggestion.suggested_due_date)}"
+												style="{formatDueDateStyle(suggestion.suggested_due_date ?? '')}"
 												class="text-xs px-2 py-1 rounded-full"
 											>
-												Due: {formatDueDate(suggestion.suggested_due_date)}
+												Due: {formatDueDate(suggestion.suggested_due_date ?? '')}
 											</span>
 										</div>
 										<h4 style="color: var(--dt1)" class="font-semibold text-base">{suggestion.title}</h4>

@@ -43,7 +43,7 @@
 			return groupField.config.options as StatusOption[];
 		}
 		if (groupField.type === 'select' && groupField.config?.options) {
-			return groupField.config.options;
+			return groupField.config.options as StatusOption[];
 		}
 		// Generate columns from unique values in data
 		const uniqueValues = new Set<string>();
@@ -60,7 +60,7 @@
 	const groupedData = $derived(() => {
 		const groups: Record<string, Record<string, unknown>[]> = {};
 		const cols = columns();
-		cols.forEach(col => {
+		cols.forEach((col: StatusOption) => {
 			groups[col.value] = [];
 		});
 		// Add uncategorized column
@@ -127,7 +127,7 @@
 		if (config.columnColors?.[value]) {
 			return config.columnColors[value];
 		}
-		const col = columns().find(c => c.value === value);
+		const col = columns().find((c: StatusOption) => c.value === value);
 		return col?.color || 'gray';
 	}
 

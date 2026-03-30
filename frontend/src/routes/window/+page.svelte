@@ -38,7 +38,7 @@
 
 		// Start discovering deployed OSA apps and user-generated apps
 		const workspaceId = $currentWorkspaceId || undefined;
-		deployedAppsStore.startDiscovery(workspaceId);
+		deployedAppsStore.startDiscovery();
 
 		// Show loading screen for consistent duration (matches CSS animation)
 		setTimeout(() => {

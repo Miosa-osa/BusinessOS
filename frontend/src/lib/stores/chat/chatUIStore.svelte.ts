@@ -11,8 +11,7 @@
  * needs a getter because mutation goes through the resize methods.
  */
 
-import type { DelegatedTask } from "$lib/components/chat/panels/ProgressPanel.svelte";
-import type { ActiveResource } from "$lib/components/chat/panels/ContextPanel.svelte";
+import type { DelegatedTask, ActiveResource } from "$lib/components/chat/panels/types";
 
 const LOCAL_STORAGE_KEY = "chat_panel_state";
 

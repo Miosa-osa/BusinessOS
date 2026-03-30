@@ -68,10 +68,11 @@
   }
 
   async function handleToggleActive() {
-    if (!agent || isTogglingActive || !agentId) return;
+    const _agent = agent;
+    if (!_agent || isTogglingActive || !agentId) return;
     isTogglingActive = true;
     try {
-      await agents.updateAgent(agentId as string, { is_active: !agent.is_active });
+      await agents.updateAgent(agentId as string, { is_active: !_agent.is_active });
       await loadAgent();
     } catch (err) {
       console.error('Failed to toggle agent status:', err);
@@ -81,23 +82,24 @@
   }
 
   async function handleClone() {
-    if (!agent) return;
+    const _agent = agent;
+    if (!_agent) return;
     try {
       const cloned = await agents.createAgent({
-        name: `${agent.name}-copy`,
-        display_name: `${agent.display_name} (Copy)`,
-        description: agent.description,
-        avatar: agent.avatar,
-        system_prompt: agent.system_prompt,
-        model_preference: agent.model_preference,
-        temperature: agent.temperature,
-        max_tokens: agent.max_tokens,
-        capabilities: agent.capabilities,
-        tools_enabled: agent.tools_enabled,
-        context_sources: agent.context_sources,
-        thinking_enabled: agent.thinking_enabled,
-        streaming_enabled: agent.streaming_enabled,
-        category: agent.category,
+        name: `${_agent.name}-copy`,
+        display_name: `${_agent.display_name} (Copy)`,
+        description: _agent.description,
+        avatar: _agent.avatar,
+        system_prompt: _agent.system_prompt,
+        model_preference: _agent.model_preference,
+        temperature: _agent.temperature,
+        max_tokens: _agent.max_tokens,
+        capabilities: _agent.capabilities,
+        tools_enabled: _agent.tools_enabled,
+        context_sources: _agent.context_sources,
+        thinking_enabled: _agent.thinking_enabled,
+        streaming_enabled: _agent.streaming_enabled,
+        category: _agent.category,
         is_active: false
       });
       if (cloned) goto(`/agents/${cloned.id}`);
@@ -119,8 +121,9 @@
   }
 
   async function handleCopySystemPrompt() {
-    if (!agent) return;
-    await navigator.clipboard.writeText(agent.system_prompt);
+    const _agent = agent;
+    if (!_agent) return;
+    await navigator.clipboard.writeText(_agent.system_prompt);
     copyFeedback = true;
     setTimeout(() => { copyFeedback = false; }, 1800);
   }
@@ -215,7 +218,7 @@
                 {#if savingName}<span class="agd-inline-saving" aria-label="Saving..."></span>{/if}
               </div>
             {:else}
-              <button class="agd-editable-field agd-sb__name-btn" onclick={() => { editNameValue = agent.display_name ?? ''; editingName = true; }} title="Click to edit">
+              <button class="agd-editable-field agd-sb__name-btn" onclick={() => { editNameValue = agent!.display_name ?? ''; editingName = true; }} title="Click to edit">
                 <span class="agd-sb__name">{agent.display_name}</span>
                 <svg class="agd-edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
@@ -375,7 +378,7 @@
                       </div>
                     </div>
                   {:else}
-                    <div class="agd-editable-field agd-editable-field--block" onclick={() => { editDescValue = agent.description ?? ''; editingDesc = true; }} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && (() => { editDescValue = agent.description ?? ''; editingDesc = true; })()} title="Click to edit">
+                    <div class="agd-editable-field agd-editable-field--block" onclick={() => { editDescValue = agent!.description ?? ''; editingDesc = true; }} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && (() => { editDescValue = agent!.description ?? ''; editingDesc = true; })()} title="Click to edit">
                       <p class="agd-overview__desc">{agent.description || 'No description. Click to add one.'}</p>
                       <svg class="agd-edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     </div>

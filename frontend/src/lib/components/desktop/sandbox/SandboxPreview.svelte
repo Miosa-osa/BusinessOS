@@ -31,8 +31,8 @@
 	let error = $state<string | null>(null);
 	let successMessage = $state<string | null>(null);
 
-	let hasDiffs = $derived(sandbox?.diff && sandbox.diff.length > 0);
-	let hasErrors = $derived(sandbox?.errors && sandbox.errors.length > 0);
+	let hasDiffs = $derived(((sandbox as any)?.diff?.length ?? 0) > 0);
+	let hasErrors = $derived(((sandbox as any)?.errors?.length ?? 0) > 0);
 
 	// Track timeouts for cleanup on destroy
 	let timeoutIds: ReturnType<typeof setTimeout>[] = [];
@@ -253,7 +253,7 @@
 		<div class="border-t border-gray-200 dark:border-gray-700 px-4 py-3">
 			<ApproveReject
 				{sandboxId}
-				state={sandbox.state}
+				editState={sandbox.state}
 				onApprove={handleApproved}
 				onReject={handleRejected}
 				disabled={isLoading || isValidating}

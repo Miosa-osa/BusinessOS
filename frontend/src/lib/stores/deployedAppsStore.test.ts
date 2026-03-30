@@ -185,7 +185,7 @@ describe('deployedAppsStore', () => {
 					json: async () => ({ apps: userApps })
 				});
 
-			await deployedAppsStore.refresh('workspace-123');
+			await deployedAppsStore.refresh();
 
 			const state = get(deployedAppsStore);
 			expect(state.apps).toHaveLength(2);
@@ -203,7 +203,7 @@ describe('deployedAppsStore', () => {
 					statusText: 'Not Found'
 				});
 
-			await deployedAppsStore.refresh('workspace-123');
+			await deployedAppsStore.refresh();
 
 			const state = get(deployedAppsStore);
 			// Should still have deployed apps even if user apps fail
@@ -284,7 +284,7 @@ describe('deployedAppsStore', () => {
 				json: async () => ({ apps: [] })
 			});
 
-			await deployedAppsStore.startDiscovery('workspace-123');
+			await deployedAppsStore.startDiscovery();
 
 			// Should call both endpoints
 			expect(global.fetch).toHaveBeenCalledWith('/api/osa/deployments', expect.any(Object));

@@ -80,7 +80,7 @@
 			}
 		}
 
-		await templateStore.generateApp(templateId, workspaceId, appName, config);
+		await templateStore.generateApp(templateId ?? '', workspaceId, appName, config);
 	}
 
 	function formatPopularity(score: number): string {

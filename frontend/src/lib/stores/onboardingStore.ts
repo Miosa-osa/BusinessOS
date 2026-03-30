@@ -63,7 +63,7 @@ export interface OnboardingState {
 		email?: string;
 		username?: string;
 		gmailConnected: boolean;
-		integrationsConnected: string[];
+		integrationsConnected?: string[];
 		interests?: string[];
 		starterApps?: StarterApp[];
 		quickInfo?: QuickInfo;

@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func ptrStr(s string) *string { return &s }
+
 // ============================================================================
 // Mock Helpers (unit tests — no DB required)
 // ============================================================================
@@ -271,7 +273,7 @@ func TestExportManifestRoundtrip(t *testing.T) {
 		ID:          moduleID,
 		Name:        "CRM Module",
 		Slug:        "crm",
-		Description: "Customer relationship management",
+		Description: ptrStr("Customer relationship management"),
 		Category:    "business",
 		Version:     "1.2.3",
 		UpdatedAt:   now,

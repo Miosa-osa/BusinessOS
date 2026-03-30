@@ -90,8 +90,8 @@ function createAgentsStore() {
 
         // Safely access agents array — backend may return different shapes
         let agents: CustomAgent[] = Array.isArray(response)
-          ? response
-          : Array.isArray((response as Record<string, unknown>)?.agents)
+          ? (response as CustomAgent[])
+          : Array.isArray((response as { agents?: CustomAgent[] })?.agents)
             ? (response as { agents: CustomAgent[] }).agents
             : [];
 
@@ -504,8 +504,8 @@ function createAgentsStore() {
         );
         const response = await Promise.race([fetchPromise, timeoutPromise]);
         const presets = Array.isArray(response)
-          ? response
-          : Array.isArray((response as Record<string, unknown>)?.presets)
+          ? (response as AgentPreset[])
+          : Array.isArray((response as { presets?: AgentPreset[] })?.presets)
             ? (response as { presets: AgentPreset[] }).presets
             : [];
         update((s) => ({ ...s, presets, loading: false }));
