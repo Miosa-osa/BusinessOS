@@ -67,8 +67,7 @@ func (m *ContainerManager) CreateContainer(userID string, sessionID string, imag
 	containerName := fmt.Sprintf("%s-%s-%s", containerPrefix, userID, shortSessionID)
 	volumeName := fmt.Sprintf("workspace_%s", userID)
 
-	slog.Info("[Container] Creating container",
-		containerName, userID, image)
+	slog.Info("[Container] Creating container", "name", containerName, "userID", userID, "image", image)
 
 	// Create volume if it doesn't exist
 	if err := m.ensureVolume(volumeName, userID); err != nil {

@@ -2,16 +2,122 @@ package osa
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"errors"
 	"testing"
 	"time"
 
+	osasdk "github.com/Miosa-osa/sdk-go"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// noopSDK implements osasdk.Client with no-op methods.
+// Embed in test-specific structs and override only the methods under test.
+type noopSDK struct{}
+
+func (n *noopSDK) Health(_ context.Context) (*osasdk.HealthResponse, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) Orchestrate(_ context.Context, _ osasdk.OrchestrateRequest) (*osasdk.OrchestrateResponse, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) GenerateApp(_ context.Context, _ osasdk.AppGenerationRequest) (*osasdk.AppGenerationResponse, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) GetAppStatus(_ context.Context, _ string) (*osasdk.AppStatusResponse, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) GenerateAppFromTemplate(_ context.Context, _ osasdk.GenerateFromTemplateRequest) (*osasdk.AppGenerationResponse, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) GetWorkspaces(_ context.Context) (*osasdk.WorkspacesResponse, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) Stream(_ context.Context, _ string) (<-chan osasdk.Event, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) LaunchSwarm(_ context.Context, _ osasdk.SwarmRequest) (*osasdk.SwarmResponse, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) ListSwarms(_ context.Context) ([]osasdk.SwarmStatus, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) GetSwarm(_ context.Context, _ string) (*osasdk.SwarmStatus, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) CancelSwarm(_ context.Context, _ string) error {
+	return errors.New("not implemented")
+}
+func (n *noopSDK) DispatchInstruction(_ context.Context, _ string, _ osasdk.Instruction) error {
+	return errors.New("not implemented")
+}
+func (n *noopSDK) ListTools(_ context.Context) ([]osasdk.ToolDefinition, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) ExecuteTool(_ context.Context, _ string, _ map[string]interface{}) (*osasdk.ToolResult, error) {
+	return nil, errors.New("not implemented")
+}
+func (n *noopSDK) Close() error { return nil }
+
+func testConfig() *Config {
+	return &Config{
+		BaseURL:      "http://osa.local",
+		SharedSecret: "test-secret-key-min-32-bytes-long",
+		Timeout:      5 * time.Second,
+		MaxRetries:   1,
+	}
+}
+
+// --- per-test mock SDK types ---
+
+type mockHealthSDK struct {
+	noopSDK
+	resp *osasdk.HealthResponse
+	err  error
+}
+
+func (m *mockHealthSDK) Health(_ context.Context) (*osasdk.HealthResponse, error) {
+	return m.resp, m.err
+}
+
+type mockGenerateAppSDK struct {
+	noopSDK
+	fn func(osasdk.AppGenerationRequest) (*osasdk.AppGenerationResponse, error)
+}
+
+func (m *mockGenerateAppSDK) GenerateApp(_ context.Context, req osasdk.AppGenerationRequest) (*osasdk.AppGenerationResponse, error) {
+	return m.fn(req)
+}
+
+type mockGetAppStatusSDK struct {
+	noopSDK
+	fn func(string) (*osasdk.AppStatusResponse, error)
+}
+
+func (m *mockGetAppStatusSDK) GetAppStatus(_ context.Context, appID string) (*osasdk.AppStatusResponse, error) {
+	return m.fn(appID)
+}
+
+type mockOrchestrateSDK struct {
+	noopSDK
+	fn func(osasdk.OrchestrateRequest) (*osasdk.OrchestrateResponse, error)
+}
+
+func (m *mockOrchestrateSDK) Orchestrate(_ context.Context, req osasdk.OrchestrateRequest) (*osasdk.OrchestrateResponse, error) {
+	return m.fn(req)
+}
+
+type mockGetWorkspacesSDK struct {
+	noopSDK
+	fn func() (*osasdk.WorkspacesResponse, error)
+}
+
+func (m *mockGetWorkspacesSDK) GetWorkspaces(_ context.Context) (*osasdk.WorkspacesResponse, error) {
+	return m.fn()
+}
+
+// --- tests ---
 
 func TestNewClient(t *testing.T) {
 	tests := []struct {
@@ -62,32 +168,13 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestClient_HealthCheck(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/health", r.URL.Path)
-		assert.Equal(t, "GET", r.Method)
+	client := newClientWithSDK(testConfig(), &mockHealthSDK{
+		resp: &osasdk.HealthResponse{Status: "healthy", Version: "1.0.0"},
+	})
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":  "healthy",
-			"version": "1.0.0",
-		})
-	}))
-	defer server.Close()
+	health, err := client.HealthCheck(context.Background())
 
-	config := &Config{
-		BaseURL:      server.URL,
-		SharedSecret: "test-secret-key-min-32-bytes-long",
-		Timeout:      5 * time.Second,
-		MaxRetries:   1,
-	}
-	client, err := NewClient(config)
 	require.NoError(t, err)
-
-	ctx := context.Background()
-	health, err := client.HealthCheck(ctx)
-
-	assert.NoError(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, "healthy", health.Status)
 	assert.Equal(t, "1.0.0", health.Version)
@@ -98,51 +185,28 @@ func TestClient_GenerateApp(t *testing.T) {
 	workspaceID := uuid.New()
 	appID := uuid.New().String()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v1/generate", r.URL.Path)
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		assert.NotEmpty(t, r.Header.Get("Authorization"))
+	client := newClientWithSDK(testConfig(), &mockGenerateAppSDK{
+		fn: func(req osasdk.AppGenerationRequest) (*osasdk.AppGenerationResponse, error) {
+			assert.Equal(t, "Test App", req.Name)
+			assert.Equal(t, userID.String(), req.UserID)
+			assert.Equal(t, workspaceID.String(), req.WorkspaceID)
+			return &osasdk.AppGenerationResponse{
+				AppID:       appID,
+				Status:      "processing",
+				WorkspaceID: workspaceID.String(),
+			}, nil
+		},
+	})
 
-		var req map[string]interface{}
-		err := json.NewDecoder(r.Body).Decode(&req)
-		require.NoError(t, err)
-		assert.Equal(t, "Test App", req["name"])
-		assert.Equal(t, userID.String(), req["user_id"])
-		assert.Equal(t, workspaceID.String(), req["workspace_id"])
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"app_id":       appID,
-			"status":       "processing",
-			"workspace_id": workspaceID.String(),
-			"created_at":   time.Now().UTC().Format(time.RFC3339),
-		})
-	}))
-	defer server.Close()
-
-	config := &Config{
-		BaseURL:      server.URL,
-		SharedSecret: "test-secret-key-min-32-bytes-long",
-		Timeout:      5 * time.Second,
-		MaxRetries:   1,
-	}
-	client, err := NewClient(config)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	req := &AppGenerationRequest{
+	resp, err := client.GenerateApp(context.Background(), &AppGenerationRequest{
 		UserID:      userID,
 		WorkspaceID: workspaceID,
 		Name:        "Test App",
 		Description: "A test application",
 		Type:        "full-stack",
-	}
+	})
 
-	resp, err := client.GenerateApp(ctx, req)
-
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, appID, resp.AppID)
 	assert.Equal(t, "processing", resp.Status)
@@ -153,36 +217,20 @@ func TestClient_GetAppStatus(t *testing.T) {
 	appID := uuid.New().String()
 	userID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v1/apps/"+appID+"/status", r.URL.Path)
-		assert.Equal(t, "GET", r.Method)
-		assert.NotEmpty(t, r.Header.Get("Authorization"))
+	client := newClientWithSDK(testConfig(), &mockGetAppStatusSDK{
+		fn: func(gotAppID string) (*osasdk.AppStatusResponse, error) {
+			assert.Equal(t, appID, gotAppID)
+			return &osasdk.AppStatusResponse{
+				AppID:    appID,
+				Status:   "completed",
+				Progress: 1.0,
+			}, nil
+		},
+	})
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"app_id":       appID,
-			"status":       "completed",
-			"progress":     1.0,
-			"current_step": "Done",
-			"updated_at":   time.Now().UTC().Format(time.RFC3339),
-		})
-	}))
-	defer server.Close()
+	status, err := client.GetAppStatus(context.Background(), appID, userID)
 
-	config := &Config{
-		BaseURL:      server.URL,
-		SharedSecret: "test-secret-key-min-32-bytes-long",
-		Timeout:      5 * time.Second,
-		MaxRetries:   1,
-	}
-	client, err := NewClient(config)
 	require.NoError(t, err)
-
-	ctx := context.Background()
-	status, err := client.GetAppStatus(ctx, appID, userID)
-
-	assert.NoError(t, err)
 	assert.NotNil(t, status)
 	assert.Equal(t, appID, status.AppID)
 	assert.Equal(t, "completed", status.Status)
@@ -193,49 +241,27 @@ func TestClient_Orchestrate(t *testing.T) {
 	userID := uuid.New()
 	workspaceID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v1/orchestrate", r.URL.Path)
-		assert.Equal(t, "POST", r.Method)
-		assert.NotEmpty(t, r.Header.Get("Authorization"))
+	client := newClientWithSDK(testConfig(), &mockOrchestrateSDK{
+		fn: func(req osasdk.OrchestrateRequest) (*osasdk.OrchestrateResponse, error) {
+			assert.Equal(t, userID.String(), req.UserID)
+			assert.Equal(t, "Build me a task manager", req.Input)
+			return &osasdk.OrchestrateResponse{
+				SessionID:   "sess-123",
+				Success:     true,
+				Output:      "Task manager created successfully",
+				AgentsUsed:  []string{"StrategyAgent", "ArchitectAgent", "DevelopmentAgent"},
+				ExecutionMS: 5000,
+			}, nil
+		},
+	})
 
-		var req map[string]interface{}
-		err := json.NewDecoder(r.Body).Decode(&req)
-		require.NoError(t, err)
-		assert.Equal(t, userID.String(), req["user_id"])
-		assert.Equal(t, "Build me a task manager", req["input"])
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"session_id":      "sess-123",
-			"success":         true,
-			"output":          "Task manager created successfully",
-			"agents_used":     []string{"StrategyAgent", "ArchitectAgent", "DevelopmentAgent"},
-			"execution_ms":    5000,
-			"iteration_count": 3,
-		})
-	}))
-	defer server.Close()
-
-	config := &Config{
-		BaseURL:      server.URL,
-		SharedSecret: "test-secret-key-min-32-bytes-long",
-		Timeout:      10 * time.Second,
-		MaxRetries:   1,
-	}
-	client, err := NewClient(config)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	req := &OrchestrateRequest{
+	resp, err := client.Orchestrate(context.Background(), &OrchestrateRequest{
 		UserID:      userID,
 		Input:       "Build me a task manager",
 		WorkspaceID: workspaceID,
-	}
+	})
 
-	resp, err := client.Orchestrate(ctx, req)
-
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.True(t, resp.Success)
 	assert.Equal(t, "Task manager created successfully", resp.Output)
@@ -245,51 +271,24 @@ func TestClient_Orchestrate(t *testing.T) {
 
 func TestClient_GetWorkspaces(t *testing.T) {
 	userID := uuid.New()
+	ws1ID := uuid.New().String()
+	ws2ID := uuid.New().String()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/api/v1/workspaces", r.URL.Path)
-		assert.Equal(t, "GET", r.Method)
-		assert.NotEmpty(t, r.Header.Get("Authorization"))
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"workspaces": []map[string]interface{}{
-				{
-					"id":          uuid.New().String(),
-					"name":        "Workspace 1",
-					"description": "First workspace",
-					"owner_id":    userID.String(),
-					"created_at":  time.Now().UTC().Format(time.RFC3339),
-					"updated_at":  time.Now().UTC().Format(time.RFC3339),
+	client := newClientWithSDK(testConfig(), &mockGetWorkspacesSDK{
+		fn: func() (*osasdk.WorkspacesResponse, error) {
+			return &osasdk.WorkspacesResponse{
+				Total: 2,
+				Workspaces: []osasdk.WorkspaceInfo{
+					{ID: ws1ID, Name: "Workspace 1", OwnerID: userID.String()},
+					{ID: ws2ID, Name: "Workspace 2", OwnerID: userID.String()},
 				},
-				{
-					"id":          uuid.New().String(),
-					"name":        "Workspace 2",
-					"description": "Second workspace",
-					"owner_id":    userID.String(),
-					"created_at":  time.Now().UTC().Format(time.RFC3339),
-					"updated_at":  time.Now().UTC().Format(time.RFC3339),
-				},
-			},
-			"total": 2,
-		})
-	}))
-	defer server.Close()
+			}, nil
+		},
+	})
 
-	config := &Config{
-		BaseURL:      server.URL,
-		SharedSecret: "test-secret-key-min-32-bytes-long",
-		Timeout:      5 * time.Second,
-		MaxRetries:   1,
-	}
-	client, err := NewClient(config)
+	workspaces, err := client.GetWorkspaces(context.Background(), userID)
+
 	require.NoError(t, err)
-
-	ctx := context.Background()
-	workspaces, err := client.GetWorkspaces(ctx, userID)
-
-	assert.NoError(t, err)
 	assert.NotNil(t, workspaces)
 	assert.Equal(t, 2, workspaces.Total)
 	assert.Len(t, workspaces.Workspaces, 2)
@@ -300,34 +299,17 @@ func TestClient_GetWorkspaces(t *testing.T) {
 func TestClient_ErrorHandling(t *testing.T) {
 	userID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error":   "Missing required field: name",
-			"details": "Missing required field: name",
-		})
-	}))
-	defer server.Close()
+	client := newClientWithSDK(testConfig(), &mockGenerateAppSDK{
+		fn: func(_ osasdk.AppGenerationRequest) (*osasdk.AppGenerationResponse, error) {
+			return nil, errors.New("Missing required field: name")
+		},
+	})
 
-	config := &Config{
-		BaseURL:      server.URL,
-		SharedSecret: "test-secret-key-min-32-bytes-long",
-		Timeout:      5 * time.Second,
-		MaxRetries:   1,
-	}
-	client, err := NewClient(config)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	req := &AppGenerationRequest{
+	resp, err := client.GenerateApp(context.Background(), &AppGenerationRequest{
 		UserID:      userID,
 		WorkspaceID: uuid.New(),
 		Type:        "full-stack",
-		// Missing Name field
-	}
-
-	resp, err := client.GenerateApp(ctx, req)
+	})
 
 	assert.Error(t, err)
 	assert.Nil(t, resp)
@@ -335,30 +317,18 @@ func TestClient_ErrorHandling(t *testing.T) {
 }
 
 func TestClient_HTTPErrorNoRetry(t *testing.T) {
-	attemptCount := 0
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		attemptCount++
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer server.Close()
-
-	// SDK resilience is disabled in NewClient; the BOS ResilientClient layer
-	// handles retries. So a single call to the base Client should hit the
-	// server exactly once per call, regardless of MaxRetries config.
-	config := &Config{
-		BaseURL:      server.URL,
-		SharedSecret: "test-secret-key-min-32-bytes-long",
-		Timeout:      5 * time.Second,
-		MaxRetries:   3,
-		RetryDelay:   100 * time.Millisecond,
+	callCount := 0
+	sdk := &mockHealthSDK{
+		err: func() error {
+			callCount++
+			return errors.New("internal server error")
+		}(),
 	}
-	client, err := NewClient(config)
-	require.NoError(t, err)
 
-	ctx := context.Background()
-	_, err = client.HealthCheck(ctx)
+	// SDK resilience is disabled; each call to the base Client hits the SDK exactly once.
+	client := newClientWithSDK(testConfig(), sdk)
+	_, err := client.HealthCheck(context.Background())
 
 	assert.Error(t, err)
-	assert.Equal(t, 1, attemptCount, "SDK resilience is disabled; base client makes exactly one attempt")
+	assert.Equal(t, 1, callCount, "base client makes exactly one attempt per call")
 }

@@ -12,7 +12,7 @@ import {
   testAgent,
   testSandbox,
 } from "$lib/api/ai/ai";
-import type { CustomAgent, AgentPreset } from "$lib/api/ai/types";
+import type { CustomAgent, AgentPreset, CustomAgentsResponse, AgentPresetsResponse } from "$lib/api/ai/types";
 
 interface AgentFilters {
   category: string | null;
@@ -90,9 +90,9 @@ function createAgentsStore() {
 
         // Safely access agents array — backend may return different shapes
         let agents: CustomAgent[] = Array.isArray(response)
-          ? response
-          : Array.isArray((response as Record<string, unknown>)?.agents)
-            ? (response as { agents: CustomAgent[] }).agents
+          ? (response as CustomAgent[])
+          : Array.isArray((response as CustomAgentsResponse)?.agents)
+            ? (response as CustomAgentsResponse).agents
             : [];
 
         // Apply client-side filters
@@ -504,9 +504,9 @@ function createAgentsStore() {
         );
         const response = await Promise.race([fetchPromise, timeoutPromise]);
         const presets = Array.isArray(response)
-          ? response
-          : Array.isArray((response as Record<string, unknown>)?.presets)
-            ? (response as { presets: AgentPreset[] }).presets
+          ? (response as AgentPreset[])
+          : Array.isArray((response as AgentPresetsResponse)?.presets)
+            ? (response as AgentPresetsResponse).presets
             : [];
         update((s) => ({ ...s, presets, loading: false }));
       } catch (error) {
