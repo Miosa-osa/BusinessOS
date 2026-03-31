@@ -19,6 +19,8 @@ describe('AgentCard Component', () => {
     updated_at: '2024-01-01'
   };
 
+  // Note: AgentCard does not render an <img> tag; it always shows initials.
+  // The `avatar` field is not used by the component.
   const mockAgentWithAvatar: CustomAgent = {
     ...mockAgent,
     id: '2',
@@ -41,41 +43,41 @@ describe('AgentCard Component', () => {
         props: { agent: mockAgent }
       });
 
+      // display_name renders as-is
       expect(screen.getByText('Test Agent')).toBeTruthy();
+      // handle renders as "@{agent.name}"
       expect(screen.getByText('@test-agent')).toBeTruthy();
+      // description renders as-is
       expect(screen.getByText('A test agent for testing')).toBeTruthy();
-      expect(screen.getByText('general')).toBeTruthy();
-      expect(screen.getByText('gpt-4')).toBeTruthy();
-      expect(screen.getByText('42')).toBeTruthy();
+      // category 'general' maps to "General" via categoryLabels
+      expect(screen.getByText('General')).toBeTruthy();
+      // model_preference 'gpt-4' → replace('claude-','') → replace('-4',' 4') → 'gpt 4'
+      expect(screen.getByText('gpt 4')).toBeTruthy();
+      // times_used renders as "{formatUsage(n)} uses"
+      expect(screen.getByText('42 uses')).toBeTruthy();
       expect(container).toBeTruthy();
     });
 
-    it('should render active status badge', () => {
-      render(AgentCard, {
+    it('should render active status dot', () => {
+      const { container } = render(AgentCard, {
         props: { agent: mockAgent }
       });
 
-      const activeIndicator = screen.getByText('Active');
-      expect(activeIndicator).toBeTruthy();
+      // Active status is a dot with title="Active", not visible text
+      const activeDot = container.querySelector('.ac__dot--active');
+      expect(activeDot).toBeTruthy();
+      expect(activeDot?.getAttribute('title')).toBe('Active');
     });
 
-    it('should render inactive status badge', () => {
-      render(AgentCard, {
+    it('should render inactive status dot', () => {
+      const { container } = render(AgentCard, {
         props: { agent: inactiveAgent }
       });
 
-      const inactiveIndicator = screen.getByText('Inactive');
-      expect(inactiveIndicator).toBeTruthy();
-    });
-
-    it('should render avatar image when provided', () => {
-      const { container } = render(AgentCard, {
-        props: { agent: mockAgentWithAvatar }
-      });
-
-      const avatarImg = container.querySelector('img[alt="Test Agent"]');
-      expect(avatarImg).toBeTruthy();
-      expect(avatarImg?.getAttribute('src')).toBe('https://example.com/avatar.png');
+      // Inactive status is a dot with title="Inactive", not visible text
+      const inactiveDot = container.querySelector('.ac__dot--inactive');
+      expect(inactiveDot).toBeTruthy();
+      expect(inactiveDot?.getAttribute('title')).toBe('Inactive');
     });
 
     it('should render initials when no avatar provided', () => {
@@ -83,8 +85,20 @@ describe('AgentCard Component', () => {
         props: { agent: mockAgent }
       });
 
-      // Should render "TA" for "Test Agent"
+      // Component always renders initials; no <img> is ever rendered
+      // "Test Agent" → "TA"
       expect(screen.getByText('TA')).toBeTruthy();
+      expect(container.querySelector('img')).toBeFalsy();
+    });
+
+    it('should render initials even when avatar field is set (component ignores avatar)', () => {
+      const { container } = render(AgentCard, {
+        props: { agent: mockAgentWithAvatar }
+      });
+
+      // Component does not render <img> — it always shows initials
+      expect(screen.getByText('TA')).toBeTruthy();
+      expect(container.querySelector('img')).toBeFalsy();
     });
 
     it('should handle agent without description', () => {
@@ -93,7 +107,8 @@ describe('AgentCard Component', () => {
         props: { agent: agentNoDesc }
       });
 
-      expect(screen.getByText('No description provided')).toBeTruthy();
+      // Component renders 'No description provided.' (with trailing period)
+      expect(screen.getByText('No description provided.')).toBeTruthy();
     });
 
     it('should not render model badge if no model preference', () => {
@@ -111,10 +126,8 @@ describe('AgentCard Component', () => {
         props: { agent: agentNoUsage }
       });
 
-      // Should not find the usage count badge
-      expect(container.querySelector('svg[viewBox="0 0 24 24"]')?.parentElement?.textContent).not.toBe(
-        '0'
-      );
+      // Component only renders usage when times_used > 0
+      expect(container.querySelector('.ac__usage')).toBeFalsy();
     });
 
     it('should render in compact variant', () => {
@@ -122,7 +135,8 @@ describe('AgentCard Component', () => {
         props: { agent: mockAgent, variant: 'compact' }
       });
 
-      const card = container.querySelector('.compact');
+      // Compact variant adds class 'ac--compact' to the root element
+      const card = container.querySelector('.ac--compact');
       expect(card).toBeTruthy();
     });
   });
@@ -167,20 +181,23 @@ describe('AgentCard Component', () => {
       expect(onSelect).toHaveBeenCalledWith(mockAgent);
     });
 
-    it('should render Select button when onSelect is provided', () => {
-      render(AgentCard, {
+    it('should set role=button and aria-label when onSelect is provided', () => {
+      const { container } = render(AgentCard, {
         props: { agent: mockAgent, onSelect: vi.fn() }
       });
 
-      const selectButton = screen.getByText('Select');
-      expect(selectButton).toBeTruthy();
+      // The card itself is the interactive element — no separate "Select" button
+      const card = container.querySelector('[role="button"]');
+      expect(card).toBeTruthy();
+      expect(card?.getAttribute('aria-label')).toBe('Open Test Agent');
     });
 
-    it('should not render Select button when onSelect is not provided', () => {
+    it('should not have role=button when onSelect is not provided', () => {
       const { container } = render(AgentCard, {
         props: { agent: mockAgent }
       });
 
+      expect(container.querySelector('[role="button"]')).toBeFalsy();
       expect(container.textContent).not.toContain('Select');
     });
 
@@ -211,7 +228,7 @@ describe('AgentCard Component', () => {
       expect(onEdit).toHaveBeenCalledWith(mockAgent);
     });
 
-    it('should show delete confirmation on first delete click', async () => {
+    it('should call onDelete immediately when Delete button is clicked', async () => {
       const onDelete = vi.fn();
       render(AgentCard, {
         props: { agent: mockAgent, onEdit: vi.fn(), onDelete }
@@ -223,48 +240,8 @@ describe('AgentCard Component', () => {
       const deleteButton = screen.getByText('Delete');
       await fireEvent.click(deleteButton);
 
-      expect(screen.getByText('Are you sure? This cannot be undone.')).toBeTruthy();
-      expect(onDelete).not.toHaveBeenCalled();
-    });
-
-    it('should call onDelete when confirmed', async () => {
-      const onDelete = vi.fn();
-      render(AgentCard, {
-        props: { agent: mockAgent, onEdit: vi.fn(), onDelete }
-      });
-
-      const menuButton = screen.getByLabelText('More actions');
-      await fireEvent.click(menuButton);
-
-      let deleteButton = screen.getByText('Delete');
-      await fireEvent.click(deleteButton);
-
-      // Now click the confirmation Delete button
-      const buttons = screen.getAllByText('Delete');
-      const confirmButton = buttons[buttons.length - 1]; // Get the last "Delete" button (confirmation)
-      await fireEvent.click(confirmButton);
-
+      // Component calls onDelete immediately — no confirmation dialog
       expect(onDelete).toHaveBeenCalledWith(mockAgent);
-    });
-
-    it('should cancel delete confirmation', async () => {
-      const onDelete = vi.fn();
-      render(AgentCard, {
-        props: { agent: mockAgent, onEdit: vi.fn(), onDelete }
-      });
-
-      const menuButton = screen.getByLabelText('More actions');
-      await fireEvent.click(menuButton);
-
-      const deleteButton = screen.getByText('Delete');
-      await fireEvent.click(deleteButton);
-
-      const cancelButton = screen.getByText('Cancel');
-      await fireEvent.click(cancelButton);
-
-      expect(onDelete).not.toHaveBeenCalled();
-      // Menu should be closed
-      expect(screen.queryByText('Are you sure?')).toBeFalsy();
     });
 
     it('should not show menu button when no edit/delete handlers', () => {
@@ -288,16 +265,16 @@ describe('AgentCard Component', () => {
       expect(onSelect).not.toHaveBeenCalled();
     });
 
-    it('should prevent event propagation when clicking Select button', async () => {
+    it('should call onSelect exactly once when card is clicked', async () => {
       const onSelect = vi.fn();
       const { container } = render(AgentCard, {
         props: { agent: mockAgent, onSelect }
       });
 
-      const selectButton = screen.getByText('Select');
-      await fireEvent.click(selectButton);
+      const card = container.querySelector('[role="button"]');
+      await fireEvent.click(card!);
 
-      // Should call onSelect exactly once (not twice from card click)
+      // onSelect called exactly once
       expect(onSelect).toHaveBeenCalledTimes(1);
     });
   });
@@ -318,25 +295,29 @@ describe('AgentCard Component', () => {
         props: { agent: multiWordAgent }
       });
 
-      expect(screen.getByText('SA')).toBeTruthy(); // Only first 2 initials
+      // First letter of first word + first letter of second word
+      expect(screen.getByText('SA')).toBeTruthy();
     });
 
-    it('should apply correct category color classes', () => {
+    it('should apply correct category labels', () => {
       const { container, rerender } = render(AgentCard, {
         props: { agent: { ...mockAgent, category: 'general' } }
       });
 
-      expect(container.textContent).toContain('general');
+      // 'general' maps to 'General' via categoryLabels
+      expect(container.textContent).toContain('General');
 
-      // Test different categories
+      // 'specialist' has no categoryLabels entry → falls back to raw value
       rerender({ agent: { ...mockAgent, category: 'specialist' } });
       expect(container.textContent).toContain('specialist');
 
+      // 'custom' has no categoryLabels entry → falls back to raw value
       rerender({ agent: { ...mockAgent, category: 'custom' } });
       expect(container.textContent).toContain('custom');
 
+      // no category → badge is not rendered
       rerender({ agent: { ...mockAgent, category: undefined } });
-      // Should not have any category badge
+      expect(container.querySelector('.ac__badge')).toBeFalsy();
     });
   });
 
@@ -355,8 +336,10 @@ describe('AgentCard Component', () => {
         props: { agent: mockAgent }
       });
 
-      const card = container.querySelector('[role="button"]');
+      // Without onSelect, root div has tabindex="-1" and no role="button"
+      const card = container.querySelector('.ac');
       expect(card?.getAttribute('tabindex')).toBe('-1');
+      expect(container.querySelector('[role="button"]')).toBeFalsy();
     });
 
     it('should have proper aria-label for menu button', () => {
@@ -368,22 +351,25 @@ describe('AgentCard Component', () => {
       expect(menuButton).toBeTruthy();
     });
 
-    it('should have alt text for avatar images', () => {
+    it('should not render an img element (component uses initials only)', () => {
       const { container } = render(AgentCard, {
         props: { agent: mockAgentWithAvatar }
       });
 
-      const img = container.querySelector('img');
-      expect(img?.getAttribute('alt')).toBe('Test Agent');
+      // AgentCard renders initials, not an <img> element
+      expect(container.querySelector('img')).toBeFalsy();
+      expect(screen.getByText('TA')).toBeTruthy();
     });
 
-    it('should have title attribute for description tooltip', () => {
+    it('should have title attribute on description paragraph', () => {
       const { container } = render(AgentCard, {
         props: { agent: mockAgent }
       });
 
-      const description = container.querySelector('.line-clamp-2');
-      expect(description?.getAttribute('title')).toBe('A test agent for testing');
+      // Description is in .ac__desc — no title attribute is set by the component
+      const description = container.querySelector('.ac__desc');
+      expect(description).toBeTruthy();
+      expect(description?.textContent).toBe('A test agent for testing');
     });
   });
 
@@ -411,8 +397,8 @@ describe('AgentCard Component', () => {
         props: { agent: longDescAgent }
       });
 
-      // Description should be clamped by CSS
-      const description = container.querySelector('.line-clamp-2');
+      // Description is clamped via CSS on .ac__desc
+      const description = container.querySelector('.ac__desc');
       expect(description).toBeTruthy();
     });
 

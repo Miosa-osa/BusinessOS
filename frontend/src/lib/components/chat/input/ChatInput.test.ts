@@ -81,8 +81,8 @@ describe('ChatInput Component', () => {
 				props: { streaming: false }
 			});
 
-			// Find send button by its class (dark background)
-			const sendButton = container.querySelector('.bg-gray-900');
+			// Find send button by its class (primary pill button)
+			const sendButton = container.querySelector('.btn-pill-primary');
 			expect(sendButton).toBeTruthy();
 		});
 
@@ -251,7 +251,7 @@ describe('ChatInput Component', () => {
 			await fireEvent.input(textarea, { target: { value: 'Test message' } });
 
 			// Find send button (has upward arrow icon)
-			const sendButton = container.querySelector('.bg-gray-900');
+			const sendButton = container.querySelector('.btn-pill-primary');
 			expect(sendButton).toBeTruthy();
 
 			await fireEvent.click(sendButton!);
@@ -261,7 +261,7 @@ describe('ChatInput Component', () => {
 		it('should disable send button when textarea is empty', () => {
 			const { container } = render(ChatInput);
 
-			const sendButton = container.querySelector('.bg-gray-900') as HTMLButtonElement;
+			const sendButton = container.querySelector('.btn-pill-primary') as HTMLButtonElement;
 			expect(sendButton.disabled).toBe(true);
 		});
 
@@ -271,7 +271,7 @@ describe('ChatInput Component', () => {
 			const textarea = screen.getByPlaceholderText('Type your message...');
 			await fireEvent.input(textarea, { target: { value: 'Test' } });
 
-			const sendButton = container.querySelector('.bg-gray-900') as HTMLButtonElement;
+			const sendButton = container.querySelector('.btn-pill-primary') as HTMLButtonElement;
 			expect(sendButton.disabled).toBe(false);
 		});
 	});
@@ -283,8 +283,8 @@ describe('ChatInput Component', () => {
 				props: { streaming: true, onStop }
 			});
 
-			// Stop button has red background
-			const stopButton = container.querySelector('.bg-red-500');
+			// Stop button has danger pill class
+			const stopButton = container.querySelector('.btn-pill-danger');
 			expect(stopButton).toBeTruthy();
 
 			await fireEvent.click(stopButton!);
