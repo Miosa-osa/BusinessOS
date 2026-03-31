@@ -129,7 +129,7 @@ func (h *ToolHandler) HandleCallback(c *gin.Context) {
 
 	// Verify tool ID matches
 	if toolID != "" && toolID != h.provider.ID() {
-		slog.Info("Tool ID mismatch: expected %s, got %s", "value", h.provider.ID(), toolID)
+		slog.Info("Tool ID mismatch", "expected", h.provider.ID(), "got", toolID)
 	}
 
 	// Exchange code for tokens

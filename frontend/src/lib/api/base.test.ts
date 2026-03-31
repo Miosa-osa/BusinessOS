@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { request, raw, getApiBaseUrl } from './base';
+import { request, raw, getApiBaseUrl, invalidateApiCache } from './base';
 
 // Mock fetch globally
 global.fetch = vi.fn();
@@ -8,6 +8,8 @@ describe('API client (base API)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		(global.fetch as any).mockReset();
+		// Clear the module-level GET cache so each test starts fresh
+		invalidateApiCache();
 	});
 
 	describe('GET requests via request()', () => {

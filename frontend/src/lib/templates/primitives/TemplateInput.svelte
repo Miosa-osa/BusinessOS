@@ -5,7 +5,7 @@
 	 */
 
 	type InputSize = 'sm' | 'md' | 'lg';
-	type InputType = 'text' | 'number' | 'email' | 'password' | 'search' | 'tel' | 'url';
+	type InputType = 'text' | 'number' | 'email' | 'password' | 'search' | 'tel' | 'url' | 'date' | 'datetime-local' | 'time';
 
 	interface Props {
 		type?: InputType;

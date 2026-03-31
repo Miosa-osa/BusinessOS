@@ -375,9 +375,9 @@
 <!-- Add Member Modal (includes Invite tab) -->
 <AddMemberModal
 	bind:open={showAddModal}
-	members={$team.members.map(m => ({ id: m.id, name: m.name, email: m.email, avatar: m.avatar, role: m.role }))}
+	members={$team.members.map(m => ({ id: m.id, name: m.name, email: m.email, avatar: m.avatar ?? undefined, role: m.role }))}
 	workspaceId={$currentWorkspace?.id}
-	roles={$currentWorkspaceRoles}
+	roles={$currentWorkspaceRoles as any}
 	onCreate={handleAddMember}
 	onClose={() => { editingMember = null; }}
 />

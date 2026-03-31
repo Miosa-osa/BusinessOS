@@ -93,6 +93,32 @@ export interface UpdateCalendarEventData {
   action_items?: ActionItem[];
 }
 
+// Task Suggestion Types
+export type SuggestionType = 'prep' | 'followup' | 'follow_up';
+export type SuggestionPriority = 'high' | 'medium' | 'low';
+
+export interface TaskSuggestion {
+  id?: string;
+  type: SuggestionType;
+  priority: SuggestionPriority;
+  title: string;
+  description?: string;
+  due_date?: string;
+  suggested_due_date?: string;
+  confidence: number;
+  event_id?: string;
+  related_event_id?: string;
+  related_event_title?: string;
+}
+
+export interface TaskSuggestionsResponse {
+  suggestions: TaskSuggestion[];
+  context_id?: string;
+  project_id?: string;
+  events_analyzed?: number;
+  analysis_period?: { start: string; end: string };
+}
+
 // Scheduling Types (for AI-assisted meeting scheduling)
 export interface TimePreferences {
   preferred_start_hour: number;

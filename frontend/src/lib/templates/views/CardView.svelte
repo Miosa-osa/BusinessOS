@@ -100,7 +100,7 @@
 			<TemplateCard
 				variant="default"
 				padding="none"
-				interactive
+				hoverable
 				selected={isSelected}
 				onclick={() => onrowclick?.(record)}
 			>
@@ -115,7 +115,7 @@
 						{#if badge}
 							{@const badgeField = getField(config.badgeField!)}
 							{#if badgeField?.type === 'status' && badgeField.config?.options}
-								{@const option = badgeField.config.options.find((o: {value: string}) => o.value === badge)}
+								{@const option = (badgeField.config.options as Array<{value: string; color?: string}>).find((o) => o.value === badge)}
 								<TemplateBadge color={option?.color || 'gray'}>{badge}</TemplateBadge>
 							{:else}
 								<TemplateBadge>{badge}</TemplateBadge>

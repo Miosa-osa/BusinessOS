@@ -15,7 +15,8 @@
 		id: string;
 		name: string;
 		display_name: string;
-		description?: string;
+		description?: string | null;
+		[key: string]: unknown;
 	}
 
 	interface Props {

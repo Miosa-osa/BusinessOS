@@ -244,7 +244,7 @@
 							<td class="tpl-table-td tpl-table-row-num">{rowIndex + 1}</td>
 						{/if}
 						{#each visibleFields() as field, i}
-							{@const value = record[field.id]}
+							{@const value = record[field.id] as any}
 							{@const editable = enableInlineEdit && !field.readonly}
 							<td class="tpl-table-td" class:tpl-table-frozen={i < frozenColumns}>
 

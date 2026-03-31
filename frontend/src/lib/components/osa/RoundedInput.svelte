@@ -63,7 +63,7 @@
 		{placeholder}
 		{disabled}
 		{required}
-		{autocomplete}
+		autocomplete={autocomplete as any}
 		class="glass-input {className}"
 		class:input-error={error}
 		aria-invalid={error ? 'true' : 'false'}

@@ -83,7 +83,7 @@
 		headers.forEach(header => {
 			const normalizedHeader = header.toLowerCase().replace(/[^a-z0-9]/g, '');
 			const matchingField = fields.find(f => {
-				const normalizedLabel = f.label.toLowerCase().replace(/[^a-z0-9]/g, '');
+				const normalizedLabel = (f.label ?? f.name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 				const normalizedId = f.id.toLowerCase().replace(/[^a-z0-9]/g, '');
 				return normalizedLabel === normalizedHeader || normalizedId === normalizedHeader;
 			});
@@ -215,7 +215,7 @@
 						<TemplateSelect
 							options={[
 								{ value: '', label: 'Skip this column' },
-								...fields.map(f => ({ value: f.id, label: f.label }))
+								...fields.map(f => ({ value: f.id, label: f.label ?? f.name ?? f.id }))
 							]}
 							value={fieldMapping[header] || ''}
 							size="sm"

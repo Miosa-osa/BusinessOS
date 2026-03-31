@@ -129,6 +129,7 @@ export interface AgentPreset {
   tools_enabled?: string[];
   is_featured?: boolean;
   copy_count?: number;
+  tags?: string[];
   created_at: string;
 }
 

@@ -114,7 +114,7 @@
 				name: `${table.name} (Copy)`,
 				description: table.description,
 				source: 'custom',
-				columns: table.columns.map((col, i) => ({
+				columns: (table.columns ?? []).map((col, i) => ({
 					name: col.name,
 					type: col.type,
 					order: i,

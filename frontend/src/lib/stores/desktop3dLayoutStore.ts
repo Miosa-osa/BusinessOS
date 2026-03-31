@@ -69,7 +69,10 @@ function getApiBase(): string {
 function createLayoutStore() {
 	const { subscribe, set, update } = writable<LayoutState>(initialState);
 
-	return {
+	// eslint-disable-next-line prefer-const
+	let storeRef: ReturnType<typeof createLayoutStore>;
+
+	const obj = {
 		subscribe,
 
 		/**
@@ -80,8 +83,10 @@ function createLayoutStore() {
 			const store = get(desktop3dStore);
 			const modules: ModulePosition[] = store.windows.map((win) => ({
 				module_id: win.module,
-				position: win.position,
-				rotation: win.rotation || { x: 0, y: 0, z: 0 },
+				position: { x: win.position[0], y: win.position[1], z: win.position[2] },
+				rotation: win.rotation
+					? { x: win.rotation[0], y: win.rotation[1], z: win.rotation[2] }
+					: { x: 0, y: 0, z: 0 },
 				scale: win.targetScale || 1
 			}));
 
@@ -102,7 +107,7 @@ function createLayoutStore() {
 		 */
 		initialize: async () => {
 			if (import.meta.env.DEV) console.log('[Layout Store] Initializing...');
-			await get(desktop3dLayoutStore).loadLayouts();
+			await storeRef.loadLayouts();
 		},
 
 		/**
@@ -121,7 +126,7 @@ function createLayoutStore() {
 					const layouts: Layout[] = await response.json();
 
 					// Always include default layout at the beginning
-					const defaultLayout = get(desktop3dLayoutStore).getDefaultLayout();
+					const defaultLayout = storeRef.getDefaultLayout();
 
 					// Get active layout from backend
 					const activeResponse = await fetch(`${baseUrl}/desktop3d/layouts/active`, {
@@ -158,7 +163,7 @@ function createLayoutStore() {
 				console.error('[Layout Store] ❌ Failed to load layouts:', error);
 
 				// On error, just show default layout
-				const defaultLayout = get(desktop3dLayoutStore).getDefaultLayout();
+				const defaultLayout = storeRef.getDefaultLayout();
 				update((s) => ({
 					...s,
 					layouts: [defaultLayout],
@@ -183,8 +188,10 @@ function createLayoutStore() {
 			const store = get(desktop3dStore);
 			const modules: ModulePosition[] = store.windows.map((win) => ({
 				module_id: win.module,
-				position: win.position,
-				rotation: win.rotation || { x: 0, y: 0, z: 0 },
+				position: { x: win.position[0], y: win.position[1], z: win.position[2] },
+				rotation: win.rotation
+					? { x: win.rotation[0], y: win.rotation[1], z: win.rotation[2] }
+					: { x: 0, y: 0, z: 0 },
 				scale: win.targetScale || 1
 			}));
 
@@ -336,12 +343,22 @@ function createLayoutStore() {
 		},
 
 		/**
+		 * Reset to default layout
+		 */
+		resetToDefault: async () => {
+			await storeRef.loadLayout('default');
+		},
+
+		/**
 		 * Reset error state
 		 */
 		clearError: () => {
 			update((s) => ({ ...s, error: null }));
 		}
 	};
+
+	storeRef = obj;
+	return obj;
 }
 
 export const desktop3dLayoutStore = createLayoutStore();

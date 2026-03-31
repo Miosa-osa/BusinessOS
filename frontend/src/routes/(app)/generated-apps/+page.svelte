@@ -20,7 +20,7 @@
 	let viewMode = $state<'grid' | 'list'>('grid');
 
 	// Subscribe to store
-	let apps = $derived($generatedAppsStore.filteredApps);
+	let apps = $derived($generatedAppsStore.apps);
 	let storeState = $derived($generatedAppsStore);
 
 	// Stats

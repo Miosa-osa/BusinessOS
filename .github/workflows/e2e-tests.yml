@@ -123,7 +123,7 @@ jobs:
           OSA_ENABLED: "false"
         run: |
           echo "Building backend server..."
-          go build -o server cmd/server/main.go
+          go build -o server ./cmd/server/
 
           echo "Starting backend server..."
           ./server > ../../backend.log 2>&1 &

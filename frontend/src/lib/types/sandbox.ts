@@ -1,4 +1,4 @@
-export type SandboxStatus = 'none' | 'pending' | 'deploying' | 'running' | 'stopped' | 'failed' | 'removing';
+export type SandboxStatus = 'none' | 'pending' | 'deploying' | 'building' | 'running' | 'stopped' | 'failed' | 'error' | 'removing';
 
 export type HealthStatus = 'unknown' | 'healthy' | 'unhealthy' | 'degraded';
 
@@ -19,11 +19,15 @@ export interface SandboxInfo {
 }
 
 export interface SandboxContainer {
-	id: string;
+	id?: string;
 	app_id: string;
+	app_type?: string;
+	container_id?: string;
 	status: SandboxStatus;
+	health_status?: HealthStatus;
 	url?: string;
 	port?: number;
+	created_at?: string;
 	started_at?: string;
 	stopped_at?: string;
 	error_message?: string;
@@ -47,9 +51,11 @@ const SANDBOX_STATUS_COLORS: Record<SandboxStatus, { text: string; bg: string; b
   none: { text: 'text-gray-500', bg: 'bg-gray-100', border: 'border-gray-300' },
   pending: { text: 'text-gray-500', bg: 'bg-gray-100', border: 'border-gray-300' },
   deploying: { text: 'text-yellow-500', bg: 'bg-yellow-100', border: 'border-yellow-500' },
+  building: { text: 'text-blue-500', bg: 'bg-blue-100', border: 'border-blue-500' },
   running: { text: 'text-green-500', bg: 'bg-green-100', border: 'border-green-500' },
   stopped: { text: 'text-gray-500', bg: 'bg-gray-100', border: 'border-gray-300' },
   failed: { text: 'text-red-500', bg: 'bg-red-100', border: 'border-red-500' },
+  error: { text: 'text-red-500', bg: 'bg-red-100', border: 'border-red-500' },
   removing: { text: 'text-orange-500', bg: 'bg-orange-100', border: 'border-orange-500' },
 };
 

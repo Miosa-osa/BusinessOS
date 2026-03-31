@@ -26,6 +26,7 @@
 	};
 
 	const AGENT_COLORS: Record<AgentType, string> = {
+		orchestrator: 'text-yellow-500',
 		frontend: 'text-blue-500',
 		backend: 'text-green-500',
 		database: 'text-purple-500',

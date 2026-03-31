@@ -29,6 +29,7 @@ export interface TeamMemberListResponse {
   name: string;
   email: string;
   role: string;
+  avatar?: string | null;
   avatar_url: string | null;
   status: TeamMemberStatus;
   capacity: number;

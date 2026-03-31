@@ -101,7 +101,7 @@ if (typeof Element !== 'undefined') {
       addEventListener: () => {},
       removeEventListener: () => {},
       dispatchEvent: () => true
-    } as Animation;
+    } as unknown as Animation;
   };
 }
 

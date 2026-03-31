@@ -84,7 +84,7 @@
 
 	onMount(() => {
 		loadData();
-		team.loadMembers('active');
+		team.loadMembers({ status: 'active' });
 		return () => nodes.clearCurrent();
 	});
 

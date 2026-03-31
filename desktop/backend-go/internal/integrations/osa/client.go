@@ -45,6 +45,11 @@ func NewClient(config *Config) (*Client, error) {
 	}, nil
 }
 
+// newClientWithSDK creates a Client with an injected SDK (for testing).
+func newClientWithSDK(config *Config, sdk osasdk.Client) *Client {
+	return &Client{config: config, sdk: sdk}
+}
+
 // GenerateApp triggers application generation in OSA.
 func (c *Client) GenerateApp(ctx context.Context, req *AppGenerationRequest) (*AppGenerationResponse, error) {
 	sdkResp, err := c.sdk.GenerateApp(ctx, osasdk.AppGenerationRequest{

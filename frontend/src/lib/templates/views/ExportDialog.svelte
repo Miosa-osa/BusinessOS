@@ -77,7 +77,7 @@
 		let csv = '';
 
 		if (includeHeaders) {
-			csv += exportFields.map(f => `"${f.label.replace(/"/g, '""')}"`).join(',') + '\n';
+			csv += exportFields.map(f => `"${(f.label ?? f.name ?? '').replace(/"/g, '""')}"`).join(',') + '\n';
 		}
 
 		exportData.forEach(record => {

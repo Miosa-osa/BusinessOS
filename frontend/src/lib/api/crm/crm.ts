@@ -24,6 +24,7 @@ import type {
   ContactsResponse,
   LinkContactData,
   ContactCompanyRelation,
+  CRMContact,
 } from "./types";
 
 // ============================================================================
@@ -140,7 +141,7 @@ export async function getCompanyContacts(
     Array.isArray(raw.data)
   ) {
     return {
-      contacts: raw.data,
+      contacts: raw.data as CRMContact[],
       count: raw.pagination?.total_items ?? raw.data.length,
     };
   }

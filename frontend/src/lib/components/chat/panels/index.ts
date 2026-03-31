@@ -9,6 +9,4 @@ export { default as FeedbackPanel } from "./FeedbackPanel.svelte";
 export { default as MemoryPanel } from "./MemoryPanel.svelte";
 export { default as SearchResultCard } from "./SearchResultCard.svelte";
 export { default as DocumentPreview } from "./DocumentPreview.svelte";
-export type { ThinkingTrace, ThinkingStep } from "./ThinkingPanel.svelte";
-export type { DelegatedTask } from "./ProgressPanel.svelte";
-export type { ActiveResource } from "./ContextPanel.svelte";
+export type { ThinkingTrace, ThinkingStep, DelegatedTask, ActiveResource } from "./types";

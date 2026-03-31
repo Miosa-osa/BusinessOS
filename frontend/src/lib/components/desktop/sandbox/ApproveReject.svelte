@@ -8,13 +8,13 @@
 
 	interface Props {
 		sandboxId: string;
-		state?: string;
+		editState?: string;
 		onApprove?: () => void;
 		onReject?: () => void;
 		disabled?: boolean;
 	}
 
-	let { sandboxId, state, onApprove, onReject, disabled = false }: Props = $props();
+	let { sandboxId, editState, onApprove, onReject, disabled = false }: Props = $props();
 
 	let isApplying = $state(false);
 	let isRejecting = $state(false);
@@ -22,7 +22,7 @@
 	let showRejectConfirm = $state(false);
 
 	let isBusy = $derived(isApplying || isRejecting);
-	let needsValidation = $derived(state === 'pending');
+	let needsValidation = $derived(editState === 'pending');
 
 	async function handleApprove() {
 		isApplying = true;

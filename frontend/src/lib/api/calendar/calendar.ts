@@ -4,7 +4,8 @@ import type {
   CreateCalendarEventData,
   UpdateCalendarEventData,
   ScheduleRequest,
-  ScheduleProposal
+  ScheduleProposal,
+  TaskSuggestionsResponse
 } from './types';
 
 // ============================================
@@ -101,4 +102,12 @@ export async function createEventFromProposal(
       client_id: scheduleRequest.client_id
     }
   });
+}
+
+export async function getTaskSuggestions(contextId?: string, projectId?: string): Promise<TaskSuggestionsResponse> {
+  const params = new URLSearchParams();
+  if (contextId) params.set('context_id', contextId);
+  if (projectId) params.set('project_id', projectId);
+  const query = params.toString();
+  return request<TaskSuggestionsResponse>(`/integrations/google_calendar/task-suggestions${query ? `?${query}` : ''}`);
 }

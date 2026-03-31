@@ -9,6 +9,7 @@ export interface Project {
   client_name: string | null;
   project_type: string;
   project_metadata: Record<string, unknown> | null;
+  due_date?: string | null;
   created_at: string;
   updated_at: string;
   notes: ProjectNote[];

@@ -15,9 +15,11 @@
 		none: 'None',
 		pending: 'Pending',
 		deploying: 'Deploying',
+		building: 'Building',
 		running: 'Running',
 		stopped: 'Stopped',
 		failed: 'Failed',
+		error: 'Error',
 		removing: 'Removing'
 	};
 

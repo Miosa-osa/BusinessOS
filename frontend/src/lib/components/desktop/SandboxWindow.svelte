@@ -5,7 +5,7 @@
 	import { getSandboxInfo, type SandboxInfo } from '$lib/api/sandbox';
 	import SandboxStatusBadge from '$lib/components/osa/SandboxStatusBadge.svelte';
 	import SandboxPreview from './sandbox/SandboxPreview.svelte';
-	import type { SandboxStatus } from '$lib/types/sandbox';
+	import type { SandboxStatus, SandboxContainer } from '$lib/types/sandbox';
 
 	interface Props {
 		appId: string;
@@ -25,10 +25,10 @@
 	let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 	// Derive sandbox status
-	let sandboxStatus = $derived<SandboxStatus>(
-		sandboxInfo?.status ?? app?.sandbox?.status ?? 'pending'
+	let sandboxStatus: SandboxStatus = $derived(
+		(sandboxInfo as any)?.status ?? (app as any)?.sandbox?.status ?? 'pending'
 	);
-	let sandboxUrl = $derived(sandboxInfo?.url ?? app?.sandbox?.url);
+	let sandboxUrl = $derived((sandboxInfo as any)?.url ?? (app as any)?.sandbox?.url);
 	let isRunning = $derived(sandboxStatus === 'running');
 	let isBuilding = $derived(sandboxStatus === 'building');
 	let isStopped = $derived(sandboxStatus === 'stopped');
