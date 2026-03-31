@@ -304,7 +304,7 @@ describe('Custom Agents API Client', () => {
 
       const result = await getAgentsByCategory('specialist');
 
-      expect(request).toHaveBeenCalledWith('/ai/custom-agents?category=specialist');
+      expect(request).toHaveBeenCalledWith('/ai/custom-agents/category/specialist');
       expect(result.agents).toHaveLength(1);
       expect(result.agents[0].category).toBe('specialist');
     });
@@ -315,7 +315,7 @@ describe('Custom Agents API Client', () => {
 
       await getAgentsByCategory('custom/special');
 
-      expect(request).toHaveBeenCalledWith('/ai/custom-agents?category=custom%2Fspecial');
+      expect(request).toHaveBeenCalledWith('/ai/custom-agents/category/custom%2Fspecial');
     });
   });
 
@@ -503,7 +503,7 @@ describe('Custom Agents API Client', () => {
 
       const result = await testSandbox(config);
 
-      expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/ai/custom-agents/test-sandbox', {
+      expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/ai/custom-agents/sandbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

@@ -203,8 +203,9 @@ describe('Agents Store', () => {
 
       const state = get(agents);
       expect(state.loading).toBe(false);
-      expect(state.error).toBe('Failed to load agents');
-      expect(state.agents).toHaveLength(0);
+      // On error, the store falls back to demo/mock agents and sets error = 'demo'
+      expect(state.error).toBe('demo');
+      expect(state.agents.length).toBeGreaterThan(0);
     });
 
     // ============ RACE CONDITION TESTS ============
@@ -663,7 +664,8 @@ describe('Agents Store', () => {
       await agents.loadAgents();
 
       let state = get(agents);
-      expect(state.error).toBe('Test error');
+      // On error, the store falls back to demo/mock agents and sets error = 'demo'
+      expect(state.error).toBe('demo');
 
       agents.clearError();
 
@@ -702,7 +704,10 @@ describe('Agents Store', () => {
       await agents.loadPresets();
 
       const state = get(agents);
-      expect(state.error).toBe('Failed to load presets');
+      // On preset error, the store falls back to mock presets and preserves
+      // the existing error state (null if agents loaded successfully, 'demo' if not).
+      // Since no prior agent load error occurred here, error remains null.
+      expect(state.error).toBe(null);
     });
   });
 

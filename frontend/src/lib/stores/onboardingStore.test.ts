@@ -181,7 +181,7 @@ describe('Onboarding Store', () => {
 
 		it('clamps step to valid range when going to specific step', () => {
 			onboardingStore.goToStep(999);
-			expect(get(onboardingStore).currentStep).toBe(6);
+			expect(get(onboardingStore).currentStep).toBe(4);
 
 			onboardingStore.goToStep(-5);
 			expect(get(onboardingStore).currentStep).toBe(0);
@@ -411,8 +411,8 @@ describe('Onboarding Store', () => {
 			expect(progress).toBe(0);
 		});
 
-		it('calculates progress at step 3 (halfway) as 50%', () => {
-			onboardingStore.goToStep(3);
+		it('calculates progress at step 2 (halfway) as 50%', () => {
+			onboardingStore.goToStep(2);
 
 			const progress = get(onboardingProgress);
 			expect(progress).toBe(50);
@@ -557,7 +557,7 @@ describe('Onboarding Store', () => {
 		});
 
 		it('persists state across simulated page reloads', () => {
-			onboardingStore.goToStep(5);
+			onboardingStore.goToStep(4);
 			onboardingStore.setUserData({
 				email: 'persistent@example.com',
 				username: 'persistent_user'
@@ -568,7 +568,7 @@ describe('Onboarding Store', () => {
 
 			// Simulate page reload by parsing saved state
 			const loaded = JSON.parse(savedState!);
-			expect(loaded.currentStep).toBe(5);
+			expect(loaded.currentStep).toBe(4);
 			expect(loaded.userData.email).toBe('persistent@example.com');
 		});
 	});
@@ -652,13 +652,13 @@ describe('Onboarding Store', () => {
 			onboardingStore.setUserData({ email: 'test@example.com' });
 			onboardingStore.prevStep();
 			onboardingStore.setAnalysis({ message1: 'Analysis' });
-			onboardingStore.goToStep(5);
+			onboardingStore.goToStep(4);
 			onboardingStore.setStarterApps([
 				{ id: '1', title: 'App', description: 'Desc', reason: 'Because' }
 			]);
 
 			const state = get(onboardingStore);
-			expect(state.currentStep).toBe(5);
+			expect(state.currentStep).toBe(4);
 			expect(state.userData.email).toBe('test@example.com');
 			expect(state.analysis.message1).toBe('Analysis');
 			expect(state.userData.starterApps?.length).toBe(1);

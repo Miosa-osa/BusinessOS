@@ -14,7 +14,9 @@ import { get } from "svelte/store";
 // Mock the API modules BEFORE importing the store
 vi.mock("$lib/api/base", () => ({
   request: vi.fn(),
+  requestPaginated: vi.fn(),
   getApiBaseUrl: vi.fn(() => "http://localhost:8080/api/v1"),
+  getCSRFToken: vi.fn(() => null),
 }));
 
 vi.mock("$lib/api/sandbox", () => ({
@@ -34,7 +36,7 @@ import {
   type GeneratedApp,
   type AppStatus,
 } from "./generatedAppsStore";
-import { request } from "$lib/api/base";
+import { request, requestPaginated } from "$lib/api/base";
 import {
   deploySandbox,
   restartSandbox,
@@ -64,8 +66,8 @@ describe("generatedAppsStore - Sandbox Integration", () => {
       (deploySandbox as Mock).mockResolvedValueOnce(mockBuildingResponse);
 
       // Mock fetchApps to return an app with building sandbox
-      (request as Mock).mockResolvedValueOnce({
-        apps: [
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: [
           {
             id: "test-app-uuid",
             app_name: "Test App",
@@ -87,6 +89,13 @@ describe("generatedAppsStore - Sandbox Integration", () => {
             },
           },
         ],
+        pagination: {
+          page: 1,
+          page_size: 20,
+          total_items: 1,
+          total_pages: 1,
+          has_more: false,
+        },
       });
 
       // Act: Deploy the app
@@ -95,8 +104,12 @@ describe("generatedAppsStore - Sandbox Integration", () => {
       // Assert: deploySandbox was called with correct app_id
       expect(deploySandbox).toHaveBeenCalledWith("test-app-uuid");
 
-      // Verify the store fetched updated state
-      expect(request).toHaveBeenCalledWith("/osa/module-instances");
+      // Verify the store fetched updated state via requestPaginated
+      expect(requestPaginated).toHaveBeenCalledWith(
+        "/osa/module-instances",
+        expect.any(Object),
+        "apps",
+      );
     });
 
     it("should correctly type sandbox.status as SandboxStatus", async () => {
@@ -144,7 +157,16 @@ describe("generatedAppsStore - Sandbox Integration", () => {
         },
       ];
 
-      (request as Mock).mockResolvedValueOnce({ apps: mockApps });
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: mockApps,
+        pagination: {
+          page: 1,
+          page_size: 20,
+          total_items: 2,
+          total_pages: 1,
+          has_more: false,
+        },
+      });
 
       // Act
       await generatedAppsStore.fetchApps();
@@ -190,7 +212,10 @@ describe("generatedAppsStore - Sandbox Integration", () => {
       };
 
       (restartSandbox as Mock).mockResolvedValueOnce(mockRestartResponse);
-      (request as Mock).mockResolvedValueOnce({ apps: [] });
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: [],
+        pagination: { page: 1, page_size: 20, total_items: 0, total_pages: 0, has_more: false },
+      });
 
       // Act
       await generatedAppsStore.startSandbox("app-123");
@@ -203,8 +228,8 @@ describe("generatedAppsStore - Sandbox Integration", () => {
 
     it("should call removeSandbox API and clear local state", async () => {
       // Arrange: Set up initial state with a sandbox
-      (request as Mock).mockResolvedValueOnce({
-        apps: [
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: [
           {
             id: "app-to-remove",
             app_name: "Remove Me",
@@ -226,6 +251,7 @@ describe("generatedAppsStore - Sandbox Integration", () => {
             },
           },
         ],
+        pagination: { page: 1, page_size: 20, total_items: 1, total_pages: 1, has_more: false },
       });
       await generatedAppsStore.fetchApps();
 
@@ -233,7 +259,10 @@ describe("generatedAppsStore - Sandbox Integration", () => {
       (removeSandbox as Mock).mockResolvedValueOnce({
         message: "Sandbox removed",
       });
-      (request as Mock).mockResolvedValueOnce({ apps: [] });
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: [],
+        pagination: { page: 1, page_size: 20, total_items: 0, total_pages: 0, has_more: false },
+      });
 
       // Act
       await generatedAppsStore.removeSandbox("app-to-remove");
@@ -245,7 +274,10 @@ describe("generatedAppsStore - Sandbox Integration", () => {
     it("should call stopSandbox API correctly", async () => {
       // Arrange
       (stopSandbox as Mock).mockResolvedValueOnce({ message: "Stopped" });
-      (request as Mock).mockResolvedValueOnce({ apps: [] });
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: [],
+        pagination: { page: 1, page_size: 20, total_items: 0, total_pages: 0, has_more: false },
+      });
 
       // Act
       await generatedAppsStore.stopSandbox("app-456");
