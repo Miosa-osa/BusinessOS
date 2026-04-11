@@ -385,15 +385,38 @@
 		{:else if currentView === 'profiles-project'}
 			<div class="kb-page__listing">
 				<div class="kb-page__header"><h1 class="kb-page__title">Projects</h1></div>
-				{#each documents.filter(d => d.type === 'folder' && d.id.toLowerCase().includes('project')) as proj}
-					<button class="kb-page__child-item kb-page__child-item--folder" onclick={() => handleOpenDocument(proj.id)}>
-						<span class="kb-page__cat-icon">🏗️</span>
-						<span>{proj.title}</span>
-						<span class="kb-page__child-desc">{proj.id.split('/')[0]}</span>
-						{#if proj.children_count > 0}
-							<span class="kb-page__child-count">{proj.children_count}</span>
-						{/if}
-					</button>
+				<!-- Group projects by parent node -->
+				{#each optNodes as node}
+					{@const projectItems = documents.filter(d =>
+						d.id.startsWith(node.slug + '/') && (
+							d.id.toLowerCase().includes('project') ||
+							d.id.toLowerCase().includes('autonomo') ||
+							d.id.toLowerCase().includes('launch') ||
+							d.id.toLowerCase().includes('pipeline')
+						)
+					)}
+					{#if projectItems.length > 0}
+						<div class="kb-page__node-section">
+							<div class="kb-page__node-header" style="cursor: default;">
+								<div class="kb-page__node-info">
+									<span class="kb-page__node-slug">{node.slug.split('-')[0]}</span>
+									<span class="kb-page__node-name">{node.name}</span>
+								</div>
+								<span class="kb-page__child-count">{projectItems.length}</span>
+							</div>
+							<div class="kb-page__node-children">
+								{#each projectItems as proj}
+									<button class="kb-page__child-item" class:kb-page__child-item--folder={proj.type === 'folder'} onclick={() => handleOpenDocument(proj.id)}>
+										<span class="kb-page__cat-icon">{proj.type === 'folder' ? '🏗️' : '📄'}</span>
+										<span>{proj.title}</span>
+										{#if proj.children_count > 0}
+											<span class="kb-page__child-count">{proj.children_count}</span>
+										{/if}
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
 				{/each}
 			</div>
 		{:else if folderView}

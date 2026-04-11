@@ -410,7 +410,7 @@
 			rows={1}
 			disabled={isStreaming}
 			class="chat-textarea w-full text-[15px] bg-transparent resize-none mb-3"
-			style="min-height: 24px; max-height: 200px; color: var(--dt);"
+			style="min-height: 24px; max-height: 320px; color: var(--dt);"
 			onkeydown={onKeydown}
 			oninput={onInput}
 		></textarea>

@@ -12,9 +12,10 @@
 		onConfigChange: (config: Partial<TerminalConfig>) => void;
 		environmentMode?: string;
 		onLaunchAgent?: (agent: string) => void;
+		onStopAgent?: () => void;
 	}
 
-	let { activeProvider, config, onProviderChange, onConfigChange, environmentMode, onLaunchAgent }: Props = $props();
+	let { activeProvider, config, onProviderChange, onConfigChange, environmentMode, onLaunchAgent, onStopAgent }: Props = $props();
 
 	let showSettings = $state(false);
 	let agentLaunched = $state(false);
@@ -85,6 +86,7 @@
 				onclick={() => {
 					if (agentLaunched) {
 						agentLaunched = false;
+						onStopAgent?.();
 						return;
 					}
 					onLaunchAgent?.(activeProvider);

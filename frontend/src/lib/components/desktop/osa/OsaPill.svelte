@@ -5,7 +5,7 @@
 	Protected module — no close/dismiss button.
 -->
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { osaStore } from '$lib/stores/osa';
 	import type { AgentRuntime } from '$lib/stores/osa';
 	import { initCSRF } from '$lib/api/base';
@@ -45,49 +45,37 @@
 	let activeModel = $derived($osaStore.activeModel);
 	let activeRuntime = $derived($osaStore.activeRuntime);
 
-	let agentSession: AgentSession | null = $state(null);
+	let agentSession: AgentSession | null = null;
 
 	$effect(() => {
 		const runtime = activeRuntime;
 		if (runtime === 'osa') {
-			// Switched back to OSA — disconnect any active agent session
-			if (agentSession) {
-				agentSession.disconnect();
-				agentSession = null;
-			}
-		} else {
-			// Switched to a non-OSA runtime — disconnect old session first, then create new one
-			if (agentSession) {
-				agentSession.disconnect();
-				agentSession = null;
-			}
-			const session = createAgentSession(runtime as Exclude<AgentRuntime, 'osa'>, {
-				onOutput: (text) => osaStore.appendTerminalChunk(text),
-				onReady: () => {},
-				onDisconnect: () => osaStore.finalizeTerminalStream(),
-				onError: (err) => osaStore.appendTerminalChunk(`\n[Error: ${err}]\n`),
-			});
-			session.connect();
-			agentSession = session;
+			return; // No agent session needed — cleanup from prior run handles disconnect
 		}
+
+		const session = createAgentSession(runtime as Exclude<AgentRuntime, 'osa'>, {
+			onOutput: (text) => osaStore.appendTerminalChunk(text),
+			onReady: () => {},
+			onDisconnect: () => osaStore.finalizeTerminalStream(),
+			onError: (err) => osaStore.appendTerminalChunk(`\n[Error: ${err}]\n`),
+		});
+		session.connect();
+		agentSession = session;
+
+		// Cleanup: Svelte runs this before the next $effect re-execution and on unmount
+		return () => {
+			session.disconnect();
+			agentSession = null;
+		};
 	});
 
 	function sendToAgent(text: string) {
 		if (!agentSession?.isConnected()) {
-			// Session not connected — no-op, let reconnect happen on next runtime effect
 			return;
 		}
 		osaStore.addUserMessage(text);
-		osaStore.appendTerminalChunk(''); // Start streaming state
 		agentSession.sendMessage(text);
 	}
-
-	onDestroy(() => {
-		if (agentSession) {
-			agentSession.disconnect();
-			agentSession = null;
-		}
-	});
 
 	let chatPlaceholder = $derived.by(() => {
 		const runtime = $osaStore.activeRuntime;

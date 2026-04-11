@@ -199,6 +199,18 @@
 		onSwitchToFocusMode,
 		onQuickAction,
 	}: Props = $props();
+
+	// Dynamic pill max-width: starts compact, grows as user types
+	const pillMaxWidth = $derived.by(() => {
+		const val = inputValue;
+		if (!val || val.trim().length === 0) return 520;
+		const lines = val.split('\n').length;
+		const maxLen = Math.max(...val.split('\n').map((l: string) => l.length));
+		if (lines <= 1 && maxLen < 35) return 560;
+		if (lines <= 2 && maxLen < 55) return 640;
+		if (lines <= 3 || maxLen >= 55) return 720;
+		return 768;
+	});
 </script>
 
 <div class="es-outer">
@@ -245,7 +257,7 @@
 				</div>
 
 				<!-- Input Box -->
-				<div class="es-anim" style="animation-delay: 240ms">
+				<div class="es-anim mx-auto transition-[max-width] duration-200 ease-out" style="animation-delay: 240ms; max-width: {pillMaxWidth}px; min-width: 320px;">
 					<ChatInputBar
 						bind:inputValue
 						bind:inputRef

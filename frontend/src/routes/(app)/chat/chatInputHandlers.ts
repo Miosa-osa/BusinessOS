@@ -54,7 +54,7 @@ export function handleInput(
   const inputRef = ctx.getInputRef();
   if (inputRef) {
     inputRef.style.height = "auto";
-    inputRef.style.height = Math.min(inputRef.scrollHeight, 200) + "px";
+    inputRef.style.height = Math.min(inputRef.scrollHeight, 320) + "px";
   }
   ctx.ag.parseInputForSuggestions(ctx.cs.inputValue);
 }

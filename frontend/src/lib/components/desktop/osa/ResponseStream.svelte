@@ -211,7 +211,11 @@
 		line-height: 1.5;
 		white-space: pre-wrap;
 		word-break: break-word;
-		color: #e5e7eb;
+		color: #1c1c1e;
 		margin: 0;
+	}
+
+	:global(.dark) .terminal-output {
+		color: #e5e7eb;
 	}
 </style>

@@ -48,7 +48,8 @@ function createStore() {
 
     const tabId = crypto.randomUUID();
     const paneId = crypto.randomUUID();
-    const mode: PaneMode = provider === "shell" ? "shell" : "ai";
+    // ALL providers use shell mode — agent providers auto-launch their CLI command after connect
+    const mode: PaneMode = "shell";
 
     const leaf: PaneLeaf = {
       type: "leaf",
@@ -154,7 +155,7 @@ function createStore() {
   // --- Provider / Mode Switching ---
 
   function setTabProvider(tabId: string, provider: TerminalProvider): void {
-    const mode: PaneMode = provider === "shell" ? "shell" : "ai";
+    const mode: PaneMode = "shell";
     tabs = tabs.map((t) =>
       t.id === tabId ? { ...t, provider, paneMode: mode } : t,
     );

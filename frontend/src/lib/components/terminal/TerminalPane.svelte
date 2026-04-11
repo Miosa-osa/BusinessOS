@@ -106,9 +106,13 @@
 	}
 
 	// Notify parent when the shell ref is bound so it can register this pane's write function
+	// Cleanup removes the stale entry when the pane unmounts or shell changes
 	$effect(() => {
 		if (shellRef && onShellReady) {
 			onShellReady(pane.id, (data: string) => shellRef?.writeData(data));
+			return () => {
+				onShellReady(pane.id, null as unknown as (data: string) => void);
+			};
 		}
 	});
 </script>

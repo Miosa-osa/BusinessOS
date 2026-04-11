@@ -76,10 +76,10 @@
 
 	// Node type → d3 charge strength (reduced to prevent explosion)
 	const TYPE_CHARGE: Record<GNodeType, number> = {
-		core:     -20,
-		folder:   -3,
-		document: -1,
-		entity:   -10
+		core:     -10,
+		folder:   -2,
+		document: -0.5,
+		entity:   -5
 	};
 
 	// ── Component state ────────────────────────────────────────────────────────
@@ -109,7 +109,7 @@
 			const label = f.name;                          // last segment as label
 			const type: GNodeType = f.is_dir ? 'folder' : 'document';
 
-			gNodes.push({ id, label, nodeType: type, val: f.is_dir ? 4 : 2 });
+			gNodes.push({ id, label, nodeType: type, val: f.is_dir ? 1.5 : 1 });
 			gLinks.push({ source: parentId, target: id, relation: 'contains' });
 
 			if (f.is_dir && f.children?.length) {
@@ -171,7 +171,7 @@
 					id:       n.slug,
 					label:    n.name,
 					nodeType: 'core',
-					val:      8
+					val:      2
 				});
 			}
 
@@ -191,7 +191,7 @@
 						id:          e.name,
 						label:       e.name,
 						nodeType:    'entity',
-						val:         10,
+						val:         2,
 						connections: e.connections,
 						entityType:  e.type
 					});
@@ -313,11 +313,12 @@
 					const nType   = node.nodeType ?? 'document';
 					const isHov   = id === _hovId;
 					const isCon   = _connN.has(id);
-					const baseR   = nType === 'core'     ? 6
-					              : nType === 'folder'   ? 3
-					              : nType === 'entity'   ? 5
-					              :                        2;
-					const r       = Math.max(baseR, Math.sqrt(node.val ?? 1) * 1.2);
+					// Obsidian-style: all dots roughly same small size
+					const baseR   = nType === 'core'     ? 3
+					              : nType === 'entity'   ? 2.5
+					              : nType === 'folder'   ? 1.8
+					              :                        1.2;
+					const r       = baseR; // Fixed size, no scaling
 					const baseCol = TYPE_COLOR[nType] ?? '#4a4a4a';
 
 					ctx.beginPath();
@@ -377,12 +378,14 @@
 					const t = typeof link.target === 'object' ? link.target.id : link.target;
 					return (_connL.has(`${s}__${t}`) || _connL.has(`${t}__${s}`)) ? 1.5 : 0.3;
 				})
-				// ── Physics ──────────────────────────────────────────────────────
-				.cooldownTicks(200)
-				.cooldownTime(Infinity)
-				.d3AlphaDecay(0.01)
-				.d3VelocityDecay(0.25)
-				.d3AlphaMin(0)
+				// ── Physics — FROZEN after layout ────────────────────────────────
+				// Run 500 ticks before first render, then STOP simulation completely.
+				// No bouncing, no jittering. Completely static after initial layout.
+				.warmupTicks(500)
+				.cooldownTicks(0)
+				.cooldownTime(0)
+				.d3AlphaDecay(0.05)
+				.d3VelocityDecay(0.4)
 				.enableNodeDrag(true)
 				// ── Events ───────────────────────────────────────────────────────
 				.onZoom(({ k }: { k: number }) => {
@@ -393,11 +396,17 @@
 					setHover(node);
 					if (container) container.style.cursor = node ? 'grab' : 'default';
 				})
-				.onNodeDrag((node: GNode) => {
-					setHover(node);
+				.onNodeDrag((node: any) => {
+					setHover(node as GNode);
+					// Pin node to cursor — NO simulation reheat, NO bouncing
+					node.fx = node.x;
+					node.fy = node.y;
 					if (container) container.style.cursor = 'grabbing';
 				})
-				.onNodeDragEnd(() => {
+				.onNodeDragEnd((node: any) => {
+					// Unpin — node stays where you dropped it
+					node.fx = undefined;
+					node.fy = undefined;
 					setHover(null);
 					if (container) container.style.cursor = 'default';
 				})
@@ -441,24 +450,24 @@
 			graph.d3Force('link')
 				?.distance((link: any) => {
 					const rel = link.relation ?? 'contains';
-					if (rel === 'sibling')    return 20;    // core-core: tighter cluster
-					if (rel === 'belongs_to') return 15;    // entity-core: close
-					if (rel === 'cross_ref')  return 10;    // cross-refs: tight
-					return 5;                                // contains: very tight
+					if (rel === 'sibling')    return 40;    // core-core: enough space between cores
+					if (rel === 'belongs_to') return 30;    // entity-core: nearby but not overlapping
+					if (rel === 'cross_ref')  return 20;    // cross-refs
+					return 15;                               // contains: parent-child
 				})
 				.strength((link: any) => {
 					const rel = link.relation ?? 'contains';
-					if (rel === 'sibling')    return 0.3;   // keeps core cluster together
-					if (rel === 'belongs_to') return 0.5;   // chains entities to cores
-					if (rel === 'cross_ref')  return 0.7;   // strong cross-links
-					return 1.0;                              // contains: maximum pull
+					if (rel === 'sibling')    return 0.2;   // gentle grouping
+					if (rel === 'belongs_to') return 0.3;   // moderate chain
+					if (rel === 'cross_ref')  return 0.4;   // moderate
+					return 0.6;                              // contains: strong parent pull
 				});
 
 			graph.d3Force('center')?.strength(0.05);
 
 			// Collision to prevent overlap
 			const d3 = await import('d3-force');
-			graph.d3Force('collide', d3.forceCollide().radius(4).strength(0.6));
+			graph.d3Force('collide', d3.forceCollide().radius(8).strength(0.9));
 
 			// Radial force — pulls nodes into a spherical shell by type
 			// core → center (radius 0), entity → inner ring, folder → mid ring, document → outer ring
@@ -468,11 +477,11 @@
 				(node: any) => {
 					const nt = (node as GNode).nodeType;
 					if (nt === 'core')   return 0;
-					if (nt === 'entity') return 40;
-					if (nt === 'folder') return 80;
-					return 120; // document
+					if (nt === 'entity') return 100;
+					if (nt === 'folder') return 220;
+					return 380; // document — outer ring
 				}
-			).strength(0.3));
+			).strength(0.15));
 
 			// Size the canvas
 			const w = container.clientWidth;

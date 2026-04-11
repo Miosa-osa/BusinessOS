@@ -306,7 +306,12 @@
 }
 
 .chat-input-box {
-	transition: all 0.2s ease;
+	transition: all 0.2s ease-out;
+}
+
+/* Textarea smooth height growth */
+.chat-textarea {
+	transition: height 0.15s ease-out;
 }
 
 .dark .chat-input-area {

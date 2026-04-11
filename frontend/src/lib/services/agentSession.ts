@@ -8,10 +8,12 @@ import {
   createTerminalService,
   type TerminalService,
 } from "./terminal.service";
+import type { AgentRuntime } from "$lib/stores/osa";
 
-export type AgentRuntime = "claude" | "codex" | "ollama" | "hermes";
+/** CLI agent runtimes and their launch commands */
+type CliRuntime = Exclude<AgentRuntime, "osa">;
 
-const AGENT_COMMANDS: Record<AgentRuntime, string> = {
+const AGENT_COMMANDS: Record<CliRuntime, string> = {
   claude: "claude --dangerously-skip-permissions",
   codex: "codex --full-auto",
   ollama: "ollama run",
@@ -41,17 +43,20 @@ export interface AgentSession {
   disconnect(): void;
   /** Whether the WebSocket is connected */
   isConnected(): boolean;
+  /** Whether the agent CLI is ready to accept input */
+  isReady(): boolean;
   /** The runtime this session is running */
-  runtime: AgentRuntime;
+  runtime: CliRuntime;
 }
 
 export function createAgentSession(
-  runtime: AgentRuntime,
+  runtime: CliRuntime,
   callbacks: AgentSessionCallbacks,
 ): AgentSession {
   let service: TerminalService | null = null;
   let connected = false;
   let agentLaunched = false;
+  let agentReady = false;
   // Buffer to detect when agent is ready (first prompt after launch)
   let outputBuffer = "";
   let readyTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -63,8 +68,12 @@ export function createAgentSession(
     outputBuffer += text;
 
     // After agent launch, wait for initial output burst to settle, then mark ready
-    if (agentLaunched && !readyTimeout) {
+    if (agentLaunched && readyTimeout) {
+      clearTimeout(readyTimeout);
+    }
+    if (agentLaunched) {
       readyTimeout = setTimeout(() => {
+        agentReady = true;
         callbacks.onReady();
         readyTimeout = null;
       }, 1500);
@@ -122,6 +131,10 @@ export function createAgentSession(
         callbacks.onError("Agent not connected");
         return;
       }
+      if (!agentReady) {
+        callbacks.onError("Agent still starting up — try again in a moment");
+        return;
+      }
       termService.sendInput(text + "\n");
     },
 
@@ -133,10 +146,15 @@ export function createAgentSession(
       termService.disconnect();
       connected = false;
       agentLaunched = false;
+      agentReady = false;
     },
 
     isConnected() {
       return connected;
+    },
+
+    isReady() {
+      return agentReady;
     },
   };
 }

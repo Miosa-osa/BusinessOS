@@ -24,8 +24,24 @@
 	// Shell write function registry — keyed by paneId
 	const shellRefs = new Map<string, (data: string) => void>();
 
-	function handleShellReady(paneId: string, write: (data: string) => void) {
-		shellRefs.set(paneId, write);
+	function handleShellReady(paneId: string, write: (data: string) => void | null) {
+		if (write) {
+			shellRefs.set(paneId, write);
+
+			// Auto-launch agent if this pane was queued for it
+			if (pendingAgentLaunch.has(paneId)) {
+				pendingAgentLaunch.delete(paneId);
+				// Find the tab that owns this pane to get its provider
+				const ownerTab = tabs.find(t => t.rootPaneId === paneId);
+				const command = ownerTab ? AGENT_COMMANDS[ownerTab.provider] : null;
+				if (command) {
+					// Small delay to let the shell fully initialize
+					setTimeout(() => write(command), 500);
+				}
+			}
+		} else {
+			shellRefs.delete(paneId);
+		}
 	}
 
 	// Sandbox analysis state
@@ -53,6 +69,9 @@
 		terminalStore.switchTab(tabId);
 	}
 
+	// Track which panes need auto-launch after shell connects
+	const pendingAgentLaunch = new Set<string>();
+
 	function handleProviderChange(provider: TerminalProvider) {
 		// Find an existing tab with this provider — switch to it instead of overwriting
 		const existingTab = tabs.find(t => t.provider === provider);
@@ -60,8 +79,15 @@
 			terminalStore.switchTab(existingTab.id);
 			return;
 		}
-		// No existing tab — create a new one for this provider
-		terminalStore.createTab(provider);
+		// Create a new shell tab — all providers use real shell
+		const tabId = terminalStore.createTab(provider);
+		if (tabId && provider !== 'shell') {
+			// Find the root pane of the new tab and queue agent launch
+			const tab = tabs.find(t => t.id === tabId);
+			if (tab) {
+				pendingAgentLaunch.add(tab.rootPaneId);
+			}
+		}
 	}
 
 	function handleConfigChange(partial: Partial<TerminalConfig>) {
@@ -119,6 +145,17 @@
 		const write = shellRefs.get(targetPaneId);
 		if (write) {
 			write(command);
+		}
+	}
+
+	function handleStopAgent() {
+		const targetPaneId = focusedPaneId ?? getSplitTarget();
+		if (!targetPaneId) return;
+
+		const write = shellRefs.get(targetPaneId);
+		if (write) {
+			// Send Ctrl+C (ASCII 0x03) to interrupt the running agent
+			write('\x03');
 		}
 	}
 
@@ -203,6 +240,7 @@
 		onProviderChange={handleProviderChange}
 		onConfigChange={handleConfigChange}
 		onLaunchAgent={handleLaunchAgent}
+		onStopAgent={handleStopAgent}
 	/>
 
 	<!-- Focus Mode Bar (only when AI provider active) -->

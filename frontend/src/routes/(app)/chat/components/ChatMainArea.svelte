@@ -152,6 +152,18 @@
 		onShowDocumentUpload: () => { cx.showPlusMenu = false; cx.showDocumentUploadModal = true; },
 		onShowHybridSearch: () => { cx.showPlusMenu = false; cx.showHybridSearchPanel = true; },
 	}));
+
+	// Dynamic pill max-width: starts compact, grows as user types
+	const pillMaxWidth = $derived.by(() => {
+		const val = cs.inputValue;
+		if (!val || val.trim().length === 0) return 520;
+		const lines = val.split('\n').length;
+		const maxLen = Math.max(...val.split('\n').map((l: string) => l.length));
+		if (lines <= 1 && maxLen < 35) return 560;
+		if (lines <= 2 && maxLen < 55) return 640;
+		if (lines <= 3 || maxLen >= 55) return 720;
+		return 768;
+	});
 </script>
 
 
@@ -195,7 +207,7 @@
 
 	<!-- Input Area -->
 	<div class="chat-input-area flex-shrink-0 p-4">
-		<div class="max-w-3xl mx-auto">
+		<div class="mx-auto transition-[max-width] duration-200 ease-out" style="max-width: {pillMaxWidth}px; min-width: 320px;">
 			<input
 				bind:this={fileInputRef}
 				type="file"
