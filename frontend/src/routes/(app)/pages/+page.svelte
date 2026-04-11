@@ -21,10 +21,12 @@
 		// Components
 		KBSidebar,
 		QuickSearch,
-		DocumentEditor,
-		GraphView
+		DocumentEditor
 	} from '$lib/modules/knowledge-base';
 	import type { DocumentMeta } from '$lib/modules/knowledge-base';
+	import KnowledgeGraph from '$lib/components/knowledge/KnowledgeGraph.svelte';
+	import type { Memory } from '$lib/api/memory/types';
+	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
 
 	// State
 	let isLoading = $state(true);
@@ -32,6 +34,59 @@
 	let showQuickSearch = $state(false);
 	let showNewDocForm = $state(false);
 	let newDocTitle = $state('');
+	let folderView = $state<{ id: string; title: string; children: DocumentMeta[] } | null>(null);
+	let panelSize = $state<'default' | 'wide' | 'full'>('default');
+
+	// Knowledge graph data — map OptimalOS documents to Memory objects for the 3D graph
+	let graphMemories = $state<Memory[]>([]);
+	let graphNodeMap = $state<Map<string, { name: string; type: string }>>(new Map());
+
+	$effect(() => {
+		if (currentView === 'knowledge-graph' && graphMemories.length === 0 && documents.length > 0) {
+			loadGraphData();
+		}
+	});
+
+	async function loadGraphData() {
+		const now = new Date().toISOString();
+		const nodeColors: Record<string, string> = {
+			'folder': '#3b82f6', 'document': '#8b5cf6',
+		};
+
+		// Map documents to Memory objects
+		graphMemories = documents.slice(0, 300).map((doc, i) => ({
+			id: doc.id,
+			user_id: 'local',
+			title: doc.title || 'Untitled',
+			summary: doc.type === 'folder' ? `${doc.children_count} items` : doc.id.split('/').slice(0, -1).join('/'),
+			content: '',
+			memory_type: 'fact' as const,
+			importance_score: doc.type === 'folder' ? 0.8 : 0.5,
+			is_pinned: false,
+			is_active: true,
+			tags: doc.id.split('/').filter(Boolean),
+			metadata: {},
+			source_type: doc.type,
+			source_id: null,
+			project_id: null,
+			node_id: doc.parent_id,
+			expires_at: null,
+			access_count: 0,
+			last_accessed_at: null,
+			created_at: now,
+			updated_at: doc.updated_at || now,
+			color: nodeColors[doc.type || 'document'] || '#6b7280',
+		}));
+
+		// Build node lookup
+		const map = new Map<string, { name: string; type: string }>();
+		for (const doc of documents) {
+			if (doc.type === 'folder' && !doc.parent_id?.includes('/')) {
+				map.set(doc.id, { name: doc.title || doc.id, type: doc.type });
+			}
+		}
+		graphNodeMap = map;
+	}
 
 	// Derived
 	let currentDocumentId = $derived($activeDocumentStore.id);
@@ -47,33 +102,34 @@
 		}
 	});
 
-	// Initialize
+	// OptimalOS node data for the hierarchy view
+	interface NodeInfo { slug: string; name: string; type: string; signal_count: number; has_signals: boolean; }
+	let optNodes = $state<NodeInfo[]>([]);
+
+	// Initialize — load documents AND node hierarchy
 	onMount(async () => {
 		try {
 			await fetchDocuments();
-
-			if (!$activeDocumentStore.id) {
-				const lastDocId = localStorage.getItem(LAST_DOC_KEY);
-				if (lastDocId) {
-					const docExists = $documentMetas.some(d => d.id === lastDocId);
-					if (docExists) {
-						await openAndFetchDocument(lastDocId);
-					} else {
-						const mostRecent = $documentMetas[0];
-						if (mostRecent) {
-							await openAndFetchDocument(mostRecent.id);
-						}
-					}
-				} else if ($documentMetas.length > 0) {
-					await openAndFetchDocument($documentMetas[0].id);
-				}
-			}
-
-			isLoading = false;
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load documents';
-			isLoading = false;
+			console.warn('[Pages] fetchDocuments failed:', e);
 		}
+
+		// Load node list for hierarchy view
+		try {
+			const headers: Record<string, string> = {};
+			const csrf = getCSRFToken();
+			if (csrf) headers['X-CSRF-Token'] = csrf;
+			const res = await fetch(`${getApiBaseUrl()}/optimal/nodes`, {
+				headers, credentials: 'include', signal: AbortSignal.timeout(5000)
+			});
+			if (res.ok) {
+				const data = await res.json();
+				optNodes = data.nodes ?? [];
+			}
+		} catch { /* degrade gracefully */ }
+
+		// Don't auto-open any document — let user choose from hierarchy
+		isLoading = false;
 	});
 
 	// Handlers
@@ -91,6 +147,20 @@
 	}
 
 	async function handleOpenDocument(id: string) {
+		// Check if this is a folder — find it in the document list
+		const doc = documents.find(d => d.id === id);
+		const isFolder = doc?.type === 'folder' || (!id.endsWith('.md') && id.includes('/'));
+
+		if (isFolder) {
+			// Show folder contents instead of opening as document
+			const children = documents.filter(d => d.parent_id === id);
+			const title = doc?.title || id.split('/').pop() || id;
+			folderView = { id, title, children };
+			activeDocumentStore.setActiveDocument(null);
+			return;
+		}
+
+		folderView = null;
 		try {
 			await openAndFetchDocument(id);
 		} catch (e) {
@@ -165,96 +235,256 @@
 					onclick={() => { error = null; isLoading = true; fetchDocuments().finally(() => { isLoading = false; }) }}
 				>Retry</button>
 			</div>
-		{:else if currentView === 'graph'}
-			<GraphView
-				documents={$documentMetas}
-				selectedId={null}
-				onSelect={(doc) => handleOpenDocument(doc.id)}
-				onNavigate={(doc) => handleOpenDocument(doc.id)}
-			/>
+		{:else if currentView === 'graph' || currentView === 'knowledge-graph'}
+			<div class="kg-split" style="position:relative; height:100%; width:100%;">
+				<!-- Graph fills the whole space -->
+				<KnowledgeGraph
+					memories={[]}
+					nodes={graphNodeMap}
+					onSelect={(mem) => {
+						if (mem.id.endsWith('.md') || mem.id.includes('/')) {
+							openAndFetchDocument(mem.id).catch(() => {});
+						}
+					}}
+				/>
+				<!-- Floating resizable panel -->
+				{#if currentDocumentId}
+					<div
+						class="kg-panel"
+						class:kg-panel--wide={panelSize === 'wide'}
+						class:kg-panel--full={panelSize === 'full'}
+					>
+						<div class="kg-panel__header">
+							<span class="kg-panel__title">{currentDocumentId.split('/').pop()}</span>
+							<div class="kg-panel__controls">
+								<button class="kg-panel__btn" onclick={() => panelSize = panelSize === 'default' ? 'wide' : panelSize === 'wide' ? 'full' : 'default'} title="Resize">
+									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+								</button>
+								<button class="kg-panel__btn" onclick={handleCloseDocument} title="Close">
+									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+								</button>
+							</div>
+						</div>
+						<div class="kg-panel__body">
+							<DocumentEditor
+								documentId={currentDocumentId}
+								onClose={handleCloseDocument}
+							/>
+						</div>
+					</div>
+				{/if}
+			</div>
 		{:else if currentDocumentId}
 			<DocumentEditor
 				documentId={currentDocumentId}
 				onClose={handleCloseDocument}
 			/>
-		{:else}
-			<!-- Document listing / empty state -->
+		{:else if currentView === 'recent'}
 			<div class="kb-page__listing">
-				<!-- Header -->
-				<div class="kb-page__header">
-					<h1 class="kb-page__title">Pages</h1>
-					<div class="kb-page__actions">
-						<button
-							class="kb-page__btn kb-page__btn--search"
-							aria-label="Search documents"
-							onclick={handleOpenSearch}
-						>
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-							Search
+				<div class="kb-page__header"><h1 class="kb-page__title">Recent</h1></div>
+				<div class="kb-page__hierarchy">
+					{#each documents.filter(d => d.id.endsWith('.md')).slice(0, 20) as doc (doc.id)}
+						<button class="kb-page__child-item" onclick={() => handleOpenDocument(doc.id)}>
+							<span class="kb-page__cat-icon">📄</span>
+							<span>{doc.title}</span>
+							<span class="kb-page__child-desc">{doc.id.split('/')[0]}</span>
 						</button>
-						<button
-							class="kb-page__btn kb-page__btn--primary"
-							aria-label="Create new page"
-							onclick={handleNewDocument}
-						>
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-							New Page
-						</button>
-					</div>
+					{:else}
+						<div class="kb-page__empty"><p class="kb-page__empty-desc">No recent documents</p></div>
+					{/each}
 				</div>
-
-				{#if documents.length === 0}
-					<!-- Empty state -->
-					<div class="kb-page__empty">
-						<div class="kb-page__empty-icon">
-							<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-								<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-								<polyline points="14,2 14,8 20,8"/>
-								<line x1="16" y1="13" x2="8" y2="13"/>
-								<line x1="16" y1="17" x2="8" y2="17"/>
-							</svg>
+			</div>
+		{:else if currentView === 'favorites'}
+			<div class="kb-page__listing">
+				<div class="kb-page__header"><h1 class="kb-page__title">Favorites</h1></div>
+				<div class="kb-page__empty"><p class="kb-page__empty-desc">Pin documents to see them here</p></div>
+			</div>
+		{:else if currentView === 'trash'}
+			<div class="kb-page__listing">
+				<div class="kb-page__header"><h1 class="kb-page__title">Trash</h1></div>
+				<div class="kb-page__empty"><p class="kb-page__empty-desc">No deleted documents</p></div>
+			</div>
+		{:else if currentView === 'profiles' || currentView === 'profiles-person'}
+			<div class="kb-page__listing">
+				<div class="kb-page__header"><h1 class="kb-page__title">People</h1></div>
+				{#each optNodes.filter(n => n.slug === '10-team' || n.slug === '01-roberto') as node}
+					<div class="kb-page__node-section">
+						<button class="kb-page__node-header" onclick={() => handleOpenDocument(node.slug + '/context.md')}>
+							<div class="kb-page__node-info">
+								<span class="kb-page__node-slug">{node.slug.split('-')[0]}</span>
+								<span class="kb-page__node-name">{node.name}</span>
+							</div>
+						</button>
+						<div class="kb-page__node-children">
+							{#each documents.filter(d => d.parent_id === node.slug && (d.type === 'folder' || d.id.endsWith('.md'))) as child}
+								<button class="kb-page__child-item" onclick={() => handleOpenDocument(child.id)}>
+									<span class="kb-page__cat-icon">{child.type === 'folder' ? '👥' : '📄'}</span>
+									<span>{child.title}</span>
+								</button>
+							{/each}
 						</div>
-						<h2 class="kb-page__empty-title">No pages yet</h2>
-						<p class="kb-page__empty-desc">Create your first page to start building your knowledge base.</p>
-						<button
-							class="kb-page__btn kb-page__btn--primary"
-							aria-label="Create first page"
-							onclick={handleNewDocument}
-						>Create New Page</button>
+					</div>
+				{/each}
+			</div>
+		{:else if currentView === 'profiles-business'}
+			<div class="kb-page__listing">
+				<div class="kb-page__header"><h1 class="kb-page__title">Businesses</h1></div>
+				{#each optNodes.filter(n => ['02-miosa', '03-lunivate'].includes(n.slug)) as node}
+					<div class="kb-page__node-section">
+						<button class="kb-page__node-header" onclick={() => handleOpenDocument(node.slug + '/context.md')}>
+							<div class="kb-page__node-info">
+								<span class="kb-page__node-slug">{node.slug.split('-')[0]}</span>
+								<span class="kb-page__node-name">{node.name}</span>
+							</div>
+							<span class="kb-page__type-badge">{node.type}</span>
+						</button>
+						<div class="kb-page__node-children">
+							{#each documents.filter(d => d.parent_id === node.slug) as child}
+								<button class="kb-page__child-item" onclick={() => handleOpenDocument(child.id)}>
+									<span class="kb-page__cat-icon">{child.type === 'folder' ? '🏢' : '📄'}</span>
+									<span>{child.title}</span>
+									{#if child.children_count > 0}
+										<span class="kb-page__child-count">{child.children_count}</span>
+									{/if}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/each}
+			</div>
+		{:else if currentView === 'profiles-project'}
+			<div class="kb-page__listing">
+				<div class="kb-page__header"><h1 class="kb-page__title">Projects</h1></div>
+				{#each documents.filter(d => d.type === 'folder' && d.id.toLowerCase().includes('project')) as proj}
+					<button class="kb-page__child-item kb-page__child-item--folder" onclick={() => handleOpenDocument(proj.id)}>
+						<span class="kb-page__cat-icon">🏗️</span>
+						<span>{proj.title}</span>
+						<span class="kb-page__child-desc">{proj.id.split('/')[0]}</span>
+						{#if proj.children_count > 0}
+							<span class="kb-page__child-count">{proj.children_count}</span>
+						{/if}
+					</button>
+				{/each}
+			</div>
+		{:else if folderView}
+			<!-- Folder contents view -->
+			<div class="kb-page__listing">
+				<div class="kb-page__header">
+					<h1 class="kb-page__title">{folderView.title}</h1>
+					<span style="color: var(--dt3, rgba(255,255,255,0.3)); font-size: 13px;">{folderView.children.length} items</span>
+				</div>
+				{#if folderView.children.length === 0}
+					<div class="kb-page__empty">
+						<p class="kb-page__empty-desc">This folder is empty</p>
 					</div>
 				{:else}
-					<!-- Document grid -->
 					<div class="kb-page__grid">
-						{#each documents as doc (doc.id)}
+						{#each folderView.children as child (child.id)}
 							<button
 								class="kb-page__card"
-								class:kb-page__card--active={currentDocumentId === doc.id}
-								aria-label="Open {doc.title || 'Untitled'}"
-								onclick={() => handleOpenDocument(doc.id)}
+								onclick={() => handleOpenDocument(child.id)}
 							>
 								<div class="kb-page__card-icon">
-									{#if getDocIcon(doc)}
-										<span class="kb-page__card-emoji">{getDocIcon(doc)}</span>
+									{#if child.type === 'folder'}
+										<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
 									{:else}
-										<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-											<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-											<polyline points="14,2 14,8 20,8"/>
-										</svg>
+										<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
 									{/if}
 								</div>
 								<div class="kb-page__card-body">
-									<span class="kb-page__card-title">{doc.title || 'Untitled'}</span>
-									<span class="kb-page__card-meta">
-										{formatDate(doc.updated_at)}
-										{#if doc.is_favorite}
-											<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-										{/if}
-									</span>
+									<span class="kb-page__card-title">{child.title || 'Untitled'}</span>
+									{#if child.type === 'folder'}
+										<span class="kb-page__card-meta">{child.children_count} items</span>
+									{/if}
 								</div>
-								{#if doc.type}
-									<span class="kb-page__card-badge">{doc.type}</span>
-								{/if}
 							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{:else}
+			<!-- Node Hierarchy View — structured by business entities -->
+			<div class="kb-page__listing">
+				<div class="kb-page__header">
+					<h1 class="kb-page__title">Knowledge Base</h1>
+					<div class="kb-page__actions">
+						<button class="kb-page__btn kb-page__btn--search" onclick={handleOpenSearch}>
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+							Search
+						</button>
+						<span class="kb-page__stats">{optNodes.length} nodes · {documents.length} pages</span>
+					</div>
+				</div>
+
+				{#if isLoading}
+					<div class="kb-page__empty">
+						<div class="kb-page__spinner"></div>
+						<p class="kb-page__empty-desc">Loading knowledge base...</p>
+					</div>
+				{:else if optNodes.length === 0 && documents.length === 0}
+					<div class="kb-page__empty">
+						<p class="kb-page__empty-desc">No data found. Check that the backend is running.</p>
+						<button class="kb-page__btn" onclick={() => location.reload()}>Retry</button>
+					</div>
+				{:else}
+					<!-- Node hierarchy — organized by business entity with logical categories -->
+					<div class="kb-page__hierarchy">
+						{#each optNodes as node}
+							{@const nodeChildren = documents.filter(d => d.parent_id === node.slug)}
+							{@const contextDoc = nodeChildren.find(d => d.id === node.slug + '/context.md')}
+							{@const signalDoc = nodeChildren.find(d => d.id === node.slug + '/signal.md')}
+							{@const folders = nodeChildren.filter(d => d.type === 'folder')}
+							{@const otherFiles = nodeChildren.filter(d => d.id.endsWith('.md') && d.id !== node.slug + '/context.md' && d.id !== node.slug + '/signal.md')}
+							<div class="kb-page__node-section">
+								<button class="kb-page__node-header" onclick={() => contextDoc ? handleOpenDocument(contextDoc.id) : null}>
+									<div class="kb-page__node-info">
+										<span class="kb-page__node-slug">{node.slug.split('-')[0]}</span>
+										<span class="kb-page__node-name">{node.name}</span>
+									</div>
+									<div class="kb-page__node-meta">
+										{#if node.signal_count > 0}
+											<span class="kb-page__signal-badge">{node.signal_count} signals</span>
+										{/if}
+										<span class="kb-page__type-badge">{node.type || 'node'}</span>
+									</div>
+								</button>
+								<div class="kb-page__node-children">
+									<!-- Context & Signal — always first -->
+									{#if contextDoc}
+										<button class="kb-page__child-item kb-page__child-item--special" onclick={() => handleOpenDocument(contextDoc.id)}>
+											<span class="kb-page__cat-icon">📋</span>
+											<span>Context</span>
+											<span class="kb-page__child-desc">Persistent facts</span>
+										</button>
+									{/if}
+									{#if signalDoc}
+										<button class="kb-page__child-item kb-page__child-item--special" onclick={() => handleOpenDocument(signalDoc.id)}>
+											<span class="kb-page__cat-icon">📡</span>
+											<span>Weekly Signal</span>
+											<span class="kb-page__child-desc">Status & priorities</span>
+										</button>
+									{/if}
+									<!-- Categorized folders -->
+									{#each folders as folder}
+										{@const catName = folder.title.toLowerCase()}
+										{@const icon = catName.includes('project') ? '🏗️' : catName.includes('signal') ? '⚡' : catName.includes('team') || catName.includes('people') || catName === 'pedro' || catName === 'pedram' || catName === 'bennett' || catName === 'ahmed' ? '👥' : catName.includes('deliver') ? '📦' : catName.includes('content') || catName.includes('research') ? '📝' : catName.includes('platform') || catName.includes('canopy') ? '🔧' : catName.includes('agency') ? '🏢' : catName.includes('community') || catName.includes('workshop') ? '🎓' : catName.includes('course') || catName.includes('curriculum') ? '📚' : catName.includes('sales') ? '💰' : catName.includes('asset') ? '📎' : '📁'}
+										<button class="kb-page__child-item kb-page__child-item--folder" onclick={() => handleOpenDocument(folder.id)}>
+											<span class="kb-page__cat-icon">{icon}</span>
+											<span>{folder.title}</span>
+											{#if folder.children_count > 0}
+												<span class="kb-page__child-count">{folder.children_count}</span>
+											{/if}
+										</button>
+									{/each}
+									<!-- Other loose files -->
+									{#each otherFiles as file}
+										<button class="kb-page__child-item" onclick={() => handleOpenDocument(file.id)}>
+											<span class="kb-page__cat-icon">📄</span>
+											<span>{file.title}</span>
+										</button>
+									{/each}
+								</div>
+							</div>
 						{/each}
 					</div>
 				{/if}
@@ -432,6 +662,217 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
+	}
+
+	.kb-page__stats {
+		font-size: 12px;
+		color: var(--dt3, #999);
+	}
+
+	.kb-page__hierarchy {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		padding: 0 16px 16px;
+	}
+
+	.kb-page__node-section {
+		border-radius: 8px;
+		overflow: hidden;
+	}
+
+	.kb-page__node-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		padding: 10px 12px;
+		border: none;
+		background: var(--dbg2, rgba(0,0,0,0.03));
+		border-left: 3px solid var(--dbd, rgba(0,0,0,0.1));
+		cursor: pointer;
+		transition: all 0.15s;
+		color: inherit;
+	}
+
+	.kb-page__node-header:hover {
+		background: var(--dbg3, rgba(0,0,0,0.06));
+		border-left-color: rgba(59,130,246,0.5);
+	}
+
+	.kb-page__node-info {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.kb-page__node-slug {
+		font-size: 11px;
+		font-family: ui-monospace, monospace;
+		color: var(--dt4, #aaa);
+		min-width: 20px;
+	}
+
+	.kb-page__node-name {
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--dt, inherit);
+	}
+
+	.kb-page__node-meta {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.kb-page__signal-badge {
+		font-size: 10px;
+		color: rgba(34,197,94,0.8);
+		background: rgba(34,197,94,0.1);
+		padding: 2px 6px;
+		border-radius: 4px;
+	}
+
+	.kb-page__type-badge {
+		font-size: 10px;
+		color: var(--dt3, #999);
+		background: var(--dbg2, rgba(0,0,0,0.05));
+		padding: 2px 6px;
+		border-radius: 4px;
+	}
+
+	.kb-page__node-children {
+		display: flex;
+		flex-direction: column;
+		padding-left: 32px;
+		gap: 1px;
+	}
+
+	.kb-page__child-item {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 10px;
+		border: none;
+		background: transparent;
+		color: var(--dt2, #666);
+		font-size: 12px;
+		cursor: pointer;
+		border-radius: 4px;
+		transition: all 0.1s;
+		text-align: left;
+	}
+
+	.kb-page__child-item:hover {
+		background: var(--dbg2, rgba(0,0,0,0.04));
+		color: var(--dt, inherit);
+	}
+
+	.kb-page__child-item--folder {
+		color: var(--dt2, #555);
+	}
+
+	.kb-page__child-count {
+		margin-left: auto;
+		font-size: 10px;
+		color: var(--dt4, #bbb);
+	}
+
+	.kb-page__child-item--special {
+		color: var(--dt, inherit);
+		font-weight: 500;
+	}
+
+	.kb-page__child-desc {
+		margin-left: auto;
+		font-size: 10px;
+		color: var(--dt4, #bbb);
+		font-weight: 400;
+	}
+
+	/* Knowledge Graph floating panel */
+	.kg-split {
+		overflow: hidden;
+	}
+
+	.kg-panel {
+		position: absolute;
+		right: 12px;
+		top: 12px;
+		bottom: 12px;
+		width: 380px;
+		background: var(--dbg, #fff);
+		border: 1px solid var(--dbd, rgba(0,0,0,0.12));
+		border-radius: 12px;
+		box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+		z-index: 10;
+		transition: width 0.2s ease;
+	}
+
+	.kg-panel--wide {
+		width: 55%;
+	}
+
+	.kg-panel--full {
+		left: 12px;
+		width: auto;
+	}
+
+	.kg-panel__header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 8px 12px;
+		border-bottom: 1px solid var(--dbd, rgba(0,0,0,0.08));
+		flex-shrink: 0;
+	}
+
+	.kg-panel__title {
+		font-size: 12px;
+		font-weight: 500;
+		color: var(--dt2, #555);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.kg-panel__controls {
+		display: flex;
+		gap: 4px;
+	}
+
+	.kg-panel__btn {
+		width: 28px;
+		height: 28px;
+		border: none;
+		background: transparent;
+		border-radius: 6px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--dt3, #999);
+		transition: all 0.1s;
+	}
+
+	.kg-panel__btn:hover {
+		background: var(--dbg2, rgba(0,0,0,0.05));
+		color: var(--dt, inherit);
+	}
+
+	.kg-panel__body {
+		flex: 1;
+		overflow-y: auto;
+	}
+
+	.kb-page__cat-icon {
+		font-size: 13px;
+		flex-shrink: 0;
+		width: 18px;
+		text-align: center;
 	}
 
 	.kb-page__card {

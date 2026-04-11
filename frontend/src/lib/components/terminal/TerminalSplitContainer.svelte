@@ -11,9 +11,10 @@
 		activeFocusMode?: string;
 		onSessionCreated?: (paneId: string, sessionId: string) => void;
 		onFocus?: (paneId: string) => void;
+		onShellReady?: (paneId: string, write: (data: string) => void) => void;
 	}
 
-	let { node, config, activeFocusMode, onSessionCreated, onFocus }: Props = $props();
+	let { node, config, activeFocusMode, onSessionCreated, onFocus, onShellReady }: Props = $props();
 
 	let containerEl = $state<HTMLDivElement | undefined>(undefined);
 	let isDragging = $state(false);
@@ -114,6 +115,7 @@
 		{activeFocusMode}
 		{onSessionCreated}
 		{onFocus}
+		{onShellReady}
 	/>
 {:else}
 	<div
@@ -132,6 +134,7 @@
 				{activeFocusMode}
 				{onSessionCreated}
 				{onFocus}
+				{onShellReady}
 			/>
 		</div>
 
@@ -161,6 +164,7 @@
 				{activeFocusMode}
 				{onSessionCreated}
 				{onFocus}
+				{onShellReady}
 			/>
 		</div>
 	</div>

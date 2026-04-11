@@ -23,7 +23,8 @@
 		KBSidebar,
 		QuickSearch,
 		DocumentEditor,
-		GraphView
+		GraphView,
+		OptimalGraphView
 	} from '$lib/modules/knowledge-base';
 	import { KnowledgeGraph, KnowledgeChatPanel, KnowledgeDocumentPanel } from '$lib/components/knowledge';
 	import type { Memory } from '$lib/api/memory/types';
@@ -187,15 +188,10 @@
 				<button class="btn-pill btn-pill-ghost knowledge-page__btn" onclick={() => { error = null; isLoading = true; fetchDocuments().finally(() => { isLoading = false; }) }}>Retry</button>
 			</div>
 		{:else if currentView === 'graph'}
-			<!-- Force-directed Graph View for Pages -->
-			<GraphView
-				documents={$documentMetas}
-				selectedId={selectedGraphId}
-				onSelect={(doc) => {
-					selectedGraphId = doc.id;
-				}}
-				onNavigate={(doc) => {
-					handleOpenDocument(doc.id);
+			<!-- OptimalOS Engine Knowledge Graph -->
+			<OptimalGraphView
+				onSelectEntity={(name, type) => {
+					selectedGraphId = name;
 				}}
 			/>
 		{:else if currentView === 'knowledge-graph'}

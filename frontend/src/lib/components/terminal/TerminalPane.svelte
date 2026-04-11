@@ -11,9 +11,10 @@
 		activeFocusMode?: string;
 		onSessionCreated?: (paneId: string, sessionId: string) => void;
 		onFocus?: (paneId: string) => void;
+		onShellReady?: (paneId: string, write: (data: string) => void) => void;
 	}
 
-	let { pane, config, activeFocusMode, onSessionCreated, onFocus }: Props = $props();
+	let { pane, config, activeFocusMode, onSessionCreated, onFocus, onShellReady }: Props = $props();
 
 	let shellRef: TerminalShell | undefined = $state();
 	let aiChatRef: TerminalAIChat | undefined = $state();
@@ -99,6 +100,17 @@
 		else if (showAI) aiChatRef?.focus();
 		else if (showMonaco) monacoRef?.focus();
 	}
+
+	export function writeData(data: string) {
+		shellRef?.writeData(data);
+	}
+
+	// Notify parent when the shell ref is bound so it can register this pane's write function
+	$effect(() => {
+		if (shellRef && onShellReady) {
+			onShellReady(pane.id, (data: string) => shellRef?.writeData(data));
+		}
+	});
 </script>
 
 <div

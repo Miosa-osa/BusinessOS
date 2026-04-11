@@ -85,6 +85,16 @@ type Handlers struct {
 	// Signal Theory feedback
 	signalHints          feedback.SignalHintProvider // Homeostatic feedback → prompt corrections
 	subconsciousObserver *subconscious.Observer      // Subconscious observer for async pattern detection
+	// OptimalOS local data bridge
+	optimalHandler *OptimalHandler // read-only bridge to OptimalOS filesystem + engine
+}
+
+// SetOptimalHandler injects the OptimalOS handler after construction.
+// Call this from main/server setup when the OptimalOS paths are available.
+// dbPath is the absolute path to .system/index.db; pass an empty string to
+// disable the SQLite-backed graph/search endpoints gracefully.
+func (h *Handlers) SetOptimalHandler(nodesRoot, osRoot, enginePath, dbPath string) {
+	h.optimalHandler = NewOptimalHandler(nodesRoot, osRoot, enginePath, dbPath)
 }
 
 // NewHandlers creates a new Handlers instance

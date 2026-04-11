@@ -10,6 +10,7 @@
 	import EditorToolbar from './EditorToolbar.svelte';
 	import ShareModal from './ShareModal.svelte';
 	import ExportMenu from './ExportMenu.svelte';
+	import DocumentProperties from './DocumentProperties.svelte';
 	import { debounce, formatRelativeTime } from '$lib/utils';
 
 	interface Props {
@@ -356,6 +357,9 @@
 					onCoverChange={handleCoverChange}
 					onStartReposition={handleStartReposition}
 				/>
+
+				<!-- Document properties panel (Obsidian-style, collapsible) -->
+				<DocumentProperties {doc} content={localContent} />
 
 				<!-- Page metadata bar -->
 				<div class="document-editor__meta">

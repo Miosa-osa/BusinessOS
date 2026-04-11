@@ -87,7 +87,7 @@
 	function handleInput() {
 		if (!inputElement) return;
 		inputElement.style.height = 'auto';
-		const max = compact ? 38 : 100;
+		const max = compact ? 38 : 200;
 		inputElement.style.height = `${Math.min(inputElement.scrollHeight, max)}px`;
 	}
 
@@ -584,7 +584,7 @@
 	}
 
 	.chat-textarea:not(.compact) {
-		max-height: 100px;
+		max-height: 200px;
 		overflow-y: auto;
 	}
 

@@ -2,9 +2,10 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { fly, slide } from 'svelte/transition';
-	import { nodes } from '$lib/stores/nodes';
+	import { optimalStore } from '$lib/stores/optimal';
+	import { toNodeTrees } from '$lib/stores/optimalGraph';
 	import { NodeGraphView, NodeBuildingView, NodeBuilding3D } from '$lib/components/nodes';
-	import type { NodeTree, NodeType, NodeHealth, CreateNodeData } from '$lib/api/nodes/types';
+	import type { NodeTree, NodeType, NodeHealth } from '$lib/api/nodes/types';
 
 	// Sanitize user input to prevent XSS and injection attacks
 	function sanitizeInput(input: string): string {
@@ -42,17 +43,13 @@
 	let showFilterDropdown = $state(false);
 	let filterType: NodeType | 'all' = $state('all');
 	let filterHealth: NodeHealth | 'all' = $state('all');
-	let showArchived = $state(false);
 
-	// New node form
+	// New node form (shell — create not wired to OptimalOS filesystem)
 	let newNodeName = $state('');
 	let newNodeType: NodeType = $state('business');
 	let newNodeParentId: string | null = $state(null);
 	let newNodePurpose = $state('');
 	let isCreatingNode = $state(false);
-
-	// Error state (local)
-	let error: string | null = $state(null);
 
 	// Node type config with Foundation CSS classes
 	const nodeTypeConfig: Record<string, { icon: string; typeClass: string; label: string }> = {
@@ -97,96 +94,18 @@
 		return (health && healthConfig[health]) || defaultHealthConfig;
 	}
 
+	// ─── Data source: OptimalOS filesystem via optimalStore ───────────────────────
+
 	async function loadData() {
-		error = null;
-		try {
-			await Promise.all([
-				nodes.loadTree(showArchived),
-				nodes.loadActive()
-			]);
-		} catch (e) {
-			console.error('Failed to load nodes:', e);
-			error = 'Failed to load nodes. Please try again.';
-		}
+		await optimalStore.loadNodes();
 	}
 
 	onMount(() => {
 		loadData();
 	});
 
-	function toggleExpand(nodeId: string) {
-		const newExpanded = new Set(expandedNodes);
-		if (newExpanded.has(nodeId)) {
-			newExpanded.delete(nodeId);
-		} else {
-			newExpanded.add(nodeId);
-		}
-		expandedNodes = newExpanded;
-	}
-
-	async function handleActivate(nodeId: string) {
-		try {
-			await nodes.activate(nodeId);
-			await nodes.loadTree(showArchived);
-		} catch (e) {
-			console.error('Failed to activate node:', e);
-		}
-	}
-
-	async function handleDeactivate() {
-		const activeNode = $nodes.activeNode;
-		if (!activeNode) return;
-		try {
-			await nodes.deactivate(activeNode.id);
-			await nodes.loadTree(showArchived);
-		} catch (e) {
-			console.error('Failed to deactivate node:', e);
-		}
-	}
-
-	async function handleDelete(nodeId: string) {
-		if (!confirm('Are you sure you want to delete this node? All children will also be deleted.')) return;
-		try {
-			await nodes.delete(nodeId);
-			await nodes.loadTree(showArchived);
-		} catch (e) {
-			console.error('Failed to delete node:', e);
-		}
-	}
-
-	async function handleCreateNode() {
-		if (!newNodeName.trim()) return;
-		isCreatingNode = true;
-		try {
-			// Sanitize user inputs before sending to backend
-			const sanitizedName = sanitizeInput(newNodeName);
-			const sanitizedPurpose = sanitizeInput(newNodePurpose);
-
-			if (!sanitizedName) {
-				console.error('Invalid node name after sanitization');
-				return;
-			}
-
-			const data: CreateNodeData = {
-				name: sanitizedName,
-				type: newNodeType,
-			};
-			if (newNodeParentId) data.parent_id = newNodeParentId;
-			if (sanitizedPurpose) data.purpose = sanitizedPurpose;
-
-			await nodes.create(data);
-			showNewNodeModal = false;
-			newNodeName = '';
-			newNodeType = 'business';
-			newNodeParentId = null;
-			newNodePurpose = '';
-			await nodes.loadTree(showArchived);
-		} catch (e) {
-			console.error('Failed to create node:', e);
-		} finally {
-			isCreatingNode = false;
-		}
-	}
+	// Convert OptimalOS nodes to NodeTree[] for all view components
+	const nodeTree = $derived(toNodeTrees($optimalStore.nodes));
 
 	// Filter nodes
 	function filterNodes(nodeList: NodeTree[]): NodeTree[] {
@@ -202,9 +121,9 @@
 		}));
 	}
 
-	const filteredNodes = $derived(filterNodes($nodes.nodeTree));
+	const filteredNodes = $derived(filterNodes(nodeTree));
 
-	// Flatten nodes for list view
+	// Flatten nodes for list/grid view
 	function flattenNodes(nodeList: NodeTree[], depth = 0): (NodeTree & { depth: number })[] {
 		if (!nodeList) return [];
 		let result: (NodeTree & { depth: number })[] = [];
@@ -217,7 +136,7 @@
 
 	const flatNodes = $derived(flattenNodes(filteredNodes));
 
-	// Get all nodes for parent selector
+	// Get all nodes for parent selector in modal
 	function getAllNodes(nodeList: NodeTree[]): NodeTree[] {
 		if (!nodeList) return [];
 		let result: NodeTree[] = [];
@@ -228,7 +147,37 @@
 		return result;
 	}
 
-	const allNodes = $derived(getAllNodes($nodes.nodeTree));
+	const allNodes = $derived(getAllNodes(nodeTree));
+
+	// ─── Handlers ─────────────────────────────────────────────────────────────────
+
+	function toggleExpand(nodeId: string) {
+		const newExpanded = new Set(expandedNodes);
+		if (newExpanded.has(nodeId)) {
+			newExpanded.delete(nodeId);
+		} else {
+			newExpanded.add(nodeId);
+		}
+		expandedNodes = newExpanded;
+	}
+
+	// Create node is a UI shell — OptimalOS nodes are filesystem-managed
+	async function handleCreateNode() {
+		if (!newNodeName.trim()) return;
+		isCreatingNode = true;
+		try {
+			const sanitizedName = sanitizeInput(newNodeName);
+			if (!sanitizedName) return;
+			// TODO: wire to engine ingest when filesystem write API is available
+			showNewNodeModal = false;
+			newNodeName = '';
+			newNodeType = 'business';
+			newNodeParentId = null;
+			newNodePurpose = '';
+		} finally {
+			isCreatingNode = false;
+		}
+	}
 </script>
 
 <div class="ng-page">
@@ -323,7 +272,7 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
 						</svg>
 						Filter
-						{#if filterType !== 'all' || filterHealth !== 'all' || showArchived}
+						{#if filterType !== 'all' || filterHealth !== 'all'}
 							<span class="ng-filter-indicator"></span>
 						{/if}
 					</button>
@@ -367,16 +316,9 @@
 									</div>
 								</div>
 
-								<div>
-									<label class="ng-filter-panel__option">
-										<input type="checkbox" bind:checked={showArchived} onchange={() => loadData()} />
-										<span>Show Archived</span>
-									</label>
-								</div>
-
 								<div class="ng-filter-panel__footer">
 									<button
-										onclick={() => { filterType = 'all'; filterHealth = 'all'; showArchived = false; loadData(); }}
+										onclick={() => { filterType = 'all'; filterHealth = 'all'; }}
 										class="ng-filter-panel__clear"
 									>
 										Clear
@@ -410,43 +352,15 @@
 		</div>
 	</div>
 
-	<!-- Active Node Banner -->
-	{#if $nodes.activeNode}
-		<div class="ng-active-banner" transition:slide>
-			<div class="ng-active-banner__left">
-				<svg class="w-5 h-5" style="color: var(--bos-primary-color)" fill="currentColor" viewBox="0 0 24 24">
-					<path d="M13 10V3L4 14h7v7l9-11h-7z" />
-				</svg>
-				<span class="ng-active-banner__text">
-					Active Node: <strong>{$nodes.activeNode.name}</strong>
-				</span>
-			</div>
-			<div class="ng-active-banner__right">
-				<a
-					href="/nodes/{$nodes.activeNode.id}"
-					class="btn-pill btn-pill-ghost btn-pill-xs"
-				>
-					View
-				</a>
-				<button
-					onclick={handleDeactivate}
-					class="btn-pill btn-pill-ghost btn-pill-xs"
-				>
-					Deactivate
-				</button>
-			</div>
-		</div>
-	{/if}
-
 	<!-- Content -->
 	<div class="ng-content">
-		{#if $nodes.loading}
+		{#if $optimalStore.loading}
 			<div class="ng-empty">
 				<div class="ng-spinner"></div>
 			</div>
-		{:else if error}
+		{:else if $optimalStore.error}
 			<div class="ng-empty">
-				<p style="color: var(--bos-error-color); margin-bottom: 12px;">{error}</p>
+				<p style="color: var(--bos-error-color); margin-bottom: 12px;">{$optimalStore.error}</p>
 				<button onclick={loadData} class="btn-pill btn-pill-primary">
 					Retry
 				</button>
@@ -459,13 +373,7 @@
 					</svg>
 				</div>
 				<h3 class="ng-empty__title">No nodes yet</h3>
-				<p class="ng-empty__text">Create your first node to organize your business into manageable focus areas.</p>
-				<button
-					onclick={() => showNewNodeModal = true}
-					class="btn-pill btn-pill-primary btn-pill-sm"
-				>
-					Create your first node
-				</button>
+				<p class="ng-empty__text">No OptimalOS nodes found. Make sure the backend is running and nodes are indexed.</p>
 			</div>
 		{:else if viewMode === 'tree'}
 			<!-- Tree View -->
@@ -507,37 +415,13 @@
 								{node.name}
 							</a>
 
-							<!-- Active indicator -->
-							{#if node.is_active}
-								<span class="ng-active-tag">Active</span>
-							{/if}
-
 							<!-- Health -->
 							<div class="ng-health-dot {getHealthConfig(node.health).colorClass}"></div>
 
-							<!-- Actions -->
-							<div class="ng-tree-item__actions">
-								{#if !node.is_active}
-									<button
-										onclick={() => handleActivate(node.id)}
-										class="ng-tree-item__action-btn"
-										title="Activate"
-									>
-										<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-											<path d="M13 10V3L4 14h7v7l9-11h-7z" />
-										</svg>
-									</button>
-								{/if}
-								<button
-									onclick={() => handleDelete(node.id)}
-									class="ng-tree-item__action-btn ng-tree-item__action-btn--danger"
-									title="Delete"
-								>
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-									</svg>
-								</button>
-							</div>
+							<!-- Signal count badge -->
+							{#if node.children_count > 0}
+								<span class="ng-signal-badge">{node.children_count}</span>
+							{/if}
 						</div>
 
 						{#if expandedNodes.has(node.id) && node.children.length > 0}
@@ -563,7 +447,7 @@
 							<th class="ng-table__th">Name</th>
 							<th class="ng-table__th">Type</th>
 							<th class="ng-table__th">Health</th>
-							<th class="ng-table__th">Updated</th>
+							<th class="ng-table__th">Signals</th>
 							<th class="ng-table__th" style="text-align: right;">Actions</th>
 						</tr>
 					</thead>
@@ -580,9 +464,6 @@
 										<a href="/nodes/{node.id}" class="ng-tree-item__name">
 											{node.name}
 										</a>
-										{#if node.is_active}
-											<span class="ng-active-tag">Active</span>
-										{/if}
 									</div>
 								</td>
 								<td class="ng-table__td ng-table__td--muted" style="text-transform: capitalize;">{node.type}</td>
@@ -593,28 +474,19 @@
 									</span>
 								</td>
 								<td class="ng-table__td ng-table__td--muted">
-									{new Date(node.updated_at).toLocaleDateString()}
+									{node.children_count > 0 ? `${node.children_count} signals` : '—'}
 								</td>
 								<td class="ng-table__td" style="text-align: right;">
 									<div class="ng-tree-item__actions" style="opacity: 1; justify-content: flex-end;">
-										{#if !node.is_active}
-											<button
-												onclick={() => handleActivate(node.id)}
-												class="ng-tree-item__action-btn"
-											>
-												<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-													<path d="M13 10V3L4 14h7v7l9-11h-7z" />
-												</svg>
-											</button>
-										{/if}
-										<button
-											onclick={() => handleDelete(node.id)}
-											class="ng-tree-item__action-btn ng-tree-item__action-btn--danger"
+										<a
+											href="/nodes/{node.id}"
+											class="ng-tree-item__action-btn"
+											title="View node"
 										>
 											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 											</svg>
-										</button>
+										</a>
 									</div>
 								</td>
 							</tr>
@@ -640,22 +512,10 @@
 									<span>{getHealthConfig(node.health).label}</span>
 								</span>
 							</div>
-							{#if node.is_active}
-								<svg class="ng-card__active-icon" fill="currentColor" viewBox="0 0 24 24">
-									<path d="M13 10V3L4 14h7v7l9-11h-7z" />
-								</svg>
-							{/if}
 						</div>
 
-						{#if node.this_week_focus && node.this_week_focus.length > 0}
-							<div class="ng-card__focus">
-								<p class="ng-card__focus-label">This week:</p>
-								<p class="ng-card__focus-text">{node.this_week_focus[0]}</p>
-							</div>
-						{/if}
-
 						{#if node.children_count > 0}
-							<p class="ng-card__children">{node.children_count} child nodes</p>
+							<p class="ng-card__children">{node.children_count} signals</p>
 						{/if}
 					</a>
 				{/each}
@@ -672,8 +532,8 @@
 			<!-- Graph View -->
 			<div class="ng-canvas-wrap">
 				<NodeGraphView
-					nodes={$nodes.nodeTree}
-					activeNodeId={$nodes.activeNode?.id}
+					nodes={nodeTree}
+					activeNodeId={null}
 					selectedId={selectedGraphNode}
 					onSelect={(node) => { if (node?.id) selectedGraphNode = node.id; }}
 					onNavigate={(node) => { if (node?.id) goto(`/nodes/${node.id}`); }}
@@ -683,22 +543,19 @@
 			<!-- Building 2D View -->
 			<div class="ng-canvas-wrap ng-canvas-wrap--full">
 				<NodeBuildingView
-					nodes={$nodes.nodeTree}
-					activeNodeId={$nodes.activeNode?.id}
+					nodes={nodeTree}
+					activeNodeId={null}
 					selectedId={selectedBuildingNode}
 					onSelect={(node) => { if (node?.id) selectedBuildingNode = node.id; }}
 					onNavigate={(node) => { if (node?.id) goto(`/nodes/${node.id}`); }}
 					onCreateRoom={(floorLevel) => {
-						// Pre-select parent based on floor level
-						const flatNodes = flattenNodes($nodes.nodeTree);
-						const nodesAtDepth = flatNodes.filter(n => n.depth === floorLevel);
+						const flat = flattenNodes(nodeTree);
+						const nodesAtDepth = flat.filter(n => n.depth === floorLevel);
 						if (nodesAtDepth.length > 0) {
-							// If there are existing nodes at this level, use first one's parent
 							const firstNode = nodesAtDepth[0];
 							newNodeParentId = firstNode.parent_id || null;
 						} else if (floorLevel > 0) {
-							// For new floor, find nodes at parent level
-							const parentNodes = flatNodes.filter(n => n.depth === floorLevel - 1);
+							const parentNodes = flat.filter(n => n.depth === floorLevel - 1);
 							if (parentNodes.length > 0) {
 								newNodeParentId = parentNodes[0].id;
 							}
@@ -713,8 +570,8 @@
 			<!-- Building 3D View -->
 			<div class="ng-canvas-wrap ng-canvas-wrap--full">
 				<NodeBuilding3D
-					nodes={$nodes.nodeTree}
-					activeNodeId={$nodes.activeNode?.id}
+					nodes={nodeTree}
+					activeNodeId={null}
 					selectedId={selectedBuildingNode}
 					onSelect={(node) => { if (node?.id) selectedBuildingNode = node.id; }}
 					onNavigate={(node) => { if (node?.id) goto(`/nodes/${node.id}`); }}
@@ -796,6 +653,10 @@
 						class="ng-input ng-input--textarea"
 					></textarea>
 				</div>
+
+				<p class="ng-modal__note">
+					Note: OptimalOS nodes are managed via the filesystem engine. This form will be wired to engine ingest in a future update.
+				</p>
 			</div>
 
 			<div class="ng-modal__footer">
@@ -885,16 +746,6 @@
 	.ng-filter-panel__clear:hover { color: var(--dt); }
 	.ng-filter-panel__apply { font-size: 0.75rem; font-weight: 600; color: var(--bos-primary-color); background: none; border: none; cursor: pointer; padding: 0; }
 
-	/* ── Active Banner ── */
-	.ng-active-banner {
-		display: flex; align-items: center; justify-content: space-between;
-		margin: 0 1.5rem 0.75rem; padding: 0.75rem 1rem; border-radius: 0.5rem;
-		background: var(--bos-status-info-bg); border: 1px solid color-mix(in srgb, var(--bos-status-info) 25%, transparent);
-	}
-	.ng-active-banner__left { display: flex; align-items: center; gap: 0.5rem; }
-	.ng-active-banner__right { display: flex; align-items: center; gap: 0.5rem; }
-	.ng-active-banner__text { font-size: 0.875rem; color: var(--dt2); }
-
 	/* ── Content Area ── */
 	.ng-content { flex: 1; overflow-y: auto; padding: 0 1.5rem 1.5rem; }
 	.ng-spinner { width: 2rem; height: 2rem; border: 3px solid var(--dbd); border-top-color: var(--bos-primary-color); border-radius: 50%; animation: ng-spin 0.8s linear infinite; margin: 3rem auto; display: block; }
@@ -917,9 +768,16 @@
 	.ng-tree-item__name:hover { color: var(--bos-primary-color); }
 	.ng-tree-item__actions { display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.15s; }
 	.ng-tree-item:hover .ng-tree-item__actions { opacity: 1; }
-	.ng-tree-item__action-btn { padding: 0.25rem; color: var(--dt4); background: none; border: none; cursor: pointer; border-radius: 0.25rem; transition: color 0.15s; }
+	.ng-tree-item__action-btn { padding: 0.25rem; color: var(--dt4); background: none; border: none; cursor: pointer; border-radius: 0.25rem; transition: color 0.15s; text-decoration: none; display: inline-flex; align-items: center; }
 	.ng-tree-item__action-btn:hover { color: var(--bos-primary-color); }
-	.ng-tree-item__action-btn--danger:hover { color: var(--bos-error-color); }
+
+	/* ── Signal badge ── */
+	.ng-signal-badge {
+		display: inline-flex; align-items: center; justify-content: center;
+		min-width: 1.25rem; height: 1.25rem; padding: 0 0.25rem;
+		font-size: 0.6875rem; font-weight: 600; border-radius: 9999px;
+		background: var(--dbg3); color: var(--dt3);
+	}
 
 	/* ── Type Icon ── */
 	.ng-type-icon {
@@ -937,12 +795,6 @@
 	.ng-health-dot--attention { background: var(--bos-warning-color); }
 	.ng-health-dot--critical { background: var(--bos-error-color); }
 	.ng-health-dot--not-started { background: #9ca3af; }
-
-	/* ── Active Tag ── */
-	.ng-active-tag {
-		display: inline-block; padding: 0.125rem 0.5rem; font-size: 0.6875rem; font-weight: 600;
-		background: rgba(30,150,235,.15); color: var(--bos-primary-color); border-radius: 9999px;
-	}
 
 	/* ── Table (List View) ── */
 	.ng-table-wrap { border: 1px solid var(--dbd); border-radius: 0.75rem; overflow: hidden; }
@@ -972,10 +824,6 @@
 	.ng-card__info { flex: 1; min-width: 0; }
 	.ng-card__name { font-size: 0.875rem; font-weight: 600; color: var(--dt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.ng-card__health { display: flex; align-items: center; gap: 0.375rem; margin-top: 0.375rem; font-size: 0.8125rem; color: var(--dt3); }
-	.ng-card__active-icon { width: 1.25rem; height: 1.25rem; color: var(--bos-status-info); flex-shrink: 0; }
-	.ng-card__focus { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--dbd); }
-	.ng-card__focus-label { font-size: 0.6875rem; font-weight: 600; color: var(--dt4); margin-bottom: 0.25rem; }
-	.ng-card__focus-text { font-size: 0.8125rem; color: var(--dt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.ng-card__children { margin-top: 0.5rem; font-size: 0.75rem; color: var(--dt4); }
 
 	.ng-card--add {
@@ -1000,6 +848,7 @@
 	.ng-modal__close:hover { color: var(--dt); }
 	.ng-modal__body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
 	.ng-modal__footer { padding: 1rem 1.5rem; border-top: 1px solid var(--dbd); display: flex; justify-content: flex-end; gap: 0.75rem; }
+	.ng-modal__note { font-size: 0.75rem; color: var(--dt4); font-style: italic; padding: 0.5rem; background: var(--dbg3); border-radius: 0.375rem; }
 
 	/* ── Form Controls ── */
 	.ng-input-group { display: flex; flex-direction: column; gap: 0.25rem; }

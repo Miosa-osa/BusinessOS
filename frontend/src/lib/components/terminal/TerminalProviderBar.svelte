@@ -68,7 +68,7 @@
 				class="provider-pill"
 				class:active={p.id === activeProvider}
 				style="--pill-color: {p.color}"
-				onclick={() => onProviderChange(p.id)}
+				onclick={() => { agentLaunched = false; onProviderChange(p.id); }}
 				title="{p.label}{p.shortcut ? ` (Ctrl+${p.shortcut})` : ''}"
 			>
 				<span class="status-dot" class:available={providerStatus[p.id]} class:unavailable={!providerStatus[p.id]}></span>
@@ -83,14 +83,17 @@
 				class="launch-agent-btn"
 				class:launched={agentLaunched}
 				onclick={() => {
+					if (agentLaunched) {
+						agentLaunched = false;
+						return;
+					}
 					onLaunchAgent?.(activeProvider);
 					agentLaunched = true;
-					setTimeout(() => agentLaunched = false, 3000);
 				}}
 				aria-label={agentLabel}
 			>
 				{#if agentLaunched}
-					<span class="agent-dot"></span> Agent Running
+					<span class="agent-dot"></span> Stop Agent
 				{:else}
 					{agentLabel}
 				{/if}

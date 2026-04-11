@@ -120,6 +120,12 @@
 		if (textarea) textarea.focus();
 	}
 
+	export function writeData(data: string) {
+		if (service?.isConnected()) {
+			service.sendInput(data);
+		}
+	}
+
 	// React to config changes (only theme/font, not cursor blink)
 	$effect(() => {
 		if (xterm) {

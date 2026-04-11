@@ -5,7 +5,9 @@
 	Protected module — no close/dismiss button.
 -->
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { osaStore } from '$lib/stores/osa';
+	import { initCSRF } from '$lib/api/base';
 	import type { AttachedFile } from '$lib/stores/chat/types';
 	import ModeSelector from './ModeSelector.svelte';
 	import ModelSelector from './ModelSelector.svelte';
@@ -18,6 +20,12 @@
 
 	let { class: className = '' }: Props = $props();
 
+	onMount(async () => {
+		await initCSRF().catch(() => {});
+		osaStore.loadHealth();
+		osaStore.loadModes();
+	});
+
 	let isExpanded = $derived($osaStore.isExpanded);
 	let error = $derived($osaStore.error);
 	let hasContent = $derived($osaStore.conversation.length > 0 || $osaStore.isStreaming || $osaStore.error !== null);
@@ -29,6 +37,16 @@
 	let isDragging = $state(false);
 	let previews = $state<Map<string, string>>(new Map());
 	const MAX_ATTACHMENTS = 20;
+
+	let activeProvider = $derived($osaStore.activeProvider);
+	let activeModel = $derived($osaStore.activeModel);
+
+	let chatPlaceholder = $derived.by(() => {
+		if (activeProvider === 'anthropic' || (activeModel && /claude/i.test(activeModel))) return 'Ask Claude...';
+		if (activeProvider === 'openai' || (activeModel && /gpt|o3|o4|codex/i.test(activeModel))) return 'Ask GPT...';
+		if (activeProvider === 'ollama' && activeModel) return `Ask ${activeModel.split(':')[0]}...`;
+		return 'Ask OSA...';
+	});
 
 	let attachments = $derived($osaStore.attachments);
 	let widthTier = $derived.by(() => {
@@ -189,7 +207,10 @@
 		<!-- Conversation card — above pill, grows upward from dock area -->
 		<div class="osa-conversation">
 			{#if error}
-				<div class="osa-error" role="alert">{error}</div>
+				<button class="osa-error" role="alert" onclick={() => osaStore.clearError()}>
+					{error}
+					<span class="osa-error-dismiss">Dismiss</span>
+				</button>
 			{/if}
 			<ResponseStream maxHeight="320px" />
 		</div>
@@ -261,7 +282,7 @@
 			<ModeSelector compact />
 			<ModelSelector />
 			<div class="osa-input-wrapper">
-				<ChatInput bind:this={chatInputRef} placeholder="Ask OSA..." onfocus={handleInputFocus} onmetrics={handleMetrics} onattach={openFilePicker} />
+				<ChatInput bind:this={chatInputRef} placeholder={chatPlaceholder} onfocus={handleInputFocus} onmetrics={handleMetrics} onattach={openFilePicker} />
 			</div>
 		</div>
 	</div>
@@ -350,18 +371,39 @@
 	}
 
 	.osa-error {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
 		padding: 6px 12px;
 		border-radius: 10px;
 		font-size: 12px;
 		background: rgba(239, 68, 68, 0.08);
 		color: #dc2626;
 		border: 1px solid rgba(239, 68, 68, 0.15);
+		cursor: pointer;
+		width: 100%;
+		text-align: left;
+	}
+
+	.osa-error:hover {
+		background: rgba(239, 68, 68, 0.14);
+	}
+
+	.osa-error-dismiss {
+		font-size: 10px;
+		opacity: 0.6;
+		flex-shrink: 0;
 	}
 
 	:global(.dark) .osa-error {
 		background: rgba(239, 68, 68, 0.12);
 		color: #fca5a5;
 		border-color: rgba(239, 68, 68, 0.2);
+	}
+
+	:global(.dark) .osa-error:hover {
+		background: rgba(239, 68, 68, 0.18);
 	}
 
 	/* ===== INPUT PILL (always visible) ===== */

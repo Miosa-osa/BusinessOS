@@ -13,7 +13,7 @@
 		tasks: '/tasks',
 		projects: '/projects',
 		team: '/team',
-		contexts: '/knowledge',
+		contexts: '/pages',
 		nodes: '/nodes',
 		daily: '/daily',
 		settings: '/settings',
@@ -25,7 +25,16 @@
 		knowledge: '/pages',
 		'ai-settings': '/settings/ai',
 		integrations: '/integrations',
-		help: '/help'
+		help: '/help',
+		agents: '/agents',
+		crm: '/crm',
+		notifications: '/notifications',
+		profile: '/profile',
+		'voice-notes': '/voice-notes',
+		usage: '/usage',
+		code: '/code',
+		analytics: '/usage',
+		modules: '/settings',
 	};
 
 	// Iframe titles for accessibility
@@ -70,7 +79,12 @@
 	const osaAppId = $derived(isOsaApp ? module.replace('osa-app-', '') : '');
 	const deployedApp = $derived(isOsaApp ? deployedApps.find(app => app.id === osaAppId) : undefined);
 
-	const iframeUrl = $derived(MODULE_URLS[module] ?? null);
+	const iframeUrl = $derived.by(() => {
+		const base = MODULE_URLS[module] ?? null;
+		if (!base) return null;
+		if (module === 'platform') return base;
+		return `${base}?embed=true`;
+	});
 	const iframeTitle = $derived(MODULE_TITLES[module] ?? windowTitle);
 </script>
 

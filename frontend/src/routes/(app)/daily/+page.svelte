@@ -1,1009 +1,909 @@
 <script lang="ts">
-	import { api, type DailyLog } from '$lib/api';
-	import { onMount, onDestroy } from 'svelte';
-	import { analyticsNotes, type AnalyticsNote } from '$lib/stores/analyticsNotes';
+	import { onMount } from 'svelte';
+	import { optimalStore } from '$lib/stores/optimal';
+	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
+
+	// ── Types ─────────────────────────────────────────────────────────────────
+	interface Section {
+		title: string;
+		content: string;
+	}
+
+	interface WeeklyData {
+		content: string;
+		date: string;
+	}
 
 	// ── State ─────────────────────────────────────────────────────────────────
-	let todayEntry     = $state('');
-	let energyLevel    = $state(7);
-	let currentLog     = $state<DailyLog | null>(null);
-	let pastLogs       = $state<DailyLog[]>([]);
-	let isLoading      = $state(true);
-	let isSaving       = $state(false);
-	let saveSuccess    = $state(false);
-	let saveError      = $state(false);
-	let placeholderIdx = $state(0);
-	let showHistory    = $state(false);
-	let promptTimer: ReturnType<typeof setInterval>;
-
-	// ── Rotating prompts ──────────────────────────────────────────────────────
-	const PROMPTS = [
-		'What moved the needle today?',
-		'What are you grateful for?',
-		'What challenged you most?',
-		"What's still on your mind?",
-		'What did you learn today?',
-		'Any wins worth celebrating?',
-		'What would make tomorrow better?',
-		'What are you proud of today?',
-	];
+	let rhythmContent   = $state<string | null>(null);
+	let rhythmDate      = $state<string>('');
+	let weeklyContent   = $state<string | null>(null);
+	let loadingRhythm   = $state(true);
+	let loadingWeekly   = $state(false);
+	let rhythmError     = $state<string | null>(null);
+	let weeklyError     = $state<string | null>(null);
+	let activeTab       = $state<'today' | 'weekly'>('today');
 
 	// ── Derived ───────────────────────────────────────────────────────────────
-	let sliderPercent = $derived(((energyLevel - 1) / 9) * 100);
-	let wordCount     = $derived(todayEntry.trim() ? todayEntry.trim().split(/\s+/).length : 0);
+	const now        = new Date();
+	const weekday    = now.toLocaleDateString(undefined, { weekday: 'long' });
+	const dayMonth   = now.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+	const year       = now.getFullYear();
 
-	let streak = $derived(
-		(() => {
-			let count = currentLog ? 1 : 0;
-			const today = new Date();
-			for (let i = 0; i < pastLogs.length; i++) {
-				const expected = new Date(today);
-				expected.setDate(today.getDate() - (currentLog ? i + 1 : i));
-				const d = (pastLogs[i]?.date ?? '').split('T')[0];
-				if (!d) break;
-				if (d === expected.toISOString().split('T')[0]) count++;
-				else break;
+	const parsedSections = $derived(parseMarkdownSections(rhythmContent ?? ''));
+	const weeklyTop3    = $derived(extractTop3(weeklyContent ?? ''));
+
+	// ── Mode badge colors ─────────────────────────────────────────────────────
+	const MODE_COLORS: Record<string, string> = {
+		BUILD:      'rd-mode--build',
+		OPERATE:    'rd-mode--operate',
+		LEARN:      'rd-mode--learn',
+		SYNTHESIZE: 'rd-mode--synthesize',
+		EXTRACT:    'rd-mode--extract',
+	};
+
+	function modeClass(mode: string): string {
+		return MODE_COLORS[mode.toUpperCase()] ?? 'rd-mode--default';
+	}
+
+	// ── Helpers ───────────────────────────────────────────────────────────────
+	function parseMarkdownSections(md: string): Section[] {
+		if (!md.trim()) return [];
+		// Strip YAML frontmatter
+		const stripped = md.replace(/^---[\s\S]*?---\n/, '');
+		const lines    = stripped.split('\n');
+		const sections: Section[] = [];
+		let current: Section | null = null;
+
+		for (const line of lines) {
+			const h2 = line.match(/^## (.+)/);
+			if (h2) {
+				if (current) sections.push(current);
+				current = { title: h2[1].trim(), content: '' };
+			} else if (current) {
+				current.content += line + '\n';
 			}
-			return count;
-		})()
-	);
+		}
+		if (current) sections.push(current);
+		return sections;
+	}
 
-	// ── Analytics Notes ───────────────────────────────────────────────────────
-	const todayDate = new Date().toISOString().split('T')[0];
-	const todayAnalyticsNotes = $derived($analyticsNotes.filter(n => n.date === todayDate));
-	let editingNoteId      = $state<string | null>(null);
-	let editingNoteContent = $state('');
+	function extractTop3(md: string): string[] {
+		if (!md.trim()) return [];
+		const lines = md.split('\n');
+		const items: string[] = [];
+		let inSection = false;
+		for (const line of lines) {
+			if (/^## Top 3/i.test(line)) { inSection = true; continue; }
+			if (inSection && /^##/.test(line)) break;
+			if (inSection) {
+				const m = line.match(/^\d+\.\s+(.+)/);
+				if (m) items.push(m[1].replace(/\*\*/g, '').trim());
+			}
+		}
+		return items.slice(0, 3);
+	}
+
+	function parseScheduleTable(content: string): Array<Record<string, string>> {
+		const rows: Array<Record<string, string>> = [];
+		const lines = content.split('\n').filter(l => l.trim().startsWith('|'));
+		if (lines.length < 2) return rows;
+		const headers = lines[0].split('|').map(h => h.trim()).filter(Boolean);
+		for (let i = 2; i < lines.length; i++) {
+			const cells = lines[i].split('|').map(c => c.trim()).filter(Boolean);
+			if (cells.length < headers.length) continue;
+			const row: Record<string, string> = {};
+			headers.forEach((h, idx) => { row[h] = cells[idx] ?? ''; });
+			rows.push(row);
+		}
+		return rows;
+	}
+
+	function parseCallsTable(content: string): Array<Record<string, string>> {
+		return parseScheduleTable(content);
+	}
+
+	function renderInlineMarkdown(text: string): string {
+		return text
+			.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+			.replace(/`(.+?)`/g, '<code>$1</code>')
+			.replace(/\[([^\]]+)\]\([^)]+\)/g, '<span class="rd-link">$1</span>');
+	}
+
+	function getMonday(): string {
+		const d = new Date(now);
+		const day = d.getDay();
+		const diff = (day === 0 ? -6 : 1 - day);
+		d.setDate(d.getDate() + diff);
+		return d.toISOString().split('T')[0];
+	}
+
+	// ── Data fetching ─────────────────────────────────────────────────────────
+	function buildHeaders(): Record<string, string> {
+		const headers: Record<string, string> = {};
+		const csrf = getCSRFToken();
+		if (csrf) headers['X-CSRF-Token'] = csrf;
+		return headers;
+	}
+
+	async function loadRhythm() {
+		loadingRhythm = true;
+		rhythmError   = null;
+		try {
+			const res = await fetch(`${getApiBaseUrl()}/optimal/rhythm/today`, {
+				method: 'GET',
+				headers: buildHeaders(),
+				credentials: 'include',
+				signal: AbortSignal.timeout(6000),
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const data: { date: string; content: string } = await res.json();
+			rhythmContent = data.content;
+			rhythmDate    = data.date;
+		} catch (e) {
+			rhythmError   = e instanceof Error ? e.message : 'Failed to load today\'s rhythm';
+			rhythmContent = null;
+		} finally {
+			loadingRhythm = false;
+		}
+	}
+
+	async function loadWeekly() {
+		if (weeklyContent !== null) return; // already loaded
+		loadingWeekly = true;
+		weeklyError   = null;
+		const monday  = getMonday();
+		try {
+			const res = await fetch(`${getApiBaseUrl()}/optimal/rhythm/weekly?date=${monday}`, {
+				method: 'GET',
+				headers: buildHeaders(),
+				credentials: 'include',
+				signal: AbortSignal.timeout(6000),
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const data: WeeklyData = await res.json();
+			weeklyContent = data.content;
+		} catch (e) {
+			weeklyError   = e instanceof Error ? e.message : 'Failed to load weekly plan';
+			weeklyContent = null;
+		} finally {
+			loadingWeekly = false;
+		}
+	}
+
+	function handleTabChange(tab: 'today' | 'weekly') {
+		activeTab = tab;
+		if (tab === 'weekly') loadWeekly();
+	}
 
 	// ── Lifecycle ─────────────────────────────────────────────────────────────
-	onMount(async () => {
-		await Promise.all([loadTodayLog(), loadPastLogs()]);
-		isLoading = false;
-		promptTimer = setInterval(() => {
-			placeholderIdx = (placeholderIdx + 1) % PROMPTS.length;
-		}, 5000);
-		window.addEventListener('keydown', handleKeydown);
+	onMount(() => {
+		loadRhythm();
 	});
-
-	onDestroy(() => {
-		clearInterval(promptTimer);
-		window.removeEventListener('keydown', handleKeydown);
-	});
-
-	// ── API ───────────────────────────────────────────────────────────────────
-	async function loadTodayLog() {
-		try {
-			const log = await api.getTodayLog();
-			if (log) {
-				currentLog = log;
-				todayEntry = log.content;
-				energyLevel = log.energy_level || 7;
-			}
-		} catch (e) { console.error('loadTodayLog:', e); }
-	}
-
-	async function loadPastLogs() {
-		try {
-			const logs = await api.getDailyLogs(0, 14);
-			const today = new Date().toISOString().split('T')[0];
-			pastLogs = logs.filter(l => l.date !== today);
-		} catch (e) { console.error('loadPastLogs:', e); }
-	}
-
-	async function handleSave() {
-		if (!todayEntry.trim() || isSaving) return;
-		isSaving = true; saveSuccess = false; saveError = false;
-		try {
-			const log = await api.saveDailyLog({ content: todayEntry, energy_level: energyLevel });
-			currentLog = log;
-			saveSuccess = true;
-			setTimeout(() => saveSuccess = false, 2200);
-		} catch (e) {
-			console.error('handleSave:', e);
-			saveError = true;
-			setTimeout(() => saveError = false, 2200);
-		} finally {
-			isSaving = false;
-		}
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-			e.preventDefault();
-			handleSave();
-		}
-	}
-
-	// ── Auto-grow textarea action ──────────────────────────────────────────────
-	function autoGrow(node: HTMLTextAreaElement) {
-		function resize() {
-			node.style.height = 'auto';
-			node.style.height = Math.max(200, node.scrollHeight) + 'px';
-		}
-		node.addEventListener('input', resize);
-		resize();
-		return { destroy: () => node.removeEventListener('input', resize) };
-	}
-
-	// ── Analytics Notes helpers ───────────────────────────────────────────────
-	function startEditNote(note: AnalyticsNote) {
-		editingNoteId = note.id;
-		editingNoteContent = note.content;
-	}
-	function saveEditNote() {
-		if (editingNoteId && editingNoteContent.trim()) analyticsNotes.updateNote(editingNoteId, editingNoteContent);
-		editingNoteId = null; editingNoteContent = '';
-	}
-	function cancelEditNote() { editingNoteId = null; editingNoteContent = ''; }
-	function deleteAnalyticsNote(id: string) {
-		analyticsNotes.deleteNote(id);
-		if (editingNoteId === id) { editingNoteId = null; editingNoteContent = ''; }
-	}
-
-	// ── Date helpers ──────────────────────────────────────────────────────────
-	const _now      = new Date();
-	const _weekday  = _now.toLocaleDateString(undefined, { weekday: 'long' });
-	const _dayMonth = _now.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
-	const _year     = _now.getFullYear();
-
-	function formatDate(s: string) {
-		return new Date(s).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-	}
 </script>
 
-<div class="dlp">
+<div class="rd">
 	<!-- ── Header ── -->
-	<div class="dlp-header">
-		<div class="dlp-header__date-block">
-			<span class="dlp-header__weekday">{_weekday}</span>
-			<h1 class="dlp-header__day">{_dayMonth}<span class="dlp-header__year">{_year}</span></h1>
+	<div class="rd-header">
+		<div class="rd-header__date">
+			<span class="rd-header__weekday">{weekday}</span>
+			<h1 class="rd-header__day">{dayMonth}<span class="rd-header__year">{year}</span></h1>
 		</div>
-		<div class="dlp-header__actions">
-			{#if streak > 1}
-				<div class="dlp-streak">
-					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-					</svg>
-					<span class="dlp-streak__num">{streak}</span>
-					<span class="dlp-streak__label">day streak</span>
-				</div>
-			{/if}
-			{#if currentLog}
-				<div class="dlp-saved-pill">
-					<svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-					</svg>
-					{new Date(currentLog.updated_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-				</div>
-			{/if}
+		<div class="rd-header__tabs">
 			<button
-				onclick={() => showHistory = !showHistory}
-				class="btn-pill btn-pill-ghost btn-pill-sm"
-				class:active={showHistory}
-			>
-				<svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-				</svg>
-				History
-			</button>
+				class="rd-tab"
+				class:rd-tab--active={activeTab === 'today'}
+				onclick={() => handleTabChange('today')}
+			>Today</button>
+			<button
+				class="rd-tab"
+				class:rd-tab--active={activeTab === 'weekly'}
+				onclick={() => handleTabChange('weekly')}
+			>This Week</button>
 		</div>
 	</div>
 
-	{#if isLoading}
-		<div class="dlp-loading"><div class="dlp-spinner"></div></div>
-	{:else}
-		<div class="dlp-body" class:dlp-body--with-history={showHistory}>
-
-			<!-- ── Main: Entry form ── -->
-			<div class="dlp-form">
-
-				<!-- Energy card -->
-				<div class="dlp-card dlp-energy-card">
-					<div class="dlp-energy-header">
-						<label for="energy-slider" class="dlp-label">Energy level</label>
-						<div class="dlp-energy-readout">
-							<span class="dlp-energy-num">{energyLevel}</span>
-							<span class="dlp-energy-slash">/10</span>
-						</div>
-					</div>
-					<input
-						id="energy-slider"
-						type="range" min="1" max="10"
-						bind:value={energyLevel}
-						class="dlp-energy__slider"
-						style="--slider-pct: {sliderPercent}%"
-					/>
-					<div class="dlp-energy__row">
-						<span class="dlp-energy__end-label">Low</span>
-						<div class="dlp-energy__dots">
-							{#each Array(10) as _, i}
-								<span class="dlp-energy__dot" class:active={i < energyLevel}></span>
-							{/each}
-						</div>
-						<span class="dlp-energy__end-label">High</span>
-					</div>
+	<!-- ── Today tab ── -->
+	{#if activeTab === 'today'}
+		{#if loadingRhythm}
+			<div class="rd-loading">
+				<div class="rd-spinner"></div>
+				<span>Loading rhythm...</span>
+			</div>
+		{:else if rhythmError}
+			<div class="rd-empty">
+				<div class="rd-empty__icon">
+					<svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+					</svg>
 				</div>
+				<p class="rd-empty__title">No plan for today</p>
+				<p class="rd-empty__sub">
+					Create <code>rhythm/daily/{now.toISOString().split('T')[0]}.md</code> to get started
+				</p>
+			</div>
+		{:else if rhythmContent && parsedSections.length > 0}
+			<div class="rd-content">
+				{#each parsedSections as section}
+					<!-- Boot section -->
+					{#if section.title === 'Boot'}
+						<div class="rd-card rd-card--boot">
+							<h2 class="rd-section-title">Boot</h2>
+							<div class="rd-boot-grid">
+								{#each section.content.split('\n').filter(l => l.startsWith('-')) as line}
+									{@const clean = line.replace(/^-\s*/, '')}
+									<div class="rd-boot-item">
+										<span class="rd-boot-label">{clean.split(':')[0]}</span>
+										<span class="rd-boot-val">{clean.split(':').slice(1).join(':').trim() || '—'}</span>
+									</div>
+								{/each}
+							</div>
+						</div>
 
-				<!-- Entry card -->
-				<div class="dlp-card">
-					<div class="dlp-entry-header">
-						<label for="entry" class="dlp-label">What's on your mind?</label>
-						{#if wordCount > 0}
-							<span class="dlp-word-count">{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
-						{/if}
-					</div>
-					<textarea
-						id="entry"
-						use:autoGrow
-						bind:value={todayEntry}
-						class="dlp-textarea"
-						placeholder={PROMPTS[placeholderIdx]}
-					></textarea>
-				</div>
+					<!-- Top 3 section -->
+					{:else if section.title === 'Top 3 Today'}
+						<div class="rd-card">
+							<h2 class="rd-section-title">Top 3 Today</h2>
+							<ol class="rd-top3">
+								{#each section.content.split('\n').filter(l => /^\d+\./.test(l.trim())) as item, i}
+									<li class="rd-top3-item">
+										<span class="rd-top3-num">{i + 1}</span>
+										<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+										<span>{@html renderInlineMarkdown(item.replace(/^\d+\.\s*/, ''))}</span>
+									</li>
+								{/each}
+							</ol>
+						</div>
 
-				<!-- Save button -->
-				<button
-					onclick={handleSave}
-					disabled={isSaving || !todayEntry.trim()}
-					class="btn-cta dlp-save"
-					class:dlp-save--success={saveSuccess}
-					class:dlp-save--error={saveError}
-				>
-					{#if isSaving}
-						<svg class="dlp-save__spinner" fill="none" viewBox="0 0 24 24">
-							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
-							<path class="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-						</svg>
-						Saving...
-					{:else if saveSuccess}
-						<svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-						</svg>
-						Saved
-					{:else if saveError}
-						Error — try again
-					{:else}
-						Save Entry
-						<kbd class="dlp-save__kbd">⌘↵</kbd>
-					{/if}
-				</button>
-
-				<!-- Analytics Notes -->
-				<div class="dlp-analytics-notes">
-					<div class="dlp-analytics-notes__header">
-						<h3 class="dlp-analytics-notes__title">
-							<svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-							</svg>
-							Analytics Notes
-						</h3>
-						{#if todayAnalyticsNotes.length > 0}
-						<span class="dlp-analytics-notes__count">{todayAnalyticsNotes.length}</span>
-					{/if}
-					</div>
-					{#if todayAnalyticsNotes.length === 0}
-						<p class="dlp-analytics-notes__subtitle">Click on chart data points in Analytics to add notes here</p>
-					{:else}
-					<div class="dlp-analytics-notes__list">
-						{#each todayAnalyticsNotes as note (note.id)}
-							<div class="dlp-analytics-note-card">
-								<div class="dlp-analytics-note-card__metrics">
-									<span class="dlp-analytics-note-card__metric">
-										<span class="dlp-analytics-note-card__metric-label">Requests</span>
-										<span class="dlp-analytics-note-card__metric-value">{note.metricContext.requests.toLocaleString()}</span>
-									</span>
-									<span class="dlp-analytics-note-card__metric">
-										<span class="dlp-analytics-note-card__metric-label">Tokens</span>
-										<span class="dlp-analytics-note-card__metric-value">{note.metricContext.tokens >= 1000 ? (note.metricContext.tokens / 1000).toFixed(1) + 'K' : note.metricContext.tokens}</span>
-									</span>
-									<span class="dlp-analytics-note-card__metric">
-										<span class="dlp-analytics-note-card__metric-label">Cost</span>
-										<span class="dlp-analytics-note-card__metric-value">${note.metricContext.cost.toFixed(2)}</span>
-									</span>
-									<span class="dlp-analytics-note-card__date">{note.metricContext.label}</span>
+					<!-- Schedule section -->
+					{:else if section.title === 'Schedule'}
+						{@const rows = parseScheduleTable(section.content)}
+						{#if rows.length > 0}
+							<div class="rd-card">
+								<h2 class="rd-section-title">Schedule</h2>
+								<div class="rd-schedule">
+									{#each rows as row}
+										{@const mode = (row['Mode'] ?? '').replace(/—/g, '').trim()}
+										<div class="rd-schedule-row">
+											<div class="rd-schedule-block">
+												<span class="rd-schedule-name">{row['Block'] ?? ''}</span>
+												<span class="rd-schedule-time">{row['Time'] ?? ''}</span>
+											</div>
+											{#if mode}
+												<span class="rd-mode {modeClass(mode)}">{mode}</span>
+											{:else}
+												<span class="rd-mode rd-mode--break">—</span>
+											{/if}
+											<div class="rd-schedule-focus">
+												<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+												{@html renderInlineMarkdown(row['Focus'] ?? '')}
+											</div>
+											<div class="rd-schedule-done">
+												{#if (row['Done?'] ?? '') === '[ ]'}
+													<span class="rd-check rd-check--open"></span>
+												{:else if (row['Done?'] ?? '') === '[x]' || (row['Done?'] ?? '') === '[X]'}
+													<span class="rd-check rd-check--done">
+														<svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+														</svg>
+													</span>
+												{:else}
+													<span class="rd-check rd-check--na">—</span>
+												{/if}
+											</div>
+										</div>
+									{/each}
 								</div>
-								{#if editingNoteId === note.id}
-									<textarea bind:value={editingNoteContent} class="dlp-analytics-note-card__edit-textarea" rows="3"></textarea>
-									<div class="dlp-analytics-note-card__edit-actions">
-										<button onclick={saveEditNote} class="dlp-analytics-note-card__edit-save">Save</button>
-										<button onclick={cancelEditNote} class="dlp-analytics-note-card__edit-cancel">Cancel</button>
-									</div>
-								{:else}
-									<p class="dlp-analytics-note-card__content">{note.content}</p>
-									<div class="dlp-analytics-note-card__actions">
-										<button onclick={() => startEditNote(note)} class="dlp-analytics-note-card__action-btn" aria-label="Edit note">
-											<svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-											</svg>
-										</button>
-										<button onclick={() => deleteAnalyticsNote(note.id)} class="dlp-analytics-note-card__action-btn dlp-analytics-note-card__action-btn--delete" aria-label="Delete note">
-											<svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-											</svg>
-										</button>
-									</div>
+							</div>
+						{/if}
+
+					<!-- Calls section -->
+					{:else if section.title === 'Calls Today'}
+						{@const rows = parseCallsTable(section.content)}
+						{@const hasRealRows = rows.some(r => Object.values(r).some(v => v.trim()))}
+						{#if hasRealRows}
+							<div class="rd-card">
+								<h2 class="rd-section-title">Calls Today</h2>
+								<div class="rd-calls">
+									{#each rows as row}
+										{#if Object.values(row).some(v => v.trim())}
+											<div class="rd-call-row">
+												<span class="rd-call-time">{row['Time'] ?? ''}</span>
+												<span class="rd-call-with">{row['With'] ?? ''}</span>
+												<span class="rd-call-audience">{row['Audience Type'] ?? ''}</span>
+											</div>
+										{/if}
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+					<!-- Running Notes section -->
+					{:else if section.title === 'Running Notes'}
+						<div class="rd-card">
+							<h2 class="rd-section-title">Running Notes</h2>
+							<div class="rd-notes">
+								{#each section.content.split('\n').filter(l => l.startsWith('-')) as line}
+									{@const text = line.replace(/^-\s*/, '').trim()}
+									{#if text}
+										<div class="rd-note-item">
+											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+											{@html renderInlineMarkdown(text)}
+										</div>
+									{/if}
+								{/each}
+								{#if section.content.split('\n').filter(l => l.startsWith('-') && l.replace(/^-\s*/, '').trim()).length === 0}
+									<p class="rd-notes-empty">No notes yet — capture anything during the day here.</p>
 								{/if}
 							</div>
-						{/each}
-					</div>
-					{/if}
-				</div>
-			</div>
+						</div>
 
-			<!-- ── Right: History panel (toggled) ── -->
-			{#if showHistory}
-			<aside class="dlp-history-panel">
-				<div class="dlp-history-panel__head">
-					<h2 class="dlp-history-panel__title">Recent Entries</h2>
-					{#if pastLogs.length > 0}
-						<span class="dlp-history-panel__count">{pastLogs.length}</span>
-					{/if}
-				</div>
-				{#if pastLogs.length === 0}
-					<div class="dlp-history-panel__empty">
-						<svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-						</svg>
-						<p>No past entries yet.<br/>Start writing today!</p>
-					</div>
-				{:else}
-					<div class="dlp-history-panel__list">
-						{#each pastLogs as log}
-							<button
-								onclick={() => { todayEntry = log.content; energyLevel = log.energy_level || 7; }}
-								class="dlp-history-card"
-							>
-								<div class="dlp-history-card__top">
-									<span class="dlp-history-card__date">{formatDate(log.date)}</span>
-									{#if log.energy_level}
-										<span class="dlp-history-card__energy">{log.energy_level}/10</span>
+					<!-- End of Day section -->
+					{:else if section.title === 'End of Day'}
+						<div class="rd-card">
+							<h2 class="rd-section-title">End of Day</h2>
+							<div class="rd-eod">
+								{#each section.content.split('\n').filter(l => l.trim().startsWith('-')) as line}
+									{@const text = line.replace(/^-\s*/, '').trim()}
+									{#if text}
+										<div class="rd-eod-item">
+											{#if text.startsWith('[ ]')}
+												<span class="rd-check rd-check--open"></span>
+												<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+												<span>{@html renderInlineMarkdown(text.replace('[ ]', '').trim())}</span>
+											{:else if text.startsWith('[x]') || text.startsWith('[X]')}
+												<span class="rd-check rd-check--done">
+													<svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+													</svg>
+												</span>
+												<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+												<span>{@html renderInlineMarkdown(text.replace(/\[[xX]\]/, '').trim())}</span>
+											{:else}
+												<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+												<span>{@html renderInlineMarkdown(text)}</span>
+											{/if}
+										</div>
 									{/if}
-								</div>
-								<p class="dlp-history-card__preview">{log.content}</p>
-							</button>
-						{/each}
+								{/each}
+							</div>
+						</div>
+					{/if}
+				{/each}
+			</div>
+		{:else}
+			<div class="rd-empty">
+				<div class="rd-empty__icon">
+					<svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+					</svg>
+				</div>
+				<p class="rd-empty__title">No plan for today</p>
+				<p class="rd-empty__sub">
+					Create <code>rhythm/daily/{now.toISOString().split('T')[0]}.md</code> from the daily template to get started.
+				</p>
+			</div>
+		{/if}
+	{/if}
+
+	<!-- ── Weekly tab ── -->
+	{#if activeTab === 'weekly'}
+		{#if loadingWeekly}
+			<div class="rd-loading">
+				<div class="rd-spinner"></div>
+				<span>Loading weekly plan...</span>
+			</div>
+		{:else if weeklyError}
+			<div class="rd-empty">
+				<div class="rd-empty__icon">
+					<svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+					</svg>
+				</div>
+				<p class="rd-empty__title">No weekly plan found</p>
+				<p class="rd-empty__sub">
+					Create <code>rhythm/weekly/week-of-{getMonday()}.md</code> to see this week's plan.
+				</p>
+			</div>
+		{:else if weeklyContent}
+			{@const weeklySections = parseMarkdownSections(weeklyContent)}
+			<div class="rd-content">
+				{#if weeklyTop3.length > 0}
+					<div class="rd-card rd-card--highlight">
+						<h2 class="rd-section-title">Top 3 Non-Negotiables</h2>
+						<ol class="rd-top3">
+							{#each weeklyTop3 as item, i}
+								<li class="rd-top3-item">
+									<span class="rd-top3-num">{i + 1}</span>
+									<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+									<span>{@html renderInlineMarkdown(item)}</span>
+								</li>
+							{/each}
+						</ol>
 					</div>
 				{/if}
-			</aside>
-			{/if}
 
-		</div>
+				{#each weeklySections.filter(s => s.title !== 'Top 3 Non-Negotiables') as section}
+					<div class="rd-card">
+						<h2 class="rd-section-title">{section.title}</h2>
+						{#if section.content.includes('|')}
+							{@const rows = parseScheduleTable(section.content)}
+							{#if rows.length > 0}
+								<div class="rd-table-wrap">
+									<table class="rd-table">
+										<thead>
+											<tr>
+												{#each Object.keys(rows[0]) as h}
+													<th>{h}</th>
+												{/each}
+											</tr>
+										</thead>
+										<tbody>
+											{#each rows as row}
+												<tr>
+													{#each Object.values(row) as cell}
+														<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+														<td>{@html renderInlineMarkdown(cell)}</td>
+													{/each}
+												</tr>
+											{/each}
+										</tbody>
+									</table>
+								</div>
+							{:else}
+								<div class="rd-prose">{section.content.trim() || '—'}</div>
+							{/if}
+						{:else}
+							<div class="rd-prose">
+								{#each section.content.split('\n') as line}
+									{#if line.trim().startsWith('-') || line.trim().startsWith('*')}
+										<div class="rd-prose-bullet">
+											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+											{@html renderInlineMarkdown(line.replace(/^[\-\*]\s*/, ''))}
+										</div>
+									{:else if line.trim().startsWith('#')}
+										<h3 class="rd-prose-subhead">{line.replace(/^#+\s*/, '')}</h3>
+									{:else if line.trim()}
+										<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+										<p class="rd-prose-p">{@html renderInlineMarkdown(line)}</p>
+									{/if}
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
 	{/if}
 </div>
 
 <style>
-	/* ── Layout ──────────────────────────────────────────────────────────────── */
-	.dlp {
-		height: 100%;
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-	}
-
-	/* ── Header ──────────────────────────────────────────────────────────────── */
-	.dlp-header {
-		padding: 1rem 1.5rem 0.85rem;
-		border-bottom: 1px solid var(--dbd2);
-		display: flex;
-		align-items: flex-end;
-		justify-content: space-between;
-		flex-shrink: 0;
-		gap: 1rem;
-	}
-
-	.dlp-header__date-block {
-		display: flex;
-		flex-direction: column;
-		gap: 0.1rem;
-	}
-
-	.dlp-header__weekday {
-		font-size: 0.72rem;
-		font-weight: 600;
-		color: var(--dt4);
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-	}
-
-	.dlp-header__day {
-		font-size: 1.45rem;
-		font-weight: 700;
-		color: var(--dt);
-		margin: 0;
-		line-height: 1.1;
-		display: flex;
-		align-items: baseline;
-		gap: 0.5rem;
-	}
-
-	.dlp-header__year {
-		font-size: 1rem;
-		font-weight: 400;
-		color: var(--dt3);
-	}
-
-	.dlp-header__actions {
-		display: flex;
-		align-items: center;
-		gap: 0.6rem;
-		flex-shrink: 0;
-	}
-
-	/* Streak badge — neutral gray */
-	.dlp-streak {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		padding: 0.25rem 0.65rem;
-		background: var(--dbg2);
-		border: 1px solid var(--dbd2);
-		border-radius: 999px;
-		color: var(--dt3);
-	}
-
-	.dlp-streak__num {
-		font-size: 0.82rem;
-		font-weight: 700;
-		font-variant-numeric: tabular-nums;
-		color: var(--dt);
-	}
-
-	.dlp-streak__label {
-		font-size: 0.72rem;
-		font-weight: 500;
-	}
-
-	/* Last saved pill */
-	.dlp-saved-pill {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		padding: 0.22rem 0.65rem;
-		background: var(--dbg2);
-		border: 1px solid var(--dbd2);
-		border-radius: 999px;
-		font-size: 0.7rem;
-		color: var(--dt4);
-	}
-
-	/* View History button active state */
-	.btn-pill.active {
-		background: var(--dbg3);
-		border-color: var(--dt4);
-		color: var(--dt);
-	}
-
-	/* ── Loading ─────────────────────────────────────────────────────────────── */
-	.dlp-loading {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.dlp-spinner {
-		width: 2rem;
-		height: 2rem;
-		border: 2px solid var(--dbd2);
-		border-top-color: var(--dt2);
-		border-radius: 50%;
-		animation: spin 0.6s linear infinite;
-	}
-
-	@keyframes spin { to { transform: rotate(360deg); } }
-
-	/* ── Body ────────────────────────────────────────────────────────────────── */
-	.dlp-body {
-		flex: 1;
-		display: flex;
-		overflow: hidden;
-	}
-
-	/* ── Form ────────────────────────────────────────────────────────────────── */
-	.dlp-form {
-		flex: 1;
-		min-width: 0;
-		overflow-y: auto;
-		scrollbar-width: none;
-		padding: 1.5rem;
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
-
-	.dlp-body--with-history .dlp-form {
-		border-right: 1px solid var(--dbd2);
-	}
-
-	.dlp-form::-webkit-scrollbar { display: none; }
-
-	/* Card base */
-	.dlp-card {
-		padding: 1.1rem 1.25rem;
-		background: var(--dbg2);
-		border: 1px solid var(--dbd2);
-		border-radius: 12px;
-	}
-
-	.dlp-label {
-		display: block;
-		font-size: 0.82rem;
-		font-weight: 600;
-		color: var(--dt2);
-		margin: 0;
-	}
-
-	/* ── Energy card ─────────────────────────────────────────────────────────── */
-	.dlp-energy-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 0.9rem;
-	}
-
-	.dlp-energy-readout {
-		display: flex;
-		align-items: baseline;
-		gap: 0.2rem;
-	}
-
-	.dlp-energy-num {
-		font-size: 1.5rem;
-		font-weight: 800;
-		font-variant-numeric: tabular-nums;
-		line-height: 1;
-		color: var(--dt);
-	}
-
-	.dlp-energy-slash {
-		font-size: 0.8rem;
-		color: var(--dt4);
-	}
-
-	/* Slider — blue fill only, no dynamic colors */
-	.dlp-energy__slider {
-		width: 100%;
-		height: 5px;
-		-webkit-appearance: none;
-		appearance: none;
-		border-radius: 999px;
-		outline: none;
-		cursor: pointer;
-		background: linear-gradient(
-			to right,
-			#3b82f6 0%,
-			#3b82f6 var(--slider-pct),
-			var(--dbd2) var(--slider-pct)
-		);
-		margin-bottom: 0.1rem;
-	}
-
-	.dlp-energy__slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		width: 20px;
-		height: 20px;
-		border-radius: 50%;
-		background: var(--dbg);
-		cursor: pointer;
-		border: 2px solid var(--dt2);
-		box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
-	}
-
-	.dlp-energy__slider::-webkit-slider-thumb:hover {
-		border-color: var(--dt);
-		box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.15), 0 1px 6px rgba(0, 0, 0, 0.2);
-	}
-
-	.dlp-energy__slider::-moz-range-thumb {
-		width: 20px;
-		height: 20px;
-		border-radius: 50%;
-		background: var(--dbg);
-		cursor: pointer;
-		border: 2px solid var(--dt2);
-		box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
-	}
-
-	.dlp-energy__row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-		margin-top: 0.55rem;
-	}
-
-	.dlp-energy__end-label {
-		font-size: 0.68rem;
-		color: var(--dt4);
-		white-space: nowrap;
-		flex-shrink: 0;
-	}
-
-	.dlp-energy__dots {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		flex: 1;
-		justify-content: center;
-	}
-
-	.dlp-energy__dot {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		background: var(--dbd2);
-		transition: background 0.15s;
-		flex-shrink: 0;
-	}
-
-	.dlp-energy__dot.active {
-		background: #3b82f6;
-	}
-
-	/* ── Entry card ──────────────────────────────────────────────────────────── */
-	.dlp-entry-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 0.7rem;
-	}
-
-	.dlp-word-count {
-		font-size: 0.7rem;
-		color: var(--dt4);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.dlp-textarea {
-		width: 100%;
-		min-height: 200px;
-		resize: none;
-		padding: 0.85rem;
-		background: var(--dbg);
-		border: 1px solid var(--dbd2);
-		border-radius: 8px;
-		color: var(--dt);
-		font-family: inherit;
-		font-size: 0.88rem;
-		line-height: 1.7;
-		outline: none;
-		transition: border-color 0.15s, box-shadow 0.15s;
-		box-sizing: border-box;
-		display: block;
-	}
-
-	.dlp-textarea::placeholder {
-		color: var(--dt4);
-		font-style: italic;
-	}
-
-	.dlp-textarea:focus {
-		border-color: var(--dt3);
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
-	}
-
-	/* ── Save button ─────────────────────────────────────────────────────────── */
-	.dlp-save {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.45rem;
-		font-size: 0.88rem;
-		align-self: flex-end;
-	}
-
-	.dlp-save--success {
-		background: #16a34a !important;
-		color: #fff !important;
-		box-shadow: none !important;
-		animation: save-pulse 0.65s ease-out;
-	}
-
-	.dlp-save--error {
-		background: #ef4444 !important;
-		color: #fff !important;
-		box-shadow: none !important;
-	}
-
-	@keyframes save-pulse {
-		0%   { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5); }
-		50%  { box-shadow: 0 0 0 12px rgba(22, 163, 74, 0); }
-		100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
-	}
-
-	.dlp-save__spinner {
-		width: 1rem;
-		height: 1rem;
-		animation: spin 0.7s linear infinite;
-	}
-
-	.dlp-save__kbd {
-		font-family: inherit;
-		font-size: 0.72rem;
-		opacity: 0.55;
-		padding: 0.1rem 0.35rem;
-		border: 1px solid currentColor;
-		border-radius: 4px;
-		letter-spacing: 0;
-	}
-
-	/* ── Analytics Notes ─────────────────────────────────────────────────────── */
-	.dlp-analytics-notes {
-		display: flex;
-		flex-direction: column;
-		gap: 0.6rem;
-	}
-
-	.dlp-analytics-notes__header {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.dlp-analytics-notes__title {
-		font-size: 0.78rem;
-		font-weight: 600;
-		color: var(--dt3);
-		margin: 0;
-		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-	}
-
-	.dlp-analytics-notes__subtitle {
-		font-size: 0.75rem;
-		color: var(--dt4);
-		margin: 0;
-		line-height: 1.5;
-	}
-
-	.dlp-analytics-notes__count {
-		font-size: 0.68rem;
-		font-weight: 600;
-		padding: 0.1rem 0.45rem;
-		background: var(--dbg3);
-		border: 1px solid var(--dbd2);
-		border-radius: 999px;
-		color: var(--dt3);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.dlp-analytics-notes__list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.dlp-analytics-note-card {
-		padding: 0.85rem 1rem;
-		background: var(--dbg2);
-		border: 1px solid var(--dbd2);
-		border-radius: 8px;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.dlp-analytics-note-card__metrics {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-	}
-
-	.dlp-analytics-note-card__metric {
-		display: flex;
-		flex-direction: column;
-		gap: 0.1rem;
-	}
-
-	.dlp-analytics-note-card__metric-label {
-		font-size: 0.62rem;
-		color: var(--dt4);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.dlp-analytics-note-card__metric-value {
-		font-size: 0.8rem;
-		font-weight: 600;
-		color: var(--dt);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.dlp-analytics-note-card__date {
-		font-size: 0.68rem;
-		color: var(--dt4);
-		margin-left: auto;
-	}
-
-	.dlp-analytics-note-card__content {
-		font-size: 0.82rem;
-		color: var(--dt2);
-		margin: 0;
-		line-height: 1.55;
-	}
-
-	.dlp-analytics-note-card__actions {
-		display: flex;
-		gap: 0.35rem;
-	}
-
-	.dlp-analytics-note-card__action-btn {
-		padding: 0.25rem;
-		border: none;
-		background: none;
-		color: var(--dt4);
-		cursor: pointer;
-		border-radius: 4px;
-		display: flex;
-		align-items: center;
-		transition: color 0.15s, background 0.15s;
-	}
-
-	.dlp-analytics-note-card__action-btn:hover {
-		color: var(--dt);
-		background: var(--dbg3);
-	}
-
-	.dlp-analytics-note-card__action-btn--delete:hover {
-		color: #ef4444;
-	}
-
-	.dlp-analytics-note-card__edit-textarea {
-		width: 100%;
-		padding: 0.55rem 0.7rem;
-		background: var(--dbg);
-		border: 1px solid var(--dbd2);
-		border-radius: 6px;
-		color: var(--dt);
-		font-family: inherit;
-		font-size: 0.82rem;
-		line-height: 1.55;
-		outline: none;
-		resize: vertical;
-		box-sizing: border-box;
-	}
-
-	.dlp-analytics-note-card__edit-actions {
-		display: flex;
-		gap: 0.4rem;
-	}
-
-	.dlp-analytics-note-card__edit-save,
-	.dlp-analytics-note-card__edit-cancel {
-		padding: 0.25rem 0.75rem;
-		border-radius: 6px;
-		font-size: 0.75rem;
-		font-weight: 500;
-		cursor: pointer;
-		border: 1px solid var(--dbd2);
-	}
-
-	.dlp-analytics-note-card__edit-save {
-		background: var(--dt);
-		color: var(--dbg);
-		border-color: transparent;
-	}
-
-	.dlp-analytics-note-card__edit-cancel {
-		background: none;
-		color: var(--dt3);
-	}
-
-	/* ── History panel ───────────────────────────────────────────────────────── */
-	.dlp-history-panel {
-		width: 280px;
-		flex-shrink: 0;
-		overflow-y: auto;
-		scrollbar-width: none;
-		padding: 1.25rem 1rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		border-left: 1px solid var(--dbd2);
-	}
-
-	.dlp-history-panel::-webkit-scrollbar { display: none; }
-
-	.dlp-history-panel__head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding-bottom: 0.5rem;
-		border-bottom: 1px solid var(--dbd2);
-	}
-
-	.dlp-history-panel__title {
-		font-size: 0.78rem;
-		font-weight: 600;
-		color: var(--dt3);
-		margin: 0;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-	}
-
-	.dlp-history-panel__count {
-		font-size: 0.68rem;
-		font-weight: 600;
-		padding: 0.1rem 0.45rem;
-		background: var(--dbg3);
-		border: 1px solid var(--dbd2);
-		border-radius: 999px;
-		color: var(--dt3);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.dlp-history-panel__empty {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.65rem;
-		color: var(--dt4);
-		text-align: center;
-		padding: 2rem 0;
-	}
-
-	.dlp-history-panel__empty p {
-		font-size: 0.78rem;
-		line-height: 1.55;
-		margin: 0;
-	}
-
-	.dlp-history-panel__list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	/* History cards */
-	.dlp-history-card {
-		width: 100%;
-		text-align: left;
-		padding: 0.75rem 0.85rem;
-		background: var(--dbg2);
-		border: 1px solid var(--dbd2);
-		border-radius: 8px;
-		cursor: pointer;
-		transition: background 0.15s, border-color 0.15s;
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-	}
-
-	.dlp-history-card:hover {
-		background: var(--dbg3);
-		border-color: var(--dt4);
-	}
-
-	.dlp-history-card__top {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-	}
-
-	.dlp-history-card__date {
-		font-size: 0.72rem;
-		font-weight: 600;
-		color: var(--dt2);
-	}
-
-	.dlp-history-card__energy {
-		font-size: 0.65rem;
-		color: var(--dt4);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.dlp-history-card__preview {
-		font-size: 0.75rem;
-		color: var(--dt3);
-		margin: 0;
-		line-height: 1.5;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
+/* ── Root ── */
+.rd {
+	padding: 2rem 2.25rem;
+	min-height: 100%;
+	max-width: 860px;
+}
+
+/* ── Header ── */
+.rd-header {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	margin-bottom: 2rem;
+	flex-wrap: wrap;
+	gap: 1rem;
+}
+.rd-header__date {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+}
+.rd-header__weekday {
+	font-size: 0.75rem;
+	font-weight: 500;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--dt3);
+}
+.rd-header__day {
+	font-size: 1.75rem;
+	font-weight: 700;
+	line-height: 1.1;
+	color: var(--dt);
+	margin: 0;
+}
+.rd-header__year {
+	font-size: 1rem;
+	font-weight: 400;
+	color: var(--dt3);
+	margin-left: 0.4rem;
+}
+
+/* ── Tabs ── */
+.rd-header__tabs {
+	display: flex;
+	gap: 0.25rem;
+	background: var(--dbg2);
+	border: 1px solid var(--dbd);
+	border-radius: 8px;
+	padding: 3px;
+}
+.rd-tab {
+	padding: 0.35rem 1rem;
+	border-radius: 6px;
+	font-size: 0.8rem;
+	font-weight: 500;
+	color: var(--dt3);
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+}
+.rd-tab:hover { color: var(--dt2); }
+.rd-tab--active {
+	background: var(--dbg);
+	color: var(--dt);
+	box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+/* ── Loading ── */
+.rd-loading {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 3rem 0;
+	color: var(--dt3);
+	font-size: 0.875rem;
+}
+.rd-spinner {
+	width: 18px;
+	height: 18px;
+	border: 2px solid var(--dbd);
+	border-top-color: var(--dt2);
+	border-radius: 50%;
+	animation: rd-spin 0.7s linear infinite;
+}
+@keyframes rd-spin { to { transform: rotate(360deg); } }
+
+/* ── Empty state ── */
+.rd-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 5rem 2rem;
+	text-align: center;
+}
+.rd-empty__icon {
+	width: 52px;
+	height: 52px;
+	border-radius: 50%;
+	background: var(--dbg2);
+	border: 1px solid var(--dbd);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--dt3);
+}
+.rd-empty__title {
+	font-size: 1rem;
+	font-weight: 600;
+	color: var(--dt);
+	margin: 0;
+}
+.rd-empty__sub {
+	font-size: 0.825rem;
+	color: var(--dt3);
+	margin: 0;
+}
+.rd-empty__sub code {
+	font-family: monospace;
+	background: var(--dbg2);
+	padding: 0.1rem 0.35rem;
+	border-radius: 4px;
+	border: 1px solid var(--dbd);
+}
+
+/* ── Content ── */
+.rd-content {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+/* ── Card ── */
+.rd-card {
+	background: var(--dbg2);
+	border: 1px solid var(--dbd);
+	border-radius: 10px;
+	padding: 1.25rem 1.5rem;
+}
+.rd-card--boot {
+	border-left: 3px solid #6366f1;
+}
+.rd-card--highlight {
+	border-left: 3px solid #f59e0b;
+}
+.rd-section-title {
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--dt3);
+	margin: 0 0 0.9rem 0;
+}
+
+/* ── Boot grid ── */
+.rd-boot-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+}
+.rd-boot-item {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+	background: var(--dbg);
+	border: 1px solid var(--dbd);
+	border-radius: 8px;
+	padding: 0.6rem 0.9rem;
+	min-width: 130px;
+}
+.rd-boot-label {
+	font-size: 0.7rem;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--dt4, var(--dt3));
+}
+.rd-boot-val {
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: var(--dt);
+}
+
+/* ── Top 3 ── */
+.rd-top3 {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+.rd-top3-item {
+	display: flex;
+	align-items: baseline;
+	gap: 0.75rem;
+	font-size: 0.875rem;
+	color: var(--dt2);
+	line-height: 1.4;
+}
+.rd-top3-num {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: var(--dbg);
+	border: 1px solid var(--dbd);
+	font-size: 0.7rem;
+	font-weight: 700;
+	color: var(--dt3);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+/* ── Mode badges ── */
+.rd-mode {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.2rem 0.55rem;
+	border-radius: 99px;
+	font-size: 0.65rem;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+.rd-mode--build      { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.rd-mode--operate    { background: rgba(34,197,94,0.15);  color: #4ade80; }
+.rd-mode--learn      { background: rgba(168,85,247,0.15); color: #c084fc; }
+.rd-mode--synthesize { background: rgba(234,179,8,0.15);  color: #facc15; }
+.rd-mode--extract    { background: rgba(249,115,22,0.15); color: #fb923c; }
+.rd-mode--default    { background: var(--dbg); color: var(--dt3); }
+.rd-mode--break      { color: var(--dt4, var(--dt3)); background: transparent; padding: 0; }
+
+/* ── Schedule ── */
+.rd-schedule {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+.rd-schedule-row {
+	display: grid;
+	grid-template-columns: 180px 90px 1fr 28px;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.55rem 0.75rem;
+	border-radius: 7px;
+	background: var(--dbg);
+	border: 1px solid var(--dbd);
+}
+.rd-schedule-block {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+}
+.rd-schedule-name {
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--dt);
+}
+.rd-schedule-time {
+	font-size: 0.7rem;
+	color: var(--dt3);
+}
+.rd-schedule-focus {
+	font-size: 0.8rem;
+	color: var(--dt2);
+}
+
+/* ── Check ── */
+.rd-check {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	border-radius: 4px;
+	flex-shrink: 0;
+}
+.rd-check--open {
+	border: 1.5px solid var(--dbd2, var(--dbd));
+}
+.rd-check--done {
+	background: #22c55e;
+	border: none;
+	color: white;
+}
+.rd-check--na {
+	color: var(--dt4, var(--dt3));
+	font-size: 0.75rem;
+	border: none;
+}
+
+/* ── Calls ── */
+.rd-calls {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+.rd-call-row {
+	display: grid;
+	grid-template-columns: 90px 1fr 1fr;
+	gap: 0.75rem;
+	padding: 0.5rem 0.75rem;
+	background: var(--dbg);
+	border: 1px solid var(--dbd);
+	border-radius: 7px;
+	font-size: 0.8rem;
+}
+.rd-call-time  { color: var(--dt3); }
+.rd-call-with  { font-weight: 600; color: var(--dt); }
+.rd-call-audience { color: var(--dt2); }
+
+/* ── Notes ── */
+.rd-notes {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+.rd-note-item {
+	font-size: 0.85rem;
+	color: var(--dt2);
+	padding: 0.4rem 0.6rem;
+	background: var(--dbg);
+	border-radius: 6px;
+	border-left: 2px solid var(--dbd);
+	line-height: 1.5;
+}
+.rd-notes-empty {
+	font-size: 0.8rem;
+	color: var(--dt3);
+	font-style: italic;
+	margin: 0;
+}
+
+/* ── End of Day ── */
+.rd-eod {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+.rd-eod-item {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	font-size: 0.85rem;
+	color: var(--dt2);
+}
+
+/* ── Weekly prose ── */
+.rd-prose {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+.rd-prose-bullet {
+	display: flex;
+	align-items: baseline;
+	gap: 0.5rem;
+	font-size: 0.85rem;
+	color: var(--dt2);
+	padding-left: 0.75rem;
+	position: relative;
+}
+.rd-prose-bullet::before {
+	content: '–';
+	position: absolute;
+	left: 0;
+	color: var(--dt3);
+}
+.rd-prose-p {
+	font-size: 0.85rem;
+	color: var(--dt2);
+	margin: 0;
+	line-height: 1.5;
+}
+.rd-prose-subhead {
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--dt);
+	margin: 0.5rem 0 0.25rem;
+}
+
+/* ── Table ── */
+.rd-table-wrap {
+	overflow-x: auto;
+}
+.rd-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.8rem;
+}
+.rd-table th {
+	text-align: left;
+	padding: 0.4rem 0.75rem;
+	background: var(--dbg);
+	color: var(--dt3);
+	font-weight: 600;
+	font-size: 0.7rem;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	border-bottom: 1px solid var(--dbd);
+}
+.rd-table td {
+	padding: 0.45rem 0.75rem;
+	color: var(--dt2);
+	border-bottom: 1px solid var(--dbd);
+	line-height: 1.4;
+}
+.rd-table tr:last-child td { border-bottom: none; }
+.rd-table tr:hover td { background: var(--dbg); }
+
+/* ── Inline code / link ── */
+:global(.rd-card code) {
+	font-family: monospace;
+	font-size: 0.8em;
+	background: var(--dbg);
+	padding: 0.1em 0.35em;
+	border-radius: 4px;
+	border: 1px solid var(--dbd);
+}
+:global(.rd-link) {
+	color: #60a5fa;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
 </style>

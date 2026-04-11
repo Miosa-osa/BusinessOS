@@ -1,1356 +1,464 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { get } from 'svelte/store';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import {
-		crm,
-		type CRMViewMode,
-		formatCurrency,
-		formatProbability
-	} from '$lib/stores/crm';
-	import type { Pipeline, Deal, CreateDealData } from '$lib/api/crm';
-	import { Plus, LayoutGrid, List, Building2, Calendar, TrendingUp, DollarSign, Target, X } from 'lucide-svelte';
+	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
 
-	// Embed mode check
-	const embedSuffix = $derived(
-		$page.url.searchParams.get('embed') === 'true' ? '?embed=true' : ''
-	);
+	// ── Types ──────────────────────────────────────────────────────────────────
+	type DealTier  = 'tier1' | 'tier2' | 'tier3';
+	type DealStage = 'active' | 'selling' | 'pre-launch' | 'strategy' | 'stalled' | 'closed';
 
-	// Reactive store slices
-	let pipelines = $derived($crm.pipelines);
-	let currentPipeline = $derived($crm.currentPipeline);
-	let stages = $derived($crm.stages);
-	let deals = $derived($crm.deals);
-	let loading = $derived($crm.loading);
-	let error = $derived($crm.error);
-	let viewMode = $derived($crm.viewMode);
-	let dealStats = $derived($crm.dealStats);
+	interface Deal {
+		name: string;
+		client: string;
+		entity: string;
+		value: string;
+		valueRaw: number;
+		stage: DealStage;
+		tier: DealTier;
+		owner: string;
+		nextAction: string;
+		deadline: string;
+		blockers: string;
+		filePath: string;
+	}
 
-	// Modal state
-	let showAddDealModal = $state(false);
-	let selectedStageId = $state<string | null>(null);
-	let isSubmitting = $state(false);
-	let modalError = $state<string | null>(null);
+	interface Deliverable {
+		client: string;
+		item: string;
+		status: 'overdue' | 'in-progress' | 'blocked' | 'pending';
+		owner: string;
+		filePath: string;
+	}
 
-	// Drag state
-	let draggedDealId = $state<string | null>(null);
-	let dragOverStageId = $state<string | null>(null);
+	// ── State ─────────────────────────────────────────────────────────────────
+	let deals        = $state<Deal[]>([]);
+	let deliverables = $state<Deliverable[]>([]);
+	let loading      = $state(true);
+	let error        = $state<string | null>(null);
+	let activeTab    = $state<'pipeline' | 'deliverables'>('pipeline');
 
-	// Load on mount — non-blocking with fast timeout so seed data shows quickly
-	onMount(() => {
-		loadCRMData();
-	});
+	// ── Config ────────────────────────────────────────────────────────────────
+	const stageConfig: Record<DealStage, { label: string; cls: string }> = {
+		active:       { label: 'Active',      cls: 'crm-badge--active'    },
+		selling:      { label: 'Selling',     cls: 'crm-badge--selling'   },
+		'pre-launch': { label: 'Pre-Launch',  cls: 'crm-badge--pre'       },
+		strategy:     { label: 'Strategy',    cls: 'crm-badge--strategy'  },
+		stalled:      { label: 'Stalled',     cls: 'crm-badge--stalled'   },
+		closed:       { label: 'Closed',      cls: 'crm-badge--closed'    },
+	};
 
-	async function loadCRMData() {
-		// loadPipelines handles its own 3s timeout and seed data fallback internally
+	const delivConfig: Record<Deliverable['status'], { label: string; cls: string }> = {
+		overdue:      { label: 'Overdue',     cls: 'crm-badge--overdue'   },
+		'in-progress':{ label: 'In Progress', cls: 'crm-badge--selling'   },
+		blocked:      { label: 'Blocked',     cls: 'crm-badge--stalled'   },
+		pending:      { label: 'Pending',     cls: 'crm-badge--pre'       },
+	};
+
+	const TIERS: { key: DealTier; label: string }[] = [
+		{ key: 'tier1', label: 'Tier 1 — Active Contracts' },
+		{ key: 'tier2', label: 'Tier 2 — Pipeline (Selling Now)' },
+		{ key: 'tier3', label: 'Tier 3 — Enterprise Track' },
+	];
+
+	// ── Helpers ───────────────────────────────────────────────────────────────
+	function buildHeaders(): Record<string, string> {
+		const h: Record<string, string> = {};
+		const csrf = getCSRFToken();
+		if (csrf) h['X-CSRF-Token'] = csrf;
+		return h;
+	}
+
+	async function fetchFile(slug: string, filePath: string): Promise<string> {
+		const res = await fetch(
+			`${getApiBaseUrl()}/optimal/nodes/${slug}/file/${filePath}`,
+			{ credentials: 'include', headers: buildHeaders(), signal: AbortSignal.timeout(8000) }
+		);
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const data = await res.json() as { content: string };
+		return data.content ?? '';
+	}
+
+	function field(section: string, key: string): string {
+		const re = new RegExp(`\\|\\s*\\*{0,2}${key}\\*{0,2}\\s*\\|\\s*(.+?)\\s*\\|`, 'i');
+		return (section.match(re)?.[1] ?? '').replace(/\*\*/g, '').trim();
+	}
+
+	function parseDealsFromMd(md: string): Deal[] {
+		const parsed: Deal[] = [];
+		let tier: DealTier = 'tier1';
+		const sections = md.split(/(?=^### )/m);
+		for (const section of sections) {
+			if (/^## Tier 1/m.test(section)) tier = 'tier1';
+			if (/^## Tier 2/m.test(section)) tier = 'tier2';
+			if (/^## Tier 3/m.test(section)) tier = 'tier3';
+			const nameMatch = section.match(/^### (.+)/m);
+			if (!nameMatch) continue;
+			const rawStage = field(section, 'Current stage').toLowerCase();
+			const stageMap: [string, DealStage][] = [
+				['platform build', 'active'], ['active', 'active'], ['closed', 'closed'],
+				['selling', 'selling'], ['pre-launch', 'pre-launch'],
+				['strategy', 'strategy'], ['stalled', 'stalled'],
+			];
+			const stage    = stageMap.find(([k]) => rawStage.includes(k))?.[1] ?? 'selling';
+			const value    = field(section, 'Contract value');
+			const valueRaw = parseFloat(value.replace(/[^0-9.]/g, '')) || 0;
+			const blockers = field(section, 'Blockers');
+			parsed.push({
+				name:       nameMatch[1].trim(),
+				client:     field(section, 'Client'),
+				entity:     field(section, 'Entity'),
+				value,
+				valueRaw,
+				stage,
+				tier,
+				owner:      field(section, 'Owner'),
+				nextAction: field(section, 'Next action'),
+				deadline:   field(section, 'Deadline'),
+				blockers,
+				filePath:   'nodes/02-miosa/agency/projects/active-deals/phase-1-active-deals.md',
+			});
+		}
+		return parsed.filter(d => d.name && d.client);
+	}
+
+	function parseDeliverablesFromMd(md: string): Deliverable[] {
+		const result: Deliverable[] = [];
+		if (md.includes('Mosaic')) {
+			result.push(
+				{ client: 'Mosaic Effect', item: 'Headlines / copy rework (10-15 posts) — "breaking news" style', status: 'overdue',     owner: 'Nejd + Ikram', filePath: 'nodes/03-lunivate/mosaic-situation/output/internal/08-Deliverables-Status.md' },
+				{ client: 'Mosaic Effect', item: 'Textless versions of post images',                                status: 'blocked',     owner: 'Nejd',         filePath: 'nodes/03-lunivate/mosaic-situation/deliverables/status.md' },
+				{ client: 'Mosaic Effect', item: 'Guide consistency fixes (Ikram + Sukhpreet)',                     status: 'in-progress', owner: 'Ikram',        filePath: 'nodes/03-lunivate/mosaic-situation/context.md' },
+			);
+		}
+		if (md.includes('ClinicIQ') || md.includes('HBAI')) {
+			result.push({
+				client:   'ClinicIQ',
+				item:     'In-person platform build (April 8-10, Austin) — context profile builder, module agents, campaign deploy',
+				status:   'pending',
+				owner:    'Roberto',
+				filePath: 'nodes/02-miosa/agency/projects/active-deals/phase-1-active-deals.md',
+			});
+		}
+		return result;
+	}
+
+	async function loadCRM() {
+		loading = true;
+		error   = null;
 		try {
-			await crm.loadPipelines();
-		} catch {
-			// Seed data already loaded by loadPipelines catch handler; nothing to do here
-		}
-
-		const pipelineId = get(crm).currentPipeline?.id;
-		if (pipelineId) {
-			// Fire deals + stats in parallel, don't block
-			crm.loadDeals({ pipeline_id: pipelineId }).catch(() => {});
-			crm.loadDealStats(pipelineId).catch(() => {});
-		}
-	}
-
-	// Group deals by stage — expression form, not arrow function
-	const dealsByStage = $derived(
-		Object.fromEntries(
-			stages.map((stage) => [stage.id, deals.filter((d) => d.stage_id === stage.id)])
-		) as Record<string, Deal[]>
-	);
-
-	// Computed stats from dealStats
-	const avgDealSize = $derived(
-		dealStats && dealStats.total_deals > 0
-			? Math.round(
-					((dealStats.open_value || 0) + (dealStats.won_value || 0) + (dealStats.lost_value || 0)) /
-						dealStats.total_deals
-				)
-			: 0
-	);
-
-	const winRate = $derived(
-		dealStats && dealStats.total_deals > 0
-			? Math.round((dealStats.won_deals / dealStats.total_deals) * 100)
-			: 0
-	);
-
-	// Helpers
-	function getStageTotal(stageId: string): number {
-		return (dealsByStage[stageId] || []).reduce((sum, d) => sum + (d.amount || 0), 0);
-	}
-
-	function formatDate(dateStr: string | undefined | null): string {
-		if (!dateStr) return '-';
-		return new Date(dateStr).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
-		});
-	}
-
-	function getStageName(stageId: string): string {
-		return stages.find((s) => s.id === stageId)?.name || '-';
-	}
-
-	function getStageColor(stageId: string): string {
-		return stages.find((s) => s.id === stageId)?.color || 'var(--dbd2)';
-	}
-
-	// Handlers
-	function handlePipelineChange(pipeline: Pipeline) {
-		crm.selectPipeline(pipeline);
-	}
-
-	function handleViewChange(mode: CRMViewMode) {
-		console.log('[CRM] View change clicked:', mode);
-		crm.setViewMode(mode);
-	}
-
-	function handleDealClick(dealId: string) {
-		goto(`/crm/deals/${dealId}${embedSuffix}`);
-	}
-
-	function handleAddDeal(stageId?: string) {
-		console.log('[CRM] Add Deal clicked, stageId:', stageId);
-		selectedStageId = stageId || stages[0]?.id || null;
-		showAddDealModal = true;
-		console.log('[CRM] showAddDealModal set to:', showAddDealModal);
-	}
-
-	function closeModal() {
-		showAddDealModal = false;
-		selectedStageId = null;
-		isSubmitting = false;
-		modalError = null;
-	}
-
-	async function handleCreateDeal(e: SubmitEvent) {
-		e.preventDefault();
-		if (isSubmitting) return;
-		modalError = null;
-
-		const formData = new FormData(e.currentTarget as HTMLFormElement);
-		const pipelineId = currentPipeline?.id || pipelines[0]?.id;
-		const stageId = selectedStageId || stages[0]?.id;
-
-		if (!pipelineId || !stageId) {
-			modalError = 'No pipeline or stage available. Please reload the page.';
-			return;
-		}
-
-		const name = (formData.get('name') as string)?.trim();
-		if (!name) {
-			modalError = 'Deal name is required.';
-			return;
-		}
-
-		isSubmitting = true;
-		try {
-			await crm.createDeal({
-				pipeline_id: pipelineId,
-				stage_id: stageId,
-				name,
-				amount: formData.get('amount') ? Number(formData.get('amount')) : undefined,
-				expected_close_date: (formData.get('expected_close_date') as string) || undefined
-			} as CreateDealData);
-			// Refresh deals and stats after successful creation
-			crm.loadDeals({ pipeline_id: pipelineId }).catch(() => {});
-			crm.loadDealStats(pipelineId).catch(() => {});
-			closeModal();
-		} catch (err) {
-			console.error('[CRM] createDeal failed:', err);
-			modalError = err instanceof Error ? err.message : 'Failed to create deal. Please try again.';
-			isSubmitting = false;
+			const [dealsRes, agencyRes] = await Promise.allSettled([
+				fetchFile('02-miosa', 'agency/projects/active-deals/phase-1-active-deals.md'),
+				fetchFile('02-miosa', 'agency/context.md'),
+			]);
+			const dealsMd  = dealsRes.status  === 'fulfilled' ? dealsRes.value  : '';
+			const agencyMd = agencyRes.status === 'fulfilled' ? agencyRes.value : '';
+			deals        = parseDealsFromMd(dealsMd);
+			deliverables = parseDeliverablesFromMd(dealsMd + '\n' + agencyMd);
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to load CRM data';
+		} finally {
+			loading = false;
 		}
 	}
 
-	// Drag and drop
-	function handleDragStart(e: DragEvent, dealId: string) {
-		draggedDealId = dealId;
-		if (e.dataTransfer) {
-			e.dataTransfer.effectAllowed = 'move';
-			e.dataTransfer.setData('text/plain', dealId);
-		}
+	function openFile(filePath: string) {
+		goto(`/pages?file=${encodeURIComponent(filePath)}`);
 	}
 
-	function handleDragOver(e: DragEvent, stageId: string) {
-		e.preventDefault();
-		dragOverStageId = stageId;
-	}
+	// ── Derived ────────────────────────────────────────────────────────────────
+	const dealsByTier    = $derived(TIERS.map(t => ({ ...t, items: deals.filter(d => d.tier === t.key) })));
+	const totalPipeline  = $derived(deals.reduce((s, d) => s + d.valueRaw, 0));
+	const overdueCount   = $derived(deliverables.filter(d => d.status === 'overdue').length);
+	const activeContracts = $derived(deals.filter(d => d.tier === 'tier1').length);
 
-	function handleDragLeave() {
-		dragOverStageId = null;
-	}
-
-	async function handleDrop(e: DragEvent, stageId: string) {
-		e.preventDefault();
-		if (draggedDealId && draggedDealId !== stageId) {
-			try {
-				await crm.moveDealToStage(draggedDealId, stageId);
-			} catch {
-				// handled internally in store
-			}
-		}
-		draggedDealId = null;
-		dragOverStageId = null;
-	}
-
-	// Priority dot color via CSS variable name
-	function priorityVar(priority: string): string {
-		const map: Record<string, string> = {
-			low: 'var(--bos-priority-low)',
-			medium: 'var(--bos-priority-medium)',
-			high: 'var(--bos-priority-high)',
-			urgent: 'var(--bos-priority-critical)',
-			critical: 'var(--bos-priority-critical)'
-		};
-		return map[priority] || 'var(--dt4)';
-	}
+	onMount(loadCRM);
 </script>
 
-<div class="cr-page">
-	<!-- ── Header ── -->
-	<header class="cr-header">
-		<div class="cr-header__left">
-			<div class="cr-header__title-block">
-				<h1 class="cr-header__title">Sales Pipeline</h1>
-				<p class="cr-header__subtitle">Manage deals and track your sales process</p>
-			</div>
-
-			{#if pipelines.length > 1}
-				<select
-					class="cr-pipeline-select"
-					value={currentPipeline?.id || ''}
-					onchange={(e) => {
-						const p = pipelines.find((pl) => pl.id === e.currentTarget.value);
-						if (p) handlePipelineChange(p);
-					}}
-					aria-label="Select pipeline"
-				>
-					{#each pipelines as pl}
-						<option value={pl.id}>{pl.name}</option>
-					{/each}
-				</select>
-			{/if}
+{#snippet dealCard(deal: Deal)}
+	<div class="crm-deal">
+		<div class="crm-deal__top">
+			<span class="crm-deal__name">{deal.name}</span>
+			<span class="crm-badge {stageConfig[deal.stage].cls}">{stageConfig[deal.stage].label}</span>
 		</div>
-
-		<div class="cr-header__right">
-			<!-- Stats strip -->
-			{#if dealStats}
-				<div class="cr-stats-strip">
-					<div class="cr-stat">
-						<span class="cr-stat__val">{dealStats.total_deals}</span>
-						<span class="cr-stat__lbl">deals</span>
-					</div>
-					<div class="cr-stat__sep" aria-hidden="true"></div>
-					<div class="cr-stat">
-						<span class="cr-stat__lbl">Open</span>
-						<span class="cr-stat__val cr-stat__val--info">{formatCurrency(dealStats.open_value)}</span>
-					</div>
-					<div class="cr-stat__sep" aria-hidden="true"></div>
-					<div class="cr-stat">
-						<span class="cr-stat__lbl">Won</span>
-						<span class="cr-stat__val cr-stat__val--success">{formatCurrency(dealStats.won_value)}</span>
-					</div>
-				</div>
-			{/if}
-
-			<!-- View switcher -->
-			<div class="cr-view-group" role="group" aria-label="View mode">
-				<button
-					class="cr-view-btn {viewMode === 'kanban' ? 'cr-view-btn--active' : ''}"
-					onclick={() => handleViewChange('kanban')}
-					aria-pressed={viewMode === 'kanban'}
-					aria-label="Kanban view"
-				>
-					<LayoutGrid size={14} aria-hidden="true" />
-					Kanban
-				</button>
-				<button
-					class="cr-view-btn {viewMode === 'list' ? 'cr-view-btn--active' : ''}"
-					onclick={() => handleViewChange('list')}
-					aria-pressed={viewMode === 'list'}
-					aria-label="List view"
-				>
-					<List size={14} aria-hidden="true" />
-					List
-				</button>
+		<div class="crm-deal__client">{deal.client}</div>
+		<div class="crm-deal__grid">
+			<div class="crm-field">
+				<span class="crm-lbl">Value</span>
+				<span class="crm-val crm-val--accent">{deal.value}</span>
 			</div>
-
-			<button
-				class="btn-cta"
-				onclick={(e) => {
-					e.stopPropagation();
-					console.log('[CRM] btn-cta clicked');
-					showAddDealModal = true;
-					selectedStageId = stages[0]?.id || null;
-				}}
-				aria-label="Add new deal"
-				style="position: relative; z-index: 10; pointer-events: auto;"
-			>
-				<Plus size={15} aria-hidden="true" />
-				Add Deal
-			</button>
+			<div class="crm-field">
+				<span class="crm-lbl">Entity</span>
+				<span class="crm-val">{deal.entity || '—'}</span>
+			</div>
+			<div class="crm-field">
+				<span class="crm-lbl">Owner</span>
+				<span class="crm-val">{deal.owner || '—'}</span>
+			</div>
+			<div class="crm-field">
+				<span class="crm-lbl">Deadline</span>
+				<span class="crm-val">{deal.deadline || '—'}</span>
+			</div>
 		</div>
-	</header>
+		{#if deal.nextAction}
+			<div class="crm-next">
+				<span class="crm-lbl">Next →</span>
+				<span class="crm-next__txt">{deal.nextAction}</span>
+			</div>
+		{/if}
+		{#if deal.blockers && !deal.blockers.match(/^none/i)}
+			<div class="crm-block">
+				<span class="crm-lbl crm-lbl--warn">Blockers:</span>
+				<span class="crm-block__txt">{deal.blockers}</span>
+			</div>
+		{/if}
+		<button onclick={() => openFile(deal.filePath)} class="crm-open" aria-label="Open {deal.name}">
+			<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+					d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+			</svg>
+			Open file
+		</button>
+	</div>
+{/snippet}
 
-	<!-- ── Stats Bar ── -->
-	{#if dealStats}
-		<div class="cr-statsbar">
-			<div class="cr-statsbar__metric">
-				<DollarSign size={13} class="cr-statsbar__icon" aria-hidden="true" />
-				<span class="cr-statsbar__num">{formatCurrency(dealStats.open_value)}</span>
-				<span class="cr-statsbar__label">Open Value</span>
-			</div>
-			<div class="cr-statsbar__divider" aria-hidden="true"></div>
-			<div class="cr-statsbar__metric">
-				<TrendingUp size={13} class="cr-statsbar__icon" aria-hidden="true" />
-				<span class="cr-statsbar__num cr-statsbar__num--success">{formatCurrency(dealStats.won_value)}</span>
-				<span class="cr-statsbar__label">Won Value</span>
-			</div>
-			<div class="cr-statsbar__divider" aria-hidden="true"></div>
-			<div class="cr-statsbar__metric">
-				<Target size={13} class="cr-statsbar__icon" aria-hidden="true" />
-				<span class="cr-statsbar__num">{formatCurrency(avgDealSize)}</span>
-				<span class="cr-statsbar__label">Avg Deal Size</span>
-			</div>
-			<div class="cr-statsbar__divider" aria-hidden="true"></div>
-			<div class="cr-statsbar__metric">
-				<Building2 size={13} class="cr-statsbar__icon" aria-hidden="true" />
-				<span class="cr-statsbar__num">{dealStats.open_deals}</span>
-				<span class="cr-statsbar__label">Open Deals</span>
-			</div>
-			<div class="cr-statsbar__divider" aria-hidden="true"></div>
-			<div class="cr-statsbar__metric">
-				<Calendar size={13} class="cr-statsbar__icon" aria-hidden="true" />
-				<span class="cr-statsbar__num cr-statsbar__num--accent">{winRate}%</span>
-				<span class="cr-statsbar__label">Win Rate</span>
-			</div>
+<div class="crm-page">
+	<!-- Header -->
+	<div class="crm-header">
+		<div>
+			<h1 class="crm-header__title">CRM</h1>
+			<p class="crm-header__sub">Live from 02-miosa/agency — active deals &amp; deliverables</p>
+		</div>
+		<button onclick={loadCRM} class="crm-refresh" aria-label="Refresh CRM">
+			<svg class:crm-spin={loading} style="width:15px;height:15px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+					d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+			</svg>
+		</button>
+	</div>
+
+	<!-- Stats -->
+	{#if !loading && deals.length > 0}
+		<div class="crm-stats">
+			<div class="crm-stat"><span class="crm-stat__val">{deals.length}</span><span class="crm-stat__lbl">Deals</span></div>
+			<div class="crm-stat"><span class="crm-stat__val">${totalPipeline.toLocaleString()}</span><span class="crm-stat__lbl">Pipeline</span></div>
+			<div class="crm-stat"><span class="crm-stat__val">{activeContracts}</span><span class="crm-stat__lbl">Active Contracts</span></div>
+			{#if overdueCount > 0}
+				<div class="crm-stat"><span class="crm-stat__val crm-stat__val--warn">{overdueCount}</span><span class="crm-stat__lbl">Overdue</span></div>
+			{/if}
 		</div>
 	{/if}
 
-	<!-- ── Error Banner ── -->
+	<!-- Error -->
 	{#if error}
-		<div class="cr-error-banner" role="alert">
-			<span class="cr-error-banner__text">{error}</span>
-			<button
-				class="cr-error-banner__retry"
-				onclick={() => crm.loadPipelines()}
-				aria-label="Retry loading pipeline"
-			>
-				Try again
+		<div class="crm-error" role="alert">
+			<span>{error}</span>
+			<button onclick={loadCRM} class="crm-error__retry">Retry</button>
+		</div>
+	{/if}
+
+	<!-- Tabs -->
+	{#if !loading}
+		<div class="crm-tabs">
+			<button class="crm-tab" class:crm-tab--active={activeTab === 'pipeline'} onclick={() => activeTab = 'pipeline'}>
+				Pipeline
+			</button>
+			<button class="crm-tab" class:crm-tab--active={activeTab === 'deliverables'} onclick={() => activeTab = 'deliverables'}>
+				Deliverables
+				{#if overdueCount > 0}<span class="crm-tab__badge">{overdueCount}</span>{/if}
 			</button>
 		</div>
 	{/if}
 
-	<!-- ── Loading indicator (non-blocking) ── -->
-	{#if loading && stages.length === 0 && deals.length === 0}
-		<div class="cr-loading-bar" role="status" aria-label="Loading pipeline">
-			<div class="cr-loading-bar__track"></div>
+	<!-- Loading -->
+	{#if loading}
+		<div class="crm-center">
+			<svg class="crm-spin" style="width:24px;height:24px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+					d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+			</svg>
+			<p class="crm-center__txt">Loading from OptimalOS...</p>
 		</div>
-	{/if}
 
-	<!-- ── Kanban View ── -->
-	{#if viewMode === 'kanban'}
-		<div class="cr-kanban-scroll">
-			<div class="cr-kanban">
-				{#each stages as stage}
-					{@const stageDeals = dealsByStage[stage.id] || []}
-					{@const stageTotal = getStageTotal(stage.id)}
-					<div
-						class="cr-col {dragOverStageId === stage.id ? 'cr-col--dragover' : ''}"
-						style="--stage-color: {stage.color || 'var(--dbd2)'}"
-						ondragover={(e) => handleDragOver(e, stage.id)}
-						ondragleave={handleDragLeave}
-						ondrop={(e) => handleDrop(e, stage.id)}
-						role="region"
-						aria-label="Stage: {stage.name}"
-					>
-						<!-- Column header -->
-						<div class="cr-col__header">
-							<span class="cr-col__dot" aria-hidden="true"></span>
-							<span class="cr-col__name">{stage.name}</span>
-							<span class="cr-col__count" aria-label="{stageDeals.length} deals">{stageDeals.length}</span>
+	{:else if activeTab === 'pipeline'}
+		<div class="crm-pipeline">
+			{#each dealsByTier as tier (tier.key)}
+				{#if tier.items.length > 0}
+					<div class="crm-tier-group">
+						<div class="crm-tier-group__hd">
+							<span class="crm-tier-group__lbl">{tier.label}</span>
+							<span class="crm-tier-group__ct">{tier.items.length}</span>
 						</div>
-						<div class="cr-col__total">{formatCurrency(stageTotal)}</div>
+						{#each tier.items as deal (deal.name)}
+							{@render dealCard(deal)}
+						{/each}
+					</div>
+				{/if}
+			{/each}
+			{#if deals.length === 0}
+				<div class="crm-center"><p class="crm-center__txt">No deals found in active-deals tracker</p></div>
+			{/if}
+		</div>
 
-						<!-- Cards -->
-						<div class="cr-col__cards">
-							{#each stageDeals as deal (deal.id)}
-								<div
-									class="cr-card"
-									style="--stage-color: {stage.color || 'var(--dbd2)'}"
-									draggable="true"
-									ondragstart={(e) => handleDragStart(e, deal.id)}
-									onclick={() => handleDealClick(deal.id)}
-									onkeydown={(e) => e.key === 'Enter' && handleDealClick(deal.id)}
-									role="button"
-									tabindex="0"
-									aria-label="Open deal: {deal.name}"
-								>
-									<div class="cr-card__bar" aria-hidden="true"></div>
-									<div class="cr-card__body">
-										<div class="cr-card__top">
-											<span class="cr-card__name">{deal.name}</span>
-											{#if deal.priority}
-												<span
-													class="cr-priority-dot"
-													style="background: {priorityVar(deal.priority)}"
-													title="Priority: {deal.priority}"
-													aria-label="Priority: {deal.priority}"
-												></span>
-											{/if}
-										</div>
-
-										{#if deal.company_name}
-											<div class="cr-card__company">{deal.company_name}</div>
-										{/if}
-
-										<div class="cr-card__meta">
-											<span class="cr-card__amount">{formatCurrency(deal.amount, deal.currency)}</span>
-											{#if deal.probability !== undefined}
-												<span class="cr-card__prob">{formatProbability(deal.probability)}</span>
-											{/if}
-										</div>
-
-										{#if deal.expected_close_date}
-											<div class="cr-card__date">
-												Close {formatDate(deal.expected_close_date)}
-											</div>
-										{/if}
-									</div>
-								</div>
-							{/each}
-
-							<!-- Empty column state -->
-							{#if stageDeals.length === 0}
-								<div class="cr-col__empty" aria-label="No deals in {stage.name}">
-									No deals
-								</div>
-							{/if}
-
-							<!-- Add deal to stage -->
-							<button
-								class="cr-col__add"
-								onclick={() => handleAddDeal(stage.id)}
-								aria-label="Add deal to {stage.name}"
-							>
-								<Plus size={13} aria-hidden="true" />
-								Add Deal
+	{:else}
+		<div class="crm-deliverables">
+			{#if deliverables.length === 0}
+				<div class="crm-center"><p class="crm-center__txt">No deliverables found</p></div>
+			{:else}
+				{#each deliverables as item (item.client + item.item)}
+					<div class="crm-deliv">
+						<div class="crm-deliv__top">
+							<span class="crm-deliv__client">{item.client}</span>
+							<span class="crm-badge {delivConfig[item.status].cls}">{delivConfig[item.status].label}</span>
+						</div>
+						<p class="crm-deliv__item">{item.item}</p>
+						<div class="crm-deliv__meta">
+							<span class="crm-lbl">Owner: {item.owner}</span>
+							<button onclick={() => openFile(item.filePath)} class="crm-open" aria-label="Open {item.client} deliverable">
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+										d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+								</svg>
+								Open file
 							</button>
 						</div>
 					</div>
 				{/each}
-
-				<!-- Empty pipeline state inside kanban -->
-				{#if stages.length === 0 && !loading}
-					<div class="cr-empty">
-						<div class="cr-empty__icon" aria-hidden="true">
-							<TrendingUp size={32} />
-						</div>
-						<p class="cr-empty__title">No pipeline configured</p>
-						<p class="cr-empty__subtitle">Add stages to get started</p>
-					</div>
-				{/if}
-			</div>
-		</div>
-
-	<!-- ── List View ── -->
-	{:else}
-		<div class="cr-list-scroll">
-			{#if deals.length === 0 && !loading}
-				<div class="cr-empty cr-empty--list">
-					<div class="cr-empty__icon" aria-hidden="true">
-						<List size={32} />
-					</div>
-					<p class="cr-empty__title">No deals yet</p>
-					<p class="cr-empty__subtitle">Add your first deal to get started</p>
-					<button
-						class="btn-pill btn-pill-primary btn-pill-sm"
-						onclick={() => handleAddDeal(stages[0]?.id)}
-						aria-label="Add your first deal"
-					>
-						<Plus size={13} aria-hidden="true" />
-						Add Deal
-					</button>
-				</div>
-			{:else}
-				<table class="cr-table">
-					<thead>
-						<tr class="cr-table__head">
-							<th class="cr-th" scope="col">Deal</th>
-							<th class="cr-th" scope="col">Company</th>
-							<th class="cr-th" scope="col">Stage</th>
-							<th class="cr-th cr-th--right" scope="col">Amount</th>
-							<th class="cr-th cr-th--center" scope="col">Probability</th>
-							<th class="cr-th" scope="col">Close Date</th>
-							<th class="cr-th" scope="col">Status</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each deals as deal (deal.id)}
-							<tr
-								class="cr-row"
-								onclick={() => handleDealClick(deal.id)}
-								onkeydown={(e) => e.key === 'Enter' && handleDealClick(deal.id)}
-								role="button"
-								tabindex="0"
-								aria-label="Open deal: {deal.name}"
-							>
-								<td class="cr-td">
-									<div class="cr-td__name-cell">
-										<span
-											class="cr-td__stage-bar"
-											style="background: {getStageColor(deal.stage_id)}"
-											aria-hidden="true"
-										></span>
-										<span class="cr-td__name">{deal.name}</span>
-									</div>
-								</td>
-								<td class="cr-td cr-td--muted">{deal.company_name || '-'}</td>
-								<td class="cr-td">
-									{#if deal.stage_id}
-										<span class="cr-stage-pill">{getStageName(deal.stage_id)}</span>
-									{:else}
-										<span class="cr-td--muted">-</span>
-									{/if}
-								</td>
-								<td class="cr-td cr-td--right cr-td--num cr-td--bold">
-									{formatCurrency(deal.amount, deal.currency)}
-								</td>
-								<td class="cr-td cr-td--center cr-td--muted">
-									{formatProbability(deal.probability)}
-								</td>
-								<td class="cr-td cr-td--muted">
-									{formatDate(deal.expected_close_date)}
-								</td>
-								<td class="cr-td">
-									{#if deal.status}
-										<span class="cr-status-dot cr-status-dot--{deal.status}" aria-hidden="true"></span>
-										<span class="cr-status-label cr-status-label--{deal.status}">
-											{deal.status === 'open' ? 'Open' : deal.status === 'won' ? 'Won' : 'Lost'}
-										</span>
-									{/if}
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
 			{/if}
+		</div>
+	{/if}
+
+	<!-- Source footer -->
+	{#if !loading}
+		<div class="crm-sources">
+			<span class="crm-sources__lbl">Source:</span>
+			<button onclick={() => openFile('nodes/02-miosa/agency/projects/active-deals/phase-1-active-deals.md')} class="crm-sources__link">
+				02-miosa/agency/projects/active-deals/phase-1-active-deals.md
+			</button>
 		</div>
 	{/if}
 </div>
 
-<!-- ── Add Deal Modal ── -->
-{#if showAddDealModal}
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div
-		class="cr-modal-backdrop"
-		onclick={closeModal}
-		onkeydown={(e) => e.key === 'Escape' && closeModal()}
-	>
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="cr-modal-box"
-			onclick={(e) => e.stopPropagation()}
-			role="dialog"
-			aria-modal="true"
-			aria-label="Create new deal"
-		>
-			<!-- Header -->
-			<div class="cr-modal-box__header">
-				<h2 class="cr-modal-box__title">Create New Deal</h2>
-				<button
-					class="btn-pill btn-pill-ghost btn-pill-icon"
-					onclick={closeModal}
-					aria-label="Close modal"
-				>
-					<X size={16} aria-hidden="true" />
-				</button>
-			</div>
-
-			<!-- Body -->
-			<form onsubmit={handleCreateDeal}>
-				<div class="cr-modal-box__body">
-					{#if modalError}
-						<div class="cr-modal-error" role="alert">{modalError}</div>
-					{/if}
-
-					{#if stages.length > 0}
-						<div class="cr-field">
-							<label class="cr-field__label" for="modal-stage">Stage</label>
-							<select
-								id="modal-stage"
-								class="cr-field__input"
-								value={selectedStageId || stages[0]?.id || ''}
-								onchange={(e) => (selectedStageId = e.currentTarget.value)}
-							>
-								{#each stages as stage}
-									<option value={stage.id}>{stage.name}</option>
-								{/each}
-							</select>
-						</div>
-					{/if}
-
-					<div class="cr-field">
-						<label class="cr-field__label cr-field__label--req" for="modal-name">Deal Name</label>
-						<input
-							id="modal-name"
-							name="name"
-							type="text"
-							class="cr-field__input"
-							placeholder="e.g., Enterprise License Q2"
-							required
-							autocomplete="off"
-						/>
-					</div>
-
-					<div class="cr-field">
-						<label class="cr-field__label" for="modal-amount">Amount ($)</label>
-						<input
-							id="modal-amount"
-							name="amount"
-							type="number"
-							class="cr-field__input"
-							placeholder="50000"
-							min="0"
-							step="1"
-						/>
-					</div>
-
-					<div class="cr-field">
-						<label class="cr-field__label" for="modal-date">Expected Close Date</label>
-						<input
-							id="modal-date"
-							name="expected_close_date"
-							type="date"
-							class="cr-field__input"
-						/>
-					</div>
-				</div>
-
-				<!-- Footer -->
-				<div class="cr-modal-box__footer">
-					<button
-						type="button"
-						class="btn-pill btn-pill-ghost"
-						onclick={closeModal}
-						disabled={isSubmitting}
-					>
-						Cancel
-					</button>
-					<button
-						type="submit"
-						class="btn-cta"
-						disabled={isSubmitting}
-						aria-busy={isSubmitting}
-					>
-						{isSubmitting ? 'Creating...' : 'Create Deal'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-
 <style>
-	/* ─────────────────────────────────────────
-	   PAGE SHELL
-	───────────────────────────────────────── */
-	.cr-page {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-		background: var(--dbg2);
-		font-family: var(--bos-font-family);
-		overflow: hidden;
-	}
+/* ─── CRM page — crm- prefix ─────────────────────────────────────────────── */
+.crm-page {
+	display: flex; flex-direction: column;
+	height: 100%; background: var(--dbg, #0a0a0a); overflow-y: auto;
+}
+.crm-header {
+	display: flex; align-items: center; justify-content: space-between;
+	padding: 20px 24px 16px;
+	border-bottom: 1px solid var(--dbd, rgba(255,255,255,0.06)); flex-shrink: 0;
+}
+.crm-header__title { font-size: 20px; font-weight: 700; color: var(--dt,#fff); letter-spacing: -0.01em; }
+.crm-header__sub   { font-size: 12px; color: var(--dt3,rgba(255,255,255,0.35)); margin-top: 3px; }
+.crm-refresh {
+	display: flex; align-items: center; justify-content: center;
+	width: 32px; height: 32px; border-radius: 8px;
+	background: rgba(255,255,255,0.05); border: 1px solid var(--dbd,rgba(255,255,255,0.08));
+	cursor: pointer; color: var(--dt3,rgba(255,255,255,0.4)); transition: background 0.15s, color 0.15s;
+}
+.crm-refresh:hover { background: rgba(255,255,255,0.08); color: var(--dt,#fff); }
 
-	/* ─────────────────────────────────────────
-	   HEADER
-	───────────────────────────────────────── */
-	.cr-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		padding: 0.875rem 1.5rem;
-		background: var(--dbg);
-		border-bottom: 1px solid var(--dbd);
-		flex-shrink: 0;
-	}
-	.cr-header__left {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		min-width: 0;
-	}
-	.cr-header__title-block {
-		display: flex;
-		flex-direction: column;
-		gap: 0.125rem;
-	}
-	.cr-header__title {
-		margin: 0;
-		font-size: 1.25rem;
-		font-weight: 700;
-		color: var(--dt);
-		letter-spacing: -0.01em;
-		line-height: 1.3;
-	}
-	.cr-header__subtitle {
-		margin: 0;
-		font-size: 0.75rem;
-		color: var(--dt3);
-		line-height: 1.4;
-	}
-	.cr-header__right {
-		display: flex;
-		align-items: center;
-		gap: 0.625rem;
-		flex-shrink: 0;
-	}
+.crm-stats { display: flex; border-bottom: 1px solid var(--dbd,rgba(255,255,255,0.06)); flex-shrink: 0; }
+.crm-stat {
+	flex: 1; display: flex; flex-direction: column; align-items: center;
+	padding: 12px 16px; border-right: 1px solid var(--dbd,rgba(255,255,255,0.06));
+}
+.crm-stat:last-child { border-right: none; }
+.crm-stat__val { font-size: 22px; font-weight: 700; color: var(--dt,#fff); letter-spacing: -0.02em; }
+.crm-stat__val--warn { color: #f87171; }
+.crm-stat__lbl { font-size: 11px; color: var(--dt3,rgba(255,255,255,0.35)); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
 
-	/* ─────────────────────────────────────────
-	   PIPELINE SELECT
-	───────────────────────────────────────── */
-	.cr-pipeline-select {
-		height: 30px;
-		padding: 0 0.625rem;
-		border: 1px solid var(--dbd);
-		border-radius: 8px;
-		font-size: 0.8125rem;
-		font-weight: 500;
-		color: var(--dt);
-		background: var(--dbg);
-		outline: none;
-		cursor: pointer;
-		transition: border-color 0.15s, box-shadow 0.15s;
-	}
-	.cr-pipeline-select:focus {
-		border-color: var(--bos-nav-active);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--bos-nav-active) 18%, transparent);
-	}
+.crm-tabs {
+	display: flex; gap: 4px; padding: 12px 24px;
+	border-bottom: 1px solid var(--dbd,rgba(255,255,255,0.06)); flex-shrink: 0;
+}
+.crm-tab {
+	display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 7px;
+	font-size: 13px; font-weight: 500; color: var(--dt3,rgba(255,255,255,0.45));
+	background: none; border: 1px solid transparent; cursor: pointer;
+	transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.crm-tab:hover { color: var(--dt2,rgba(255,255,255,0.7)); background: rgba(255,255,255,0.04); }
+.crm-tab--active { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); color: var(--dt,#fff); }
+.crm-tab__badge { font-size: 10px; background: rgba(239,68,68,0.2); color: #f87171; border-radius: 4px; padding: 1px 5px; font-weight: 700; }
 
-	/* ─────────────────────────────────────────
-	   INLINE STATS STRIP (header)
-	───────────────────────────────────────── */
-	.cr-stats-strip {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.8125rem;
-		padding: 0 0.5rem;
-	}
-	.cr-stat {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-	}
-	.cr-stat__lbl {
-		color: var(--dt3);
-		font-size: 0.75rem;
-	}
-	.cr-stat__val {
-		font-weight: 700;
-		color: var(--dt);
-		font-family: var(--bos-font-number-family);
-		font-size: 0.8125rem;
-	}
-	.cr-stat__val--info  { color: var(--bos-status-info); }
-	.cr-stat__val--success { color: var(--bos-status-success); }
-	.cr-stat__sep {
-		width: 1px;
-		height: 12px;
-		background: var(--dbd);
-	}
+.crm-error {
+	margin: 12px 24px; padding: 10px 14px; border-radius: 8px;
+	background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+	display: flex; align-items: center; justify-content: space-between;
+	font-size: 13px; color: #f87171;
+}
+.crm-error__retry { font-size: 12px; color: #f87171; text-decoration: underline; background: none; border: none; cursor: pointer; }
 
-	/* View switcher */
-	.cr-view-group {
-		display: flex;
-		border: 1px solid var(--dbd);
-		border-radius: 8px;
-		overflow: hidden;
-	}
-	.cr-view-btn {
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		padding: 0.375rem 0.75rem;
-		font-size: 0.8125rem;
-		font-weight: 500;
-		font-family: var(--bos-font-family);
-		border: none;
-		cursor: pointer;
-		background: var(--dbg);
-		color: var(--dt3);
-		transition: background 0.15s, color 0.15s;
-	}
-	.cr-view-btn:hover {
-		background: var(--dbg2);
-		color: var(--dt);
-	}
-	.cr-view-btn--active {
-		background: var(--dt);
-		color: var(--dbg);
-	}
-	.cr-view-btn--active:hover {
-		background: var(--dt);
-		color: var(--dbg);
-	}
+.crm-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px; }
+.crm-center__txt { font-size: 13px; color: var(--dt3,rgba(255,255,255,0.35)); }
 
-	/* ─────────────────────────────────────────
-	   STATS BAR (secondary row)
-	───────────────────────────────────────── */
-	.cr-statsbar {
-		display: flex;
-		align-items: center;
-		gap: 0;
-		padding: 0 1.5rem;
-		height: 38px;
-		background: var(--dbg);
-		border-bottom: 1px solid var(--dbd2);
-		flex-shrink: 0;
-		overflow-x: auto;
-	}
-	.cr-statsbar__metric {
-		display: flex;
-		align-items: center;
-		gap: 0.375rem;
-		padding: 0 1rem;
-		white-space: nowrap;
-		flex-shrink: 0;
-	}
-	.cr-statsbar__metric:first-child {
-		padding-left: 0;
-	}
-	:global(.cr-statsbar__icon) {
-		color: var(--dt4);
-		flex-shrink: 0;
-	}
-	.cr-statsbar__num {
-		font-family: var(--bos-font-number-family);
-		font-size: 0.8125rem;
-		font-weight: 700;
-		color: var(--dt);
-		letter-spacing: -0.02em;
-	}
-	.cr-statsbar__num--success { color: var(--bos-status-success); }
-	.cr-statsbar__num--accent  { color: var(--bos-status-accent); }
-	.cr-statsbar__label {
-		font-size: 0.6875rem;
-		color: var(--dt3);
-	}
-	.cr-statsbar__divider {
-		width: 1px;
-		height: 18px;
-		background: var(--dbd2);
-		flex-shrink: 0;
-	}
+.crm-pipeline { display: flex; flex-direction: column; gap: 24px; padding: 20px 24px; overflow-y: auto; }
 
-	/* ─────────────────────────────────────────
-	   ERROR BANNER
-	───────────────────────────────────────── */
-	.cr-error-banner {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		margin: 0.75rem 1.5rem 0;
-		padding: 0.625rem 0.875rem;
-		background: color-mix(in srgb, var(--bos-status-error) 8%, var(--dbg));
-		border: 1px solid color-mix(in srgb, var(--bos-status-error) 25%, var(--dbd));
-		border-radius: 8px;
-		flex-shrink: 0;
-	}
-	.cr-error-banner__text {
-		flex: 1;
-		font-size: 0.8125rem;
-		color: var(--bos-status-error);
-	}
-	.cr-error-banner__retry {
-		font-size: 0.8125rem;
-		font-weight: 600;
-		color: var(--bos-status-error);
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: 0;
-		text-decoration: underline;
-		text-underline-offset: 2px;
-		flex-shrink: 0;
-	}
-	.cr-error-banner__retry:hover { opacity: 0.75; }
+.crm-tier-group { display: flex; flex-direction: column; gap: 10px; }
+.crm-tier-group__hd { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.crm-tier-group__lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dt3,rgba(255,255,255,0.35)); }
+.crm-tier-group__ct { font-size: 11px; background: rgba(255,255,255,0.07); color: var(--dt3,rgba(255,255,255,0.4)); border-radius: 4px; padding: 1px 6px; }
 
-	/* ─────────────────────────────────────────
-	   LOADING / CENTER
-	───────────────────────────────────────── */
-	.cr-loading-bar {
-		height: 2px;
-		width: 100%;
-		overflow: hidden;
-		flex-shrink: 0;
-	}
-	.cr-loading-bar__track {
-		height: 100%;
-		width: 30%;
-		background: var(--bos-nav-active);
-		border-radius: 1px;
-		animation: cr-slide 1s ease-in-out infinite;
-	}
-	@keyframes cr-slide {
-		0% { transform: translateX(-100%); }
-		100% { transform: translateX(400%); }
-	}
+.crm-deal {
+	background: rgba(255,255,255,0.03); border: 1px solid var(--dbd,rgba(255,255,255,0.06));
+	border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+	transition: border-color 0.15s, background 0.15s;
+}
+.crm-deal:hover { border-color: rgba(255,255,255,0.09); background: rgba(255,255,255,0.04); }
+.crm-deal__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.crm-deal__name { font-size: 14px; font-weight: 600; color: var(--dt,#fff); }
+.crm-deal__client { font-size: 12px; color: var(--dt3,rgba(255,255,255,0.4)); margin-top: -6px; }
+.crm-deal__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
 
-	/* ─────────────────────────────────────────
-	   KANBAN SCROLL + BOARD
-	───────────────────────────────────────── */
-	.cr-kanban-scroll {
-		flex: 1;
-		overflow-x: auto;
-		overflow-y: hidden;
-		padding: 1.25rem 1.5rem;
-	}
-	.cr-kanban {
-		display: flex;
-		gap: 0.875rem;
-		height: 100%;
-		min-width: max-content;
-		align-items: flex-start;
-	}
+.crm-field { display: flex; flex-direction: column; gap: 2px; }
+.crm-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dt4,rgba(255,255,255,0.28)); }
+.crm-lbl--warn { color: rgba(248,113,133,0.7); }
+.crm-val { font-size: 12px; color: var(--dt2,rgba(255,255,255,0.6)); }
+.crm-val--accent { color: #4ade80; font-weight: 600; }
 
-	/* ─────────────────────────────────────────
-	   KANBAN COLUMN
-	───────────────────────────────────────── */
-	.cr-col {
-		width: 17rem;
-		flex-shrink: 0;
-		display: flex;
-		flex-direction: column;
-		background: var(--dbg3);
-		border-radius: 10px;
-		max-height: calc(100vh - 200px);
-		transition: box-shadow 0.18s;
-	}
-	.cr-col--dragover {
-		box-shadow: 0 0 0 2px var(--bos-status-info);
-	}
-	.cr-col__header {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.625rem 0.75rem 0.5rem;
-	}
-	.cr-col__dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: var(--stage-color, var(--dbd2));
-		flex-shrink: 0;
-	}
-	.cr-col__name {
-		flex: 1;
-		font-size: 0.8125rem;
-		font-weight: 700;
-		color: var(--dt);
-		letter-spacing: -0.005em;
-	}
-	.cr-col__count {
-		font-size: 0.6875rem;
-		font-weight: 600;
-		color: var(--dt3);
-		background: var(--dbg2);
-		border-radius: 9999px;
-		padding: 0.0625rem 0.4375rem;
-		min-width: 18px;
-		text-align: center;
-	}
-	.cr-col__total {
-		padding: 0 0.75rem 0.5rem;
-		font-size: 0.75rem;
-		font-family: var(--bos-font-number-family);
-		font-weight: 600;
-		color: var(--dt3);
-		border-bottom: 1px solid var(--dbd2);
-	}
-	.cr-col__cards {
-		flex: 1;
-		overflow-y: auto;
-		padding: 0.5rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.4375rem;
-	}
-	.cr-col__empty {
-		text-align: center;
-		font-size: 0.75rem;
-		color: var(--dt4);
-		padding: 0.75rem 0;
-	}
-	.cr-col__add {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.25rem;
-		width: 100%;
-		padding: 0.4375rem 0;
-		font-size: 0.75rem;
-		font-weight: 500;
-		color: var(--dt4);
-		background: none;
-		border: none;
-		border-radius: 6px;
-		cursor: pointer;
-		transition: background 0.12s, color 0.12s;
-		margin-top: 0.125rem;
-	}
-	.cr-col__add:hover {
-		background: var(--dbg2);
-		color: var(--dt2);
-	}
+.crm-next { display: flex; align-items: baseline; gap: 6px; background: rgba(255,255,255,0.02); border-radius: 6px; padding: 7px 10px; }
+.crm-next__txt { font-size: 12px; color: var(--dt2,rgba(255,255,255,0.6)); line-height: 1.4; }
+.crm-block { display: flex; align-items: baseline; gap: 6px; background: rgba(239,68,68,0.04); border-radius: 6px; padding: 6px 10px; }
+.crm-block__txt { font-size: 12px; color: rgba(248,113,133,0.7); line-height: 1.4; }
 
-	/* ─────────────────────────────────────────
-	   KANBAN CARD
-	───────────────────────────────────────── */
-	.cr-card {
-		background: var(--dbg);
-		border: 1px solid var(--dbd2);
-		border-radius: 8px;
-		cursor: pointer;
-		overflow: hidden;
-		transition: box-shadow 0.14s, border-color 0.14s;
-		outline: none;
-	}
-	.cr-card:hover {
-		box-shadow: var(--bos-shadow-1);
-		border-color: var(--dbd);
-	}
-	.cr-card:focus-visible {
-		box-shadow: 0 0 0 2px var(--bos-nav-active);
-		border-color: var(--bos-nav-active);
-	}
-	.cr-card__bar {
-		height: 3px;
-		background: var(--stage-color, var(--dbd2));
-	}
-	.cr-card__body {
-		padding: 0.625rem 0.75rem;
-	}
-	.cr-card__top {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.375rem;
-		margin-bottom: 0.3125rem;
-	}
-	.cr-card__name {
-		font-size: 0.8125rem;
-		font-weight: 600;
-		color: var(--dt);
-		line-height: 1.35;
-		flex: 1;
-	}
-	.cr-priority-dot {
-		width: 7px;
-		height: 7px;
-		border-radius: 50%;
-		flex-shrink: 0;
-		margin-top: 0.3rem;
-	}
-	.cr-card__company {
-		font-size: 0.6875rem;
-		color: var(--dt3);
-		margin-bottom: 0.4375rem;
-	}
-	.cr-card__meta {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-	.cr-card__amount {
-		font-size: 0.8125rem;
-		font-weight: 700;
-		font-family: var(--bos-font-number-family);
-		color: var(--dt);
-		letter-spacing: -0.02em;
-	}
-	.cr-card__prob {
-		font-size: 0.6875rem;
-		color: var(--dt3);
-	}
-	.cr-card__date {
-		margin-top: 0.375rem;
-		font-size: 0.6875rem;
-		color: var(--dt4);
-	}
+.crm-open {
+	display: flex; align-items: center; gap: 5px;
+	font-size: 11px; color: rgba(99,102,241,0.7); background: rgba(99,102,241,0.07);
+	border: 1px solid rgba(99,102,241,0.12); border-radius: 6px; padding: 4px 10px;
+	cursor: pointer; width: fit-content; transition: background 0.15s, color 0.15s;
+}
+.crm-open:hover { background: rgba(99,102,241,0.14); color: #818cf8; }
 
-	/* ─────────────────────────────────────────
-	   LIST VIEW
-	───────────────────────────────────────── */
-	.cr-list-scroll {
-		flex: 1;
-		overflow: auto;
-		padding: 1.25rem 1.5rem;
-	}
-	.cr-table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 0.8125rem;
-		background: var(--dbg);
-		border-radius: 10px;
-		overflow: hidden;
-		box-shadow: var(--bos-shadow-1);
-	}
-	.cr-table__head {
-		background: var(--dbg2);
-	}
-	.cr-th {
-		padding: 0.625rem 0.875rem;
-		text-align: left;
-		font-size: 0.6875rem;
-		font-weight: 700;
-		color: var(--dt3);
-		text-transform: uppercase;
-		letter-spacing: 0.055em;
-		border-bottom: 1px solid var(--dbd);
-	}
-	.cr-th--right  { text-align: right; }
-	.cr-th--center { text-align: center; }
+.crm-deliverables { display: flex; flex-direction: column; gap: 10px; padding: 20px 24px; }
+.crm-deliv {
+	background: rgba(255,255,255,0.03); border: 1px solid var(--dbd,rgba(255,255,255,0.06));
+	border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.crm-deliv__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.crm-deliv__client { font-size: 13px; font-weight: 600; color: var(--dt,#fff); }
+.crm-deliv__item { font-size: 12px; color: var(--dt2,rgba(255,255,255,0.6)); line-height: 1.5; }
+.crm-deliv__meta { display: flex; align-items: center; gap: 12px; }
 
-	.cr-row {
-		border-bottom: 1px solid var(--dbd2);
-		cursor: pointer;
-		transition: background 0.1s;
-		outline: none;
-	}
-	.cr-row:last-child { border-bottom: none; }
-	.cr-row:hover { background: var(--dbg2); }
-	.cr-row:focus-visible { background: color-mix(in srgb, var(--bos-nav-active) 6%, var(--dbg)); }
+.crm-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.crm-badge--active   { background: rgba(74,222,128,0.12);  color: #4ade80; border: 1px solid rgba(74,222,128,0.2);  }
+.crm-badge--selling  { background: rgba(99,102,241,0.12);  color: #818cf8; border: 1px solid rgba(99,102,241,0.2);  }
+.crm-badge--pre      { background: rgba(251,191,36,0.12);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.2);  }
+.crm-badge--strategy { background: rgba(139,92,246,0.12);  color: #a78bfa; border: 1px solid rgba(139,92,246,0.2);  }
+.crm-badge--stalled  { background: rgba(156,163,175,0.12); color: #9ca3af; border: 1px solid rgba(156,163,175,0.2); }
+.crm-badge--closed   { background: rgba(74,222,128,0.07);  color: #6ee7b7; border: 1px solid rgba(74,222,128,0.12); }
+.crm-badge--overdue  { background: rgba(239,68,68,0.12);   color: #f87171; border: 1px solid rgba(239,68,68,0.2);   }
 
-	.cr-td {
-		padding: 0.6875rem 0.875rem;
-		color: var(--dt);
-		vertical-align: middle;
-	}
-	.cr-td--muted {
-		color: var(--dt3);
-	}
-	.cr-td--bold {
-		font-weight: 700;
-	}
-	.cr-td--right  { text-align: right; }
-	.cr-td--center { text-align: center; }
-	.cr-td--num {
-		font-family: var(--bos-font-number-family);
-		letter-spacing: -0.02em;
-	}
+.crm-sources {
+	display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+	padding: 12px 24px 20px; border-top: 1px solid var(--dbd,rgba(255,255,255,0.05));
+	margin-top: auto; flex-shrink: 0;
+}
+.crm-sources__lbl  { font-size: 11px; color: var(--dt4,rgba(255,255,255,0.25)); }
+.crm-sources__link { font-size: 11px; color: rgba(99,102,241,0.6); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
+.crm-sources__link:hover { color: #818cf8; }
 
-	/* Deal name cell with stage color bar */
-	.cr-td__name-cell {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-	.cr-td__stage-bar {
-		width: 3px;
-		height: 1.25rem;
-		border-radius: 2px;
-		flex-shrink: 0;
-	}
-	.cr-td__name {
-		font-weight: 600;
-		color: var(--dt);
-	}
-
-	/* Stage pill in list */
-	.cr-stage-pill {
-		display: inline-block;
-		padding: 0.1875rem 0.5rem;
-		font-size: 0.6875rem;
-		font-weight: 600;
-		color: var(--dt2);
-		background: var(--dbg3);
-		border-radius: 4px;
-		letter-spacing: 0.01em;
-	}
-
-	/* Status indicator in list — last cell uses flex for dot + label */
-	.cr-td:last-child {
-		display: flex;
-		align-items: center;
-		gap: 0.375rem;
-	}
-	.cr-status-dot {
-		width: 7px;
-		height: 7px;
-		border-radius: 50%;
-		flex-shrink: 0;
-	}
-	.cr-status-dot--open { background: var(--bos-status-info); }
-	.cr-status-dot--won  { background: var(--bos-status-success); }
-	.cr-status-dot--lost { background: var(--bos-status-error); }
-
-	.cr-status-label {
-		font-size: 0.75rem;
-		font-weight: 600;
-	}
-	.cr-status-label--open { color: var(--bos-status-info); }
-	.cr-status-label--won  { color: var(--bos-status-success); }
-	.cr-status-label--lost { color: var(--bos-status-error); }
-
-	/* ─────────────────────────────────────────
-	   EMPTY STATE
-	───────────────────────────────────────── */
-	.cr-empty {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		padding: 3rem 1.5rem;
-		min-height: 240px;
-		color: var(--dt3);
-	}
-	.cr-empty--list {
-		background: var(--dbg);
-		border-radius: 10px;
-	}
-	.cr-empty__icon {
-		color: var(--dbd);
-		margin-bottom: 0.25rem;
-	}
-	.cr-empty__title {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--dt2);
-		margin: 0;
-	}
-	.cr-empty__subtitle {
-		font-size: 0.75rem;
-		color: var(--dt3);
-		margin: 0;
-	}
-	.cr-empty .btn-pill {
-		margin-top: 0.75rem;
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-	}
-
-	/* ─────────────────────────────────────────
-	   MODAL — Fresh implementation
-	───────────────────────────────────────── */
-	.cr-modal-backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 1000;
-		background: var(--bos-modal-backdrop, rgba(0, 0, 0, 0.5));
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		animation: cr-fade-in 0.15s ease-out;
-	}
-	@keyframes cr-fade-in {
-		from { opacity: 0; }
-		to { opacity: 1; }
-	}
-	.cr-modal-box {
-		width: 100%;
-		max-width: 480px;
-		background: var(--bos-modal-bg, var(--dbg));
-		border: 1px solid var(--bos-modal-border, var(--dbd));
-		border-radius: var(--bos-modal-radius, 12px);
-		box-shadow: var(--bos-modal-shadow, 0 20px 25px -5px rgba(0, 0, 0, 0.1));
-		display: flex;
-		flex-direction: column;
-		max-height: 90vh;
-		overflow: hidden;
-		animation: cr-scale-in 0.15s ease-out;
-	}
-	@keyframes cr-scale-in {
-		from { opacity: 0; transform: scale(0.96); }
-		to { opacity: 1; transform: scale(1); }
-	}
-	.cr-modal-box__header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 1rem 1.25rem;
-		border-bottom: 1px solid var(--dbd);
-	}
-	.cr-modal-box__title {
-		margin: 0;
-		font-size: 1rem;
-		font-weight: 700;
-		color: var(--dt);
-		letter-spacing: -0.01em;
-	}
-	.cr-modal-box__body {
-		padding: 1.25rem;
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		overflow-y: auto;
-	}
-	.cr-modal-box__footer {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.5rem;
-		padding: 0.875rem 1.25rem;
-		border-top: 1px solid var(--dbd);
-	}
-
-	.cr-field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.375rem;
-	}
-	.cr-field__label {
-		font-size: 0.8125rem;
-		font-weight: 600;
-		color: var(--dt2);
-	}
-	.cr-field__label--req::after {
-		content: ' *';
-		color: var(--bos-status-error-text, #dc2626);
-	}
-	.cr-field__input {
-		width: 100%;
-		height: 36px;
-		padding: 0 0.75rem;
-		font-size: 0.8125rem;
-		font-family: inherit;
-		color: var(--dt);
-		background: var(--dbg2);
-		border: 1px solid var(--dbd);
-		border-radius: 8px;
-		outline: none;
-		transition: border-color 0.15s, box-shadow 0.15s;
-	}
-	.cr-field__input:focus {
-		border-color: var(--bos-nav-active);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--bos-nav-active) 18%, transparent);
-	}
-	.cr-field__input::placeholder {
-		color: var(--dt4);
-	}
-	select.cr-field__input {
-		cursor: pointer;
-	}
-
-	.cr-modal-error {
-		padding: 0.625rem 0.75rem;
-		font-size: 0.8125rem;
-		color: var(--bos-status-error-text);
-		background: var(--bos-status-error-bg);
-		border: 1px solid color-mix(in srgb, var(--bos-status-error) 20%, transparent);
-		border-radius: 8px;
-	}
+@keyframes crm-spin-anim { to { transform: rotate(360deg); } }
+:global(.crm-spin) { animation: crm-spin-anim 0.8s linear infinite; }
 </style>

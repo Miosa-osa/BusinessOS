@@ -260,10 +260,11 @@
 				const lines = buffer.split('\n');
 				buffer = lines.pop() ?? '';
 
-				for (const line of lines) {
+				for (const rawLine of lines) {
+					const line = rawLine.replace(/\r$/, '');
 					if (!line.startsWith('data: ')) continue;
-					const data = line.slice(6);
-					if (data === '[DONE]') continue;
+					const data = line.slice(6).trim();
+					if (!data || data === '[DONE]') continue;
 
 					try {
 						const evt = JSON.parse(data);

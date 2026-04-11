@@ -1,10 +1,22 @@
 <script lang="ts">
 	import { Modal, Input, ScrollArea, Separator } from '$lib/ui';
-	import { Search, FileText, Clock, ArrowRight, Hash } from 'lucide-svelte';
+	import { Search, FileText, Clock, ArrowRight, Hash, Zap } from 'lucide-svelte';
 	import { searchDocuments } from '../../services/documents.service';
 	import { recentDocuments } from '../../stores/documents';
 	import type { DocumentMeta } from '../../entities/types';
 	import { debounce } from '$lib/utils';
+	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
+
+	interface OptimalResult {
+		path: string;
+		abstract: string;
+		score: number;
+		_source: 'optimal';
+	}
+
+	type UnifiedItem =
+		| (DocumentMeta & { _source: 'pg'; abstract?: undefined; score?: undefined })
+		| OptimalResult;
 
 	interface Props {
 		open?: boolean;
@@ -16,26 +28,68 @@
 
 	let searchQuery = $state('');
 	let searchResults = $state<DocumentMeta[]>([]);
+	let optimalResults = $state<OptimalResult[]>([]);
 	let isSearching = $state(false);
 	let selectedIndex = $state(0);
 
 	let recent = $derived($recentDocuments);
 
-	// Displayed items (recent when no query, search results when querying)
-	let displayedItems = $derived(searchQuery.trim() ? searchResults : recent.slice(0, 5));
+	// Merge optimal-first, then PG results (deduped by path/id).
+	// When no query, fall back to recents.
+	let displayedItems = $derived.by((): UnifiedItem[] => {
+		if (!searchQuery.trim()) return recent.slice(0, 5) as UnifiedItem[];
+
+		// Remove PG results whose id matches an optimal path (same doc found by both)
+		const dedupedPg = searchResults.filter((r) => !optimalResults.some((o) => o.path === r.id));
+
+		return [
+			...optimalResults,
+			...(dedupedPg as (DocumentMeta & { _source: 'pg' })[])
+		] as UnifiedItem[];
+	});
+
+	async function runOptimalSearch(query: string): Promise<OptimalResult[]> {
+		const csrfToken = getCSRFToken();
+		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+		if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+
+		const res = await fetch(`${getApiBaseUrl()}/optimal/search`, {
+			method: 'POST',
+			headers,
+			credentials: 'include',
+			signal: AbortSignal.timeout(8000),
+			body: JSON.stringify({ query: query.trim(), limit: 10 })
+		});
+
+		if (!res.ok) throw new Error(`optimal search HTTP ${res.status}`);
+
+		const data: { results?: Array<{ path: string; abstract: string; score: number }> } =
+			await res.json();
+
+		return (Array.isArray(data.results) ? data.results : []).map((r) => ({
+			...r,
+			_source: 'optimal' as const
+		}));
+	}
 
 	const debouncedSearch = debounce(async (query: string) => {
 		if (!query.trim()) {
 			searchResults = [];
+			optimalResults = [];
 			isSearching = false;
 			return;
 		}
 
 		isSearching = true;
 		try {
-			searchResults = await searchDocuments(query);
-		} catch {
-			searchResults = [];
+			// Run both searches in parallel; optimal failure is non-fatal
+			const [pgRes, optRes] = await Promise.allSettled([
+				searchDocuments(query),
+				runOptimalSearch(query)
+			]);
+
+			searchResults = pgRes.status === 'fulfilled' ? pgRes.value : [];
+			optimalResults = optRes.status === 'fulfilled' ? optRes.value : [];
 		} finally {
 			isSearching = false;
 		}
@@ -49,7 +103,8 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		const itemCount = displayedItems.length;
+		const items = displayedItems;
+		const itemCount = items.length;
 		if (itemCount === 0) return;
 
 		switch (e.key) {
@@ -63,8 +118,8 @@
 				break;
 			case 'Enter':
 				e.preventDefault();
-				if (displayedItems[selectedIndex]) {
-					selectDocument(displayedItems[selectedIndex].id);
+				if (items[selectedIndex]) {
+					selectItem(items[selectedIndex]);
 				}
 				break;
 			case 'Escape':
@@ -74,7 +129,9 @@
 		}
 	}
 
-	function selectDocument(id: string) {
+	function selectItem(item: UnifiedItem) {
+		// Optimal results use `path` as the doc identifier; PG results use `id`
+		const id = item._source === 'optimal' ? item.path : item.id;
 		onSelectDocument?.(id);
 		closeSearch();
 	}
@@ -83,6 +140,7 @@
 		open = false;
 		searchQuery = '';
 		searchResults = [];
+		optimalResults = [];
 		selectedIndex = 0;
 		onOpenChange?.(false);
 	}
@@ -92,6 +150,7 @@
 		if (!isOpen) {
 			searchQuery = '';
 			searchResults = [];
+			optimalResults = [];
 			selectedIndex = 0;
 		}
 		onOpenChange?.(isOpen);
@@ -145,19 +204,36 @@
 					<button
 						class="btn-pill btn-pill-ghost quick-search__item"
 						class:quick-search__item--selected={index === selectedIndex}
-						onclick={() => selectDocument(item.id)}
+						class:quick-search__item--optimal={item._source === 'optimal'}
+						onclick={() => selectItem(item)}
 						onmouseenter={() => (selectedIndex = index)}
 					>
 						<span class="quick-search__item-icon">
-							{#if item.icon && typeof item.icon === 'string'}
+							{#if item._source === 'optimal'}
+								<Zap class="h-4 w-4 quick-search__optimal-icon" />
+							{:else if item.icon && typeof item.icon === 'string'}
 								{item.icon}
 							{:else}
 								<FileText class="h-4 w-4" />
 							{/if}
 						</span>
-						<span class="quick-search__item-title">
-							{item.title || 'Untitled'}
+						<span class="quick-search__item-body">
+							<span class="quick-search__item-title">
+								{#if item._source === 'optimal'}
+									{item.path.split('/').pop() ?? item.path}
+								{:else}
+									{item.title || 'Untitled'}
+								{/if}
+							</span>
+							{#if item._source === 'optimal' && item.abstract}
+								<span class="quick-search__item-abstract">{item.abstract}</span>
+							{/if}
 						</span>
+						{#if item._source === 'optimal'}
+							<span class="quick-search__item-score" title="Relevance score">
+								{Math.round(item.score * 100)}
+							</span>
+						{/if}
 						{#if index === selectedIndex}
 							<ArrowRight class="quick-search__item-arrow h-3 w-3" />
 						{/if}
@@ -273,12 +349,25 @@
 		justify-content: center;
 		width: 20px;
 		height: 20px;
+		flex-shrink: 0;
 		font-size: 14px;
 		color: hsl(var(--muted-foreground));
 	}
 
-	.quick-search__item-title {
+	.quick-search__optimal-icon {
+		color: hsl(var(--primary));
+	}
+
+	/* Body column: stacks title + abstract vertically */
+	.quick-search__item-body {
 		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+		min-width: 0;
+	}
+
+	.quick-search__item-title {
 		font-size: 0.875rem;
 		color: hsl(var(--foreground));
 		white-space: nowrap;
@@ -286,8 +375,35 @@
 		text-overflow: ellipsis;
 	}
 
-	.quick-search__item-arrow {
+	.quick-search__item-abstract {
+		font-size: 0.75rem;
 		color: hsl(var(--muted-foreground));
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* Relevance score badge */
+	.quick-search__item-score {
+		flex-shrink: 0;
+		font-size: 0.625rem;
+		font-weight: 600;
+		color: hsl(var(--primary));
+		background-color: hsl(var(--primary) / 0.1);
+		border-radius: 9999px;
+		padding: 0.125rem 0.375rem;
+		line-height: 1.4;
+	}
+
+	.quick-search__item-arrow {
+		flex-shrink: 0;
+		color: hsl(var(--muted-foreground));
+	}
+
+	/* Optimal results get a subtle left accent */
+	.quick-search__item--optimal {
+		border-left: 2px solid hsl(var(--primary) / 0.4);
+		padding-left: calc(0.75rem - 2px);
 	}
 
 	.quick-search__empty {

@@ -1,17 +1,24 @@
 <script lang="ts">
-	import { Canvas } from '@threlte/core';
-	import KnowledgeScene from './KnowledgeScene.svelte';
+	import { onMount } from 'svelte';
+	// force-graph ships incorrect .d.ts (declares class; runtime is a Kapsule factory).
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	import _FG from 'force-graph';
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const ForceGraph = _FG as unknown as () => (el: HTMLElement) => any;
+
+	import { getApiBaseUrl } from '$lib/api/base';
 	import type { Memory } from '$lib/api/memory/types';
 
+	// ── Props (backward-compatible) ───────────────────────────────────────────
 	interface Props {
-		memories: Memory[];
+		memories?: Memory[];
 		onSelect?: (memory: Memory) => void;
 		onDeselect?: () => void;
 		selectedId?: string | null;
 		searchQuery?: string;
 		highlightedIds?: string[];
-		nodes?: Map<string, { name: string; type: string }>; // Node lookup for display
-		zoomLevel?: number; // 0-100, triggers zoom when changed
+		nodes?: Map<string, { name: string; type: string }>;
+		zoomLevel?: number;
 		onZoomChange?: (level: number) => void;
 	}
 
@@ -27,301 +34,639 @@
 		onZoomChange
 	}: Props = $props();
 
-	// React to zoom level changes - start zoomed out to see full sphere
-	$effect(() => {
-		if (zoomLevel !== undefined) {
-			// Zoom 50 = 120 distance (default zoomed out), 0 = 180, 100 = 60 (close)
-			const distance = 180 - (zoomLevel * 1.2);
-			cameraPosition = [0, distance * 0.3, distance];
-		}
-	});
+	// Backward-compat props declared for API compatibility; not used in this component.
 
-	// Layout algorithm - Node-aware clustering
-	interface LayoutNode {
-		memory: Memory;
-		position: [number, number, number];
-		scale: number;
-		nodeId: string | null;
+	// ── API types ──────────────────────────────────────────────────────────────
+	interface ApiNode    { slug: string; name: string; type: string; signal_count: number; }
+	interface ApiFile    { name: string; path: string; is_dir: boolean; size: number; children?: ApiFile[]; }
+	interface ApiEntity  { name: string; type: string; connections: number; }
+	interface ApiEdge    { source: string; target: string; relation: string; weight?: number; }
+
+	// ── Graph node types ───────────────────────────────────────────────────────
+	type GNodeType = 'core' | 'folder' | 'document' | 'entity';
+
+	interface GNode {
+		id: string;
+		label: string;
+		nodeType: GNodeType;
+		val: number;
+		// for entity nodes
+		connections?: number;
+		entityType?: string;
 	}
 
-	// Connection between memories (for rendering lines)
-	interface MemoryConnection {
-		from: [number, number, number];
-		to: [number, number, number];
-		color: string;
+	interface GLink {
+		source: string;
+		target: string;
+		relation: string;
 	}
 
-	// Seeded random for consistent layout
-	function seededRandom(seed: number): () => number {
-		return function() {
-			seed = (seed * 9301 + 49297) % 233280;
-			return seed / 233280;
-		};
+	// ── Colors ────────────────────────────────────────────────────────────────
+	const NODE_HOVER   = '#7c3aed';
+	const LINK_DEFAULT = 'rgba(0,0,0,0.06)';
+	const LINK_HOVER   = 'rgba(124,58,237,0.5)';
+
+	// Node type → color
+	const TYPE_COLOR: Record<GNodeType, string> = {
+		core:     '#1a1a1a',
+		folder:   '#9ca3af',
+		document: '#d1d5db',
+		entity:   '#3b82f6'
+	};
+
+	// Node type → d3 charge strength
+	const TYPE_CHARGE: Record<GNodeType, number> = {
+		core:     -30,
+		folder:   -5,
+		document: -2,
+		entity:   -15
+	};
+
+	// ── Component state ────────────────────────────────────────────────────────
+	let container  = $state<HTMLDivElement | null>(null);
+	let loading    = $state(true);
+	let error      = $state<string | null>(null);
+	let statsText  = $state('');
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let graph: any = null;
+
+	function destroyGraph() {
+		if (!graph) return;
+		try { graph._destructor?.(); } catch { /* ignore */ }
+		graph = null;
 	}
 
-	// Node Viewer-style layout: SPHERICAL distribution - bubbles on surface of invisible sphere
-	function layoutNodes(mems: Memory[]): LayoutNode[] {
-		const layoutNodes: LayoutNode[] = [];
-		const count = mems.length;
+	// ── File tree walker ───────────────────────────────────────────────────────
+	function walkTree(
+		files: ApiFile[],
+		parentId: string,
+		gNodes: GNode[],
+		gLinks: GLink[]
+	) {
+		for (const f of files) {
+			const id    = f.path;                          // full path as id
+			const label = f.name;                          // last segment as label
+			const type: GNodeType = f.is_dir ? 'folder' : 'document';
 
-		if (count === 0) return layoutNodes;
+			gNodes.push({ id, label, nodeType: type, val: f.is_dir ? 4 : 2 });
+			gLinks.push({ source: parentId, target: id, relation: 'contains' });
 
-		// Use memory id hash as seed for consistent positions
-		const hashCode = (str: string) => {
-			let hash = 0;
-			for (let i = 0; i < str.length; i++) {
-				hash = ((hash << 5) - hash) + str.charCodeAt(i);
-				hash |= 0;
+			if (f.is_dir && f.children?.length) {
+				walkTree(f.children, id, gNodes, gLinks);
 			}
-			return Math.abs(hash);
-		};
-
-		// Spherical configuration - bubbles on surface of sphere, nothing in center
-		// Larger radius for better spacing - Node Viewer style has well-spaced bubbles
-		const sphereRadius = Math.min(80, 40 + count * 1.5); // Much larger for better spacing
-		const centerY = 0; // Sphere centered at origin
-
-		mems.forEach((memory, i) => {
-			const seed = hashCode(memory.id || String(i));
-			const rand = seededRandom(seed);
-
-			// Fibonacci sphere distribution for even spacing on sphere surface
-			const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-			const theta = i * goldenAngle; // Horizontal angle
-
-			// Vertical position: distribute from -1 to 1, converted to polar angle
-			const y_ratio = 1 - (i / Math.max(count - 1, 1)) * 2; // -1 to 1
-			const phi = Math.acos(y_ratio); // Convert to polar angle (0 to PI)
-
-			// Add slight randomness to make it feel organic
-			const randTheta = theta + (rand() - 0.5) * 0.3;
-			const randPhi = phi + (rand() - 0.5) * 0.2;
-			const randRadius = sphereRadius * (0.9 + rand() * 0.2); // 90-110% of radius
-
-			// Convert spherical to cartesian coordinates - TRUE SPHERE (no compression)
-			const x = randRadius * Math.sin(randPhi) * Math.cos(randTheta);
-			const y = randRadius * Math.cos(randPhi) + centerY;
-			const z = randRadius * Math.sin(randPhi) * Math.sin(randTheta); // No compression
-
-			// Scale: 1.0 to 1.4 based on importance (smaller for cleaner look)
-			const importanceScore = memory.importance_score || 0.5;
-			const scale = 1.0 + importanceScore * 0.4;
-
-			layoutNodes.push({
-				memory,
-				position: [x, y, z],
-				scale,
-				nodeId: memory.node_id
-			});
-		});
-
-		return layoutNodes;
-	}
-
-	let layoutResult = $derived(layoutNodes(memories));
-
-	// Generate connections for SELECTED bubble only (Node Viewer style)
-	let connections = $derived.by(() => {
-		const conns: MemoryConnection[] = [];
-
-		// Only show connections when a bubble is selected
-		if (!selectedId) return conns;
-
-		// Find the selected node
-		const selectedNode = layoutResult.find(n => n.memory.id === selectedId);
-		if (!selectedNode) return conns;
-
-		// Find related bubbles (same nodeId or linked memories)
-		const relatedNodes = layoutResult.filter(n => {
-			if (n.memory.id === selectedId) return false;
-			// Same node_id means they're related
-			if (selectedNode.nodeId && n.nodeId === selectedNode.nodeId) return true;
-			// Could also check for linked_memory_ids in the future
-			return false;
-		});
-
-		// Create thin connection lines to related bubbles
-		relatedNodes.forEach(related => {
-			conns.push({
-				from: selectedNode.position,
-				to: related.position,
-				color: '#888888' // Subtle gray line
-			});
-		});
-
-		return conns;
-	});
-
-	// Camera state - angled view looking at sphere from above-right
-	let cameraPosition = $state<[number, number, number]>([70, 60, 110]);
-	// Camera ALWAYS looks at center [0,0,0] - never changes
-	const targetLookAt: [number, number, number] = [0, 0, 0];
-	// Auto-rotate like a globe by default
-	let autoRotate = $state(true);
-
-	// Warm earth-tone color palette for bubbles - Node Viewer style
-	const warmPalette = [
-		'#8B7355',   // Warm brown
-		'#C4A77D',   // Tan/beige
-		'#7A9E7E',   // Sage green
-		'#B8860B',   // Dark goldenrod
-		'#9FA8B3',   // Cool gray-blue
-		'#A0826D',   // Dusty rose/brown
-		'#8B6914',   // Bronze/olive
-		'#9E8B7D',   // Taupe
-		'#8BA07A',   // Moss green
-		'#A89078',   // Warm gray
-		'#7D8B9E',   // Steel blue
-		'#9B8B6E',   // Khaki
-	];
-
-	// Get color based on memory ID for variety - consistent per bubble
-	function getTypeColor(type: string, memoryId?: string): string {
-		// If we have a memory ID, use it to pick a consistent color
-		if (memoryId) {
-			let hash = 0;
-			for (let i = 0; i < memoryId.length; i++) {
-				hash = ((hash << 5) - hash) + memoryId.charCodeAt(i);
-				hash |= 0;
-			}
-			const index = Math.abs(hash) % warmPalette.length;
-			return warmPalette[index];
 		}
-
-		// Fallback to type-based colors
-		const typeColors: Record<string, string> = {
-			'fact': '#8B7355',
-			'preference': '#C4A77D',
-			'decision': '#7A9E7E',
-			'event': '#B8860B',
-			'learning': '#9FA8B3',
-			'context': '#A0826D',
-			'relationship': '#8B6914'
-		};
-		return typeColors[type] || '#9E9E9E';
 	}
 
-	// Handle bubble click
-	function handleBubbleClick(memory: Memory) {
-		onSelect?.(memory);
+	// ── Core node slugs set (used for entity→core edge routing) ───────────────
+	function buildSlugSet(coreNodes: ApiNode[]): Set<string> {
+		const s = new Set<string>();
+		for (const n of coreNodes) s.add(n.slug);
+		// also add numeric prefixes like "02-miosa"
+		return s;
 	}
 
-	// Handle background click to deselect
-	function handleBackgroundClick() {
-		onDeselect?.();
-	}
+	// ── Main fetch + render ────────────────────────────────────────────────────
+	async function initGraph() {
+		if (!container) return;
+		loading = true;
+		error   = null;
 
-	// Check if memory is highlighted (from search)
-	function isHighlighted(memory: Memory): boolean {
-		if (highlightedIds.length > 0) {
-			return highlightedIds.includes(memory.id);
-		}
-		if (searchQuery) {
-			const query = searchQuery.toLowerCase();
-			return (
-				memory.title?.toLowerCase().includes(query) ||
-				memory.summary?.toLowerCase().includes(query) ||
-				memory.content?.toLowerCase().includes(query)
+		try {
+			const base = getApiBaseUrl();
+
+			// 1. Fetch all 3 endpoints in parallel
+			const [nodesRes, graphRes] = await Promise.all([
+				fetch(`${base}/optimal/nodes`),
+				fetch(`${base}/optimal/graph`)
+			]);
+
+			if (!nodesRes.ok) throw new Error(`/optimal/nodes → HTTP ${nodesRes.status}`);
+			if (!graphRes.ok) throw new Error(`/optimal/graph → HTTP ${graphRes.status}`);
+
+			const nodesData = await nodesRes.json();
+			const coreNodes: ApiNode[] = Array.isArray(nodesData) ? nodesData : (nodesData.nodes ?? []);
+			const graphRaw = await graphRes.json();
+			const graphData: { entities: ApiEntity[]; edges: ApiEdge[] } = {
+				entities: graphRaw.entities ?? [],
+				edges: graphRaw.edges ?? []
+			};
+
+			// 2. Fetch file trees for all nodes in parallel
+			const fileTreeResults = await Promise.allSettled(
+				coreNodes.map(n =>
+					fetch(`${base}/optimal/nodes/${n.slug}/files`)
+						.then(r => r.ok ? r.json() : Promise.resolve({ files: [] }))
+						.then((d: { files: ApiFile[] }) => ({ slug: n.slug, files: d.files ?? [] }))
+				)
 			);
+
+			const gNodes: GNode[] = [];
+			const gLinks: GLink[] = [];
+
+			// 3. Add core nodes
+			const slugSet = buildSlugSet(coreNodes);
+			for (const n of coreNodes) {
+				gNodes.push({
+					id:       n.slug,
+					label:    n.name,
+					nodeType: 'core',
+					val:      8
+				});
+			}
+
+			// 4. Walk file trees → folder + document nodes + containment links
+			for (const result of fileTreeResults) {
+				if (result.status !== 'fulfilled') continue;
+				const { slug, files } = result.value;
+				walkTree(files, slug, gNodes, gLinks);
+			}
+
+			// 5. Add entity nodes
+			const entityIds = new Set<string>();
+			for (const e of graphData.entities) {
+				if (!entityIds.has(e.name)) {
+					entityIds.add(e.name);
+					gNodes.push({
+						id:          e.name,
+						label:       e.name,
+						nodeType:    'entity',
+						val:         10,
+						connections: e.connections,
+						entityType:  e.type
+					});
+				}
+			}
+
+			// 5b. Connect ALL core nodes to each other with weak links
+			// This keeps them clustered together instead of flying to corners
+			const coreList = coreNodes.map(n => n.slug);
+			for (let i = 0; i < coreList.length; i++) {
+				for (let j = i + 1; j < coreList.length; j++) {
+					gLinks.push({ source: coreList[i], target: coreList[j], relation: 'sibling' });
+				}
+			}
+
+			// 5c. Connect entities to their most relevant core nodes
+			// This chains people to companies
+			for (const e of graphData.edges) {
+				if (entityIds.has(e.source) && slugSet.has(e.target)) {
+					gLinks.push({ source: e.source, target: e.target, relation: 'belongs_to' });
+				}
+				if (entityIds.has(e.target) && slugSet.has(e.source)) {
+					gLinks.push({ source: e.target, target: e.source, relation: 'belongs_to' });
+				}
+			}
+
+			// 6. Add edges from graph data
+			//    - entity→core: when source is entity and target matches a slug
+			//    - entity→entity: cross_ref between two entities
+			//    - core→core: cross_ref between two cores
+			const seenLinks = new Set<string>();
+
+			function addLink(source: string, target: string, relation: string) {
+				const key = `${source}||${target}||${relation}`;
+				if (seenLinks.has(key)) return;
+				seenLinks.add(key);
+				gLinks.push({ source, target, relation });
+			}
+
+			for (const e of graphData.edges) {
+				const srcIsCore   = slugSet.has(e.source);
+				const tgtIsCore   = slugSet.has(e.target);
+				const srcIsEntity = entityIds.has(e.source);
+				const tgtIsEntity = entityIds.has(e.target);
+
+				if (e.relation === 'cross_ref') {
+					if (srcIsCore && tgtIsCore)     addLink(e.source, e.target, 'cross_ref');
+					if (srcIsEntity && tgtIsEntity) addLink(e.source, e.target, 'cross_ref');
+					if (srcIsEntity && tgtIsCore)   addLink(e.source, e.target, 'mentioned_in');
+					if (tgtIsEntity && srcIsCore)   addLink(e.target, e.source, 'mentioned_in');
+				} else if (e.relation === 'mentioned_in' || e.relation === 'lives_in') {
+					// Only keep entity→core direction
+					if (srcIsEntity && tgtIsCore)   addLink(e.source, e.target, 'mentioned_in');
+					if (tgtIsEntity && srcIsCore)   addLink(e.target, e.source, 'mentioned_in');
+				}
+			}
+
+			statsText = `${gNodes.length} nodes · ${gLinks.length} edges`;
+
+			destroyGraph();
+			container.innerHTML = '';
+
+			// ── Hover state (bypasses Svelte diffing — runs at 60fps) ──────────
+			let _hovId: string | null = null;
+			const _connN = new Set<string>();
+			const _connL = new Set<string>();
+
+			// O(k) adjacency lookup
+			const adj = new Map<string, Array<{ src: string; tgt: string }>>();
+			for (const lk of gLinks) {
+				if (!adj.has(lk.source)) adj.set(lk.source, []);
+				if (!adj.has(lk.target)) adj.set(lk.target, []);
+				adj.get(lk.source)!.push({ src: lk.source, tgt: lk.target });
+				adj.get(lk.target)!.push({ src: lk.source, tgt: lk.target });
+			}
+
+			function setHover(node: { id: string } | null) {
+				_hovId = node?.id ?? null;
+				_connN.clear();
+				_connL.clear();
+				if (node) {
+					for (const e of (adj.get(node.id) ?? [])) {
+						_connN.add(e.src);
+						_connN.add(e.tgt);
+						_connL.add(`${e.src}__${e.tgt}`);
+					}
+				}
+			}
+
+			// ── Build graph ─────────────────────────────────────────────────────
+			graph = ForceGraph()(container)
+				.graphData({ nodes: gNodes, links: gLinks })
+				.backgroundColor('#fafafa')
+				.nodeVal('val')
+				.nodeLabel('')
+				.autoPauseRedraw(false)
+				.minZoom(0.1)
+				.maxZoom(16)
+				// ── Custom node rendering ──────────────────────────────────────
+				.nodeCanvasObject((node: GNode & { x: number; y: number }, ctx: CanvasRenderingContext2D, gs: number) => {
+					const id      = node.id;
+					const nType   = node.nodeType ?? 'document';
+					const isHov   = id === _hovId;
+					const isCon   = _connN.has(id);
+					const baseR   = nType === 'core'     ? 6
+					              : nType === 'folder'   ? 3
+					              : nType === 'entity'   ? 5
+					              :                        2;
+					const r       = Math.max(baseR, Math.sqrt(node.val ?? 1) * 1.2);
+					const baseCol = TYPE_COLOR[nType] ?? '#4a4a4a';
+
+					ctx.beginPath();
+					ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+					ctx.fillStyle = isHov ? NODE_HOVER
+					              : isCon ? NODE_HOVER + 'bb'
+					              : _hovId ? baseCol + '33'
+					              : baseCol;
+					ctx.fill();
+
+					if (isHov || nType === 'core') {
+						ctx.strokeStyle = isHov ? NODE_HOVER : baseCol + '66';
+						ctx.lineWidth   = (nType === 'core' ? 1.5 : 1) / gs;
+						ctx.stroke();
+					}
+
+					// Labels: always for core; hover/connected for others; entity always if zoomed
+					const showLabel = nType === 'core'
+					  || isHov
+					  || isCon
+					  || (nType === 'entity' && !_hovId && gs > 0.8)
+					  || (nType === 'folder' && gs > 2)
+					  || (nType === 'document' && gs > 4);
+
+					if (showLabel) {
+						const fs = nType === 'core' ? 12 / gs
+						         : isHov             ? 11 / gs
+						         :                     9 / gs;
+						const bold = nType === 'core' || isHov;
+						ctx.font         = `${bold ? '600 ' : ''}${fs}px -apple-system, system-ui, sans-serif`;
+						ctx.fillStyle    = isHov ? '#1a1a1a'
+						                 : isCon ? '#374151'
+						                 : nType === 'core' ? '#111827'
+						                 : nType === 'entity' ? '#1d4ed8'
+						                 : 'rgba(0,0,0,0.35)';
+						ctx.textBaseline = 'middle';
+						ctx.fillText(node.label ?? id, node.x + r + 2 / gs, node.y);
+					}
+				})
+				.nodePointerAreaPaint((node: GNode & { x: number; y: number }, color: string, ctx: CanvasRenderingContext2D) => {
+					const r = Math.max(6, Math.sqrt(node.val ?? 1) * 2 + 4);
+					ctx.beginPath();
+					ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+					ctx.fillStyle = color;
+					ctx.fill();
+				})
+				// ── Links ────────────────────────────────────────────────────────
+				.linkColor((link: { source: GNode | string; target: GNode | string }) => {
+					const s = typeof link.source === 'object' ? link.source.id : link.source;
+					const t = typeof link.target === 'object' ? link.target.id : link.target;
+					if (_connL.has(`${s}__${t}`) || _connL.has(`${t}__${s}`)) return LINK_HOVER;
+					if (_hovId) return 'rgba(0,0,0,0.01)';
+					return LINK_DEFAULT;
+				})
+				.linkWidth((link: { source: GNode | string; target: GNode | string }) => {
+					const s = typeof link.source === 'object' ? link.source.id : link.source;
+					const t = typeof link.target === 'object' ? link.target.id : link.target;
+					return (_connL.has(`${s}__${t}`) || _connL.has(`${t}__${s}`)) ? 1.5 : 0.3;
+				})
+				// ── Physics ──────────────────────────────────────────────────────
+				.cooldownTime(Infinity)
+				.d3AlphaDecay(0.01)
+				.d3VelocityDecay(0.25)
+				.d3AlphaMin(0)
+				.enableNodeDrag(true)
+				// ── Events ───────────────────────────────────────────────────────
+				.onZoom(({ k }: { k: number }) => {
+					const pct = Math.round(((k - 0.1) / (16 - 0.1)) * 100);
+					onZoomChange?.(Math.max(0, Math.min(100, pct)));
+				})
+				.onNodeHover((node: GNode | null) => {
+					setHover(node);
+					if (container) container.style.cursor = node ? 'grab' : 'default';
+				})
+				.onNodeDrag((node: GNode) => {
+					setHover(node);
+					if (container) container.style.cursor = 'grabbing';
+				})
+				.onNodeDragEnd(() => {
+					setHover(null);
+					if (container) container.style.cursor = 'default';
+				})
+				.onNodeClick((node: GNode & { x: number; y: number }) => {
+					// Zoom to the clicked node — Obsidian style
+					graph?.centerAt(node.x, node.y, 600);
+					graph?.zoom(4, 600);
+					// Highlight its connections
+					setHover(node);
+
+					const syn: Memory = {
+						id:               node.id,
+						user_id:          'graph',
+						title:            node.label ?? node.id,
+						summary:          `${node.nodeType} — ${node.connections ?? 0} connections`,
+						content:          '',
+						memory_type:      'context',
+						importance_score: (node.connections ?? 0) / 200,
+						is_pinned:        false,
+						is_active:        true,
+						tags:             [],
+						metadata:         { entity_type: node.entityType ?? node.nodeType },
+						source_type:      null,
+						source_id:        null,
+						project_id:       null,
+						node_id:          null,
+						expires_at:       null,
+						access_count:     0,
+						last_accessed_at: null,
+						created_at:       '',
+						updated_at:       ''
+					};
+					onSelect?.(syn);
+				})
+				.onBackgroundClick(() => onDeselect?.());
+
+			// ── Per-node charge via d3Force ──────────────────────────────────────
+			// Apply per-node charge using a function on the charge force
+			graph.d3Force('charge')?.strength((node: GNode) => TYPE_CHARGE[node.nodeType] ?? -30);
+
+			// Link distance by relationship type
+			graph.d3Force('link')
+				?.distance((link: any) => {
+					const rel = link.relation ?? 'contains';
+					if (rel === 'sibling') return 40;       // core-core: medium distance
+					if (rel === 'belongs_to') return 25;    // entity-core: closer
+					if (rel === 'cross_ref') return 20;     // cross-refs: close
+					return 10;                               // contains: tight
+				})
+				.strength((link: any) => {
+					const rel = link.relation ?? 'contains';
+					if (rel === 'sibling') return 0.15;     // weak — just keeps them in same area
+					if (rel === 'belongs_to') return 0.4;   // medium — chains people to companies
+					if (rel === 'cross_ref') return 0.6;    // strong
+					return 0.8;                              // contains: strong
+				});
+
+			graph.d3Force('center')?.strength(0.05);
+
+			// Collision to prevent overlap
+			const d3 = await import('d3-force');
+			graph.d3Force('collide', d3.forceCollide().radius(4).strength(0.6));
+
+			// Size the canvas
+			const w = container.clientWidth;
+			const h = container.clientHeight;
+			if (w > 0 && h > 0) graph.width(w).height(h);
+
+			// Zoom in close after layout settles — Obsidian style
+			// Fit everything visible, then zoom in slightly
+			setTimeout(() => {
+				graph?.zoomToFit(400, 20);
+				// After fit, zoom in 1.5x from whatever level zoomToFit chose
+				setTimeout(() => {
+					const currentZoom = graph?.zoom?.() ?? 1;
+					graph?.zoom(currentZoom * 1.5, 300);
+				}, 500);
+			}, 2500);
+			loading = false;
+		} catch (err) {
+			error   = err instanceof Error ? err.message : 'Failed to load graph';
+			loading = false;
 		}
-		return true; // No filter, all visible
 	}
 
-	// Zoom controls
-	function zoomIn() {
-		cameraPosition = [
-			cameraPosition[0] * 0.8,
-			cameraPosition[1] * 0.8,
-			cameraPosition[2] * 0.8
-		];
+	// ── Legacy mode: build from memories prop ────────────────────────────────
+	function buildFromMemories() {
+		if (!container) return;
+		loading = true;
+
+		const gNodes = memories.map(m => ({
+			id:        m.id,
+			label:     m.title ?? m.id,
+			nodeType:  'document' as GNodeType,
+			val:       Math.log((m.importance_score ?? 0.5) * 100 + 1),
+			connections: Math.round((m.importance_score ?? 0.5) * 100)
+		}));
+
+		const gLinks: GLink[] = [];
+		for (let i = 0; i < memories.length; i++) {
+			for (let j = i + 1; j < memories.length; j++) {
+				if (memories[i].node_id && memories[i].node_id === memories[j].node_id) {
+					gLinks.push({ source: memories[i].id, target: memories[j].id, relation: 'co_node' });
+				}
+			}
+		}
+
+		destroyGraph();
+		container.innerHTML = '';
+
+		const NODE_DEFAULT = '#4a4a4a';
+
+		graph = ForceGraph()(container)
+			.graphData({ nodes: gNodes, links: gLinks })
+			.backgroundColor('#fafafa')
+			.nodeVal('val')
+			.nodeLabel('label')
+			.nodeColor(() => NODE_DEFAULT)
+			.linkColor(() => 'rgba(0,0,0,0.06)')
+			.linkWidth(0.5)
+			.cooldownTime(2000)
+			.d3AlphaDecay(0.02)
+			.d3VelocityDecay(0.3)
+			.onNodeClick((node: GNode) => {
+				const mem = memories.find(m => m.id === node.id);
+				if (mem) onSelect?.(mem);
+			})
+			.onBackgroundClick(() => onDeselect?.());
+
+		graph.width(container.clientWidth).height(container.clientHeight);
+
+		statsText = `${memories.length} memories · ${gLinks.length} edges`;
+		loading   = false;
 	}
 
-	function zoomOut() {
-		cameraPosition = [
-			cameraPosition[0] * 1.2,
-			cameraPosition[1] * 1.2,
-			cameraPosition[2] * 1.2
-		];
-	}
+	// ── Mount ──────────────────────────────────────────────────────────────────
+	let ro: ResizeObserver | null = null;
 
-	function resetView() {
-		cameraPosition = [0, 30, 80];
-	}
+	onMount(() => {
+		if (memories.length === 0) {
+			initGraph();
+		} else {
+			buildFromMemories();
+		}
 
-	function toggleAutoRotate() {
-		autoRotate = !autoRotate;
-	}
+		ro = new ResizeObserver(() => {
+			if (graph && container) {
+				graph.width(container.clientWidth).height(container.clientHeight);
+			}
+		});
+		if (container) ro.observe(container);
+
+		return () => {
+			ro?.disconnect();
+			destroyGraph();
+		};
+	});
 </script>
 
-<div class="knowledge-graph">
-	<Canvas>
-		<KnowledgeScene
-			{layoutResult}
-			{selectedId}
-			{searchQuery}
-			{cameraPosition}
-			{targetLookAt}
-			{autoRotate}
-			nodeMap={nodeMap}
-			{getTypeColor}
-			{isHighlighted}
-			onBubbleClick={handleBubbleClick}
-			onBackgroundClick={handleBackgroundClick}
-		/>
-	</Canvas>
-
-	<!-- Stats overlay -->
-	<div class="graph-stats">
-		<span class="stat">{memories.length} bubbles</span>
-		{#if searchQuery}
-			<span class="stat-filter">
-				{layoutResult.filter(n => isHighlighted(n.memory)).length} matching
-			</span>
-		{/if}
-	</div>
+<div class="kg-root" bind:this={container}>
+	<!-- force-graph mounts its canvas directly into this element -->
 </div>
 
+{#if statsText && !loading}
+	<div class="kg-stats" aria-label="Graph statistics">
+		<span class="kg-stat-item">{statsText}</span>
+		<span class="kg-stat-sep">·</span>
+		<span class="kg-stat-legend">
+			<span class="kg-dot" style="background:#1a1a1a"></span>core
+			<span class="kg-dot" style="background:#3b82f6"></span>entity
+			<span class="kg-dot" style="background:#9ca3af"></span>folder
+			<span class="kg-dot" style="background:#d1d5db"></span>doc
+		</span>
+	</div>
+{/if}
+
+{#if loading && !error}
+	<div class="kg-overlay">
+		<div class="kg-spinner" aria-label="Loading graph"></div>
+		<span class="kg-overlay-label">Building full hierarchy…</span>
+	</div>
+{/if}
+
+{#if error}
+	<div class="kg-overlay">
+		<span class="kg-error-label">{error}</span>
+		<button class="kg-retry" onclick={() => initGraph()}>Retry</button>
+	</div>
+{/if}
+
 <style>
-	.knowledge-graph {
+	.kg-root {
 		position: relative;
 		width: 100%;
 		height: 100%;
 		min-height: 500px;
-		/* Node Viewer style: white top, gray bottom - floating room effect */
-		background: linear-gradient(180deg,
-			#ffffff 0%,
-			#fafafa 30%,
-			#e8e8e8 70%,
-			#c8c8c8 100%
-		);
-		border-radius: 0;
+		background: #fafafa;
 		overflow: hidden;
-		/* Prevent canvas from blocking UI elements with higher z-index */
-		z-index: 0;
 	}
 
-	.knowledge-graph :global(canvas) {
-		/* Ensure canvas stays in its layer */
-		z-index: 0;
-	}
-
-	.graph-stats {
+	.kg-stats {
 		position: absolute;
 		bottom: 16px;
 		left: 16px;
 		display: flex;
-		gap: 12px;
-		padding: 8px 14px;
-		background: rgba(255, 255, 255, 0.85);
-		backdrop-filter: blur(12px);
-		border-radius: 10px;
-		font-size: 12px;
-		color: #666666;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 12px;
+		background: rgba(255, 255, 255, 0.9);
+		backdrop-filter: blur(8px);
 		border: 1px solid rgba(0, 0, 0, 0.08);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+		border-radius: 8px;
+		font-size: 11px;
+		color: rgba(0, 0, 0, 0.5);
+		pointer-events: none;
+		z-index: 10;
 	}
 
-	.stat-filter {
-		color: #888888;
+	.kg-stat-item  { white-space: nowrap; }
+	.kg-stat-sep   { color: rgba(0, 0, 0, 0.3); }
+
+	.kg-stat-legend {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		font-size: 10px;
+		color: rgba(0, 0, 0, 0.4);
+	}
+
+	.kg-dot {
+		display: inline-block;
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		margin-left: 4px;
+	}
+
+	.kg-overlay {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		background: #fafafa;
+		z-index: 20;
+		pointer-events: none;
+	}
+
+	.kg-overlay-label {
+		font-size: 13px;
+		color: rgba(0, 0, 0, 0.4);
+		letter-spacing: 0.03em;
+	}
+
+	.kg-error-label {
+		font-size: 13px;
+		color: rgba(180, 30, 30, 0.7);
+		letter-spacing: 0.03em;
+	}
+
+	.kg-spinner {
+		width: 24px;
+		height: 24px;
+		border: 2px solid rgba(0, 0, 0, 0.08);
+		border-top-color: #7c3aed;
+		border-radius: 50%;
+		animation: kg-spin 0.8s linear infinite;
+	}
+
+	@keyframes kg-spin { to { transform: rotate(360deg); } }
+
+	.kg-retry {
+		pointer-events: all;
+		padding: 6px 16px;
+		font-size: 12px;
+		border: 1px solid rgba(0, 0, 0, 0.15);
+		border-radius: 6px;
+		background: white;
+		color: #1a1a1a;
+		cursor: pointer;
+		transition: background 0.15s;
+	}
+
+	.kg-retry:hover {
+		background: rgba(124, 58, 237, 0.06);
+		border-color: rgba(124, 58, 237, 0.3);
 	}
 </style>

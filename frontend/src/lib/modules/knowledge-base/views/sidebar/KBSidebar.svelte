@@ -6,7 +6,9 @@
 	import { sidebarStore, activeDocumentStore, favoriteDocuments, documentTree } from '../../stores/documents';
 	import { createDocument, deleteDocument, duplicateDocument, toggleFavorite, fetchProfiles, createProfile, type ProfileType, defaultProfileIcons } from '../../services/documents.service';
 	import { ScrollArea, Separator, Tooltip, Modal } from '$lib/ui';
-	import { Search, Plus, ChevronLeft, ChevronRight, Star, Clock, FileText, Trash2, Network, Globe, Users, Building2, FolderKanban, User, UserPlus, X } from 'lucide-svelte';
+	import { Search, Plus, ChevronLeft, ChevronRight, Star, Clock, FileText, Trash2, Network, Globe, Users, Building2, FolderKanban, User, UserPlus, X, Layers, Radio, Zap, Activity } from 'lucide-svelte';
+	import { onMount } from 'svelte';
+	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
 	import SettingsPanel from './SettingsPanel.svelte';
 	import SidebarHeader from './SidebarHeader.svelte';
 	import SidebarSection from './SidebarSection.svelte';
@@ -83,7 +85,6 @@
 		{ id: 'all', label: 'All Pages', icon: FileText },
 		{ id: 'favorites', label: 'Favorites', icon: Star },
 		{ id: 'recent', label: 'Recent', icon: Clock },
-		{ id: 'graph', label: 'Graph View', icon: Network },
 		{ id: 'knowledge-graph', label: 'Knowledge Graph', icon: Globe },
 		{ id: 'trash', label: 'Trash', icon: Trash2 }
 	];
@@ -95,6 +96,40 @@
 		{ id: 'profiles-business', label: 'Businesses', icon: Building2 },
 		{ id: 'profiles-project', label: 'Projects', icon: FolderKanban }
 	];
+
+	// OptimalOS node layers
+	interface OptimalNodeInfo { slug: string; name: string; type: string; signal_count: number; }
+	let optimalNodes = $state<OptimalNodeInfo[]>([]);
+	let selectedNodeSlug = $state<string | null>(null);
+
+	onMount(async () => {
+		try {
+			const headers: Record<string, string> = {};
+			const csrf = getCSRFToken();
+			if (csrf) headers['X-CSRF-Token'] = csrf;
+			const res = await fetch(`${getApiBaseUrl()}/optimal/nodes`, {
+				headers, credentials: 'include', signal: AbortSignal.timeout(5000)
+			});
+			if (res.ok) {
+				const data = await res.json();
+				optimalNodes = data.nodes ?? [];
+			}
+		} catch { /* OptimalOS not available — degrade gracefully */ }
+	});
+
+	let nodesExpanded = $state(true);
+
+	function handleNodeLayerClick(slug: string) {
+		selectedNodeSlug = selectedNodeSlug === slug ? null : slug;
+		// Open the node's context.md as a document
+		if (selectedNodeSlug) {
+			onOpenDocument?.(`${slug}/context.md`);
+		}
+	}
+
+	function toggleNodesSection() {
+		nodesExpanded = !nodesExpanded;
+	}
 
 	// Combined for collapsed view
 	const viewOptions = [...documentViews, ...profileViews];
@@ -309,6 +344,36 @@
 			{/each}
 		</nav>
 
+		<!-- OptimalOS Node Layers -->
+		{#if optimalNodes.length > 0}
+			<div class="bos-sidebar__divider"></div>
+			<button class="bos-sidebar__section-toggle" onclick={toggleNodesSection}>
+				<svg class="bos-sidebar__section-chevron" class:bos-sidebar__section-chevron--open={nodesExpanded} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+				<span class="bos-sidebar__section-label">NODES</span>
+				<span class="bos-sidebar__nav-badge">{optimalNodes.length}</span>
+			</button>
+			{#if nodesExpanded}
+				<nav class="bos-sidebar__nav bos-sidebar__nav--nodes">
+					{#each optimalNodes as node}
+						<button
+							class="bos-sidebar__nav-item"
+							class:bos-sidebar__nav-item--active={selectedNodeSlug === node.slug}
+							onclick={() => handleNodeLayerClick(node.slug)}
+							title={node.slug}
+						>
+							<span class="bos-sidebar__nav-icon bos-sidebar__nav-icon--node">
+								<Layers />
+							</span>
+							<span class="bos-sidebar__nav-label">{node.name}</span>
+							{#if node.signal_count > 0}
+								<span class="bos-sidebar__nav-badge">{node.signal_count}</span>
+							{/if}
+						</button>
+					{/each}
+				</nav>
+			{/if}
+		{/if}
+
 		<div class="bos-sidebar__divider"></div>
 
 		<ScrollArea class="bos-sidebar__content">
@@ -516,6 +581,59 @@
 		height: 1px;
 		margin: 8px;
 		background-color: var(--dbd);
+	}
+
+	.bos-sidebar__section-toggle {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		width: 100%;
+		padding: 6px 12px;
+		border: none;
+		background: transparent;
+		cursor: pointer;
+		transition: background-color 0.1s;
+	}
+
+	.bos-sidebar__section-toggle:hover {
+		background-color: var(--dbg2, rgba(255,255,255,0.04));
+	}
+
+	.bos-sidebar__section-chevron {
+		flex-shrink: 0;
+		color: var(--dt3, rgba(255,255,255,0.3));
+		transition: transform 0.15s ease;
+	}
+
+	.bos-sidebar__section-chevron--open {
+		transform: rotate(90deg);
+	}
+
+	.bos-sidebar__section-label {
+		font-size: 10px;
+		font-weight: 600;
+		letter-spacing: 0.05em;
+		color: var(--dt3, rgba(255,255,255,0.3));
+		text-transform: uppercase;
+	}
+
+	.bos-sidebar__nav--nodes {
+		max-height: 280px;
+		overflow-y: auto;
+	}
+
+	.bos-sidebar__nav-badge {
+		margin-left: auto;
+		font-size: 10px;
+		font-weight: 500;
+		color: var(--dt3, rgba(255,255,255,0.35));
+		background: var(--dbg2, rgba(255,255,255,0.06));
+		padding: 1px 6px;
+		border-radius: 8px;
+	}
+
+	.bos-sidebar__nav-icon--node {
+		opacity: 0.5;
 	}
 
 	/* Content area - applied via class prop on ScrollArea */

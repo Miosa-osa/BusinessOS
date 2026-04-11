@@ -42,6 +42,10 @@ func buildCSRFConfig(cfg *config.Config) middleware.CSRFConfig {
 		if path == "/api/sorx/callback" || path == "/api/v1/sorx/callback" {
 			return true
 		}
+		if strings.HasPrefix(path, "/api/optimal/") ||
+			strings.HasPrefix(path, "/api/v1/optimal/") {
+			return true
+		}
 		if strings.HasPrefix(path, "/api/internal/osa/") ||
 			strings.HasPrefix(path, "/api/v1/internal/osa/") {
 			return true

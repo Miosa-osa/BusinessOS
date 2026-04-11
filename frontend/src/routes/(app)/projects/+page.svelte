@@ -1,1489 +1,692 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { projects } from '$lib/stores/projects';
-	import { moduleEvents } from '$lib/stores/events';
-	import { api, type ClientListResponse } from '$lib/api';
-	import { Dialog, Popover, DropdownMenu } from 'bits-ui';
-	import { X, FolderPlus, Briefcase, Users, GraduationCap, ChevronDown, ChevronRight, AlertCircle, Search, Building2, BookOpen, FolderOpen, LayoutGrid, List, Columns3, Plus } from 'lucide-svelte';
-	import type { Project } from '$lib/api';
-	import { getTypeLabel, formatDate } from '$lib/utils/project';
+	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
+	import type { FileEntry, OptimalNode } from '$lib/stores/optimal';
 
-	// Preloaded data from +page.ts load function (prefetched on hover)
-	let { data } = $props();
+	// ─── Types ───────────────────────────────────────────────────────────────────
 
-	const embedSuffix = $derived($page.url.searchParams.get('embed') === 'true' ? '?embed=true' : '');
+	interface ProjectFolder {
+		name: string;
+		path: string;
+		files: FileEntry[];
+	}
 
-	let showNewProject = $state(false);
-	let newProject = $state({
-		name: '',
-		description: '',
-		client_name: '',
-		project_type: 'internal',
-		priority: 'medium' as 'low' | 'medium' | 'high' | 'critical',
-		icon: ''
-	});
-	let statusFilter = $state('');
-	let typeFilter = $state('');
-	let priorityFilter = $state('');
-	let searchQuery = $state('');
-	let viewMode = $state<'grid' | 'list' | 'kanban'>('grid');
-	let groupByType = $state(false);
-	let createError = $state('');
+	interface NodeProjects {
+		node: OptimalNode;
+		projects: ProjectFolder[];
+	}
 
-	$effect(() => {
-		localStorage.setItem('bos-projects-view', viewMode);
-	});
+	// ─── State ────────────────────────────────────────────────────────────────────
 
-	let sortField = $state<'name' | 'type' | 'status' | 'priority' | 'updated'>('updated');
-	let sortDir = $state<'asc' | 'desc'>('desc');
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+	let nodeProjects = $state<NodeProjects[]>([]);
 
-	// Clients for dropdown — seed from preloaded data
-	let clients = $state<ClientListResponse[]>(data?.clients ?? []);
-	let showAdvancedOptions = $state(false);
+	// Side panel
+	let panelOpen = $state(false);
+	let panelLoading = $state(false);
+	let panelContent = $state('');
+	let panelTitle = $state('');
+	let panelError = $state<string | null>(null);
 
-	onMount(async () => {
-		const savedView = localStorage.getItem('bos-projects-view');
-		if (savedView === 'grid' || savedView === 'list' || savedView === 'kanban') viewMode = savedView;
+	// ─── Node color map ──────────────────────────────────────────────────────────
 
-		// Seed the store with preloaded data if available (avoids redundant fetch)
-		if (data?.projects?.length) {
-			projects.setProjects(data.projects);
-		} else {
-			try {
-				await projects.loadProjects();
-			} catch {
-				// Backend unavailable — empty state will show
+	const NODE_COLORS: Record<string, string> = {
+		'00-command':               '#6366f1',
+		'01-roberto':               '#8b5cf6',
+		'02-miosa':                 '#3b82f6',
+		'03-lunivate':              '#06b6d4',
+		'04-ai-masters':            '#f59e0b',
+		'05-os-architect':          '#10b981',
+		'06-agency-accelerants':    '#ef4444',
+		'07-accelerants-community': '#f97316',
+		'08-content-creators':      '#ec4899',
+		'09-new-stuff':             '#64748b',
+		'10-team':                  '#14b8a6',
+		'11-money-revenue':         '#22c55e',
+		'12-os-accelerator':        '#a855f7',
+	};
+
+	function nodeColor(slug: string): string {
+		return NODE_COLORS[slug] ?? '#6366f1';
+	}
+
+	// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+	function buildHeaders(): Record<string, string> {
+		const headers: Record<string, string> = {};
+		const csrf = getCSRFToken();
+		if (csrf) headers['X-CSRF-Token'] = csrf;
+		return headers;
+	}
+
+	/** Walk the tree recursively, collect leaf files whose path contains "/projects/" */
+	function collectProjectFiles(entries: FileEntry[], acc: FileEntry[] = []): FileEntry[] {
+		for (const entry of entries) {
+			if (!entry.is_dir && entry.path.includes('/projects/')) {
+				acc.push(entry);
+			}
+			if (entry.is_dir && entry.children?.length) {
+				collectProjectFiles(entry.children, acc);
 			}
 		}
-
-		// Clients already seeded from preloaded data; refresh if empty
-		if (!clients.length) {
-			await loadClients();
-		}
-	});
-
-	async function loadClients() {
-		try {
-			clients = await api.getClients();
-		} catch (err) {
-			console.error('Error loading clients:', err);
-		}
+		return acc;
 	}
 
-	// Reload when a project is created from the chat slash command
-	$effect(() => {
-		const event = $moduleEvents;
-		if (event?.type === 'project:created') {
-			projects.loadProjects();
+	/**
+	 * From a flat list of project files, group into ProjectFolder objects
+	 * keyed by the immediate parent directory (the project folder name).
+	 */
+	function groupIntoFolders(files: FileEntry[]): ProjectFolder[] {
+		const map = new Map<string, ProjectFolder>();
+
+		for (const file of files) {
+			// e.g. "02-miosa/canopy/projects/canopy-launch/specs/REDESIGN-SPEC.md"
+			// find the segment right after "projects/"
+			const idx = file.path.indexOf('/projects/');
+			if (idx === -1) continue;
+
+			const afterProjects = file.path.slice(idx + '/projects/'.length); // "canopy-launch/specs/REDESIGN-SPEC.md"
+			const projectName = afterProjects.split('/')[0];                   // "canopy-launch"
+
+			// Reconstruct a canonical path up to the project folder
+			const folderPath = file.path.slice(0, idx + '/projects/'.length) + projectName;
+
+			if (!map.has(folderPath)) {
+				map.set(folderPath, { name: projectName, path: folderPath, files: [] });
+			}
+			map.get(folderPath)!.files.push(file);
 		}
-	});
 
-	// Filtered projects
-	let filteredProjects = $derived(() => {
-		let result = $projects.projects;
+		return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+	}
 
-		if (typeFilter) {
-			result = result.filter(p => p.project_type === typeFilter);
-		}
+	// ─── Fetch ────────────────────────────────────────────────────────────────────
 
-		if (priorityFilter) {
-			result = result.filter(p => p.priority === priorityFilter);
-		}
+	async function fetchFileTree(slug: string): Promise<FileEntry[]> {
+		const res = await fetch(
+			`${getApiBaseUrl()}/optimal/nodes/${encodeURIComponent(slug)}/files`,
+			{ method: 'GET', headers: buildHeaders(), credentials: 'include', signal: AbortSignal.timeout(10000) }
+		);
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const data: { files?: FileEntry[] } = await res.json();
+		return Array.isArray(data.files) ? data.files : [];
+	}
 
-		if (searchQuery) {
-			const query = searchQuery.toLowerCase();
-			result = result.filter(p =>
-				p.name.toLowerCase().includes(query) ||
-				(p.description && p.description.toLowerCase().includes(query)) ||
-				(p.client_name && p.client_name.toLowerCase().includes(query))
+	async function loadAllProjects(): Promise<void> {
+		loading = true;
+		error = null;
+
+		try {
+			// 1. Fetch all nodes
+			const res = await fetch(
+				`${getApiBaseUrl()}/optimal/nodes`,
+				{ method: 'GET', headers: buildHeaders(), credentials: 'include', signal: AbortSignal.timeout(8000) }
 			);
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const data: { nodes?: OptimalNode[] } = await res.json();
+			const nodes: OptimalNode[] = Array.isArray(data.nodes) ? data.nodes : [];
+
+			// 2. Fetch file trees for all nodes in parallel
+			const results = await Promise.allSettled(
+				nodes.map(async (node) => {
+					const tree = await fetchFileTree(node.slug);
+					const files = collectProjectFiles(tree);
+					if (files.length === 0) return null;
+					const projects = groupIntoFolders(files);
+					return { node, projects } satisfies NodeProjects;
+				})
+			);
+
+			// 3. Collect successful results with at least one project
+			nodeProjects = results
+				.filter((r): r is PromiseFulfilledResult<NodeProjects | null> => r.status === 'fulfilled' && r.value !== null)
+				.map((r) => r.value as NodeProjects)
+				.sort((a, b) => a.node.slug.localeCompare(b.node.slug));
+
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load projects';
+		} finally {
+			loading = false;
 		}
+	}
 
-		if (viewMode === 'list') {
-			const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-			result = [...result].sort((a, b) => {
-				let cmp = 0;
-				if (sortField === 'name') {
-					cmp = a.name.localeCompare(b.name);
-				} else if (sortField === 'type') {
-					cmp = a.project_type.localeCompare(b.project_type);
-				} else if (sortField === 'status') {
-					cmp = a.status.localeCompare(b.status);
-				} else if (sortField === 'priority') {
-					cmp = (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4);
-				} else {
-					cmp = new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-				}
-				return sortDir === 'asc' ? cmp : -cmp;
-			});
-		}
+	async function openFile(slug: string, filePath: string): Promise<void> {
+		panelOpen = true;
+		panelLoading = true;
+		panelContent = '';
+		panelError = null;
+		panelTitle = filePath.split('/').pop() ?? filePath;
 
-		return result;
-	});
-
-	// Stats
-	let stats = $derived({
-		total: $projects.projects.length,
-		active: $projects.projects.filter(p => p.status === 'active').length,
-		paused: $projects.projects.filter(p => p.status === 'paused').length,
-		completed: $projects.projects.filter(p => p.status === 'completed').length
-	});
-
-	// Grouped by type
-	let groupedByType = $derived({
-		internal: filteredProjects().filter(p => p.project_type === 'internal'),
-		client_work: filteredProjects().filter(p => p.project_type === 'client_work'),
-		learning: filteredProjects().filter(p => p.project_type === 'learning'),
-		other: filteredProjects().filter(p => !['internal', 'client_work', 'learning'].includes(p.project_type))
-	});
-
-	// Grouped by status for kanban
-	let groupedByStatus = $derived({
-		active: filteredProjects().filter(p => p.status === 'active'),
-		paused: filteredProjects().filter(p => p.status === 'paused'),
-		completed: filteredProjects().filter(p => p.status === 'completed')
-	});
-
-	async function handleCreateProject(e: Event) {
-		e.preventDefault();
-		createError = '';
 		try {
-			await projects.createProject(newProject);
-			showNewProject = false;
-			newProject = { name: '', description: '', client_name: '', project_type: 'internal', priority: 'medium', icon: '' };
-			showAdvancedOptions = false;
-		} catch (error) {
-			createError = (error as Error).message || 'Failed to create project';
+			let cleanPath = filePath;
+			if (cleanPath.startsWith(slug + '/')) cleanPath = cleanPath.slice(slug.length + 1);
+			const encoded = cleanPath.split('/').map(encodeURIComponent).join('/');
+
+			const res = await fetch(
+				`${getApiBaseUrl()}/optimal/nodes/${encodeURIComponent(slug)}/file/${encoded}`,
+				{ method: 'GET', headers: buildHeaders(), credentials: 'include', signal: AbortSignal.timeout(8000) }
+			);
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const data: { content?: string } = await res.json();
+			panelContent = data.content ?? '';
+		} catch (err) {
+			panelError = err instanceof Error ? err.message : 'Failed to load file';
+		} finally {
+			panelLoading = false;
 		}
 	}
 
-	function getPriorityDot(priority: string): string {
-		switch (priority) {
-			case 'critical': return 'var(--bos-priority-critical)';
-			case 'high': return 'var(--bos-priority-high)';
-			case 'medium': return 'var(--bos-priority-medium)';
-			default: return 'var(--bos-priority-low)';
-		}
+	function closePanel() {
+		panelOpen = false;
+		panelContent = '';
+		panelTitle = '';
+		panelError = null;
 	}
 
-	function clearFilters() {
-		statusFilter = '';
-		typeFilter = '';
-		priorityFilter = '';
-		searchQuery = '';
-		projects.loadProjects();
-	}
+	// ─── Lifecycle ────────────────────────────────────────────────────────────────
 
-	// Type and Priority filter options
-	const typeOptions = [
-		{ value: '', label: 'All Types' },
-		{ value: 'internal', label: 'Internal' },
-		{ value: 'client_work', label: 'Client Work' },
-		{ value: 'learning', label: 'Learning' }
-	];
+	onMount(() => { loadAllProjects(); });
 
-	const priorityOptions = [
-		{ value: '', label: 'All Priorities' },
-		{ value: 'critical', label: 'Critical' },
-		{ value: 'high', label: 'High' },
-		{ value: 'medium', label: 'Medium' },
-		{ value: 'low', label: 'Low' }
-	];
+	// ─── Derived counts ───────────────────────────────────────────────────────────
 
-	let hasActiveFilters = $derived(statusFilter || typeFilter || priorityFilter || searchQuery);
+	let totalProjects = $derived(nodeProjects.reduce((n, np) => n + np.projects.length, 0));
+	let totalFiles = $derived(
+		nodeProjects.reduce((n, np) => n + np.projects.reduce((m, p) => m + p.files.length, 0), 0)
+	);
 </script>
 
-<div class="h-full flex flex-col prm-ls-page">
-	<!-- Header -->
-	<div class="px-6 py-4 prm-ls-bar">
-		<div class="flex items-center justify-between mb-4">
-			<div>
-				<h1 class="text-xl font-semibold prm-ls-title">Projects</h1>
-				<p class="text-sm prm-ls-muted mt-0.5">Manage your work and track progress</p>
+<!-- ─── Layout ─────────────────────────────────────────────────────────────── -->
+<div class="pj-root" class:pj-root--panel={panelOpen}>
+
+	<!-- Main column -->
+	<div class="pj-main">
+		<!-- Header -->
+		<header class="pj-header">
+			<div class="pj-header__left">
+				<h1 class="pj-header__title">Projects</h1>
+				{#if !loading}
+					<span class="pj-header__meta">
+						{totalProjects} projects &middot; {totalFiles} files &middot; {nodeProjects.length} nodes
+					</span>
+				{/if}
 			</div>
-			<button onclick={() => showNewProject = true} class="btn-cta">
-				<Plus size={16} />
-				New Project
+			<button class="pj-btn pj-btn--ghost" onclick={loadAllProjects} disabled={loading} aria-label="Refresh projects">
+				<svg class="pj-icon" class:pj-spin={loading} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+				</svg>
 			</button>
-		</div>
+		</header>
 
-		<!-- Stats Strip -->
-		<div class="prm-stat-strip">
-			<button class="prm-stat-item {statusFilter === '' ? 'prm-stat-item--active' : ''}" onclick={() => { statusFilter = ''; projects.loadProjects(); }}>
-				<span class="prm-stat-val">{stats.total}</span> Total
-			</button>
-			<span class="prm-stat-sep"></span>
-			<button class="prm-stat-item {statusFilter === 'active' ? 'prm-stat-item--active' : ''}" onclick={() => { statusFilter = 'active'; projects.loadProjects('active'); }}>
-				<span class="prm-stat-val">{stats.active}</span> Active
-			</button>
-			<span class="prm-stat-sep"></span>
-			<button class="prm-stat-item {statusFilter === 'paused' ? 'prm-stat-item--active' : ''}" onclick={() => { statusFilter = 'paused'; projects.loadProjects('paused'); }}>
-				<span class="prm-stat-val">{stats.paused}</span> Paused
-			</button>
-			<span class="prm-stat-sep"></span>
-			<button class="prm-stat-item {statusFilter === 'completed' ? 'prm-stat-item--active' : ''}" onclick={() => { statusFilter = 'completed'; projects.loadProjects('completed'); }}>
-				<span class="prm-stat-val">{stats.completed}</span> Done
-			</button>
-		</div>
-	</div>
-
-	<!-- Filters & Controls Bar -->
-	<div class="px-6 py-2 prm-ls-bar flex items-center gap-3 flex-wrap">
-		<!-- Search -->
-		<div class="relative flex-1 min-w-[200px] max-w-xs">
-			<Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 prm-ls-icon" />
-			<input
-				type="text"
-				bind:value={searchQuery}
-				placeholder="Search projects..."
-				class="w-full pl-9 pr-3 py-1 text-sm prm-ls-search rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-			/>
-		</div>
-
-		<!-- Status Filter Pills -->
-		<div class="flex items-center gap-1 prm-ls-divider-l pl-3">
-			<button
-				onclick={() => { statusFilter = ''; projects.loadProjects(); }}
-				class="prm-filter-pill {statusFilter === '' ? 'prm-filter-pill--active' : ''}"
-			>
-				All
-			</button>
-			<button
-				onclick={() => { statusFilter = 'active'; projects.loadProjects('active'); }}
-				class="prm-filter-pill {statusFilter === 'active' ? 'prm-filter-pill--active' : ''}"
-			>
-				Active
-			</button>
-			<button
-				onclick={() => { statusFilter = 'paused'; projects.loadProjects('paused'); }}
-				class="prm-filter-pill {statusFilter === 'paused' ? 'prm-filter-pill--active' : ''}"
-			>
-				Paused
-			</button>
-			<button
-				onclick={() => { statusFilter = 'completed'; projects.loadProjects('completed'); }}
-				class="prm-filter-pill {statusFilter === 'completed' ? 'prm-filter-pill--active' : ''}"
-			>
-				Completed
-			</button>
-		</div>
-
-		<!-- Type Filter -->
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger class="prm-dropdown-trigger {typeFilter ? 'prm-dropdown-trigger--active' : ''}" aria-label="Filter by type">
-				<span class="prm-dropdown-trigger__label">{typeOptions.find(opt => opt.value === typeFilter)?.label || 'All Types'}</span>
-				<ChevronDown size={12} class="prm-dropdown-trigger__chevron" />
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Portal>
-				<DropdownMenu.Content class="prm-dropdown-menu" sideOffset={6} align="start">
-					<div class="prm-dropdown-menu__header">Type</div>
-					{#each typeOptions as option}
-						<DropdownMenu.Item
-							class="prm-dropdown-menu__item {typeFilter === option.value ? 'prm-dropdown-menu__item--active' : ''}"
-							onclick={() => typeFilter = option.value}
-						>
-							{#if typeFilter === option.value}
-								<span class="prm-dropdown-menu__check">
-									<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
-								</span>
-							{:else}
-								<span class="prm-dropdown-menu__check"></span>
-							{/if}
-							{option.label}
-						</DropdownMenu.Item>
-					{/each}
-				</DropdownMenu.Content>
-			</DropdownMenu.Portal>
-		</DropdownMenu.Root>
-
-		<!-- Priority Filter -->
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger class="prm-dropdown-trigger {priorityFilter ? 'prm-dropdown-trigger--active' : ''}" aria-label="Filter by priority">
-				<span class="prm-dropdown-trigger__label">{priorityOptions.find(opt => opt.value === priorityFilter)?.label || 'All Priorities'}</span>
-				<ChevronDown size={12} class="prm-dropdown-trigger__chevron" />
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Portal>
-				<DropdownMenu.Content class="prm-dropdown-menu" sideOffset={6} align="start">
-					<div class="prm-dropdown-menu__header">Priority</div>
-					{#each priorityOptions as option}
-						<DropdownMenu.Item
-							class="prm-dropdown-menu__item {priorityFilter === option.value ? 'prm-dropdown-menu__item--active' : ''}"
-							onclick={() => priorityFilter = option.value}
-						>
-							{#if option.value}
-								<span class="prm-priority-dot" style="background: {getPriorityDot(option.value)};"></span>
-							{:else}
-								<span class="prm-dropdown-menu__check">
-									{#if !priorityFilter}
-										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
-									{/if}
-								</span>
-							{/if}
-							{option.label}
-							{#if priorityFilter === option.value && option.value}
-								<svg class="ml-auto" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
-							{/if}
-						</DropdownMenu.Item>
-					{/each}
-				</DropdownMenu.Content>
-			</DropdownMenu.Portal>
-		</DropdownMenu.Root>
-
-		<!-- Clear Filters -->
-		{#if hasActiveFilters}
-			<button onclick={clearFilters} class="prm-filter-pill prm-filter-clear">
-				Clear filters
-			</button>
+		<!-- Error banner -->
+		{#if error}
+			<div class="pj-error" role="alert">
+				<svg class="pj-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+				</svg>
+				{error}
+				<button class="pj-error__retry" onclick={loadAllProjects}>Retry</button>
+			</div>
 		{/if}
 
-		<!-- Spacer -->
-		<div class="flex-1"></div>
-
-		<!-- Group by Type Toggle -->
-		<label class="prm-group-toggle">
-			<span class="prm-toggle-box" class:prm-toggle-box--checked={groupByType}>
-				{#if groupByType}
-					<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-					</svg>
-				{/if}
-			</span>
-			<input
-				type="checkbox"
-				bind:checked={groupByType}
-				class="sr-only"
-			/>
-			Group by type
-		</label>
-
-		<!-- View Mode Toggle -->
-		<div class="prm-view-toggle">
-			<button
-				onclick={() => viewMode = 'grid'}
-				class="prm-view-btn {viewMode === 'grid' ? 'prm-view-btn--active' : ''}"
-				title="Grid view"
-				aria-label="Grid view"
-			>
-				<LayoutGrid size={16} />
-			</button>
-			<button
-				onclick={() => viewMode = 'list'}
-				class="prm-view-btn {viewMode === 'list' ? 'prm-view-btn--active' : ''}"
-				title="List view"
-				aria-label="List view"
-			>
-				<List size={16} />
-			</button>
-			<button
-				onclick={() => viewMode = 'kanban'}
-				class="prm-view-btn {viewMode === 'kanban' ? 'prm-view-btn--active' : ''}"
-				title="Kanban view"
-				aria-label="Kanban view"
-			>
-				<Columns3 size={16} />
-			</button>
-		</div>
-	</div>
-
-	<!-- Content -->
-	<div class="flex-1 overflow-y-auto px-6 pt-4 pb-6">
-		{#if $projects.loading}
-			<div class="prm-skeleton-grid">
+		<!-- Loading skeleton -->
+		{#if loading}
+			<div class="pj-skeleton-grid">
 				{#each Array(6) as _}
-					<div class="prm-skeleton-card">
-						<div class="prm-skeleton-line prm-skeleton-line--title"></div>
-						<div class="prm-skeleton-line prm-skeleton-line--short"></div>
-						<div class="prm-skeleton-line prm-skeleton-line--full"></div>
-						<div class="prm-skeleton-footer">
-							<div class="prm-skeleton-dot"></div>
-							<div class="prm-skeleton-line prm-skeleton-line--tiny"></div>
-						</div>
+					<div class="pj-skeleton-card">
+						<div class="pj-skeleton-bar pj-skeleton-bar--header"></div>
+						<div class="pj-skeleton-bar pj-skeleton-bar--title"></div>
+						<div class="pj-skeleton-bar pj-skeleton-bar--line"></div>
+						<div class="pj-skeleton-bar pj-skeleton-bar--line pj-skeleton-bar--short"></div>
 					</div>
 				{/each}
 			</div>
-		{:else if $projects.projects.length === 0}
-			<div class="flex flex-col items-center justify-center h-64 text-center">
-				<div class="prm-empty-card">
-					<h3 class="text-base font-semibold prm-ls-title mb-2">Get started</h3>
-					<div class="prm-empty-steps">
-						<div class="prm-empty-step">
-							<span class="prm-empty-step-num">1</span>
-							<span class="prm-ls-muted text-sm">Create a project</span>
-						</div>
-						<div class="prm-empty-step">
-							<span class="prm-empty-step-num">2</span>
-							<span class="prm-ls-muted text-sm">Add tasks & team</span>
-						</div>
-						<div class="prm-empty-step">
-							<span class="prm-empty-step-num">3</span>
-							<span class="prm-ls-muted text-sm">Track progress</span>
-						</div>
+		{/if}
+
+		<!-- Content -->
+		{#if !loading && nodeProjects.length > 0}
+			{#each nodeProjects as { node, projects } (node.slug)}
+				<section class="pj-section">
+					<!-- Node header -->
+					<div class="pj-section__header" style="--node-color: {nodeColor(node.slug)}">
+						<div class="pj-section__dot"></div>
+						<h2 class="pj-section__name">{node.name}</h2>
+						<span class="pj-section__count">{projects.length} project{projects.length !== 1 ? 's' : ''}</span>
 					</div>
-					<button onclick={() => showNewProject = true} class="btn-cta mt-4">
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-						</svg>
-						Create Project
-					</button>
-				</div>
+
+					<!-- Project cards -->
+					<div class="pj-card-grid">
+						{#each projects as project (project.path)}
+							<div class="pj-card" style="--node-color: {nodeColor(node.slug)}">
+								<!-- Card header -->
+								<div class="pj-card__header">
+									<svg class="pj-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+									</svg>
+									<span class="pj-card__name">{project.name}</span>
+									<span class="pj-card__file-count">{project.files.length} file{project.files.length !== 1 ? 's' : ''}</span>
+								</div>
+
+								<!-- File list -->
+								<ul class="pj-file-list" role="list">
+									{#each project.files as file (file.path)}
+										<li class="pj-file-list__item">
+											<button
+												class="pj-file-btn"
+												onclick={() => openFile(node.slug, file.path)}
+												title={file.path}
+											>
+												<svg class="pj-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+													<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+												</svg>
+												<span class="pj-file-btn__name">{file.name}</span>
+											</button>
+										</li>
+									{/each}
+								</ul>
+							</div>
+						{/each}
+					</div>
+				</section>
+			{/each}
+		{/if}
+
+		{#if !loading && nodeProjects.length === 0 && !error}
+			<div class="pj-empty">
+				<svg class="pj-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+					<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+				</svg>
+				<p>No projects found across nodes.</p>
 			</div>
-		{:else if filteredProjects().length === 0}
-			<div class="flex flex-col items-center justify-center h-48 text-center">
-				<p class="prm-ls-muted mb-2">No projects match your filters</p>
-				<button onclick={clearFilters} class="btn-pill btn-pill-ghost btn-pill-sm underline">
-					Clear all filters
+		{/if}
+	</div>
+
+	<!-- Side panel -->
+	{#if panelOpen}
+		<aside class="pj-panel" aria-label="File content">
+			<div class="pj-panel__header">
+				<span class="pj-panel__title">{panelTitle}</span>
+				<button class="pj-btn pj-btn--ghost" onclick={closePanel} aria-label="Close panel">
+					<svg class="pj-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M6 18L18 6M6 6l12 12"/>
+					</svg>
 				</button>
 			</div>
-		{:else if viewMode === 'kanban'}
-			<!-- Kanban View -->
-			<div class="flex gap-4 h-full min-h-0">
-				{#each [
-					{ key: 'active', label: 'Active', items: groupedByStatus.active },
-					{ key: 'paused', label: 'Paused', items: groupedByStatus.paused },
-					{ key: 'completed', label: 'Completed', items: groupedByStatus.completed }
-				] as col}
-					<div class="flex-1 min-w-[280px] max-w-[350px] flex flex-col prm-kanban-col overflow-hidden">
-						<div class="px-4 py-2.5 prm-kanban-col__header flex items-center gap-2">
-							<span class="prm-status-dot prm-status-dot--{col.key}"></span>
-							<span class="text-xs font-medium prm-ls-title uppercase tracking-wider">{col.label}</span>
-							<span class="prm-ls-kanban-count ml-auto">{col.items.length}</span>
-						</div>
-						<div class="flex-1 overflow-y-auto p-2 space-y-2">
-							{#each col.items as project}
-								<a href="/projects/{project.id}{embedSuffix}" class="block p-3 prm-kanban-card rounded-lg transition-colors">
-									<span class="text-sm font-medium prm-ls-title line-clamp-1 block mb-1">{project.name}</span>
-									{#if project.client_name}
-										<p class="text-xs prm-ls-muted mb-1">{project.client_name}</p>
-									{/if}
-									<div class="flex items-center justify-between text-xs prm-ls-icon mt-2">
-										<span class="flex items-center gap-1">
-											<span class="prm-priority-dot" style="background: {getPriorityDot(project.priority)}"></span>
-											<span class="prm-ls-muted capitalize">{project.priority}</span>
-										</span>
-										<span>{formatDate(project.updated_at)}</span>
-									</div>
-								</a>
-							{/each}
-							{#if col.items.length === 0}
-								<p class="text-xs prm-ls-icon text-center py-4">No {col.label.toLowerCase()} projects</p>
-							{/if}
-						</div>
-					</div>
-				{/each}
-			</div>
-		{:else if viewMode === 'list'}
-			<!-- List View -->
-			<div class="prm-ls-column overflow-hidden">
-				<table class="w-full">
-					<thead class="prm-ls-table-head">
-						<tr>
-							<th class="text-left text-xs font-medium prm-ls-muted uppercase tracking-wider px-4 py-3">
-								<button class="prm-sort-btn" onclick={() => { if (sortField === 'name') sortDir = sortDir === 'asc' ? 'desc' : 'asc'; else { sortField = 'name'; sortDir = 'asc'; } }}>
-									Project
-									{#if sortField === 'name'}
-										<svg class="w-3 h-3 {sortDir === 'desc' ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
-									{/if}
-								</button>
-							</th>
-							<th class="text-left text-xs font-medium prm-ls-muted uppercase tracking-wider px-4 py-3">
-								<button class="prm-sort-btn" onclick={() => { if (sortField === 'type') sortDir = sortDir === 'asc' ? 'desc' : 'asc'; else { sortField = 'type'; sortDir = 'asc'; } }}>
-									Type
-									{#if sortField === 'type'}
-										<svg class="w-3 h-3 {sortDir === 'desc' ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
-									{/if}
-								</button>
-							</th>
-							<th class="text-left text-xs font-medium prm-ls-muted uppercase tracking-wider px-4 py-3">
-								<button class="prm-sort-btn" onclick={() => { if (sortField === 'status') sortDir = sortDir === 'asc' ? 'desc' : 'asc'; else { sortField = 'status'; sortDir = 'asc'; } }}>
-									Status
-									{#if sortField === 'status'}
-										<svg class="w-3 h-3 {sortDir === 'desc' ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
-									{/if}
-								</button>
-							</th>
-							<th class="text-left text-xs font-medium prm-ls-muted uppercase tracking-wider px-4 py-3">
-								<button class="prm-sort-btn" onclick={() => { if (sortField === 'priority') sortDir = sortDir === 'asc' ? 'desc' : 'asc'; else { sortField = 'priority'; sortDir = 'asc'; } }}>
-									Priority
-									{#if sortField === 'priority'}
-										<svg class="w-3 h-3 {sortDir === 'desc' ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
-									{/if}
-								</button>
-							</th>
-							<th class="text-left text-xs font-medium prm-ls-muted uppercase tracking-wider px-4 py-3">
-								<button class="prm-sort-btn" onclick={() => { if (sortField === 'updated') sortDir = sortDir === 'asc' ? 'desc' : 'asc'; else { sortField = 'updated'; sortDir = 'desc'; } }}>
-									Updated
-									{#if sortField === 'updated'}
-										<svg class="w-3 h-3 {sortDir === 'desc' ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
-									{/if}
-								</button>
-							</th>
-						</tr>
-					</thead>
-					<tbody class="prm-ls-table-body">
-						{#each filteredProjects() as project}
-							<tr class="prm-ls-table-row transition-colors cursor-pointer" onclick={() => goto(`/projects/${project.id}${embedSuffix}`)}>
-								<td class="px-4 py-3">
-									<div>
-										<span class="font-medium prm-ls-title">{project.name}</span>
-										{#if project.client_name}
-											<span class="prm-ls-icon ml-2">· {project.client_name}</span>
-										{/if}
-									</div>
-									{#if project.description}
-										<p class="text-sm prm-ls-muted line-clamp-1 mt-0.5">{project.description}</p>
-									{/if}
-								</td>
-								<td class="px-4 py-3">
-									<span class="text-xs prm-ls-muted">{getTypeLabel(project.project_type)}</span>
-								</td>
-								<td class="px-4 py-3">
-									<span class="flex items-center gap-1.5 text-xs prm-ls-muted capitalize">
-										<span class="prm-status-dot prm-status-dot--{project.status}"></span>
-										{project.status}
-									</span>
-								</td>
-								<td class="px-4 py-3">
-									<span class="flex items-center gap-1.5 text-xs prm-ls-muted capitalize">
-										<span class="prm-priority-dot" style="background: {getPriorityDot(project.priority)}"></span>
-										{project.priority}
-									</span>
-								</td>
-								<td class="px-4 py-3 text-sm prm-ls-muted">
-									{formatDate(project.updated_at)}
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		{:else if groupByType}
-			<!-- Grid View Grouped by Type -->
-			<div class="space-y-8">
-				{#if groupedByType.internal.length > 0}
-					<div>
-						<div class="flex items-center gap-2 mb-3">
-						<h2 class="text-xs font-semibold prm-ls-muted uppercase tracking-wider">Internal Projects</h2>
-						<span class="text-xs prm-ls-icon">({groupedByType.internal.length})</span>
-						</div>
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{#each groupedByType.internal as project}
-								{@render projectCard(project)}
-							{/each}
-						</div>
-					</div>
-				{/if}
 
-				{#if groupedByType.client_work.length > 0}
-					<div>
-						<div class="flex items-center gap-2 mb-3">
-						<h2 class="text-xs font-semibold prm-ls-muted uppercase tracking-wider">Client Work</h2>
-						<span class="text-xs prm-ls-icon">({groupedByType.client_work.length})</span>
-						</div>
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{#each groupedByType.client_work as project}
-								{@render projectCard(project)}
-							{/each}
-						</div>
+			<div class="pj-panel__body">
+				{#if panelLoading}
+					<div class="pj-panel__loading">
+						<svg class="pj-icon pj-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+						</svg>
+						Loading…
 					</div>
-				{/if}
-
-				{#if groupedByType.learning.length > 0}
-					<div>
-						<div class="flex items-center gap-2 mb-3">
-						<h2 class="text-xs font-semibold prm-ls-muted uppercase tracking-wider">Learning</h2>
-						<span class="text-xs prm-ls-icon">({groupedByType.learning.length})</span>
-						</div>
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{#each groupedByType.learning as project}
-								{@render projectCard(project)}
-							{/each}
-						</div>
-					</div>
-				{/if}
-
-				{#if groupedByType.other.length > 0}
-					<div>
-						<div class="flex items-center gap-2 mb-3">
-						<h2 class="text-xs font-semibold prm-ls-muted uppercase tracking-wider">Other</h2>
-						<span class="text-xs prm-ls-icon">({groupedByType.other.length})</span>
-						</div>
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{#each groupedByType.other as project}
-								{@render projectCard(project)}
-							{/each}
-						</div>
-					</div>
+				{:else if panelError}
+					<div class="pj-error" role="alert">{panelError}</div>
+				{:else}
+					<pre class="pj-panel__pre"><code>{panelContent}</code></pre>
 				{/if}
 			</div>
-		{:else}
-			<!-- Standard Grid View -->
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-				{#each filteredProjects() as project}
-					{@render projectCard(project)}
-				{/each}
-			</div>
-		{/if}
-	</div>
+		</aside>
+	{/if}
+
 </div>
 
-{#snippet projectCard(project: Project)}
-	<a href="/projects/{project.id}{embedSuffix}" class="block prm-card transition-all duration-200 cursor-pointer group">
-		<div class="p-3">
-			<div class="flex items-start justify-between mb-1.5">
-				<h3 class="font-medium prm-ls-title line-clamp-1 text-sm">{project.name}</h3>
-				<div class="flex items-center gap-1.5 shrink-0 ml-2">
-					<span class="prm-status-dot prm-status-dot--{project.status}"></span>
-					<span class="text-xs prm-ls-muted capitalize">{project.status}</span>
-				</div>
-			</div>
-			{#if project.client_name}
-				<p class="text-xs prm-ls-muted mb-1">{project.client_name}</p>
-			{/if}
-			{#if project.description}
-				<p class="text-xs prm-ls-icon line-clamp-1 mb-2">{project.description}</p>
-			{:else}
-				<div class="mb-2"></div>
-			{/if}
-			<div class="flex items-center justify-between text-xs pt-2 prm-card__footer">
-				<div class="flex items-center gap-3">
-					<span class="flex items-center gap-1">
-						<span class="prm-priority-dot" style="background: {getPriorityDot(project.priority)}"></span>
-						<span class="prm-ls-muted capitalize">{project.priority}</span>
-					</span>
-					<span class="prm-ls-icon">{getTypeLabel(project.project_type)}</span>
-				</div>
-				<span class="prm-ls-icon">{formatDate(project.updated_at)}</span>
-			</div>
-		</div>
-	</a>
-{/snippet}
-
-<!-- New Project Dialog -->
-<Dialog.Root bind:open={showNewProject}>
-	<Dialog.Portal>
-		<Dialog.Overlay class="bos-modal-overlay" style="position:fixed;padding:0;" />
-		<Dialog.Content class="prm-modal" aria-describedby={undefined}>
-			<form onsubmit={handleCreateProject} class="prm-modal__form">
-				<!-- Header -->
-				<div class="prm-modal__header">
-					<Dialog.Title class="prm-modal__title">New Project</Dialog.Title>
-					<Dialog.Close class="prm-modal__close" onclick={() => { showNewProject = false; showAdvancedOptions = false; }} aria-label="Close">
-						<X size={16} />
-					</Dialog.Close>
-				</div>
-
-				<!-- Body -->
-				<div class="prm-modal__body">
-					<!-- Name -->
-					<div class="prm-modal__field">
-						<label for="prm-name" class="prm-modal__label">Name</label>
-						<input
-							id="prm-name"
-							type="text"
-							bind:value={newProject.name}
-							class="prm-modal__input"
-							placeholder="e.g. Website Redesign"
-							required
-						/>
-					</div>
-
-					<!-- Type + Priority side by side -->
-					<div class="prm-modal__row">
-						<!-- Type -->
-						<div class="prm-modal__field prm-modal__field--flex1">
-							<label class="prm-modal__label">Type</label>
-							<div class="prm-modal__type-group">
-								{#each [
-									{ value: 'internal', label: 'Internal', Icon: Briefcase },
-									{ value: 'client_work', label: 'Client', Icon: Users },
-									{ value: 'learning', label: 'Learning', Icon: GraduationCap }
-								] as opt}
-									<button
-										type="button"
-										onclick={() => newProject.project_type = opt.value}
-										class="prm-modal__type-btn {newProject.project_type === opt.value ? 'prm-modal__type-btn--active' : ''}"
-										aria-label="Set type to {opt.label}"
-									>
-										<opt.Icon size={14} />
-										<span>{opt.label}</span>
-									</button>
-								{/each}
-							</div>
-						</div>
-
-						<!-- Priority -->
-						<div class="prm-modal__field prm-modal__field--flex1">
-							<label class="prm-modal__label">Priority</label>
-							<div class="prm-modal__priority-group">
-								{#each [
-									{ value: 'low', label: 'Low' },
-									{ value: 'medium', label: 'Med' },
-									{ value: 'high', label: 'High' },
-									{ value: 'critical', label: 'Crit' }
-								] as opt}
-									<button
-										type="button"
-										onclick={() => newProject.priority = opt.value as 'low' | 'medium' | 'high' | 'critical'}
-										class="prm-modal__priority-btn {newProject.priority === opt.value ? 'prm-modal__priority-btn--active' : ''}"
-										aria-label="Set priority to {opt.label}"
-									>
-										<span class="prm-modal__priority-dot" style="background: {getPriorityDot(opt.value)};"></span>
-										{opt.label}
-									</button>
-								{/each}
-							</div>
-						</div>
-					</div>
-
-					<!-- Client -->
-					<div class="prm-modal__field">
-						<label class="prm-modal__label">Client <span class="prm-modal__optional">(optional)</span></label>
-						<DropdownMenu.Root>
-							<DropdownMenu.Trigger class="prm-modal__select" aria-label="Select client">
-								<span class={newProject.client_name ? 'prm-modal__select-value' : 'prm-modal__select-placeholder'}>
-									{newProject.client_name || 'None'}
-								</span>
-								<ChevronDown size={14} class="prm-modal__select-chevron" />
-							</DropdownMenu.Trigger>
-							<DropdownMenu.Portal>
-								<DropdownMenu.Content class="prm-dropdown-menu" style="z-index:1100; width: var(--bits-dropdown-trigger-width);" sideOffset={4}>
-									<DropdownMenu.Item
-										class="prm-dropdown-menu__item {!newProject.client_name ? 'prm-dropdown-menu__item--active' : ''}"
-										onclick={() => newProject.client_name = ''}
-									>
-										None
-									</DropdownMenu.Item>
-									{#each clients as client}
-										<DropdownMenu.Item
-											class="prm-dropdown-menu__item {newProject.client_name === client.name ? 'prm-dropdown-menu__item--active' : ''}"
-											onclick={() => newProject.client_name = client.name}
-										>
-											{client.name}
-										</DropdownMenu.Item>
-									{/each}
-								</DropdownMenu.Content>
-							</DropdownMenu.Portal>
-						</DropdownMenu.Root>
-					</div>
-
-					<!-- Description -->
-					<div class="prm-modal__field">
-						<label for="prm-desc" class="prm-modal__label">Description <span class="prm-modal__optional">(optional)</span></label>
-						<textarea
-							id="prm-desc"
-							bind:value={newProject.description}
-							class="prm-modal__textarea"
-							rows="3"
-							placeholder="What is this project about?"
-						></textarea>
-						{#if newProject.description}
-							<span class="prm-modal__charcount">{newProject.description.length}/500</span>
-						{/if}
-					</div>
-
-					{#if createError}
-						<div class="prm-modal__error">
-							<AlertCircle size={14} />
-							{createError}
-						</div>
-					{/if}
-				</div>
-
-				<!-- Footer -->
-				<div class="prm-modal__footer">
-					<button type="button" onclick={() => { showNewProject = false; showAdvancedOptions = false; }} class="prm-modal__btn prm-modal__btn--ghost" aria-label="Cancel">
-						Cancel
-					</button>
-					<button type="submit" disabled={!newProject.name.trim()} class="prm-modal__btn prm-modal__btn--primary" aria-label="Create project">
-						Create Project
-					</button>
-				</div>
-			</form>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
-
 <style>
-	/* ── Page & Layout ── */
-	.prm-ls-page { background: var(--dbg2, rgba(249,250,251,.5)); }
-	.prm-ls-bar { background: var(--dbg, #fff); border-bottom: 1px solid var(--dbd, #e5e7eb); }
-	:global(.prm-ls-title) { color: var(--bos-text-primary-color); }
-	:global(.prm-ls-muted) { color: var(--bos-text-secondary-color); }
-	:global(.prm-ls-icon) { color: var(--bos-text-tertiary-color); }
-	:global(.prm-ls-label) { color: var(--bos-text-secondary-color); }
+/* ─── Root layout ────────────────────────────────────────────────────────── */
+.pj-root {
+	display: flex;
+	height: 100%;
+	min-height: 0;
+	background: var(--color-bg, #0f1117);
+	color: var(--color-text, #e2e8f0);
+}
 
-	/* ── Search ── */
-	.prm-ls-search { border: 1px solid var(--dbd, #e5e7eb); background: var(--dbg, #fff); color: var(--dt, #111); }
-	.prm-ls-search:focus { box-shadow: 0 0 0 2px var(--dt, #111); }
-	.prm-ls-divider-l { border-left: 1px solid var(--dbd, #e5e7eb); }
+.pj-main {
+	flex: 1;
+	min-width: 0;
+	overflow-y: auto;
+	padding: 1.5rem 2rem;
+}
 
-	/* ── Dropdown Trigger ── */
-	:global(.prm-dropdown-trigger) {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
-		padding: 0.3125rem 0.625rem;
-		font-size: 0.75rem;
-		font-weight: 500;
-		border-radius: 0.375rem;
-		border: 1px solid var(--dbd, #e0e0e0);
-		background: var(--dbg, #fff);
-		color: var(--dt2, #555);
-		cursor: pointer;
-		transition: all 0.15s;
-		white-space: nowrap;
-	}
-	:global(.prm-dropdown-trigger:hover) {
-		border-color: var(--dt3, #888);
-		color: var(--dt, #111);
-	}
-	:global(.prm-dropdown-trigger--active) {
-		border-color: var(--dt, #111);
-		color: var(--dt, #111);
-		font-weight: 600;
-	}
-	:global(.prm-dropdown-trigger__label) { line-height: 1; }
-	:global(.prm-dropdown-trigger__chevron) { opacity: 0.5; transition: transform 0.15s; }
-	:global([data-state="open"] .prm-dropdown-trigger__chevron) { transform: rotate(180deg); }
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+.pj-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 1.75rem;
+}
 
-	/* ── Dropdown Menu ── */
-	:global(.prm-dropdown-menu) {
-		z-index: 50;
-		min-width: 180px;
-		background: var(--bos-modal-bg);
-		border: 1px solid var(--bos-border-color);
-		border-radius: 0.5rem;
-		box-shadow: var(--bos-popover-shadow);
-		padding: 0.25rem;
-		overflow: hidden;
-	}
-	:global(.prm-dropdown-menu__header) {
-		padding: 0.375rem 0.625rem 0.25rem;
-		font-size: 0.6875rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: var(--dt3, #888);
-	}
-	:global(.prm-dropdown-menu__item) {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.4375rem 0.625rem;
-		font-size: 0.8125rem;
-		border-radius: 0.3125rem;
-		color: var(--bos-text-primary-color);
-		cursor: pointer;
-		transition: background 0.1s;
-	}
-	:global(.prm-dropdown-menu__item:hover) {
-		background: var(--bos-hover-color);
-	}
-	:global(.prm-dropdown-menu__item--active) {
-		font-weight: 600;
-	}
-	:global(.prm-dropdown-menu__check) {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 14px;
-		height: 14px;
-		flex-shrink: 0;
-		color: var(--dt, #111);
-	}
+.pj-header__left {
+	display: flex;
+	align-items: baseline;
+	gap: 1rem;
+}
 
-	/* ── Controls ── */
-	:global(.prm-ls-empty-bg) { background: var(--dbg3, #f3f4f6); }
+.pj-header__title {
+	font-size: 1.375rem;
+	font-weight: 600;
+	color: var(--color-text, #e2e8f0);
+	margin: 0;
+}
 
-	/* ── Filter Pills (monochrome) ── */
-	.prm-filter-pill {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.25rem 0.625rem;
-		font-size: 0.75rem;
-		font-weight: 500;
-		border-radius: 0.375rem;
-		border: 1px solid transparent;
-		background: transparent;
-		color: var(--dt3, #888);
-		cursor: pointer;
-		transition: all 0.15s;
-		white-space: nowrap;
-	}
-	.prm-filter-pill:hover {
-		color: var(--dt, #111);
-		background: var(--dbg2, #f5f5f5);
-	}
-	.prm-filter-pill--active {
-		color: var(--dt, #111);
-		background: var(--dt, #111);
-		color: var(--dbg, #fff);
-		font-weight: 600;
-	}
-	.prm-filter-pill--active:hover {
-		background: var(--dt2, #333);
-		color: var(--dbg, #fff);
-	}
-	.prm-filter-clear {
-		text-decoration: underline;
-		text-underline-offset: 2px;
-	}
+.pj-header__meta {
+	font-size: 0.8125rem;
+	color: var(--color-text-muted, #64748b);
+}
 
-	/* ── Group Toggle (custom checkbox) ── */
-	.prm-group-toggle {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.75rem;
-		color: var(--dt2, #555);
-		cursor: pointer;
-		user-select: none;
-	}
-	.prm-toggle-box {
-		width: 0.875rem;
-		height: 0.875rem;
-		border-radius: 0.1875rem;
-		border: 1.5px solid var(--dbd, #d1d5db);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		transition: all 0.15s;
-		background: transparent;
-	}
-	.prm-toggle-box--checked {
-		background: var(--dt, #111);
-		border-color: var(--dt, #111);
-		color: #fff;
-	}
-	.prm-group-toggle:hover .prm-toggle-box:not(.prm-toggle-box--checked) {
-		border-color: var(--dt3, #888);
-	}
+/* ─── Buttons ────────────────────────────────────────────────────────────── */
+.pj-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+	padding: 0.375rem 0.625rem;
+	border-radius: 0.375rem;
+	border: none;
+	cursor: pointer;
+	font-size: 0.875rem;
+	transition: background 0.15s;
+}
 
-	/* ── View Toggle (compact segmented control) ── */
-	.prm-view-toggle {
-		display: inline-flex;
-		align-items: center;
-		gap: 1px;
-		border: 1px solid var(--dbd, #e5e7eb);
-		border-radius: 0.5rem;
-		padding: 2px;
-		background: var(--dbg2, #f9fafb);
-	}
-	.prm-view-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0.25rem;
-		border-radius: 0.375rem;
-		color: var(--dt3, #888);
-		background: transparent;
-		border: none;
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.prm-view-btn:hover { color: var(--dt, #111); background: var(--dbg, #fff); }
-	.prm-view-btn--active {
-		color: var(--dt, #111);
-		background: var(--dbg, #fff);
-		box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-	}
+.pj-btn--ghost {
+	background: transparent;
+	color: var(--color-text-secondary, #94a3b8);
+}
 
-	/* ── Stat Strip (inline) ── */
-	.prm-stat-strip {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		margin-top: 0.75rem;
-		font-size: 0.8125rem;
-		color: var(--dt3, #6b7280);
-	}
-	.prm-stat-item { display: inline-flex; align-items: center; gap: 0.25rem; font-size: inherit; color: inherit; }
-	.prm-stat-val { font-weight: 600; color: var(--dt, #111); }
-	.prm-stat-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--dbd, #d1d5db); flex-shrink: 0; }
+.pj-btn--ghost:hover:not(:disabled) {
+	background: var(--color-bg-secondary, #1e2432);
+	color: var(--color-text, #e2e8f0);
+}
 
-	/* ── Project Cards (monochrome + blue accent) ── */
-	.prm-card {
-		background: var(--dbg, #fff);
-		border-radius: 0.75rem;
-		border: 1px solid var(--dbd, #e5e7eb);
-		outline: none;
-		box-shadow: none;
-		transition: all 0.15s ease;
-	}
-	.prm-card:hover {
-		box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-		transform: translateY(-1px);
-	}
-	.prm-card__footer { border-top: 1px solid var(--dbd2, #f3f4f6); }
+.pj-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
 
-	/* ── Priority Dot (tiny colored indicator) ── */
-	.prm-priority-dot {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		flex-shrink: 0;
-		display: inline-block;
-	}
+/* ─── Icons ──────────────────────────────────────────────────────────────── */
+.pj-icon {
+	width: 1rem;
+	height: 1rem;
+	flex-shrink: 0;
+}
 
-	/* ── Status Dot (tiny colored indicator) ── */
-	.prm-status-dot {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		flex-shrink: 0;
-		display: inline-block;
-	}
-	.prm-status-dot--active { background: #22c55e; }
-	.prm-status-dot--paused { background: #f59e0b; }
-	.prm-status-dot--completed { background: #9ca3af; }
-	.prm-status-dot--archived { background: #d1d5db; }
+@keyframes pj-spin {
+	to { transform: rotate(360deg); }
+}
 
-	/* ── Kanban ── */
-	.prm-kanban-col { background: var(--dbg, #fff); border-radius: 0.75rem; border: 1px solid var(--dbd, #e5e7eb); }
-	.prm-kanban-col__header { border-bottom: 1px solid var(--dbd2, #f3f4f6); background: var(--dbg2, #f9fafb); border-radius: 0.75rem 0.75rem 0 0; }
-	.prm-kanban-card { background: var(--dbg, #fff); border: 1px solid var(--dbd2, #f3f4f6); }
-	.prm-kanban-card:hover { background: var(--dbg2, #f9fafb); }
-	.prm-ls-kanban-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.25rem; height: 1.25rem; padding: 0 0.375rem; font-size: 0.6875rem; font-weight: 600; border-radius: 9999px; background: var(--dbg3, #f3f4f6); color: var(--dt3, #6b7280); }
+.pj-spin {
+	animation: pj-spin 0.8s linear infinite;
+}
 
-	/* ── List view ── */
-	.prm-ls-column { background: var(--dbg, #fff); border-radius: 0.75rem; border: 1px solid var(--dbd, #e5e7eb); }
-	.prm-ls-table-head { background: var(--dbg2, #f9fafb); border-bottom: 1px solid var(--dbd, #e5e7eb); }
-	.prm-ls-table-body > :global(tr + tr) { border-top: 1px solid var(--dbd2, #f3f4f6); }
-	.prm-ls-table-row:hover { background: var(--dbg2, #f9fafb); }
+/* ─── Error ──────────────────────────────────────────────────────────────── */
+.pj-error {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem 1rem;
+	border-radius: 0.5rem;
+	background: rgba(239,68,68,0.1);
+	border: 1px solid rgba(239,68,68,0.25);
+	color: #fca5a5;
+	font-size: 0.875rem;
+	margin-bottom: 1.25rem;
+}
 
-	/* ── Filter active state ── */
-	.prm-filter--active { box-shadow: 0 0 0 2px var(--dt3); }
-	:global(.prm-dropdown-item--active) { background: var(--dbg3); font-weight: 600; }
+.pj-error__retry {
+	margin-left: auto;
+	padding: 0.25rem 0.625rem;
+	border-radius: 0.25rem;
+	border: 1px solid rgba(239,68,68,0.4);
+	background: transparent;
+	color: #fca5a5;
+	font-size: 0.8125rem;
+	cursor: pointer;
+}
 
-	/* ═══════════════════════════════════════════════════
-	   NEW PROJECT MODAL — Premium Design
-	   ═══════════════════════════════════════════════════ */
-	:global(.prm-modal) {
-		position: fixed;
-		left: 50%;
-		top: 50%;
-		transform: translate(-50%, -52%);
-		width: calc(100% - 2rem);
-		max-width: 440px;
-		max-height: calc(85vh - 60px);
-		z-index: 1000;
-		background: var(--dbg, #fff);
-		border: 1px solid var(--dbd, #e0e0e0);
-		border-radius: 14px;
-		box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.03);
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
-	}
-	:global(.dark .prm-modal),
-	:global(.dark) :global(.prm-modal) {
-		background: var(--dbg, #141414);
-		border-color: var(--dbd, #1e1e1e);
-		box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
-	}
+.pj-error__retry:hover {
+	background: rgba(239,68,68,0.15);
+}
 
-	:global(.prm-modal__form) {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-		overflow: hidden;
-	}
+/* ─── Skeleton ───────────────────────────────────────────────────────────── */
+.pj-skeleton-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 1rem;
+}
 
-	:global(.prm-modal__header) {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 18px 20px 0;
-	}
+.pj-skeleton-card {
+	border-radius: 0.625rem;
+	background: var(--color-bg-secondary, #1e2432);
+	padding: 1rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.625rem;
+}
 
-	:global(.prm-modal__title) {
-		font-size: 16px;
-		font-weight: 700;
-		color: var(--dt, #111);
-		letter-spacing: -0.02em;
-		margin: 0;
-	}
+.pj-skeleton-bar {
+	border-radius: 0.25rem;
+	background: var(--color-bg-tertiary, #252d3d);
+	animation: pj-pulse 1.4s ease-in-out infinite;
+}
 
-	:global(.prm-modal__close) {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 26px;
-		height: 26px;
-		border-radius: 6px;
-		border: none;
-		background: transparent;
-		color: var(--dt3, #888);
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	:global(.prm-modal__close:hover) {
-		background: var(--dbg3, #eee);
-		color: var(--dt, #111);
-	}
+.pj-skeleton-bar--header { height: 6px; width: 100%; }
+.pj-skeleton-bar--title  { height: 14px; width: 60%; }
+.pj-skeleton-bar--line   { height: 12px; width: 100%; }
+.pj-skeleton-bar--short  { width: 75%; }
 
-	:global(.prm-modal__body) {
-		flex: 1;
-		overflow-y: auto;
-		padding: 16px 20px 20px;
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-		scrollbar-width: thin;
-		scrollbar-color: var(--dbd, #e0e0e0) transparent;
-	}
+@keyframes pj-pulse {
+	0%, 100% { opacity: 1; }
+	50%       { opacity: 0.4; }
+}
 
-	:global(.prm-modal__field) {
-		display: flex;
-		flex-direction: column;
-		gap: 5px;
-	}
-	:global(.prm-modal__field--flex1) { flex: 1; min-width: 0; }
+/* ─── Section ────────────────────────────────────────────────────────────── */
+.pj-section {
+	margin-bottom: 2.25rem;
+}
 
-	:global(.prm-modal__row) {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 12px;
-	}
+.pj-section__header {
+	display: flex;
+	align-items: center;
+	gap: 0.625rem;
+	margin-bottom: 0.875rem;
+}
 
-	:global(.prm-modal__label) {
-		font-size: 11px;
-		font-weight: 600;
-		color: var(--dt2, #555);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-	:global(.prm-modal__optional) {
-		font-weight: 400;
-		color: var(--dt4, #bbb);
-		text-transform: none;
-		letter-spacing: 0;
-	}
+.pj-section__dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--node-color, #6366f1);
+	flex-shrink: 0;
+}
 
-	:global(.prm-modal__input) {
-		width: 100%;
-		padding: 8px 10px;
-		font-size: 13px;
-		color: var(--dt, #111);
-		background: var(--dbg2, #f5f5f5);
-		border: 1px solid var(--dbd, #e0e0e0);
-		border-radius: 8px;
-		outline: none;
-		transition: border-color 0.15s, box-shadow 0.15s;
-	}
-	:global(.prm-modal__input::placeholder) { color: var(--dt4, #bbb); }
-	:global(.prm-modal__input:focus) {
-		border-color: var(--dt, #111);
-		box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.04);
-		background: var(--dbg, #fff);
-	}
-	:global(.dark .prm-modal__input:focus) {
-		box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
-		background: var(--dbg, #141414);
-	}
+.pj-section__name {
+	font-size: 0.9375rem;
+	font-weight: 600;
+	color: var(--color-text, #e2e8f0);
+	margin: 0;
+}
 
-	:global(.prm-modal__textarea) {
-		width: 100%;
-		padding: 8px 10px;
-		font-size: 13px;
-		color: var(--dt, #111);
-		background: var(--dbg2, #f5f5f5);
-		border: 1px solid var(--dbd, #e0e0e0);
-		border-radius: 8px;
-		outline: none;
-		resize: vertical;
-		min-height: 64px;
-		font-family: inherit;
-		line-height: 1.5;
-		transition: border-color 0.15s, box-shadow 0.15s;
-	}
-	:global(.prm-modal__textarea::placeholder) { color: var(--dt4, #bbb); }
-	:global(.prm-modal__textarea:focus) {
-		border-color: var(--dt, #111);
-		box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.04);
-		background: var(--dbg, #fff);
-	}
-	:global(.dark .prm-modal__textarea:focus) {
-		box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
-		background: var(--dbg, #141414);
-	}
-	:global(.prm-modal__charcount) {
-		font-size: 10px;
-		color: var(--dt4, #bbb);
-		text-align: right;
-		margin-top: -2px;
-	}
+.pj-section__count {
+	font-size: 0.75rem;
+	color: var(--color-text-muted, #64748b);
+	margin-left: auto;
+}
 
-	/* Type selector — segmented control */
-	:global(.prm-modal__type-group) {
-		display: flex;
-		gap: 0;
-		border: 1px solid var(--dbd, #e0e0e0);
-		border-radius: 8px;
-		overflow: hidden;
-		background: var(--dbg2, #f5f5f5);
-		padding: 2px;
-	}
-	:global(.prm-modal__type-btn) {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 4px;
-		padding: 6px 4px;
-		font-size: 11px;
-		font-weight: 500;
-		color: var(--dt3, #888);
-		background: transparent;
-		border: none;
-		cursor: pointer;
-		transition: all 0.15s;
-		white-space: nowrap;
-		border-radius: 6px;
-	}
-	:global(.prm-modal__type-btn:hover) { color: var(--dt, #111); }
-	:global(.prm-modal__type-btn--active) {
-		background: var(--dbg, #fff);
-		color: var(--dt, #111);
-		font-weight: 600;
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-	}
-	:global(.dark .prm-modal__type-btn--active) {
-		background: var(--dbg3, #1e1e1e);
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-	}
+/* ─── Card grid ──────────────────────────────────────────────────────────── */
+.pj-card-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 0.875rem;
+}
 
-	/* Priority selector — pill toggle */
-	:global(.prm-modal__priority-group) {
-		display: flex;
-		gap: 4px;
-	}
-	:global(.prm-modal__priority-btn) {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 4px;
-		padding: 6px 4px;
-		font-size: 11px;
-		font-weight: 500;
-		color: var(--dt3, #888);
-		background: transparent;
-		border: 1px solid var(--dbd, #e0e0e0);
-		border-radius: 6px;
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	:global(.prm-modal__priority-btn:hover) {
-		border-color: var(--dt3, #888);
-		color: var(--dt, #111);
-	}
-	:global(.prm-modal__priority-btn--active) {
-		border-color: var(--dt, #111);
-		background: var(--dbg, #fff);
-		color: var(--dt, #111);
-		font-weight: 600;
-	}
-	:global(.dark .prm-modal__priority-btn--active) {
-		background: var(--dbg3, #1e1e1e);
-	}
-	:global(.prm-modal__priority-dot) {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		flex-shrink: 0;
-	}
+.pj-card {
+	border-radius: 0.625rem;
+	border: 1px solid var(--color-border, rgba(255,255,255,0.07));
+	background: var(--color-bg-secondary, #1e2432);
+	overflow: hidden;
+	transition: border-color 0.15s;
+}
 
-	/* Client select */
-	:global(.prm-modal__select) {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		width: 100%;
-		padding: 8px 10px;
-		font-size: 13px;
-		background: var(--dbg2, #f5f5f5);
-		border: 1px solid var(--dbd, #e0e0e0);
-		border-radius: 8px;
-		cursor: pointer;
-		transition: border-color 0.15s;
-	}
-	:global(.prm-modal__select:hover) { border-color: var(--dt3, #888); }
-	:global(.prm-modal__select-value) { color: var(--dt, #111); }
-	:global(.prm-modal__select-placeholder) { color: var(--dt4, #bbb); }
-	:global(.prm-modal__select-chevron) { color: var(--dt3, #888); flex-shrink: 0; }
+.pj-card:hover {
+	border-color: var(--node-color, #6366f1);
+}
 
-	/* Error */
-	:global(.prm-modal__error) {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		padding: 8px 10px;
-		font-size: 12px;
-		color: var(--bos-status-error, #ef4444);
-		background: var(--bos-status-error-bg);
-		border-radius: 6px;
-	}
+/* ─── Card header ────────────────────────────────────────────────────────── */
+.pj-card__header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem 0.875rem;
+	background: color-mix(in srgb, var(--node-color, #6366f1) 12%, transparent);
+	border-bottom: 1px solid color-mix(in srgb, var(--node-color, #6366f1) 20%, transparent);
+}
 
-	/* Footer */
-	:global(.prm-modal__footer) {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: 8px;
-		padding: 12px 20px;
-		border-top: 1px solid var(--dbd, #e0e0e0);
-	}
-	:global(.prm-modal__btn) {
-		padding: 7px 16px;
-		font-size: 12px;
-		font-weight: 600;
-		border-radius: 6px;
-		border: none;
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	:global(.prm-modal__btn--ghost) {
-		background: transparent;
-		color: var(--dt2, #555);
-	}
-	:global(.prm-modal__btn--ghost:hover) {
-		background: var(--dbg2, #f5f5f5);
-		color: var(--dt, #111);
-	}
-	:global(.prm-modal__btn--primary) {
-		background: var(--bos-btn-cta-bg, #111);
-		color: var(--bos-btn-cta-text, #fff);
-		box-shadow: var(--bos-btn-cta-glow);
-		border: 1px solid var(--bos-btn-cta-border);
-	}
-	:global(.prm-modal__btn--primary:hover:not(:disabled)) {
-		box-shadow: var(--bos-btn-cta-glow-hover);
-		transform: translateY(-0.5px);
-	}
-	:global(.prm-modal__btn--primary:disabled) {
-		opacity: 0.3;
-		cursor: not-allowed;
-		box-shadow: none;
-		transform: none;
-	}
-	/* ── Skeleton loading ── */
-	.prm-skeleton-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 1rem;
-	}
-	.prm-skeleton-card {
-		background: var(--dbg, #fff);
-		border: 1px solid var(--dbd, #e5e7eb);
-		border-radius: 0.75rem;
-		padding: 1rem;
-		animation: prm-pulse 1.5s ease-in-out infinite;
-	}
-	.prm-skeleton-line {
-		height: 0.75rem;
-		background: var(--dbg3, #eee);
-		border-radius: 0.25rem;
-		margin-bottom: 0.5rem;
-	}
-	.prm-skeleton-line--title { width: 70%; height: 0.875rem; }
-	.prm-skeleton-line--short { width: 40%; }
-	.prm-skeleton-line--full { width: 100%; }
-	.prm-skeleton-line--tiny { width: 3rem; }
-	.prm-skeleton-footer {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin-top: 0.75rem;
-		padding-top: 0.75rem;
-		border-top: 1px solid var(--dbd2, #f3f4f6);
-	}
-	.prm-skeleton-dot {
-		width: 0.5rem;
-		height: 0.5rem;
-		border-radius: 50%;
-		background: var(--dbg3, #eee);
-	}
-	@keyframes prm-pulse {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.5; }
-	}
+.pj-card__icon {
+	width: 1rem;
+	height: 1rem;
+	flex-shrink: 0;
+	color: var(--node-color, #6366f1);
+}
 
-	/* ── Modal sticky footer ── */
-	:global(.prm-modal-sticky-footer) {
-		position: sticky;
-		bottom: 0;
-		background: var(--bos-modal-bg);
-		z-index: 2;
-	}
+.pj-card__name {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--color-text, #e2e8f0);
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
 
-	/* ── List view alternating rows ── */
-	.prm-ls-table-body > :global(tr:nth-child(even)) { background: var(--dbg2, #f9fafb); }
+.pj-card__file-count {
+	font-size: 0.6875rem;
+	color: var(--color-text-muted, #64748b);
+	white-space: nowrap;
+}
 
-	/* ── Empty state redesign ── */
-	.prm-empty-card {
-		border: 1px dashed var(--dbd, #e0e0e0);
-		border-radius: 0.75rem;
-		padding: 2rem 2.5rem;
-		max-width: 20rem;
-	}
-	.prm-empty-steps {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		margin-top: 1rem;
-	}
-	.prm-empty-step {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		text-align: left;
-	}
-	.prm-empty-step-num {
-		width: 1.25rem;
-		height: 1.25rem;
-		border-radius: 50%;
-		background: var(--dt, #111);
-		color: #fff;
-		font-size: 0.6875rem;
-		font-weight: 600;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-	}
+/* ─── File list ──────────────────────────────────────────────────────────── */
+.pj-file-list {
+	list-style: none;
+	margin: 0;
+	padding: 0.375rem 0;
+}
 
-	/* ── Sort buttons (list view) ── */
-	.prm-sort-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		background: none;
-		border: none;
-		cursor: pointer;
-		font: inherit;
-		color: inherit;
-		text-transform: inherit;
-		letter-spacing: inherit;
-	}
-	.prm-sort-btn:hover { color: var(--dt, #111); }
+.pj-file-list__item {
+	display: flex;
+}
 
-	/* ── Stat strip interactivity ── */
-	.prm-stat-item {
-		cursor: pointer;
-		border: none;
-		background: none;
-		transition: color 0.15s;
-	}
-	.prm-stat-item:hover { color: var(--dt, #111); }
-	.prm-stat-item--active {
-		font-weight: 700;
-		color: var(--dt, #111);
-		text-decoration: underline;
-		text-underline-offset: 3px;
-	}
+.pj-file-btn {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	width: 100%;
+	padding: 0.375rem 0.875rem;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	text-align: left;
+	transition: background 0.12s;
+}
 
+.pj-file-btn:hover {
+	background: color-mix(in srgb, var(--node-color, #6366f1) 8%, transparent);
+}
+
+.pj-file-icon {
+	width: 0.875rem;
+	height: 0.875rem;
+	flex-shrink: 0;
+	color: var(--color-text-muted, #64748b);
+}
+
+.pj-file-btn__name {
+	font-size: 0.8125rem;
+	color: var(--color-text-secondary, #94a3b8);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	transition: color 0.12s;
+}
+
+.pj-file-btn:hover .pj-file-btn__name {
+	color: var(--color-text, #e2e8f0);
+}
+
+/* ─── Empty state ────────────────────────────────────────────────────────── */
+.pj-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.75rem;
+	padding: 4rem 2rem;
+	color: var(--color-text-muted, #64748b);
+	text-align: center;
+}
+
+.pj-empty__icon {
+	width: 2.5rem;
+	height: 2.5rem;
+}
+
+/* ─── Side panel ─────────────────────────────────────────────────────────── */
+.pj-root--panel .pj-main {
+	border-right: 1px solid var(--color-border, rgba(255,255,255,0.07));
+}
+
+.pj-panel {
+	width: 480px;
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	background: var(--color-bg-secondary, #1e2432);
+	overflow: hidden;
+}
+
+.pj-panel__header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.875rem 1rem;
+	border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.07));
+	flex-shrink: 0;
+}
+
+.pj-panel__title {
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: var(--color-text, #e2e8f0);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex: 1;
+	min-width: 0;
+}
+
+.pj-panel__body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 1rem;
+}
+
+.pj-panel__loading {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	color: var(--color-text-muted, #64748b);
+	font-size: 0.875rem;
+	padding: 2rem 0;
+	justify-content: center;
+}
+
+.pj-panel__pre {
+	margin: 0;
+	font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+	font-size: 0.8125rem;
+	line-height: 1.6;
+	color: var(--color-text-secondary, #94a3b8);
+	white-space: pre-wrap;
+	word-break: break-word;
+}
 </style>

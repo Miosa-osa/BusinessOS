@@ -59,7 +59,7 @@
 </script>
 
 <button
-	class="dock-item style- {iconStyle}"
+	class="dock-item style-{iconStyle}"
 	class:has-indicator={item.isOpen}
 	style="transform: scale({scale}) translateY({translateY}px);"
 	{onmouseenter}

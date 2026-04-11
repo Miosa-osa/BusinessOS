@@ -238,6 +238,10 @@ function createOsaStore() {
       update((s) => ({ ...s, isExpanded: expanded }));
     },
 
+    clearError() {
+      update((s) => ({ ...s, error: null }));
+    },
+
     clearConversation() {
       update((s) => ({
         ...s,
@@ -329,9 +333,36 @@ function createOsaStore() {
           headers["X-CSRF-Token"] = csrfToken;
         }
 
+        // OptimalOS context injection: search knowledge base before sending
+        let enrichedContent = content;
+        try {
+          const searchRes = await fetch(`${getApiBaseUrl()}/optimal/search`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ query: content, limit: 3 }),
+          });
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            const results: Array<{ abstract?: string; path?: string }> =
+              searchData?.results ?? [];
+            if (results.length > 0) {
+              const contextLines = results
+                .map(
+                  (r, i) =>
+                    `- Result ${i + 1}: ${r.abstract ?? "(no abstract)"} (path: ${r.path ?? "unknown"})`,
+                )
+                .join("\n");
+              enrichedContent = `[OptimalOS Context]\n${contextLines}\n\nUser message: ${content}`;
+            }
+          }
+        } catch {
+          // Graceful degradation — proceed with original message if search fails
+        }
+
         // Build full request body matching ChatStreamManager pattern
         const requestBody: Record<string, unknown> = {
-          message: content,
+          message: enrichedContent,
           conversation_id: state.conversationId,
           workspace_id: workspaceId,
           focus_mode: FOCUS_MODE_MAP[state.activeMode] ?? "general",
@@ -480,6 +511,16 @@ function createOsaStore() {
           streamingContent: "",
           attachments: [],
         }));
+
+        // Fire-and-forget: ingest the original user message into OptimalOS
+        fetch(`${getApiBaseUrl()}/optimal/ingest`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ text: content, genre: "note" }),
+        }).catch(() => {
+          // Intentionally ignored — ingest is best-effort
+        });
       } catch (err) {
         // AbortError is expected when user cancels — don't show as error
         if (err instanceof DOMException && err.name === "AbortError") {

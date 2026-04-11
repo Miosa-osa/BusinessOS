@@ -21,6 +21,13 @@
 	// Focus mode state
 	let activeFocusMode = $state('general');
 
+	// Shell write function registry — keyed by paneId
+	const shellRefs = new Map<string, (data: string) => void>();
+
+	function handleShellReady(paneId: string, write: (data: string) => void) {
+		shellRefs.set(paneId, write);
+	}
+
 	// Sandbox analysis state
 	let showSandboxAnalysis = $state(false);
 
@@ -47,9 +54,14 @@
 	}
 
 	function handleProviderChange(provider: TerminalProvider) {
-		if (activeTabId) {
-			terminalStore.setTabProvider(activeTabId, provider);
+		// Find an existing tab with this provider — switch to it instead of overwriting
+		const existingTab = tabs.find(t => t.provider === provider);
+		if (existingTab) {
+			terminalStore.switchTab(existingTab.id);
+			return;
 		}
+		// No existing tab — create a new one for this provider
+		terminalStore.createTab(provider);
 	}
 
 	function handleConfigChange(partial: Partial<TerminalConfig>) {
@@ -89,10 +101,25 @@
 		showSandboxAnalysis = false;
 	}
 
+	const AGENT_COMMANDS: Record<string, string> = {
+		claude: 'claude --dangerously-skip-permissions\n',
+		codex: 'codex --full-auto\n',
+		ollama: 'ollama run\n',
+		osa: 'osa\n',
+	};
+
 	function handleLaunchAgent(agent: string) {
-		// TODO: Send agent command to active shell pane via WebSocket
-		// For now this is a placeholder - needs integration with TerminalShell
-		console.log('Launch agent:', agent);
+		const command = AGENT_COMMANDS[agent];
+		if (!command) return;
+
+		// Use the focused pane, or fall back to the first leaf in the active tab
+		const targetPaneId = focusedPaneId ?? getSplitTarget();
+		if (!targetPaneId) return;
+
+		const write = shellRefs.get(targetPaneId);
+		if (write) {
+			write(command);
+		}
 	}
 
 	// Keyboard shortcuts
@@ -209,6 +236,7 @@
 						{activeFocusMode}
 						onSessionCreated={handleSessionCreated}
 						onFocus={handlePaneFocus}
+						onShellReady={handleShellReady}
 					/>
 				</div>
 			{/if}

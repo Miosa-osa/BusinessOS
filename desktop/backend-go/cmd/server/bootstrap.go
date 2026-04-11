@@ -654,6 +654,24 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 	h := handlers.NewHandlers(app.pool, cfg, app.containerMgr, sessionCache, terminalPubSub, embeddingService, contextBuilder, tieredContextService, notificationService, osaClient, osaSyncService)
 	app.handlers = h
 
+	// OptimalOS bridge — reads filesystem nodes directly
+	if nodesRoot := os.Getenv("OPTIMAL_NODES_ROOT"); nodesRoot != "" {
+		osRoot := os.Getenv("OPTIMAL_OS_ROOT")
+		enginePath := os.Getenv("OPTIMAL_ENGINE_PATH")
+		// Derive the SQLite index path from osRoot if set; callers can override via
+		// OPTIMAL_DB_PATH. An empty string disables graph endpoints gracefully.
+		dbPath := os.Getenv("OPTIMAL_DB_PATH")
+		if dbPath == "" && osRoot != "" {
+			dbPath = filepath.Join(osRoot, ".system", "index.db")
+		}
+		h.SetOptimalHandler(nodesRoot, osRoot, enginePath, dbPath)
+		slog.Info("OptimalOS bridge initialized",
+			"nodes_root", nodesRoot,
+			"engine_path", enginePath,
+			"db_path", dbPath,
+		)
+	}
+
 	if webPushService != nil {
 		h.SetWebPushService(webPushService)
 	}

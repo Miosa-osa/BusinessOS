@@ -35,4 +35,5 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	h.registerIntegrationRoutes(api, auth, optionalAuth)
 	h.registerPlatformRoutes(api, auth)
 	h.registerOSARoutes(api, auth)
+	h.registerOptimalRoutes(api)
 }

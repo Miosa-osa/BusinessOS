@@ -45,6 +45,62 @@ function createWindowStore() {
   let cascadeOffset = 0;
   let initialized = false;
 
+  const OPEN_WINDOWS_KEY = "businessos_open_windows";
+
+  // Persist open windows to localStorage
+  function persistOpenWindows(windows: WindowState[]) {
+    if (typeof window === "undefined") return;
+    try {
+      const toSave = windows.map((w) => ({
+        module: w.module,
+        title: w.title,
+        x: w.x,
+        y: w.y,
+        width: w.width,
+        height: w.height,
+        minimized: w.minimized,
+        maximized: w.maximized,
+      }));
+      localStorage.setItem(OPEN_WINDOWS_KEY, JSON.stringify(toSave));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Restore open windows from localStorage
+  function restoreOpenWindows(): WindowState[] {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(OPEN_WINDOWS_KEY);
+      if (!raw) return [];
+      const saved = JSON.parse(raw) as Array<{
+        module: string;
+        title: string;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        minimized: boolean;
+        maximized: boolean;
+      }>;
+      return saved.map((w, i) => ({
+        id: `${w.module}-restored-${i}`,
+        module: w.module,
+        title: w.title,
+        x: w.x,
+        y: w.y,
+        width: w.width,
+        height: w.height,
+        minWidth: 400,
+        minHeight: 300,
+        minimized: w.minimized,
+        maximized: w.maximized,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
   // Compose domain-specific method groups
   const snapMethods = createSnapMethods(update);
   const iconMethods = createIconMethods(update, subscribe);
@@ -108,15 +164,22 @@ function createWindowStore() {
             ? saved.folders
             : state.folders;
 
-        // Filter out stale windows for unknown modules
-        const windows = state.windows.filter(
+        // Restore previously open windows from localStorage
+        const restoredWindows = restoreOpenWindows().filter(
           (w) =>
             knownModules.has(w.module) ||
             w.module.startsWith("folder-") ||
             w.module.startsWith("osa-app-"),
         );
+
+        // Merge: keep any already-open windows + add restored ones (no duplicates)
+        const existingModules = new Set(state.windows.map((w) => w.module));
+        const windows = [
+          ...state.windows,
+          ...restoredWindows.filter((w) => !existingModules.has(w.module)),
+        ];
         const windowIds = new Set(windows.map((w) => w.id));
-        const windowOrder = state.windowOrder.filter((id) => windowIds.has(id));
+        const windowOrder = windows.map((w) => w.id);
 
         const newState = {
           ...state,
@@ -197,17 +260,27 @@ function createWindowStore() {
 
         const defaults = moduleDefaults[module] || {
           title: module,
-          width: 800,
-          height: 600,
+          width: 1100,
+          height: 750,
           minWidth: 400,
           minHeight: 300,
         };
         const id = `${module}-${Date.now()}`;
 
-        // Calculate cascade position
-        const baseX = 100 + cascadeOffset * 30;
-        const baseY = 50 + cascadeOffset * 30;
-        cascadeOffset = (cascadeOffset + 1) % 10;
+        // Center the window on screen with slight cascade offset
+        const screenW =
+          typeof window !== "undefined" ? window.innerWidth : 1440;
+        const screenH =
+          typeof window !== "undefined" ? window.innerHeight : 900;
+        const baseX = Math.max(
+          40,
+          (screenW - defaults.width) / 2 + cascadeOffset * 25,
+        );
+        const baseY = Math.max(
+          30,
+          (screenH - defaults.height) / 2 + cascadeOffset * 25,
+        );
+        cascadeOffset = (cascadeOffset + 1) % 8;
 
         const newWindow: WindowState = {
           id,
@@ -227,9 +300,11 @@ function createWindowStore() {
         // Play window open sound
         soundStore.playSound("windowOpen");
 
+        const newWindows = [...state.windows, newWindow];
+        persistOpenWindows(newWindows);
         return {
           ...state,
-          windows: [...state.windows, newWindow],
+          windows: newWindows,
           focusedWindowId: id,
           windowOrder: [...state.windowOrder, id],
         };
@@ -242,6 +317,7 @@ function createWindowStore() {
       soundStore.playSound("windowClose");
       update((state) => {
         const newWindows = state.windows.filter((w) => w.id !== windowId);
+        persistOpenWindows(newWindows);
         const newOrder = state.windowOrder.filter((id) => id !== windowId);
         const newFocused =
           state.focusedWindowId === windowId

@@ -216,8 +216,11 @@
 		currentSnapZone = zone;
 	}
 
+	// In dev mode, skip auth redirect — the server-side layout returns a mock user
+	const isDevMode = browser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
 	$effect(() => {
-		if (!$session.isPending && !$session.data) {
+		if (!isDevMode && !$session.isPending && !$session.data) {
 			goto('/login');
 		}
 	});
