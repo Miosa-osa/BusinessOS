@@ -10,16 +10,18 @@
 	import { osaStore } from '$lib/stores/osa';
 	import { voiceTranscription } from '$lib/services/voiceTranscriptionService';
 
+	import type { Snippet } from 'svelte';
+
 	interface Props {
 		compact?: boolean;
 		placeholder?: string;
 		onfocus?: () => void;
 		onmetrics?: (metrics: { charCount: number; lineCount: number }) => void;
 		onattach?: () => void;
-		onAgentSend?: (text: string) => void;
+		actionBarCenter?: Snippet;
 	}
 
-	let { compact = false, placeholder, onfocus, onmetrics, onattach, onAgentSend }: Props = $props();
+	let { compact = false, placeholder, onfocus, onmetrics, onattach, actionBarCenter }: Props = $props();
 
 	let inputValue = $state('');
 	let inputElement: HTMLTextAreaElement | undefined = $state(undefined);
@@ -65,12 +67,7 @@
 
 		inputValue = '';
 		resetHeight();
-
-		if (onAgentSend) {
-			onAgentSend(trimmed);
-		} else {
-			await osaStore.sendMessage(trimmed);
-		}
+		await osaStore.sendMessage(trimmed);
 		inputElement?.focus();
 	}
 
@@ -452,6 +449,7 @@
 				<span class="transcribing-label">{pendingTranscript || 'Transcribing...'}</span>
 			</div>
 		{/if}
+		<!-- Textarea — full width, no buttons next to it -->
 		<textarea
 			bind:this={inputElement}
 			bind:value={inputValue}
@@ -468,109 +466,119 @@
 			onfocus={onfocus}
 		></textarea>
 
-		{#if onattach}
-			<!-- Attach file button -->
-			<button
-				class="chat-btn attach"
-				onclick={onattach}
-				disabled={isStreaming}
-				aria-label="Attach file"
-				title="Attach file"
-			>
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
-					<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-				</svg>
-			</button>
-		{/if}
+		<!-- Action bar below textarea: [mode] [attach] [model] [runtime] ... [mic] [send] -->
+		<div class="chat-action-bar">
+			{#if actionBarCenter}
+				<div class="chat-actions-center">
+					{@render actionBarCenter()}
+				</div>
+			{/if}
+			<div class="chat-actions-left">
+				{#if onattach}
+					<button
+						class="chat-btn attach"
+						onclick={onattach}
+						disabled={isStreaming}
+						aria-label="Attach file"
+						title="Attach file"
+					>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+							<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+						</svg>
+					</button>
+				{/if}
+			</div>
+			<div class="chat-actions-right">
+				<!-- Voice button -->
+				<button
+					class="chat-btn voice"
+					class:transcribing={isTranscribing}
+					onclick={toggleRecording}
+					disabled={isStreaming}
+					aria-label="Voice input (⌘D)"
+					title="Voice input (⌘D)"
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+						<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+						<path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+						<line x1="12" y1="19" x2="12" y2="23"/>
+						<line x1="8" y1="23" x2="16" y2="23"/>
+					</svg>
+				</button>
 
-		<!-- Voice button -->
-		<button
-			class="chat-btn voice"
-			class:transcribing={isTranscribing}
-			onclick={toggleRecording}
-			disabled={isStreaming}
-			aria-label="Voice input (⌘D)"
-			title="Voice input (⌘D)"
-		>
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
-				<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-				<path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-				<line x1="12" y1="19" x2="12" y2="23"/>
-				<line x1="8" y1="23" x2="16" y2="23"/>
-			</svg>
-		</button>
-
-		{#if isStreaming}
-			<button class="chat-btn stop" onclick={handleStop} aria-label="Stop streaming">
-				<svg viewBox="0 0 24 24" fill="currentColor" class="btn-icon">
-					<rect x="7" y="7" width="10" height="10" rx="2" />
-				</svg>
-			</button>
-		{:else}
-			<button
-				class="chat-btn send"
-				class:active={hasInput}
-				disabled={!hasInput}
-				onclick={handleSend}
-				aria-label="Send message"
-			>
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
-					<line x1="12" y1="19" x2="12" y2="5" />
-					<polyline points="5 12 12 5 19 12" />
-				</svg>
-			</button>
-		{/if}
-	</div>
-
-	{#if !compact}
-		<div class="toolbar-hints">
-			<span class="hint-key">⌘D</span>
-			<span class="hint-label">Voice</span>
-			<span class="hint-dot">·</span>
-			<span class="hint-key">Enter</span>
-			<span class="hint-label">Send</span>
+				{#if isStreaming}
+					<button class="chat-btn stop" onclick={handleStop} aria-label="Stop streaming">
+						<svg viewBox="0 0 24 24" fill="currentColor" class="btn-icon">
+							<rect x="7" y="7" width="10" height="10" rx="2" />
+						</svg>
+					</button>
+				{:else}
+					<button
+						class="chat-btn send"
+						class:active={hasInput}
+						disabled={!hasInput}
+						onclick={handleSend}
+						aria-label="Send message"
+					>
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+							<line x1="12" y1="19" x2="12" y2="5" />
+							<polyline points="5 12 12 5 19 12" />
+						</svg>
+					</button>
+				{/if}
+			</div>
 		</div>
-	{/if}
+	</div>
 {/if}
 
 <style>
 	.chat-input {
 		display: flex;
-		align-items: flex-end;
-		gap: 6px;
-		padding: 8px 8px 8px 14px;
-		background: rgba(0, 0, 0, 0.03);
-		border: 1px solid rgba(0, 0, 0, 0.06);
-		border-radius: 16px;
-		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+		flex-direction: column;
+		gap: 4px;
+		padding: 0;
+		background: transparent;
+		border: none;
+		border-radius: 0;
 	}
 
-	.chat-input:focus-within {
-		border-color: rgba(0, 122, 255, 0.3);
-		box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.08);
+	.chat-action-bar {
+		display: flex;
+		align-items: center;
+		padding: 0;
+		gap: 0;
 	}
 
-	:global(.dark) .chat-input {
-		background: rgba(255, 255, 255, 0.04);
-		border-color: rgba(255, 255, 255, 0.06);
+	.chat-actions-left {
+		display: flex;
+		align-items: center;
+		gap: 1px;
 	}
 
-	:global(.dark) .chat-input:focus-within {
-		border-color: rgba(10, 132, 255, 0.3);
-		box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.1);
+	.chat-actions-center {
+		display: flex;
+		align-items: center;
+		gap: 1px;
+	}
+
+	.chat-actions-right {
+		display: flex;
+		align-items: center;
+		gap: 1px;
+		margin-left: auto;
 	}
 
 	.chat-textarea {
-		flex: 1;
+		width: 100%;
 		resize: none;
 		border: none;
 		background: transparent;
 		outline: none;
-		font-size: 13px;
+		font-size: 14px;
 		line-height: 1.5;
 		color: #1c1c1e;
 		min-width: 0;
-		padding: 2px 0;
+		padding: 4px 2px;
 	}
 
 	.chat-textarea::placeholder {
@@ -596,8 +604,8 @@
 
 	/* ===== SEND / STOP / VOICE BUTTON ===== */
 	.chat-btn {
-		width: 30px;
-		height: 30px;
+		width: 28px;
+		height: 28px;
 		border-radius: 50%;
 		border: none;
 		display: flex;

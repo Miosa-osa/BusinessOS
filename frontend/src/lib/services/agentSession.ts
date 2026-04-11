@@ -13,18 +13,22 @@ import type { AgentRuntime } from "$lib/stores/osa";
 /** CLI agent runtimes and their launch commands */
 type CliRuntime = Exclude<AgentRuntime, "osa">;
 
+const BOS_DIR = "~/Desktop/OptimalOS/businessos";
+
 const AGENT_COMMANDS: Record<CliRuntime, string> = {
-  claude: "claude --dangerously-skip-permissions",
-  codex: "codex --full-auto",
+  claude: `cd ${BOS_DIR} && claude --dangerously-skip-permissions`,
+  codex: `cd ${BOS_DIR} && codex --full-auto`,
   ollama: "ollama run",
-  hermes: "hermes",
+  hermes: `cd ${BOS_DIR} && hermes`,
 };
 
-// ANSI escape code stripper
+// ANSI escape code stripper — preserves newlines and carriage returns
 const ANSI_RE = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
+// Control chars to strip (except \n, \r, \t)
+const CTRL_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F]/g;
 
 function stripAnsi(text: string): string {
-  return text.replace(ANSI_RE, "");
+  return text.replace(ANSI_RE, "").replace(CTRL_RE, "");
 }
 
 export interface AgentSessionCallbacks {
@@ -67,6 +71,20 @@ export function createAgentSession(
 
     outputBuffer += text;
 
+    // Auto-answer trust prompts (Claude Code first-run safety check)
+    const lower = outputBuffer.toLowerCase();
+    if (
+      !agentReady &&
+      (lower.includes("trust this folder") ||
+        lower.includes("i trust this folder") ||
+        lower.includes("enter to confirm"))
+    ) {
+      // Send "1" + Enter to select "Yes, I trust this folder"
+      termService.sendInput("1\n");
+      outputBuffer = "";
+      return; // Don't forward the trust prompt to the user
+    }
+
     // After agent launch, wait for initial output burst to settle, then mark ready
     if (agentLaunched && readyTimeout) {
       clearTimeout(readyTimeout);
@@ -76,7 +94,7 @@ export function createAgentSession(
         agentReady = true;
         callbacks.onReady();
         readyTimeout = null;
-      }, 1500);
+      }, 2000);
     }
 
     // Forward cleaned output

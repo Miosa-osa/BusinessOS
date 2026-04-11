@@ -93,6 +93,13 @@ func (c *Config) IsProduction() bool {
 	return c.Environment == "production"
 }
 
+// IsCloudDeployment returns true when BusinessOS is running inside a MIOSA
+// Firecracker VM (DEPLOYMENT_MODE=cloud). In cloud mode the MIOSA JWT auth
+// middleware is active and tenant-scoped behaviour applies.
+func (c *Config) IsCloudDeployment() bool {
+	return DeploymentMode(c.DeploymentMode) == DeploymentCloud
+}
+
 // LocalModelsAllowed returns true if local models can be used.
 // In production, this respects the explicit EnableLocalModels flag.
 // In development, local models are always allowed.

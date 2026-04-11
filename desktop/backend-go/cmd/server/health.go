@@ -2,8 +2,10 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rhl/businessos-backend/internal/config"
 	redisClient "github.com/rhl/businessos-backend/internal/redis"
 )
 
@@ -33,10 +35,21 @@ func newRootHandler(instanceID string) gin.HandlerFunc {
 	}
 }
 
-// newHealthHandler returns the GET /health liveness handler.
-func newHealthHandler() gin.HandlerFunc {
+// newHealthHandler returns the GET /health handler.
+// In cloud deployment mode it includes tenant, domain, and uptime information.
+func newHealthHandler(cfg *config.Config, startTime time.Time) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "healthy"})
+		resp := gin.H{
+			"status":          "healthy",
+			"version":         "1.0.0",
+			"deployment_mode": cfg.DeploymentMode,
+			"uptime_seconds":  int64(time.Since(startTime).Seconds()),
+		}
+		if cfg.IsCloudDeployment() {
+			resp["tenant_id"] = cfg.MIOSATenantID
+			resp["domain"] = cfg.CloudDomain
+		}
+		c.JSON(http.StatusOK, resp)
 	}
 }
 

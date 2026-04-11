@@ -81,7 +81,7 @@ func registerRoutes(app *AppServices, skillsHandler *handlers.SkillsHandler, osa
 	}
 
 	router.GET("/", newRootHandler(app.instanceID))
-	router.GET("/health", newHealthHandler())
+	router.GET("/health", newHealthHandler(cfg, app.startTime))
 	router.GET("/ready", newReadinessHandler(deps, cfg.DatabaseRequired))
 	router.GET("/health/detailed", newDetailedHealthHandler(deps, cfg.DatabaseRequired))
 
@@ -136,6 +136,17 @@ func registerRoutes(app *AppServices, skillsHandler *handlers.SkillsHandler, osa
 		app.jobsHandler.RegisterRoutes(api)
 		app.jobsHandler.RegisterRoutes(apiv1)
 	}
+
+	// ── Computer + Billing endpoints ─────────────────────────────────────────
+	computerHandler := handlers.NewComputerHandler(cfg)
+	billingHandler := handlers.NewBillingHandler(cfg)
+	registerComputerRoutes(api, computerHandler, billingHandler)
+	registerComputerRoutes(apiv1, computerHandler, billingHandler)
+
+	// ── Cloud sync endpoints (push/pull) ──────────────────────────────────────
+	cloudSyncHandler := handlers.NewCloudSyncHandler()
+	registerSyncRoutes(api, cloudSyncHandler)
+	registerSyncRoutes(apiv1, cloudSyncHandler)
 
 	// ── Public OSA health endpoint (no auth required) ─────────────────────────
 	if osaClient != nil {

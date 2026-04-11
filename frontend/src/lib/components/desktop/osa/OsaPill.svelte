@@ -7,10 +7,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { osaStore } from '$lib/stores/osa';
-	import type { AgentRuntime } from '$lib/stores/osa';
 	import { initCSRF } from '$lib/api/base';
 	import type { AttachedFile } from '$lib/stores/chat/types';
-	import { createAgentSession, type AgentSession } from '$lib/services/agentSession';
 	import ModeSelector from './ModeSelector.svelte';
 	import ModelSelector from './ModelSelector.svelte';
 	import AgentRuntimeSelector from './AgentRuntimeSelector.svelte';
@@ -45,37 +43,19 @@
 	let activeModel = $derived($osaStore.activeModel);
 	let activeRuntime = $derived($osaStore.activeRuntime);
 
-	let agentSession: AgentSession | null = null;
-
+	// Runtime auto-configures the model when switched
+	// All runtimes use the same API chat path — the runtime selector just sets the model
 	$effect(() => {
 		const runtime = activeRuntime;
-		if (runtime === 'osa') {
-			return; // No agent session needed — cleanup from prior run handles disconnect
+		if (runtime === 'claude') {
+			osaStore.setModel('anthropic', 'claude-sonnet-4-20250514');
+		} else if (runtime === 'codex') {
+			osaStore.setModel('openai', 'gpt-4o');
+		} else if (runtime === 'hermes') {
+			osaStore.setModel('ollama', 'hermes3:latest');
 		}
-
-		const session = createAgentSession(runtime as Exclude<AgentRuntime, 'osa'>, {
-			onOutput: (text) => osaStore.appendTerminalChunk(text),
-			onReady: () => {},
-			onDisconnect: () => osaStore.finalizeTerminalStream(),
-			onError: (err) => osaStore.appendTerminalChunk(`\n[Error: ${err}]\n`),
-		});
-		session.connect();
-		agentSession = session;
-
-		// Cleanup: Svelte runs this before the next $effect re-execution and on unmount
-		return () => {
-			session.disconnect();
-			agentSession = null;
-		};
+		// 'osa' and 'ollama' keep whatever model the user already selected
 	});
-
-	function sendToAgent(text: string) {
-		if (!agentSession?.isConnected()) {
-			return;
-		}
-		osaStore.addUserMessage(text);
-		agentSession.sendMessage(text);
-	}
 
 	let chatPlaceholder = $derived.by(() => {
 		const runtime = $osaStore.activeRuntime;
@@ -92,8 +72,8 @@
 
 	let attachments = $derived($osaStore.attachments);
 	let widthTier = $derived.by(() => {
-		if (attachments.length > 0 || charCount > 120 || lineCount >= 3) return 3;
-		if (charCount > 40 || lineCount >= 2) return 2;
+		if (attachments.length > 0 || charCount > 80 || lineCount >= 3) return 3;
+		if (charCount > 20 || lineCount >= 2) return 2;
 		return 1;
 	});
 
@@ -246,7 +226,7 @@
 	ondragleave={handleDragLeave}
 >
 	{#if isExpanded && hasContent}
-		<!-- Conversation card — above pill, grows upward from dock area -->
+		<!-- Conversation card — topmost, grows upward -->
 		<div class="osa-conversation">
 			{#if error}
 				<button class="osa-error" role="alert" onclick={() => osaStore.clearError()}>
@@ -258,7 +238,7 @@
 		</div>
 	{/if}
 
-	<!-- Input pill — always visible, sits just above dock -->
+	<!-- Input pill — Foundation ChatInput pattern -->
 	<div class="osa-input-pill" class:expanded={isExpanded} class:multiline={widthTier >= 2} class:has-attachments={attachments.length > 0}>
 		{#if isDragging}
 			<div class="drop-overlay" role="presentation">
@@ -268,9 +248,6 @@
 					<line x1="12" y1="15" x2="12" y2="3"/>
 				</svg>
 				<span class="drop-text">Drop files here</span>
-				{#if attachments.length > 0}
-					<span class="drop-count">{attachments.length}/{MAX_ATTACHMENTS}</span>
-				{/if}
 			</div>
 		{/if}
 
@@ -278,56 +255,23 @@
 			<div class="osa-attachments">
 				{#each attachments as file (file.id)}
 					{@const category = getFileCategory(file.type)}
-					<button
-						type="button"
-						class="attachment-chip"
-						class:has-preview={category === 'image' && previews.get(file.id)}
-						onclick={() => handleChipClick(file)}
-					>
-						{#if category === 'image' && previews.get(file.id)}
-							<img src={previews.get(file.id)} alt="" class="chip-preview" />
-						{:else if category === 'pdf'}
-							<span class="chip-type-badge pdf">PDF</span>
-						{:else if category === 'code'}
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chip-icon">
-								<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-							</svg>
-						{:else}
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chip-icon">
-								<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-								<polyline points="14 2 14 8 20 8"/>
-							</svg>
-						{/if}
+					<button type="button" class="attachment-chip" onclick={() => handleChipClick(file)}>
 						<span class="chip-name">{file.name}</span>
 						<span class="chip-size">{formatFileSize(file.size)}</span>
-						<span
-							class="chip-remove"
-							role="button"
-							tabindex="-1"
-							aria-label="Remove {file.name}"
-							onclick={(e) => { e.stopPropagation(); handleRemoveAttachment(file.id); }}
-							onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Enter') handleRemoveAttachment(file.id); }}
-						>
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="chip-remove-icon">
-								<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-							</svg>
-						</span>
+						<span class="chip-remove" role="button" tabindex="-1" onclick={(e) => { e.stopPropagation(); handleRemoveAttachment(file.id); }}>x</span>
 					</button>
 				{/each}
-				{#if attachments.length >= MAX_ATTACHMENTS}
-					<span class="attachment-limit">Max {MAX_ATTACHMENTS} files</span>
-				{/if}
 			</div>
 		{/if}
 
-		<div class="pill-input-row">
-			<ModeSelector compact />
-			<ModelSelector />
-			<AgentRuntimeSelector />
-			<div class="osa-input-wrapper">
-				<ChatInput bind:this={chatInputRef} placeholder={chatPlaceholder} onfocus={handleInputFocus} onmetrics={handleMetrics} onattach={openFilePicker} onAgentSend={activeRuntime !== 'osa' ? sendToAgent : undefined} />
-			</div>
-		</div>
+		<!-- Textarea + unified action bar -->
+		<ChatInput bind:this={chatInputRef} placeholder={chatPlaceholder} onfocus={handleInputFocus} onmetrics={handleMetrics} onattach={openFilePicker}>
+			{#snippet actionBarCenter()}
+				<ModeSelector compact />
+				<ModelSelector compact />
+				<AgentRuntimeSelector compact />
+			{/snippet}
+		</ChatInput>
 	</div>
 
 	<!-- File preview overlay — appears above pill when a chip is clicked -->
@@ -374,7 +318,7 @@
 		flex-direction: column;
 		align-items: center;
 		width: 100%;
-		max-width: 480px;
+		max-width: 360px;
 		margin: 0 auto;
 		pointer-events: auto;
 		gap: 8px;
@@ -383,7 +327,7 @@
 	}
 
 	.osa-pill[aria-expanded='true'] {
-		max-width: 540px;
+		max-width: 440px;
 	}
 
 	/* ===== CONVERSATION CARD (above input) ===== */
@@ -454,14 +398,14 @@
 		position: relative;
 		display: flex;
 		flex-direction: column;
-		gap: 0;
+		gap: 2px;
 		width: 100%;
-		padding: 5px 5px 5px 4px;
+		padding: 8px 10px 6px;
 		background: rgba(255, 255, 255, 0.82);
 		backdrop-filter: blur(28px) saturate(1.5);
 		-webkit-backdrop-filter: blur(28px) saturate(1.5);
 		border: 1px solid rgba(255, 255, 255, 0.6);
-		border-radius: 999px;
+		border-radius: 18px;
 		box-shadow:
 			0 4px 20px rgba(0, 0, 0, 0.06),
 			0 1px 4px rgba(0, 0, 0, 0.03),
@@ -470,25 +414,10 @@
 		overflow: visible;
 	}
 
-	/* When no attachments — single-row pill, keep children horizontal */
-	.osa-input-pill:not(.has-attachments) {
-		flex-direction: row;
-		align-items: center;
-	}
-
-	/* When attachments present — column layout: chips on top, input row below */
 	.osa-input-pill.has-attachments {
-		border-radius: 20px;
-		padding: 8px 6px 5px 6px;
 		gap: 6px;
 	}
 
-	.pill-input-row {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		width: 100%;
-	}
 
 	.osa-input-pill:hover:not(.expanded) {
 		box-shadow:
@@ -497,10 +426,9 @@
 			inset 0 1px 0 rgba(255, 255, 255, 0.8);
 	}
 
-	/* Subtle reactive expansion when focused — stays pill shape */
+	/* Subtle reactive expansion when focused */
 	.osa-input-pill.expanded:not(.has-attachments) {
-		border-radius: 999px;
-		padding: 6px 6px 6px 5px;
+		border-radius: 18px;
 		border-color: rgba(0, 122, 255, 0.25);
 		box-shadow:
 			0 6px 28px rgba(0, 0, 0, 0.1),
@@ -597,13 +525,14 @@
 	}
 
 	/* ===== CHAT INPUT inside pill ===== */
-	/* Strip ChatInput container — pill provides the chrome */
 	.osa-input-pill :global(.chat-input) {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
 		background: transparent;
 		border: none;
-		padding: 2px 2px 2px 4px;
+		padding: 0;
 		border-radius: 0;
-		align-items: center;
 	}
 
 	.osa-input-pill :global(.chat-input:focus-within) {
@@ -611,11 +540,21 @@
 		box-shadow: none;
 	}
 
-	/* Textarea can grow inside pill */
+	/* Textarea — full width, grows vertically */
 	.osa-input-pill :global(.chat-textarea) {
-		max-height: 120px;
+		width: 100%;
+		max-height: 160px;
 		overflow-y: auto;
 		font-size: 14px;
+	}
+
+	/* Action bar — attach left, voice + send right */
+	.osa-input-pill :global(.chat-action-bar) {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		padding: 0;
 	}
 
 	/* ===== BUTTONS inside pill — bigger & more visible ===== */
@@ -696,21 +635,15 @@
 		min-width: 0;
 	}
 
-	/* ===== WIDTH TIERS ===== */
-	.osa-pill.tier-2 {
-		max-width: 600px;
-	}
-
+	/* ===== WIDTH TIERS — expand as user types more ===== */
+	.osa-pill.tier-2,
 	.osa-pill.tier-2[aria-expanded='true'] {
-		max-width: 620px;
+		max-width: 560px;
 	}
 
-	.osa-pill.tier-3 {
-		max-width: 680px;
-	}
-
+	.osa-pill.tier-3,
 	.osa-pill.tier-3[aria-expanded='true'] {
-		max-width: 700px;
+		max-width: 720px;
 	}
 
 	/* ===== MULTILINE PILL SHAPE ===== */

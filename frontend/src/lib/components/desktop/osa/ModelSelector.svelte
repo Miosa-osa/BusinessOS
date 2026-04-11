@@ -10,9 +10,10 @@
 
 	interface Props {
 		class?: string;
+		compact?: boolean;
 	}
 
-	let { class: className = '' }: Props = $props();
+	let { class: className = '', compact = false }: Props = $props();
 
 	// ─── State ───────────────────────────────────────────────────────────────────
 
@@ -198,18 +199,20 @@
 			<line x1="20" y1="9" x2="23" y2="9" /><line x1="20" y1="15" x2="23" y2="15" />
 			<line x1="1" y1="9" x2="4" y2="9" /><line x1="1" y1="15" x2="4" y2="15" />
 		</svg>
-		<span class="model-label">{displayLabel}</span>
-		<svg
-			class="model-chevron"
-			class:open={isOpen}
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2.5"
-			aria-hidden="true"
-		>
-			<polyline points="6 9 12 15 18 9" />
-		</svg>
+		{#if !compact}
+			<span class="model-label">{displayLabel}</span>
+			<svg
+				class="model-chevron"
+				class:open={isOpen}
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2.5"
+				aria-hidden="true"
+			>
+				<polyline points="6 9 12 15 18 9" />
+			</svg>
+		{/if}
 	</button>
 
 	<!-- Dropdown — opens upward -->

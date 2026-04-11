@@ -2,6 +2,16 @@ package config
 
 import "github.com/rhl/businessos-backend/internal/integrations/osa"
 
+// DeploymentMode determines how BusinessOS was launched.
+type DeploymentMode string
+
+const (
+	// DeploymentLocal is the default — Electron desktop app.
+	DeploymentLocal DeploymentMode = "local"
+	// DeploymentCloud runs inside a MIOSA Firecracker VM.
+	DeploymentCloud DeploymentMode = "cloud"
+)
+
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
 	// Environment (development, production)
@@ -189,6 +199,15 @@ type Config struct {
 	OSAMode       string `mapstructure:"OSA_MODE"`        // "local" | "cloud" (default: "local")
 	MIOSAAPIKey   string `mapstructure:"MIOSA_API_KEY"`   // MIOSA Cloud API key
 	MIOSACloudURL string `mapstructure:"MIOSA_CLOUD_URL"` // Override cloud endpoint (default: https://api.miosa.ai)
+
+	// Cloud Deployment (MIOSA Firecracker VM)
+	// DeploymentMode selects how this instance was launched: "local" (Electron desktop,
+	// default) or "cloud" (MIOSA Firecracker VM). In cloud mode the MIOSA JWT auth
+	// middleware is active and the health endpoint exposes tenant/domain information.
+	DeploymentMode    string `mapstructure:"DEPLOYMENT_MODE"`      // "local" | "cloud" (default: "local")
+	MIOSATenantID     string `mapstructure:"MIOSA_TENANT_ID"`      // UUID of the MIOSA tenant (cloud only)
+	MIOSAJWTPublicKey string `mapstructure:"MIOSA_JWT_PUBLIC_KEY"` // Base64-encoded RS256 public key (cloud only)
+	CloudDomain       string `mapstructure:"CLOUD_DOMAIN"`         // Subdomain for this instance, e.g. acme-corp.bos.miosa.ai (cloud only)
 }
 
 // AppConfig is the global singleton set by Load().

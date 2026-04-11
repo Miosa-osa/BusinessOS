@@ -42,6 +42,7 @@ type AppServices struct {
 	// Core
 	cfg        *config.Config
 	instanceID string
+	startTime  time.Time
 	router     *gin.Engine
 	handlers   *handlers.Handlers
 
@@ -85,7 +86,7 @@ type AppServices struct {
 // Returns (nil, error) only for fatal misconfigurations; non-fatal failures
 // are logged and continue with degraded state.
 func bootstrap(ctx context.Context) (*AppServices, error) {
-	app := &AppServices{}
+	app := &AppServices{startTime: time.Now()}
 
 	// ===== CONFIG =====
 	cfg, err := config.Load()

@@ -47,6 +47,61 @@ export interface RhythmDay {
   content: string;
 }
 
+export interface TeamMember {
+  name: string;
+  role: string;
+  nodes: string[];
+  channel: string;
+  status: "active" | "inactive" | "exited";
+}
+
+export interface RevenueStream {
+  name: string;
+  model: string;
+  amount: number;
+  target: number;
+  node: string;
+}
+
+export interface RevenueData {
+  streams: RevenueStream[];
+  total_mrr: number;
+}
+
+export interface ProjectEntry {
+  name: string;
+  node: string;
+  path: string;
+  files: string[];
+}
+
+export interface WeeklyPlan {
+  week_of: string;
+  content: string;
+  non_negotiables: string[];
+}
+
+export interface DashboardData {
+  nodes: { slug: string; name: string; type: string; signal_count: number }[];
+  command_center: {
+    content: string;
+    blockers: string[];
+    non_negotiables: string[];
+  };
+  revenue: { total_mrr: number; stream_count: number };
+  stats: {
+    context_count: number;
+    signal_count: number;
+    entity_count: number;
+    edge_count: number;
+  };
+}
+
+export interface HealthCheck {
+  status: "healthy" | "degraded" | "error";
+  checks: { name: string; status: string; message: string }[];
+}
+
 // ─── Store State ─────────────────────────────────────────────────────────────
 
 interface OptimalState {
@@ -59,6 +114,12 @@ interface OptimalState {
   selectedFile: SelectedFile | null;
   loading: boolean;
   error: string | null;
+  team: TeamMember[];
+  revenue: RevenueData | null;
+  projects: ProjectEntry[];
+  weeklyPlan: WeeklyPlan | null;
+  dashboard: DashboardData | null;
+  health: HealthCheck | null;
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -74,6 +135,12 @@ function createOptimalStore() {
     selectedFile: null,
     loading: false,
     error: null,
+    team: [],
+    revenue: null,
+    projects: [],
+    weeklyPlan: null,
+    dashboard: null,
+    health: null,
   };
 
   const { subscribe, update } = writable<OptimalState>(initialState);
@@ -334,6 +401,161 @@ function createOptimalStore() {
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to load file";
+        update((s) => ({ ...s, loading: false, error: message }));
+      }
+    },
+
+    /** Load dashboard summary — GET /api/optimal/dashboard (optional, silently skips on 404) */
+    async loadDashboard(): Promise<void> {
+      if (!browser) return;
+
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/optimal/dashboard`, {
+          method: "GET",
+          headers: buildHeaders(),
+          credentials: "include",
+          signal: AbortSignal.timeout(8000),
+        });
+
+        // 404 = backend endpoint not yet deployed; silently skip
+        if (res.status === 404) return;
+        if (!res.ok) return; // other errors are also non-fatal for this optional section
+
+        const data: DashboardData = await res.json();
+        update((s) => ({ ...s, dashboard: data }));
+      } catch {
+        // Dashboard data is optional — silently ignore network errors
+      }
+    },
+
+    /** Load team members — GET /api/optimal/team */
+    async loadTeam(): Promise<void> {
+      if (!browser) return;
+
+      update((s) => ({ ...s, loading: true, error: null }));
+
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/optimal/team`, {
+          method: "GET",
+          headers: buildHeaders(),
+          credentials: "include",
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data: { members?: TeamMember[] } = await res.json();
+        const team = Array.isArray(data.members) ? data.members : [];
+
+        update((s) => ({ ...s, team, loading: false }));
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load team";
+        update((s) => ({ ...s, loading: false, error: message }));
+      }
+    },
+
+    /** Load revenue data — GET /api/optimal/revenue */
+    async loadRevenue(): Promise<void> {
+      if (!browser) return;
+
+      update((s) => ({ ...s, loading: true, error: null }));
+
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/optimal/revenue`, {
+          method: "GET",
+          headers: buildHeaders(),
+          credentials: "include",
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data: RevenueData = await res.json();
+
+        update((s) => ({ ...s, revenue: data, loading: false }));
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load revenue";
+        update((s) => ({ ...s, loading: false, error: message }));
+      }
+    },
+
+    /** Load projects — GET /api/optimal/projects */
+    async loadProjects(): Promise<void> {
+      if (!browser) return;
+
+      update((s) => ({ ...s, loading: true, error: null }));
+
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/optimal/projects`, {
+          method: "GET",
+          headers: buildHeaders(),
+          credentials: "include",
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data: { projects?: ProjectEntry[] } = await res.json();
+        const projects = Array.isArray(data.projects) ? data.projects : [];
+
+        update((s) => ({ ...s, projects, loading: false }));
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load projects";
+        update((s) => ({ ...s, loading: false, error: message }));
+      }
+    },
+
+    /** Load weekly rhythm plan — GET /api/optimal/rhythm/weekly */
+    async loadWeeklyRhythm(): Promise<void> {
+      if (!browser) return;
+
+      update((s) => ({ ...s, loading: true, error: null }));
+
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/optimal/rhythm/weekly`, {
+          method: "GET",
+          headers: buildHeaders(),
+          credentials: "include",
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const weeklyPlan: WeeklyPlan = await res.json();
+
+        update((s) => ({ ...s, weeklyPlan, loading: false }));
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load weekly rhythm";
+        update((s) => ({ ...s, loading: false, error: message }));
+      }
+    },
+
+    /** Load engine health check — GET /api/optimal/health */
+    async loadHealth(): Promise<void> {
+      if (!browser) return;
+
+      update((s) => ({ ...s, loading: true, error: null }));
+
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/optimal/health`, {
+          method: "GET",
+          headers: buildHeaders(),
+          credentials: "include",
+          signal: AbortSignal.timeout(5000),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const health: HealthCheck = await res.json();
+
+        update((s) => ({ ...s, health, loading: false }));
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load health";
         update((s) => ({ ...s, loading: false, error: message }));
       }
     },

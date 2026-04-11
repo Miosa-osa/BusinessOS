@@ -56,6 +56,14 @@ func RegisterOptimalRoutes(api *gin.RouterGroup, h *OptimalHandler) {
 		g.GET("/graph", h.GetGraph)
 		g.GET("/graph/hubs", h.GetGraphHubs)
 		g.GET("/graph/search", h.GraphSearch)
+
+		// Aggregated data endpoints.
+		g.GET("/dashboard", h.GetDashboard)
+		g.GET("/team", h.GetTeam)
+		g.GET("/revenue", h.GetRevenue)
+		g.GET("/projects", h.GetProjects)
+		g.GET("/rhythm/weekly", h.GetWeeklyRhythm)
+		g.GET("/health", h.GetHealth)
 	}
 }
 
@@ -368,6 +376,110 @@ func (h *OptimalHandler) GraphSearch(c *gin.Context) {
 		results = []optimal.SearchResult{}
 	}
 	c.JSON(http.StatusOK, gin.H{"results": results, "count": len(results)})
+}
+
+// ── aggregated data handlers ──────────────────────────────────────────────────
+
+// GetDashboard handles GET /api/optimal/dashboard
+// Returns aggregated counts and command-center content for the UI home screen.
+func (h *OptimalHandler) GetDashboard(c *gin.Context) {
+	data, err := optimal.GetDashboard(h.nodesRoot, h.osRoot, h.dbPath)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: get dashboard failed",
+			"nodes_root", h.nodesRoot,
+			"error", err,
+		)
+		utils.RespondInternalError(c, slog.Default(), "get optimal dashboard", err)
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+// GetTeam handles GET /api/optimal/team
+// Returns the team roster parsed from nodes/10-team/context.md.
+func (h *OptimalHandler) GetTeam(c *gin.Context) {
+	members, err := optimal.GetTeamRoster(h.nodesRoot)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: get team failed",
+			"nodes_root", h.nodesRoot,
+			"error", err,
+		)
+		utils.RespondInternalError(c, slog.Default(), "get optimal team", err)
+		return
+	}
+	if members == nil {
+		members = []optimal.TeamMember{}
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"members": members,
+		"count":   len(members),
+	})
+}
+
+// GetRevenue handles GET /api/optimal/revenue
+// Returns revenue streams and total MRR parsed from nodes/11-money-revenue/context.md.
+func (h *OptimalHandler) GetRevenue(c *gin.Context) {
+	data, err := optimal.GetRevenueStreams(h.nodesRoot)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: get revenue failed",
+			"nodes_root", h.nodesRoot,
+			"error", err,
+		)
+		utils.RespondInternalError(c, slog.Default(), "get optimal revenue", err)
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+// GetProjects handles GET /api/optimal/projects
+// Returns a unified list of projects scanned from all nodes/*/projects/ dirs.
+func (h *OptimalHandler) GetProjects(c *gin.Context) {
+	projects, err := optimal.GetAllProjects(h.nodesRoot)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: get projects failed",
+			"nodes_root", h.nodesRoot,
+			"error", err,
+		)
+		utils.RespondInternalError(c, slog.Default(), "get optimal projects", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"projects": projects,
+		"count":    len(projects),
+	})
+}
+
+// GetWeeklyRhythm handles GET /api/optimal/rhythm/weekly
+// Returns the most recent weekly plan from rhythm/weekly/week-of-*.md.
+func (h *OptimalHandler) GetWeeklyRhythm(c *gin.Context) {
+	plan, err := optimal.GetWeeklyRhythm(h.osRoot)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: get weekly rhythm failed",
+			"os_root", h.osRoot,
+			"error", err,
+		)
+		utils.RespondInternalError(c, slog.Default(), "get optimal weekly rhythm", err)
+		return
+	}
+	c.JSON(http.StatusOK, plan)
+}
+
+// GetHealth handles GET /api/optimal/health
+// Returns a diagnostic health check across the filesystem and SQLite index.
+func (h *OptimalHandler) GetHealth(c *gin.Context) {
+	status, err := optimal.GetHealthCheck(h.nodesRoot, h.osRoot, h.dbPath)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: health check failed",
+			"error", err,
+		)
+		utils.RespondInternalError(c, slog.Default(), "get optimal health", err)
+		return
+	}
+	httpStatus := http.StatusOK
+	if status.Status == "error" {
+		httpStatus = http.StatusServiceUnavailable
+	}
+	c.JSON(httpStatus, status)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

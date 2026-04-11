@@ -25,8 +25,25 @@
 		Download,
 		CircleCheck,
 		CircleDot,
-		Circle
+		Circle,
+		GripVertical,
+		ChevronRight,
+		LayoutDashboard,
+		CheckSquare,
+		FolderKanban,
+		Users,
+		Users2,
+		Building2,
+		Table,
+		FileText,
+		Inbox,
+		Network,
+		Bot,
+		Terminal,
+		Code2,
+		CalendarDays
 	} from 'lucide-svelte';
+	import { getAllBuiltinModules, type BuiltinModuleConfig } from '$lib/config/builtinModuleConfigs';
 
 	// ── Types ──────────────────────────────────────────────────────────────
 
@@ -63,6 +80,127 @@
 	let isInstalling = $state(false);
 	let installError = $state<string | null>(null);
 	let installStep = $state<InstallStep | null>(null);
+
+	// ── Built-in modules ──────────────────────────────────────────────────────
+
+	const builtinModules: BuiltinModuleConfig[] = getAllBuiltinModules();
+
+	// ── Module ordering (drag-and-drop) ────────────────────────────────────────
+
+	const ORDER_KEY = 'bos_module_order';
+
+	// Combined list of all module slugs for ordering purposes.
+	// Built-ins always precede custom installations in the default order.
+	let moduleOrder = $state<string[]>((() => {
+		try {
+			const stored = localStorage.getItem(ORDER_KEY);
+			return stored ? (JSON.parse(stored) as string[]) : [];
+		} catch {
+			return [];
+		}
+	})());
+
+	let dragIndex = $state<number | null>(null);
+	let dropIndex = $state<number | null>(null);
+
+	function saveOrder(slugs: string[]) {
+		try {
+			localStorage.setItem(ORDER_KEY, JSON.stringify(slugs));
+		} catch {
+			// localStorage unavailable — silently skip
+		}
+	}
+
+	// Returns a stable ordered slug list for the combined view.
+	// Slugs not yet in storage are appended in their natural order.
+	function getOrderedSlugs(
+		builtins: BuiltinModuleConfig[],
+		customs: InstalledModuleView[]
+	): string[] {
+		const allSlugs = [
+			...builtins.map((b) => b.id),
+			...customs.map((c) => c.installation.module_id),
+		];
+		if (moduleOrder.length === 0) return allSlugs;
+		const ordered = moduleOrder.filter((s) => allSlugs.includes(s));
+		const missing = allSlugs.filter((s) => !ordered.includes(s));
+		return [...ordered, ...missing];
+	}
+
+	// ── Drag-and-drop handlers ─────────────────────────────────────────────────
+
+	function handleDragStart(index: number) {
+		dragIndex = index;
+	}
+
+	function handleDragOver(e: DragEvent, index: number) {
+		e.preventDefault();
+		dropIndex = index;
+	}
+
+	function handleDrop(combinedSlugs: string[], index: number) {
+		if (dragIndex === null || dragIndex === index) {
+			dragIndex = null;
+			dropIndex = null;
+			return;
+		}
+		const reordered = [...combinedSlugs];
+		const [moved] = reordered.splice(dragIndex, 1);
+		reordered.splice(index > dragIndex ? index - 1 : index, 0, moved);
+		moduleOrder = reordered;
+		saveOrder(reordered);
+		dragIndex = null;
+		dropIndex = null;
+	}
+
+	function handleDragEnd() {
+		dragIndex = null;
+		dropIndex = null;
+	}
+
+	// ── OptimalOS indicator ────────────────────────────────────────────────────
+
+	function hasOptimalOsConfig(slug: string): boolean {
+		try {
+			return localStorage.getItem(`bos_module_config_${slug}`) !== null;
+		} catch {
+			return false;
+		}
+	}
+
+	// ── Lucide icon resolver for built-in modules ──────────────────────────────
+
+	// Builtin configs use kebab-case icon slugs (e.g. "layout-dashboard", "check-square").
+	const builtinIconMap: Record<string, typeof Package> = {
+		'layout-dashboard': LayoutDashboard,
+		'message-square': MessageSquare,
+		'check-square': CheckSquare,
+		'folder-kanban': FolderKanban,
+		'folder': FolderKanban,
+		'users': Users,
+		'users-2': Users2,
+		'building-2': Building2,
+		'briefcase': Wrench,
+		'table': Table,
+		'file-text': FileText,
+		'inbox': Inbox,
+		'network': Network,
+		'git-branch': Network,
+		'bot': Bot,
+		'terminal': Terminal,
+		'code-2': Code2,
+		'calendar-days': CalendarDays,
+		'calendar': CalendarDays,
+		'trending-up': BarChart3,
+		'zap': Zap,
+		'plug': Plug,
+		'sparkles': Sparkles,
+		'bar-chart-3': BarChart3,
+	};
+
+	function getBuiltinIcon(iconName: string): typeof Package {
+		return builtinIconMap[iconName] ?? Box;
+	}
 
 	// ── Mock Data ──────────────────────────────────────────────────────────
 
@@ -454,7 +592,7 @@
 				</div>
 				{#if !isLoading}
 					<span class="text-sm st-icon">
-						{installedModules.length} module{installedModules.length !== 1 ? 's' : ''} installed
+						{builtinModules.length + installedModules.length} module{builtinModules.length + installedModules.length !== 1 ? 's' : ''}
 					</span>
 				{/if}
 			</div>
@@ -488,89 +626,150 @@
 				</button>
 			</div>
 
-		<!-- Empty state -->
-		{:else if installedModules.length === 0}
-			<div class="flex flex-col items-center justify-center py-20 gap-4 text-center">
-				<div class="w-16 h-16 rounded-full st-mod-empty-icon flex items-center justify-center">
-					<Package class="w-8 h-8 st-icon" />
-				</div>
-				<div>
-					<h2 class="text-lg font-semibold st-title">No modules installed yet</h2>
-					<p class="text-sm st-muted mt-1 max-w-sm">
-						Use BUILD mode to create your first app. Modules you install will appear here.
-					</p>
-				</div>
-				<button
-					onclick={() => goto('/chat')}
-					class="mt-2 btn-pill btn-pill-primary btn-pill-sm"
-					aria-label="Open chat to use BUILD mode"
-				>
-					Open Chat
-				</button>
-			</div>
-
-		<!-- Module list -->
+		<!-- Module list (built-in + custom, draggable) -->
 		{:else}
-			<div class="space-y-3">
-				{#each installedModules as view (view.installation.id)}
-					{@const mod = view.module}
-					{@const IconComponent = getCategoryIcon(mod?.category ?? 'custom')}
-					<div class="flex items-center gap-4 p-4 rounded-lg st-mod-card transition-colors">
-						<!-- Icon -->
-						<div class="flex-shrink-0 w-10 h-10 rounded-lg st-mod-icon-bg flex items-center justify-center">
-							<IconComponent class="w-5 h-5 st-mod-icon" />
-						</div>
+			{@const orderedSlugs = getOrderedSlugs(builtinModules, installedModules)}
+			<div class="space-y-1">
+				{#each orderedSlugs as slug, i (slug)}
+					{@const builtin = builtinModules.find((b) => b.id === slug)}
+					{@const customView = installedModules.find((v) => v.installation.module_id === slug)}
 
-						<!-- Info -->
-						<div class="flex-1 min-w-0">
-							<div class="flex items-center gap-2">
-								<span class="font-semibold st-title text-sm">
-									{mod?.name ?? view.installation.module_id}
-								</span>
-								<span
-								class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {getStatusClasses(view.installation.is_active)}"
-								style="{getStatusStyle(view.installation.is_active)}"
-							>
-									{getStatusLabel(view.installation.is_active)}
-								</span>
-								{#if mod?.version}
-									<span class="text-xs st-icon">v{mod.version}</span>
-								{/if}
+					<!-- Drop indicator above -->
+					{#if dropIndex === i && dragIndex !== null && dragIndex !== i}
+						<div class="st-mod-drop-indicator" aria-hidden="true"></div>
+					{/if}
+
+					{#if builtin}
+						{@const IconComponent = getBuiltinIcon(builtin.icon)}
+						{@const osConfigured = hasOptimalOsConfig(builtin.id)}
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div
+							class="flex items-center gap-3 p-4 rounded-lg st-mod-card st-mod-card-clickable transition-colors {dragIndex === i ? 'st-mod-dragging' : ''}"
+							draggable="true"
+							ondragstart={() => handleDragStart(i)}
+							ondragover={(e) => handleDragOver(e, i)}
+							ondrop={() => handleDrop(orderedSlugs, i)}
+							ondragend={handleDragEnd}
+							onclick={() => goto(`/settings/modules/${builtin.id}`)}
+							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') goto(`/settings/modules/${builtin.id}`); }}
+							role="button"
+							tabindex="0"
+							aria-label="Configure {builtin.name}"
+						>
+							<!-- Drag handle -->
+							<div class="flex-shrink-0 st-mod-drag-handle" aria-hidden="true">
+								<GripVertical class="w-4 h-4" />
 							</div>
-							<p class="text-sm st-muted mt-0.5 truncate" title={mod?.description ?? ''}>
-								{truncate(mod?.description ?? 'No description available', 80)}
-							</p>
+
+							<!-- Icon -->
+							<div class="flex-shrink-0 w-9 h-9 rounded-lg st-mod-icon-bg flex items-center justify-center">
+								<IconComponent class="w-4 h-4 st-mod-icon" />
+							</div>
+
+							<!-- Info -->
+							<div class="flex-1 min-w-0">
+								<div class="flex items-center gap-2 flex-wrap">
+									<span class="font-semibold st-title text-sm">{builtin.name}</span>
+									<span class="st-mod-badge-builtin">Built-in</span>
+									{#if osConfigured}
+										<span class="st-mod-badge-os">OS</span>
+									{/if}
+								</div>
+								<p class="text-xs st-muted mt-0.5 truncate" title={builtin.description}>
+									{truncate(builtin.description, 80)}
+								</p>
+							</div>
+
+							<!-- Status + chevron -->
+							<div class="flex-shrink-0 flex items-center gap-2">
+								<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style="background: var(--bos-status-success-bg); color: var(--bos-status-success);">
+									Active
+								</span>
+								<ChevronRight class="w-4 h-4 st-icon" />
+							</div>
 						</div>
 
-						<!-- Install date -->
-						<div class="flex-shrink-0 text-right hidden sm:block">
-							<span class="text-xs st-icon">
-								{relativeTime(view.installation.installed_at)}
-							</span>
-						</div>
+					{:else if customView}
+						{@const mod = customView.module}
+						{@const IconComponent = getCategoryIcon(mod?.category ?? 'custom')}
+						{@const osConfigured = hasOptimalOsConfig(customView.installation.module_id)}
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div
+							class="flex items-center gap-3 p-4 rounded-lg st-mod-card st-mod-card-clickable transition-colors {dragIndex === i ? 'st-mod-dragging' : ''}"
+							draggable="true"
+							ondragstart={() => handleDragStart(i)}
+							ondragover={(e) => handleDragOver(e, i)}
+							ondrop={() => handleDrop(orderedSlugs, i)}
+							ondragend={handleDragEnd}
+							onclick={() => goto(`/settings/modules/${customView.installation.module_id}`)}
+							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') goto(`/settings/modules/${customView.installation.module_id}`); }}
+							role="button"
+							tabindex="0"
+							aria-label="Configure {mod?.name ?? customView.installation.module_id}"
+						>
+							<!-- Drag handle -->
+							<div class="flex-shrink-0 st-mod-drag-handle" aria-hidden="true">
+								<GripVertical class="w-4 h-4" />
+							</div>
 
-						<!-- Actions -->
-						<div class="flex-shrink-0 flex items-center gap-1">
-							{#if !view.installation.is_active && view.module}
-								<button
-									onclick={() => reinstallModule(view)}
-									class="btn-pill btn-pill-ghost btn-pill-icon btn-pill-xs"
-									aria-label="Re-enable {mod?.name ?? 'module'}"
-								>
-									<Download class="w-4 h-4" />
-								</button>
-							{/if}
-							{#if view.installation.is_active}
-								<button
-									onclick={() => openUninstallDialog(view)}
-									class="btn-pill btn-pill-ghost btn-pill-icon btn-pill-xs"
-									aria-label="Uninstall {mod?.name ?? 'module'}"
-								>
-									<Trash2 class="w-4 h-4" />
-								</button>
-							{/if}
+							<!-- Icon -->
+							<div class="flex-shrink-0 w-9 h-9 rounded-lg st-mod-icon-bg flex items-center justify-center">
+								<IconComponent class="w-4 h-4 st-mod-icon" />
+							</div>
+
+							<!-- Info -->
+							<div class="flex-1 min-w-0">
+								<div class="flex items-center gap-2 flex-wrap">
+									<span class="font-semibold st-title text-sm">
+										{mod?.name ?? customView.installation.module_id}
+									</span>
+									<span class="st-mod-badge-custom">Custom</span>
+									{#if osConfigured}
+										<span class="st-mod-badge-os">OS</span>
+									{/if}
+									<span
+										class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {getStatusClasses(customView.installation.is_active)}"
+										style="{getStatusStyle(customView.installation.is_active)}"
+									>
+										{getStatusLabel(customView.installation.is_active)}
+									</span>
+									{#if mod?.version}
+										<span class="text-xs st-icon">v{mod.version}</span>
+									{/if}
+								</div>
+								<p class="text-xs st-muted mt-0.5 truncate" title={mod?.description ?? ''}>
+									{truncate(mod?.description ?? 'No description available', 80)}
+								</p>
+							</div>
+
+							<!-- Install date + actions + chevron -->
+							<div class="flex-shrink-0 flex items-center gap-2">
+								<span class="text-xs st-icon hidden sm:block">
+									{relativeTime(customView.installation.installed_at)}
+								</span>
+								<!-- Stop propagation on action buttons so row click doesn't fire -->
+								{#if !customView.installation.is_active && customView.module}
+									<button
+										onclick={(e) => { e.stopPropagation(); reinstallModule(customView); }}
+										class="btn-pill btn-pill-ghost btn-pill-icon btn-pill-xs"
+										aria-label="Re-enable {mod?.name ?? 'module'}"
+									>
+										<Download class="w-4 h-4" />
+									</button>
+								{/if}
+								{#if customView.installation.is_active}
+									<button
+										onclick={(e) => { e.stopPropagation(); openUninstallDialog(customView); }}
+										class="btn-pill btn-pill-ghost btn-pill-icon btn-pill-xs"
+										aria-label="Uninstall {mod?.name ?? 'module'}"
+									>
+										<Trash2 class="w-4 h-4" />
+									</button>
+								{/if}
+								<ChevronRight class="w-4 h-4 st-icon" />
+							</div>
 						</div>
-					</div>
+					{/if}
 				{/each}
 			</div>
 		{/if}
@@ -763,5 +962,85 @@
   :global(.st-mod-dialog) {
     background: var(--dbg);
     box-shadow: var(--bos-shadow-2, 0 4px 24px rgba(0,0,0,.12));
+  }
+
+  /* Clickable row */
+  :global(.st-mod-card-clickable) {
+    cursor: pointer;
+  }
+  :global(.st-mod-card-clickable:hover) {
+    background: var(--dbg2);
+    border-color: var(--dbd2);
+  }
+  :global(.st-mod-card-clickable:focus-visible) {
+    outline: 2px solid var(--dbd2);
+    outline-offset: 2px;
+  }
+
+  /* Drag handle */
+  :global(.st-mod-drag-handle) {
+    color: var(--dt4);
+    opacity: 0.4;
+    cursor: grab;
+    transition: opacity 0.15s;
+  }
+  :global(.st-mod-card-clickable:hover .st-mod-drag-handle) {
+    opacity: 0.8;
+  }
+  :global(.st-mod-drag-handle:active) {
+    cursor: grabbing;
+  }
+
+  /* Dragging state */
+  :global(.st-mod-dragging) {
+    opacity: 0.5;
+  }
+
+  /* Drop indicator */
+  :global(.st-mod-drop-indicator) {
+    height: 2px;
+    border-radius: 1px;
+    background: var(--bos-status-info, #3b82f6);
+    margin: 2px 0;
+  }
+
+  /* Built-in badge */
+  :global(.st-mod-badge-builtin) {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 6px;
+    border-radius: 9999px;
+    font-size: 0.65rem;
+    font-weight: 500;
+    background: var(--dbg3);
+    color: var(--dt3);
+    border: 1px solid var(--dbd);
+  }
+
+  /* Custom badge */
+  :global(.st-mod-badge-custom) {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 6px;
+    border-radius: 9999px;
+    font-size: 0.65rem;
+    font-weight: 500;
+    background: color-mix(in srgb, var(--bos-status-info, #3b82f6) 12%, transparent);
+    color: var(--bos-status-info, #3b82f6);
+    border: 1px solid color-mix(in srgb, var(--bos-status-info, #3b82f6) 25%, transparent);
+  }
+
+  /* OptimalOS "OS" badge */
+  :global(.st-mod-badge-os) {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 5px;
+    border-radius: 9999px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    background: color-mix(in srgb, #8b5cf6 15%, transparent);
+    color: #8b5cf6;
+    border: 1px solid color-mix(in srgb, #8b5cf6 30%, transparent);
   }
 </style>

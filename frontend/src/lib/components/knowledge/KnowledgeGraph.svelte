@@ -381,11 +381,12 @@
 				// ── Physics — FROZEN after layout ────────────────────────────────
 				// Run 500 ticks before first render, then STOP simulation completely.
 				// No bouncing, no jittering. Completely static after initial layout.
-				.warmupTicks(500)
-				.cooldownTicks(0)
-				.cooldownTime(0)
-				.d3AlphaDecay(0.05)
-				.d3VelocityDecay(0.4)
+				// Obsidian-style: simulation always alive, heavy damping
+				.warmupTicks(300)
+				.cooldownTime(Infinity)
+				.d3AlphaDecay(0)
+				.d3AlphaMin(0)
+				.d3VelocityDecay(0.65)
 				.enableNodeDrag(true)
 				// ── Events ───────────────────────────────────────────────────────
 				.onZoom(({ k }: { k: number }) => {
@@ -398,15 +399,9 @@
 				})
 				.onNodeDrag((node: any) => {
 					setHover(node as GNode);
-					// Pin node to cursor — NO simulation reheat, NO bouncing
-					node.fx = node.x;
-					node.fy = node.y;
 					if (container) container.style.cursor = 'grabbing';
 				})
-				.onNodeDragEnd((node: any) => {
-					// Unpin — node stays where you dropped it
-					node.fx = undefined;
-					node.fy = undefined;
+				.onNodeDragEnd(() => {
 					setHover(null);
 					if (container) container.style.cursor = 'default';
 				})
@@ -417,8 +412,14 @@
 					// Highlight its connections
 					setHover(node);
 
+					// For core nodes, open their context.md. For folders, open their path.
+					// For documents (.md), open directly. For entities, open as search.
+					const docId = node.nodeType === 'core' ? `${node.id}/context.md`
+					            : node.nodeType === 'entity' ? node.id
+					            : node.id;
+
 					const syn: Memory = {
-						id:               node.id,
+						id:               docId,
 						user_id:          'graph',
 						title:            node.label ?? node.id,
 						summary:          `${node.nodeType} — ${node.connections ?? 0} connections`,
@@ -467,7 +468,7 @@
 
 			// Collision to prevent overlap
 			const d3 = await import('d3-force');
-			graph.d3Force('collide', d3.forceCollide().radius(8).strength(0.9));
+			graph.d3Force('collide', d3.forceCollide().radius(12).strength(1.0));
 
 			// Radial force — pulls nodes into a spherical shell by type
 			// core → center (radius 0), entity → inner ring, folder → mid ring, document → outer ring
@@ -488,16 +489,12 @@
 			const h = container.clientHeight;
 			if (w > 0 && h > 0) graph.width(w).height(h);
 
-			// Zoom in close after layout settles — Obsidian style
-			// Fit everything visible, then zoom in slightly
+			// Keep simulation warm at low energy — nodes float like orbs
 			setTimeout(() => {
-				graph?.zoomToFit(400, 20);
-				// After fit, zoom in 1.5x from whatever level zoomToFit chose
-				setTimeout(() => {
-					const currentZoom = graph?.zoom?.() ?? 1;
-					graph?.zoom(currentZoom * 1.5, 300);
-				}, 500);
-			}, 2500);
+				const sim = (graph as any)?._simulation;
+				if (sim) sim.alpha(0.05).alphaTarget(0.02).restart();
+				graph?.zoomToFit(400, 30);
+			}, 500);
 			loading = false;
 		} catch (err) {
 			error   = err instanceof Error ? err.message : 'Failed to load graph';

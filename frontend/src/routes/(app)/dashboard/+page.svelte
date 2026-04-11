@@ -2,15 +2,21 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { fade, fly } from 'svelte/transition';
-	import { optimalStore, type OptimalNode } from '$lib/stores/optimal';
+	import { optimalStore, type OptimalNode, type DashboardData } from '$lib/stores/optimal';
 
 	// ── State ────────────────────────────────────────────────────────────────────
 
-	let storeState = $state({ nodes: [] as OptimalNode[], todayRhythm: null as { date: string; content: string } | null, loading: false, error: null as string | null });
+	let storeState = $state({
+		nodes: [] as OptimalNode[],
+		todayRhythm: null as { date: string; content: string } | null,
+		dashboard: null as DashboardData | null,
+		loading: false,
+		error: null as string | null,
+	});
 
 	$effect(() => {
 		const unsub = optimalStore.subscribe((s) => {
-			storeState = { nodes: s.nodes, todayRhythm: s.todayRhythm, loading: s.loading, error: s.error };
+			storeState = { nodes: s.nodes, todayRhythm: s.todayRhythm, dashboard: s.dashboard, loading: s.loading, error: s.error };
 		});
 		return unsub;
 	});
@@ -132,7 +138,11 @@
 	// ── Lifecycle ────────────────────────────────────────────────────────────────
 
 	onMount(() => {
-		Promise.all([optimalStore.loadNodes(), optimalStore.loadTodayRhythm()]);
+		Promise.all([
+			optimalStore.loadNodes(),
+			optimalStore.loadTodayRhythm(),
+			optimalStore.loadDashboard(),
+		]);
 	});
 </script>
 
@@ -175,6 +185,83 @@
 					<span class="od-stat-label">quiet</span>
 				</div>
 			</div>
+
+			<!-- ── Command Center ───────────────────────────────────────────── -->
+			{#if storeState.dashboard}
+				<section aria-label="Command Center" in:fly={{ y: 12, duration: 300, delay: 40 }}>
+					<div class="od-section-header">
+						<span class="od-section-label">Command Center</span>
+					</div>
+					<div class="od-cc-grid">
+						<!-- Total Nodes -->
+						<div class="od-cc-card">
+							<div class="od-cc-icon od-cc-icon--nodes" aria-hidden="true">
+								<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+								</svg>
+							</div>
+							<div class="od-cc-body">
+								<span class="od-cc-value">{storeState.dashboard.nodes?.length ?? storeState.nodes.length}</span>
+								<span class="od-cc-label">Total Nodes</span>
+							</div>
+						</div>
+
+						<!-- Total Signals -->
+						<div class="od-cc-card">
+							<div class="od-cc-icon od-cc-icon--signals" aria-hidden="true">
+								<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13 10V3L4 14h7v7l9-11h-7z" />
+								</svg>
+							</div>
+							<div class="od-cc-body">
+								<span class="od-cc-value">{storeState.dashboard.stats?.signal_count ?? totalSignals}</span>
+								<span class="od-cc-label">Total Signals</span>
+							</div>
+						</div>
+
+						<!-- Revenue / MRR -->
+						<div class="od-cc-card">
+							<div class="od-cc-icon od-cc-icon--revenue" aria-hidden="true">
+								<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+							</div>
+							<div class="od-cc-body">
+								<span class="od-cc-value">${(storeState.dashboard.revenue?.total_mrr ?? 0).toLocaleString()}</span>
+								<span class="od-cc-label">MRR</span>
+							</div>
+						</div>
+
+						<!-- Entity Count -->
+						<div class="od-cc-card">
+							<div class="od-cc-icon od-cc-icon--entities" aria-hidden="true">
+								<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+								</svg>
+							</div>
+							<div class="od-cc-body">
+								<span class="od-cc-value">{storeState.dashboard.stats?.entity_count ?? 0}</span>
+								<span class="od-cc-label">Entities</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Non-negotiables from command center -->
+					{#if storeState.dashboard.command_center?.non_negotiables?.length > 0}
+						<div class="od-cc-nonneg">
+							<span class="od-cc-nonneg-label">Non-negotiables</span>
+							<ul class="od-cc-nonneg-list">
+								{#each storeState.dashboard.command_center.non_negotiables as item, i}
+									<li class="od-cc-nonneg-item">
+										<span class="od-cc-nonneg-num">{i + 1}</span>
+										<span class="od-cc-nonneg-text">{item}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</section>
+			{/if}
 
 			<!-- ── Today's Rhythm ────────────────────────────────────────────── -->
 			<section class="od-rhythm" aria-label="Today's Rhythm" in:fly={{ y: 12, duration: 300, delay: 60 }}>
@@ -426,6 +513,153 @@
 	}
 
 	:global(.dark) .od-stat-sep { background: rgba(255, 255, 255, 0.07); }
+
+	/* ── Command Center ─────────────────────────────────────────────────────── */
+	.od-cc-grid {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 0.75rem;
+		margin-bottom: 0.875rem;
+	}
+
+	@media (max-width: 1024px) {
+		.od-cc-grid { grid-template-columns: repeat(2, 1fr); }
+	}
+
+	@media (max-width: 640px) {
+		.od-cc-grid { grid-template-columns: repeat(2, 1fr); }
+	}
+
+	.od-cc-card {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.875rem 1rem;
+		background: #ffffff;
+		border: 1px solid rgba(0, 0, 0, 0.06);
+		border-radius: 0.875rem;
+	}
+
+	:global(.dark) .od-cc-card {
+		background: rgba(255, 255, 255, 0.03);
+		border-color: rgba(255, 255, 255, 0.06);
+	}
+
+	.od-cc-icon {
+		flex-shrink: 0;
+		width: 32px;
+		height: 32px;
+		border-radius: 0.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.od-cc-icon--nodes    { background: rgba(59, 130, 246, 0.1);  color: #3b82f6; }
+	.od-cc-icon--signals  { background: rgba(139, 92, 246, 0.1);  color: #8b5cf6; }
+	.od-cc-icon--revenue  { background: rgba(16, 185, 129, 0.1);  color: #059669; }
+	.od-cc-icon--entities { background: rgba(245, 158, 11, 0.1);  color: #d97706; }
+
+	:global(.dark) .od-cc-icon--nodes    { background: rgba(59, 130, 246, 0.15);  color: #93c5fd; }
+	:global(.dark) .od-cc-icon--signals  { background: rgba(139, 92, 246, 0.15);  color: #c4b5fd; }
+	:global(.dark) .od-cc-icon--revenue  { background: rgba(16, 185, 129, 0.15);  color: #34d399; }
+	:global(.dark) .od-cc-icon--entities { background: rgba(245, 158, 11, 0.15);  color: #fbbf24; }
+
+	.od-cc-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+	}
+
+	.od-cc-value {
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #111827;
+		line-height: 1;
+	}
+
+	:global(.dark) .od-cc-value { color: #f3f4f6; }
+
+	.od-cc-label {
+		font-size: 0.68rem;
+		font-weight: 500;
+		color: #9ca3af;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+
+	:global(.dark) .od-cc-label { color: rgba(255, 255, 255, 0.35); }
+
+	/* Non-negotiables strip */
+	.od-cc-nonneg {
+		display: flex;
+		align-items: flex-start;
+		gap: 1rem;
+		padding: 0.875rem 1rem;
+		background: #ffffff;
+		border: 1px solid rgba(0, 0, 0, 0.06);
+		border-radius: 0.875rem;
+	}
+
+	:global(.dark) .od-cc-nonneg {
+		background: rgba(255, 255, 255, 0.03);
+		border-color: rgba(255, 255, 255, 0.06);
+	}
+
+	.od-cc-nonneg-label {
+		flex-shrink: 0;
+		font-size: 0.68rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: #dc2626;
+		padding-top: 0.1rem;
+	}
+
+	:global(.dark) .od-cc-nonneg-label { color: #f87171; }
+
+	.od-cc-nonneg-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.od-cc-nonneg-item {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.2rem 0.6rem;
+		background: rgba(220, 38, 38, 0.06);
+		border: 1px solid rgba(220, 38, 38, 0.15);
+		border-radius: 999px;
+	}
+
+	:global(.dark) .od-cc-nonneg-item {
+		background: rgba(248, 113, 113, 0.08);
+		border-color: rgba(248, 113, 113, 0.18);
+	}
+
+	.od-cc-nonneg-num {
+		font-size: 0.62rem;
+		font-weight: 700;
+		color: #dc2626;
+	}
+
+	:global(.dark) .od-cc-nonneg-num { color: #f87171; }
+
+	.od-cc-nonneg-text {
+		font-size: 0.75rem;
+		color: #374151;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 20ch;
+	}
+
+	:global(.dark) .od-cc-nonneg-text { color: #d1d5db; }
 
 	/* ── Section labels ─────────────────────────────────────────────────────── */
 	.od-section-label {

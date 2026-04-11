@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { optimalStore } from '$lib/stores/optimal';
 	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
 
 	// ── Types ─────────────────────────────────────────────────────────────────
@@ -23,6 +22,7 @@
 	let rhythmError     = $state<string | null>(null);
 	let weeklyError     = $state<string | null>(null);
 	let activeTab       = $state<'today' | 'weekly'>('today');
+	let nodeCount       = $state<number | null>(null);
 
 	// ── Derived ───────────────────────────────────────────────────────────────
 	const now        = new Date();
@@ -32,6 +32,7 @@
 
 	const parsedSections = $derived(parseMarkdownSections(rhythmContent ?? ''));
 	const weeklyTop3    = $derived(extractTop3(weeklyContent ?? ''));
+	const currentMode   = $derived(extractCurrentMode(rhythmContent ?? ''));
 
 	// ── Mode badge colors ─────────────────────────────────────────────────────
 	const MODE_COLORS: Record<string, string> = {
@@ -118,6 +119,22 @@
 		return d.toISOString().split('T')[0];
 	}
 
+	/**
+	 * Extract the dominant cognitive mode from the rhythm file.
+	 * Checks the Boot section first (Mode: BUILD), then falls back to
+	 * scanning the first mode badge found anywhere in the content.
+	 */
+	function extractCurrentMode(md: string): string | null {
+		if (!md.trim()) return null;
+		// Boot section key-value: "Mode: BUILD"
+		const bootMode = md.match(/^-\s*Mode:\s*(\w+)/im);
+		if (bootMode) return bootMode[1].toUpperCase();
+		// Fallback: first schedule mode column value
+		const scheduleMode = md.match(/\|\s*(BUILD|OPERATE|LEARN|SYNTHESIZE|EXTRACT)\s*\|/i);
+		if (scheduleMode) return scheduleMode[1].toUpperCase();
+		return null;
+	}
+
 	// ── Data fetching ─────────────────────────────────────────────────────────
 	function buildHeaders(): Record<string, string> {
 		const headers: Record<string, string> = {};
@@ -171,6 +188,22 @@
 		}
 	}
 
+	async function loadNodeCount() {
+		try {
+			const res = await fetch(`${getApiBaseUrl()}/optimal/nodes`, {
+				method: 'GET',
+				headers: buildHeaders(),
+				credentials: 'include',
+				signal: AbortSignal.timeout(6000),
+			});
+			if (!res.ok) return;
+			const data: { nodes?: unknown[] } = await res.json();
+			if (Array.isArray(data.nodes)) nodeCount = data.nodes.length;
+		} catch {
+			// Node count is optional — silently ignore
+		}
+	}
+
 	function handleTabChange(tab: 'today' | 'weekly') {
 		activeTab = tab;
 		if (tab === 'weekly') loadWeekly();
@@ -179,6 +212,7 @@
 	// ── Lifecycle ─────────────────────────────────────────────────────────────
 	onMount(() => {
 		loadRhythm();
+		loadNodeCount();
 	});
 </script>
 
@@ -201,6 +235,31 @@
 				onclick={() => handleTabChange('weekly')}
 			>This Week</button>
 		</div>
+	</div>
+
+	<!-- ── Quick Stats ── -->
+	<div class="rd-stats">
+		<div class="rd-stat">
+			<span class="rd-stat__label">Date</span>
+			<span class="rd-stat__val">{now.toISOString().split('T')[0]}</span>
+		</div>
+		{#if nodeCount !== null}
+			<div class="rd-stat">
+				<span class="rd-stat__label">Nodes</span>
+				<span class="rd-stat__val">{nodeCount} tracked</span>
+			</div>
+		{/if}
+		{#if currentMode}
+			<div class="rd-stat">
+				<span class="rd-stat__label">Mode</span>
+				<span class="rd-mode {modeClass(currentMode)} rd-stat__mode">{currentMode}</span>
+			</div>
+		{:else if !loadingRhythm && rhythmContent}
+			<div class="rd-stat">
+				<span class="rd-stat__label">Mode</span>
+				<span class="rd-stat__val rd-stat__val--dim">Not set</span>
+			</div>
+		{/if}
 	</div>
 
 	<!-- ── Today tab ── -->
@@ -891,6 +950,45 @@
 }
 .rd-table tr:last-child td { border-bottom: none; }
 .rd-table tr:hover td { background: var(--dbg); }
+
+/* ── Quick Stats ── */
+.rd-stats {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	margin-bottom: 1.5rem;
+}
+.rd-stat {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	background: var(--dbg2);
+	border: 1px solid var(--dbd);
+	border-radius: 7px;
+	padding: 0.3rem 0.75rem;
+}
+.rd-stat__label {
+	font-size: 0.68rem;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--dt3);
+}
+.rd-stat__val {
+	font-size: 0.8rem;
+	font-weight: 500;
+	color: var(--dt);
+}
+.rd-stat__val--dim {
+	color: var(--dt3);
+	font-style: italic;
+}
+.rd-stat__mode {
+	/* inherits .rd-mode sizing; slight override for compact fit */
+	font-size: 0.62rem;
+	padding: 0.15rem 0.45rem;
+}
 
 /* ── Inline code / link ── */
 :global(.rd-card code) {

@@ -17,6 +17,14 @@
 		members: TeamMember[];
 	}
 
+	interface OptimalMember {
+		name: string;
+		role: string;
+		status: 'active' | 'inactive' | 'exited';
+		channel?: string;
+		nodes?: string[];
+	}
+
 	interface WeeklyPriority {
 		text: string;
 		done: boolean;
@@ -47,6 +55,11 @@
 	let priorities = $state<WeeklyPriority[]>([]);
 	let blockers = $state<Blocker[]>([]);
 	let waitingOn = $state<WaitingOn[]>([]);
+
+	// OptimalOS /api/optimal/team section
+	let optimalMembers = $state<OptimalMember[]>([]);
+	let optimalLoading = $state(false);
+	let optimalSource = $state<'endpoint' | 'markdown' | null>(null);
 
 	// File tree
 	let fileTree = $state<{ name: string; path: string; is_dir: boolean; children?: { name: string; path: string }[] }[]>([]);
@@ -171,6 +184,65 @@
 		return blocks;
 	}
 
+	// ─── OptimalOS /api/optimal/team ─────────────────────────────────────────────
+
+	/** Parse "**Name** — Role" patterns from raw markdown (fallback when endpoint 404s) */
+	function parseTeamFromMarkdown(content: string): OptimalMember[] {
+		const people: OptimalMember[] = [];
+		const lines = content.split('\n');
+		for (const line of lines) {
+			const match = line.match(/\*\*(.+?)\*\*\s*[—–-]\s*(.+)/);
+			if (match) {
+				const name = match[1].trim();
+				const role = match[2].trim();
+				let status: OptimalMember['status'] = 'active';
+				if (role.toLowerCase().includes('exited')) status = 'exited';
+				else if (role.toLowerCase().includes('inactive')) status = 'inactive';
+				people.push({ name, role, status });
+			}
+		}
+		return people;
+	}
+
+	async function fetchOptimalTeam() {
+		optimalLoading = true;
+		try {
+			// Attempt the dedicated /optimal/team endpoint first
+			const res = await fetch(`${getApiBaseUrl()}/optimal/team`, {
+				method: 'GET',
+				headers: buildHeaders(),
+				credentials: 'include',
+				signal: AbortSignal.timeout(6000)
+			});
+
+			if (res.ok) {
+				const data = await res.json() as { members: OptimalMember[]; count: number };
+				optimalMembers = data.members ?? [];
+				optimalSource = 'endpoint';
+				return;
+			}
+
+			// 404 or any error → fall back to parsing context.md via existing node endpoint
+			if (res.status === 404 || res.status >= 400) {
+				throw new Error(`HTTP ${res.status}`);
+			}
+		} catch {
+			// Fallback: re-use already-loaded context_md if available,
+			// otherwise fetch the node endpoint
+			try {
+				const nodeData = await fetchJson<{ context_md: string; signal_md: string }>('/optimal/nodes/10-team');
+				optimalMembers = parseTeamFromMarkdown(nodeData.context_md);
+				optimalSource = 'markdown';
+			} catch {
+				// Non-fatal — optimal section will just be empty
+				optimalMembers = [];
+				optimalSource = null;
+			}
+		} finally {
+			optimalLoading = false;
+		}
+	}
+
 	// ─── File tree helpers ────────────────────────────────────────────────────────
 
 	function toggleFolder(path: string) {
@@ -223,6 +295,9 @@
 	// ─── Load ─────────────────────────────────────────────────────────────────────
 
 	onMount(async () => {
+		// Fire the OptimalOS team section fetch in parallel — non-blocking
+		fetchOptimalTeam();
+
 		try {
 			const [nodeData, treeData] = await Promise.all([
 				fetchJson<{ context_md: string; signal_md: string }>('/optimal/nodes/10-team'),
@@ -363,6 +438,65 @@
 						</div>
 					</section>
 				{/each}
+
+				<!-- ── OptimalOS Roster ─────────────────────────────────────────────── -->
+				{#if optimalLoading}
+					<section class="tm-section tm-osa-section">
+						<h2 class="tm-section__label tm-osa-heading">
+							<svg viewBox="0 0 16 16" class="tm-osa-icon" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>
+							OptimalOS Roster
+						</h2>
+						<div class="tm-osa-loading">
+							<span class="tm-spinner tm-spinner--sm" aria-label="Loading OptimalOS roster"></span>
+							<span class="tm-osa-loading-text">Fetching roster...</span>
+						</div>
+					</section>
+				{:else if optimalMembers.length > 0}
+					<section class="tm-section tm-osa-section" aria-labelledby="osa-roster-label">
+						<h2 class="tm-section__label tm-osa-heading" id="osa-roster-label">
+							<svg viewBox="0 0 16 16" class="tm-osa-icon" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>
+							OptimalOS Roster
+							{#if optimalSource === 'endpoint'}
+								<span class="tm-osa-source-tag">live</span>
+							{:else if optimalSource === 'markdown'}
+								<span class="tm-osa-source-tag tm-osa-source-tag--md">markdown</span>
+							{/if}
+						</h2>
+						<div class="tm-grid">
+							{#each optimalMembers as member}
+								<div class="tm-card tm-osa-card" class:tm-card--exited={member.status === 'exited'}>
+									<div class="tm-card__avatar" aria-hidden="true">
+										{initials(member.name)}
+									</div>
+									<div class="tm-card__info">
+										<div class="tm-card__name">{member.name}</div>
+										<div class="tm-card__role">{member.role}</div>
+										{#if member.channel && member.status !== 'exited'}
+											<div class="tm-card__channel">{member.channel}</div>
+										{/if}
+										{#if member.nodes && member.nodes.length > 0}
+											<div class="tm-osa-nodes" aria-label="Associated nodes">
+												{#each member.nodes as node}
+													<span class="tm-osa-node-tag">{node}</span>
+												{/each}
+											</div>
+										{/if}
+									</div>
+									<div class="tm-card__badges">
+										{#if member.status === 'active'}
+											<span class="tm-badge tm-badge--active">Active</span>
+										{:else if member.status === 'exited'}
+											<span class="tm-badge tm-badge--exited">Exited</span>
+										{:else}
+											<span class="tm-badge tm-badge--uncertain">Inactive</span>
+										{/if}
+									</div>
+								</div>
+							{/each}
+						</div>
+					</section>
+				{/if}
+
 			</div>
 
 			<!-- ── File Sidebar ───────────────────────────────────────────────────── -->
@@ -880,4 +1014,77 @@
 		color: #f87171;
 	}
 	.tm-error p { margin: 0; }
+
+	/* ── OptimalOS Roster section ────────────────────────────────────────────── */
+	.tm-osa-section {
+		border-top: 1px solid rgba(255,255,255,0.06);
+		padding-top: 1.25rem;
+		margin-top: 0.5rem;
+	}
+	.tm-osa-heading {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+	}
+	.tm-osa-icon {
+		width: 12px;
+		height: 12px;
+		color: rgba(139, 92, 246, 0.7);
+		flex-shrink: 0;
+	}
+	.tm-osa-source-tag {
+		font-size: 0.5625rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		padding: 0.125rem 0.375rem;
+		border-radius: 3px;
+		background: rgba(34, 197, 94, 0.1);
+		color: #4ade80;
+		border: 1px solid rgba(34, 197, 94, 0.2);
+		margin-left: 0.25rem;
+	}
+	.tm-osa-source-tag--md {
+		background: rgba(251, 191, 36, 0.1);
+		color: #fbbf24;
+		border-color: rgba(251, 191, 36, 0.2);
+	}
+	.tm-osa-loading {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0;
+	}
+	.tm-osa-loading-text {
+		font-size: 0.8125rem;
+		color: var(--dt3, rgba(255,255,255,0.4));
+	}
+	.tm-spinner--sm {
+		width: 16px;
+		height: 16px;
+		border-width: 1.5px;
+	}
+	.tm-osa-card {
+		border-color: rgba(139, 92, 246, 0.1);
+	}
+	.tm-osa-card:hover {
+		border-color: rgba(139, 92, 246, 0.2);
+	}
+	.tm-osa-nodes {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.25rem;
+		margin-top: 0.3125rem;
+	}
+	.tm-osa-node-tag {
+		font-size: 0.5625rem;
+		font-weight: 500;
+		letter-spacing: 0.03em;
+		padding: 0.125rem 0.375rem;
+		border-radius: 3px;
+		background: rgba(139, 92, 246, 0.08);
+		color: rgba(167, 139, 250, 0.8);
+		border: 1px solid rgba(139, 92, 246, 0.15);
+		white-space: nowrap;
+	}
 </style>

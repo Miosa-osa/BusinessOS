@@ -156,6 +156,12 @@ func Load() (*Config, error) {
 	viper.SetDefault("MIOSA_API_KEY", "")
 	viper.SetDefault("MIOSA_CLOUD_URL", "https://api.miosa.ai")
 
+	// Cloud Deployment (MIOSA Firecracker VM)
+	viper.SetDefault("DEPLOYMENT_MODE", "local") // "local" | "cloud"
+	viper.SetDefault("MIOSA_TENANT_ID", "")
+	viper.SetDefault("MIOSA_JWT_PUBLIC_KEY", "")
+	viper.SetDefault("CLOUD_DOMAIN", "")
+
 	// Environment variables are the authoritative source of truth.
 	// They are read first and win over the config file for all keys.
 	viper.AutomaticEnv()
