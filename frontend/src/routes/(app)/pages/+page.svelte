@@ -25,6 +25,7 @@
 	} from '$lib/modules/knowledge-base';
 	import type { DocumentMeta } from '$lib/modules/knowledge-base';
 	import KnowledgeGraph from '$lib/components/knowledge/KnowledgeGraph.svelte';
+	import NodeDrillDown from '$lib/components/knowledge/NodeDrillDown.svelte';
 	import type { Memory } from '$lib/api/memory/types';
 	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
 
@@ -102,6 +103,32 @@
 		}
 	});
 
+	// Recent documents tracking
+	const RECENT_KEY = 'bos-recent-docs';
+	const MAX_RECENT = 30;
+
+	function addToRecent(id: string, title: string) {
+		const stored = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+		const filtered = stored.filter((r: { id: string }) => r.id !== id);
+		filtered.unshift({ id, title, openedAt: Date.now() });
+		localStorage.setItem(RECENT_KEY, JSON.stringify(filtered.slice(0, MAX_RECENT)));
+	}
+
+	function getRecent(): Array<{ id: string; title: string; openedAt: number }> {
+		return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+	}
+
+	function formatTimeAgo(ts: number): string {
+		const diff = Date.now() - ts;
+		const mins = Math.floor(diff / 60000);
+		if (mins < 1) return 'just now';
+		if (mins < 60) return `${mins}m ago`;
+		const hours = Math.floor(mins / 60);
+		if (hours < 24) return `${hours}h ago`;
+		const days = Math.floor(hours / 24);
+		return `${days}d ago`;
+	}
+
 	// OptimalOS node data for the hierarchy view
 	interface NodeInfo { slug: string; name: string; type: string; signal_count: number; has_signals: boolean; }
 	let optNodes = $state<NodeInfo[]>([]);
@@ -163,6 +190,8 @@
 		folderView = null;
 		try {
 			await openAndFetchDocument(id);
+			const title = documents.find(d => d.id === id)?.title || id.split('/').pop() || id;
+			addToRecent(id, title);
 		} catch (e) {
 			console.error('Failed to open document:', e);
 			error = 'Failed to open document';
@@ -283,14 +312,15 @@
 			<div class="kb-page__listing">
 				<div class="kb-page__header"><h1 class="kb-page__title">Recent</h1></div>
 				<div class="kb-page__hierarchy">
-					{#each documents.filter(d => d.id.endsWith('.md')).slice(0, 20) as doc (doc.id)}
-						<button class="kb-page__child-item" onclick={() => handleOpenDocument(doc.id)}>
+					{#each getRecent() as item (item.id)}
+						<button class="kb-page__child-item kb-page__child-item--recent" onclick={() => handleOpenDocument(item.id)}>
 							<span class="kb-page__cat-icon">📄</span>
-							<span>{doc.title}</span>
-							<span class="kb-page__child-desc">{doc.id.split('/')[0]}</span>
+							<span class="kb-page__child-title">{item.title}</span>
+							<span class="kb-page__child-node">{item.id.split('/')[0]}</span>
+							<span class="kb-page__child-time">{formatTimeAgo(item.openedAt)}</span>
 						</button>
 					{:else}
-						<div class="kb-page__empty"><p class="kb-page__empty-desc">No recent documents</p></div>
+						<div class="kb-page__empty"><p class="kb-page__empty-desc">No recently opened documents</p></div>
 					{/each}
 				</div>
 			</div>
@@ -403,92 +433,11 @@
 				{/if}
 			</div>
 		{:else}
-			<!-- Node Hierarchy View — structured by business entities -->
-			<div class="kb-page__listing">
-				<div class="kb-page__header">
-					<h1 class="kb-page__title">Knowledge Base</h1>
-					<div class="kb-page__actions">
-						<button class="kb-page__btn kb-page__btn--search" onclick={handleOpenSearch}>
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-							Search
-						</button>
-						<span class="kb-page__stats">{optNodes.length} nodes · {documents.length} pages</span>
-					</div>
-				</div>
-
-				{#if isLoading}
-					<div class="kb-page__empty">
-						<div class="kb-page__spinner"></div>
-						<p class="kb-page__empty-desc">Loading knowledge base...</p>
-					</div>
-				{:else if optNodes.length === 0 && documents.length === 0}
-					<div class="kb-page__empty">
-						<p class="kb-page__empty-desc">No data found. Check that the backend is running.</p>
-						<button class="kb-page__btn" onclick={() => location.reload()}>Retry</button>
-					</div>
-				{:else}
-					<!-- Node hierarchy — organized by business entity with logical categories -->
-					<div class="kb-page__hierarchy">
-						{#each optNodes as node}
-							{@const nodeChildren = documents.filter(d => d.parent_id === node.slug)}
-							{@const contextDoc = nodeChildren.find(d => d.id === node.slug + '/context.md')}
-							{@const signalDoc = nodeChildren.find(d => d.id === node.slug + '/signal.md')}
-							{@const folders = nodeChildren.filter(d => d.type === 'folder')}
-							{@const otherFiles = nodeChildren.filter(d => d.id.endsWith('.md') && d.id !== node.slug + '/context.md' && d.id !== node.slug + '/signal.md')}
-							<div class="kb-page__node-section">
-								<button class="kb-page__node-header" onclick={() => contextDoc ? handleOpenDocument(contextDoc.id) : null}>
-									<div class="kb-page__node-info">
-										<span class="kb-page__node-slug">{node.slug.split('-')[0]}</span>
-										<span class="kb-page__node-name">{node.name}</span>
-									</div>
-									<div class="kb-page__node-meta">
-										{#if node.signal_count > 0}
-											<span class="kb-page__signal-badge">{node.signal_count} signals</span>
-										{/if}
-										<span class="kb-page__type-badge">{node.type || 'node'}</span>
-									</div>
-								</button>
-								<div class="kb-page__node-children">
-									<!-- Context & Signal — always first -->
-									{#if contextDoc}
-										<button class="kb-page__child-item kb-page__child-item--special" onclick={() => handleOpenDocument(contextDoc.id)}>
-											<span class="kb-page__cat-icon">📋</span>
-											<span>Context</span>
-											<span class="kb-page__child-desc">Persistent facts</span>
-										</button>
-									{/if}
-									{#if signalDoc}
-										<button class="kb-page__child-item kb-page__child-item--special" onclick={() => handleOpenDocument(signalDoc.id)}>
-											<span class="kb-page__cat-icon">📡</span>
-											<span>Weekly Signal</span>
-											<span class="kb-page__child-desc">Status & priorities</span>
-										</button>
-									{/if}
-									<!-- Categorized folders -->
-									{#each folders as folder}
-										{@const catName = folder.title.toLowerCase()}
-										{@const icon = catName.includes('project') ? '🏗️' : catName.includes('signal') ? '⚡' : catName.includes('team') || catName.includes('people') || catName === 'pedro' || catName === 'pedram' || catName === 'bennett' || catName === 'ahmed' ? '👥' : catName.includes('deliver') ? '📦' : catName.includes('content') || catName.includes('research') ? '📝' : catName.includes('platform') || catName.includes('canopy') ? '🔧' : catName.includes('agency') ? '🏢' : catName.includes('community') || catName.includes('workshop') ? '🎓' : catName.includes('course') || catName.includes('curriculum') ? '📚' : catName.includes('sales') ? '💰' : catName.includes('asset') ? '📎' : '📁'}
-										<button class="kb-page__child-item kb-page__child-item--folder" onclick={() => handleOpenDocument(folder.id)}>
-											<span class="kb-page__cat-icon">{icon}</span>
-											<span>{folder.title}</span>
-											{#if folder.children_count > 0}
-												<span class="kb-page__child-count">{folder.children_count}</span>
-											{/if}
-										</button>
-									{/each}
-									<!-- Other loose files -->
-									{#each otherFiles as file}
-										<button class="kb-page__child-item" onclick={() => handleOpenDocument(file.id)}>
-											<span class="kb-page__cat-icon">📄</span>
-											<span>{file.title}</span>
-										</button>
-									{/each}
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</div>
+			<!-- Node Drill-Down View — breadcrumb file explorer -->
+			<NodeDrillDown
+				nodes={optNodes}
+				onOpenFile={(filePath) => handleOpenDocument(filePath)}
+			/>
 		{/if}
 	</main>
 
@@ -788,6 +737,29 @@
 		font-size: 10px;
 		color: var(--dt4, #bbb);
 		font-weight: 400;
+	}
+
+	.kb-page__child-title {
+		flex: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.kb-page__child-node {
+		font-size: 10px;
+		color: var(--dt4, #bbb);
+		font-weight: 400;
+		white-space: nowrap;
+		flex-shrink: 0;
+	}
+
+	.kb-page__child-time {
+		font-size: 10px;
+		color: var(--dt3, rgba(0,0,0,0.4));
+		font-weight: 400;
+		white-space: nowrap;
+		flex-shrink: 0;
 	}
 
 	/* Knowledge Graph floating panel */

@@ -5,12 +5,15 @@
 	Protected module — no close/dismiss button.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { osaStore } from '$lib/stores/osa';
+	import type { AgentRuntime } from '$lib/stores/osa';
 	import { initCSRF } from '$lib/api/base';
 	import type { AttachedFile } from '$lib/stores/chat/types';
+	import { createAgentSession, type AgentSession } from '$lib/services/agentSession';
 	import ModeSelector from './ModeSelector.svelte';
 	import ModelSelector from './ModelSelector.svelte';
+	import AgentRuntimeSelector from './AgentRuntimeSelector.svelte';
 	import ChatInput from './ChatInput.svelte';
 	import ResponseStream from './ResponseStream.svelte';
 
@@ -40,8 +43,59 @@
 
 	let activeProvider = $derived($osaStore.activeProvider);
 	let activeModel = $derived($osaStore.activeModel);
+	let activeRuntime = $derived($osaStore.activeRuntime);
+
+	let agentSession: AgentSession | null = $state(null);
+
+	$effect(() => {
+		const runtime = activeRuntime;
+		if (runtime === 'osa') {
+			// Switched back to OSA — disconnect any active agent session
+			if (agentSession) {
+				agentSession.disconnect();
+				agentSession = null;
+			}
+		} else {
+			// Switched to a non-OSA runtime — disconnect old session first, then create new one
+			if (agentSession) {
+				agentSession.disconnect();
+				agentSession = null;
+			}
+			const session = createAgentSession(runtime as Exclude<AgentRuntime, 'osa'>, {
+				onOutput: (text) => osaStore.appendTerminalChunk(text),
+				onReady: () => {},
+				onDisconnect: () => osaStore.finalizeTerminalStream(),
+				onError: (err) => osaStore.appendTerminalChunk(`\n[Error: ${err}]\n`),
+			});
+			session.connect();
+			agentSession = session;
+		}
+	});
+
+	function sendToAgent(text: string) {
+		if (!agentSession?.isConnected()) {
+			// Session not connected — no-op, let reconnect happen on next runtime effect
+			return;
+		}
+		osaStore.addUserMessage(text);
+		osaStore.appendTerminalChunk(''); // Start streaming state
+		agentSession.sendMessage(text);
+	}
+
+	onDestroy(() => {
+		if (agentSession) {
+			agentSession.disconnect();
+			agentSession = null;
+		}
+	});
 
 	let chatPlaceholder = $derived.by(() => {
+		const runtime = $osaStore.activeRuntime;
+		if (runtime === 'claude') return 'Ask Claude Code...';
+		if (runtime === 'codex') return 'Ask Codex...';
+		if (runtime === 'ollama') return 'Ask Ollama...';
+		if (runtime === 'hermes') return 'Ask Hermes...';
+		// Default OSA mode — use model-based placeholder
 		if (activeProvider === 'anthropic' || (activeModel && /claude/i.test(activeModel))) return 'Ask Claude...';
 		if (activeProvider === 'openai' || (activeModel && /gpt|o3|o4|codex/i.test(activeModel))) return 'Ask GPT...';
 		if (activeProvider === 'ollama' && activeModel) return `Ask ${activeModel.split(':')[0]}...`;
@@ -281,8 +335,9 @@
 		<div class="pill-input-row">
 			<ModeSelector compact />
 			<ModelSelector />
+			<AgentRuntimeSelector />
 			<div class="osa-input-wrapper">
-				<ChatInput bind:this={chatInputRef} placeholder={chatPlaceholder} onfocus={handleInputFocus} onmetrics={handleMetrics} onattach={openFilePicker} />
+				<ChatInput bind:this={chatInputRef} placeholder={chatPlaceholder} onfocus={handleInputFocus} onmetrics={handleMetrics} onattach={openFilePicker} onAgentSend={activeRuntime !== 'osa' ? sendToAgent : undefined} />
 			</div>
 		</div>
 	</div>

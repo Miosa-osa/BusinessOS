@@ -16,9 +16,10 @@
 		onfocus?: () => void;
 		onmetrics?: (metrics: { charCount: number; lineCount: number }) => void;
 		onattach?: () => void;
+		onAgentSend?: (text: string) => void;
 	}
 
-	let { compact = false, placeholder, onfocus, onmetrics, onattach }: Props = $props();
+	let { compact = false, placeholder, onfocus, onmetrics, onattach, onAgentSend }: Props = $props();
 
 	let inputValue = $state('');
 	let inputElement: HTMLTextAreaElement | undefined = $state(undefined);
@@ -64,7 +65,12 @@
 
 		inputValue = '';
 		resetHeight();
-		await osaStore.sendMessage(trimmed);
+
+		if (onAgentSend) {
+			onAgentSend(trimmed);
+		} else {
+			await osaStore.sendMessage(trimmed);
+		}
 		inputElement?.focus();
 	}
 

@@ -23,6 +23,7 @@
 	let isStreaming = $derived($osaStore.isStreaming);
 	let streamingContent = $derived($osaStore.streamingContent);
 	let activeModel = $derived($osaStore.activeModel);
+	let activeRuntime = $derived($osaStore.activeRuntime);
 	let scrollContainer: HTMLDivElement | undefined = $state(undefined);
 	let streamStartTime: number | null = $state(null);
 	let elapsedSeconds = $state(0);
@@ -117,7 +118,11 @@
 					<div class="flex flex-col">
 						<ModeIndicator mode={message.mode} confidence={message.confidence} compact />
 						<div class="message-bubble message-bubble-assistant mt-1 text-sm">
-							{@html renderMarkdown(message.content, { simple: true })}
+							{#if activeRuntime !== 'osa'}
+								<pre class="terminal-output">{message.content}</pre>
+							{:else}
+								{@html renderMarkdown(message.content, { simple: true })}
+							{/if}
 						</div>
 						{#if message.module_id && message.mode === 'BUILD'}
 							<button
@@ -179,7 +184,11 @@
 					{/if}
 					<div class="message-bubble message-bubble-assistant text-sm">
 						{#if streamingContent}
-							{@html renderMarkdown(streamingContent, { simple: true })}
+							{#if activeRuntime !== 'osa'}
+								<pre class="terminal-output">{streamingContent}</pre>
+							{:else}
+								{@html renderMarkdown(streamingContent, { simple: true })}
+							{/if}
 						{/if}
 						<span class="streaming-cursor inline-block animate-pulse text-gray-400" aria-hidden="true">|</span>
 					</div>
@@ -194,3 +203,15 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.terminal-output {
+		font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+		font-size: 11px;
+		line-height: 1.5;
+		white-space: pre-wrap;
+		word-break: break-word;
+		color: #e5e7eb;
+		margin: 0;
+	}
+</style>

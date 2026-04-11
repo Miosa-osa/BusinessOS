@@ -3,16 +3,17 @@
 	 * Sidebar Header - BusinessOS Style
 	 * Modern document-centric workspace selector and quick-search patterns
 	 */
-	import { Search, Plus, Settings } from 'lucide-svelte';
+	import { Search, Plus, Settings, Trash2 } from 'lucide-svelte';
 	import { Tooltip } from '$lib/ui';
 
 	interface Props {
 		onNewDocument?: () => void;
 		onOpenSearch?: () => void;
 		onOpenSettings?: () => void;
+		onOpenTrash?: () => void;
 	}
 
-	let { onNewDocument, onOpenSearch, onOpenSettings }: Props = $props();
+	let { onNewDocument, onOpenSearch, onOpenSettings, onOpenTrash }: Props = $props();
 </script>
 
 <div class="bos-sidebar-header">
@@ -35,6 +36,15 @@
 
 		<!-- Action buttons -->
 		<div class="bos-sidebar-header__buttons">
+			<Tooltip content="Trash" side="bottom">
+				<button
+					class="bos-sidebar-header__action"
+					onclick={onOpenTrash}
+					aria-label="Trash"
+				>
+					<Trash2 />
+				</button>
+			</Tooltip>
 			<Tooltip content="Settings" side="bottom">
 				<button
 					class="bos-sidebar-header__action"

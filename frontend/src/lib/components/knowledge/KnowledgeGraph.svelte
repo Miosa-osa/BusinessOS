@@ -74,12 +74,12 @@
 		entity:   '#3b82f6'
 	};
 
-	// Node type → d3 charge strength
+	// Node type → d3 charge strength (reduced to prevent explosion)
 	const TYPE_CHARGE: Record<GNodeType, number> = {
-		core:     -30,
-		folder:   -5,
-		document: -2,
-		entity:   -15
+		core:     -20,
+		folder:   -3,
+		document: -1,
+		entity:   -10
 	};
 
 	// ── Component state ────────────────────────────────────────────────────────
@@ -249,7 +249,24 @@
 				}
 			}
 
-			statsText = `${gNodes.length} nodes · ${gLinks.length} edges`;
+			// 7. Remove isolated nodes (zero edges) — prevents outlier dots flying to edges
+			const connectedIds = new Set<string>();
+			for (const lk of gLinks) {
+				connectedIds.add(lk.source);
+				connectedIds.add(lk.target);
+			}
+			const filteredNodes = gNodes.filter(n => connectedIds.has(n.id));
+
+			// 8. Set initial positions within a small circle so the simulation
+			//    converges to a sphere instead of exploding outward
+			for (const n of filteredNodes) {
+				const angle = Math.random() * Math.PI * 2;
+				const r = Math.random() * 50;
+				(n as GNode & { x?: number; y?: number }).x = Math.cos(angle) * r;
+				(n as GNode & { x?: number; y?: number }).y = Math.sin(angle) * r;
+			}
+
+			statsText = `${filteredNodes.length} nodes · ${gLinks.length} edges`;
 
 			destroyGraph();
 			container.innerHTML = '';
@@ -259,7 +276,7 @@
 			const _connN = new Set<string>();
 			const _connL = new Set<string>();
 
-			// O(k) adjacency lookup
+			// O(k) adjacency lookup (uses filteredNodes — isolated nodes already removed)
 			const adj = new Map<string, Array<{ src: string; tgt: string }>>();
 			for (const lk of gLinks) {
 				if (!adj.has(lk.source)) adj.set(lk.source, []);
@@ -283,7 +300,7 @@
 
 			// ── Build graph ─────────────────────────────────────────────────────
 			graph = ForceGraph()(container)
-				.graphData({ nodes: gNodes, links: gLinks })
+				.graphData({ nodes: filteredNodes, links: gLinks })
 				.backgroundColor('#fafafa')
 				.nodeVal('val')
 				.nodeLabel('')
@@ -361,6 +378,7 @@
 					return (_connL.has(`${s}__${t}`) || _connL.has(`${t}__${s}`)) ? 1.5 : 0.3;
 				})
 				// ── Physics ──────────────────────────────────────────────────────
+				.cooldownTicks(200)
 				.cooldownTime(Infinity)
 				.d3AlphaDecay(0.01)
 				.d3VelocityDecay(0.25)
@@ -417,24 +435,23 @@
 				.onBackgroundClick(() => onDeselect?.());
 
 			// ── Per-node charge via d3Force ──────────────────────────────────────
-			// Apply per-node charge using a function on the charge force
-			graph.d3Force('charge')?.strength((node: GNode) => TYPE_CHARGE[node.nodeType] ?? -30);
+			graph.d3Force('charge')?.strength((node: GNode) => TYPE_CHARGE[node.nodeType] ?? -10);
 
-			// Link distance by relationship type
+			// Link distance + strength by relationship type
 			graph.d3Force('link')
 				?.distance((link: any) => {
 					const rel = link.relation ?? 'contains';
-					if (rel === 'sibling') return 40;       // core-core: medium distance
-					if (rel === 'belongs_to') return 25;    // entity-core: closer
-					if (rel === 'cross_ref') return 20;     // cross-refs: close
-					return 10;                               // contains: tight
+					if (rel === 'sibling')    return 20;    // core-core: tighter cluster
+					if (rel === 'belongs_to') return 15;    // entity-core: close
+					if (rel === 'cross_ref')  return 10;    // cross-refs: tight
+					return 5;                                // contains: very tight
 				})
 				.strength((link: any) => {
 					const rel = link.relation ?? 'contains';
-					if (rel === 'sibling') return 0.15;     // weak — just keeps them in same area
-					if (rel === 'belongs_to') return 0.4;   // medium — chains people to companies
-					if (rel === 'cross_ref') return 0.6;    // strong
-					return 0.8;                              // contains: strong
+					if (rel === 'sibling')    return 0.3;   // keeps core cluster together
+					if (rel === 'belongs_to') return 0.5;   // chains entities to cores
+					if (rel === 'cross_ref')  return 0.7;   // strong cross-links
+					return 1.0;                              // contains: maximum pull
 				});
 
 			graph.d3Force('center')?.strength(0.05);
@@ -442,6 +459,20 @@
 			// Collision to prevent overlap
 			const d3 = await import('d3-force');
 			graph.d3Force('collide', d3.forceCollide().radius(4).strength(0.6));
+
+			// Radial force — pulls nodes into a spherical shell by type
+			// core → center (radius 0), entity → inner ring, folder → mid ring, document → outer ring
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			graph.d3Force('radial', d3.forceRadial(
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				(node: any) => {
+					const nt = (node as GNode).nodeType;
+					if (nt === 'core')   return 0;
+					if (nt === 'entity') return 40;
+					if (nt === 'folder') return 80;
+					return 120; // document
+				}
+			).strength(0.3));
 
 			// Size the canvas
 			const w = container.clientWidth;

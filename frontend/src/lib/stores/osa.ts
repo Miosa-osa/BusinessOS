@@ -33,6 +33,20 @@ export interface OsaMessage {
   skill_execution?: SkillExecution;
 }
 
+export type AgentRuntime = "osa" | "claude" | "codex" | "ollama" | "hermes";
+
+export const AGENT_RUNTIME_OPTIONS: {
+  id: AgentRuntime;
+  label: string;
+  color: string;
+}[] = [
+  { id: "osa", label: "OSA", color: "#22c55e" },
+  { id: "claude", label: "Claude Code", color: "#d97706" },
+  { id: "codex", label: "Codex", color: "#10b981" },
+  { id: "ollama", label: "Ollama", color: "#3b82f6" },
+  { id: "hermes", label: "Hermes", color: "#a855f7" },
+];
+
 export interface OsaState {
   activeMode: OsaMode;
   modeConfidence: number;
@@ -58,12 +72,23 @@ export interface OsaState {
   activeModel: string | null;
   /** Active OSA provider (from health check) */
   activeProvider: string | null;
+  /** Active orchestrator runtime — 'osa' uses LLM API, others use CLI agent in terminal */
+  activeRuntime: AgentRuntime;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const STORAGE_KEY_MODE = "osa_active_mode";
+const STORAGE_KEY_RUNTIME = "osa_active_runtime";
 const DEFAULT_MODE: OsaMode = "ASSIST";
+const DEFAULT_RUNTIME: AgentRuntime = "osa";
+const VALID_RUNTIMES: AgentRuntime[] = [
+  "osa",
+  "claude",
+  "codex",
+  "ollama",
+  "hermes",
+];
 
 /** Canonical dot/accent colors per mode — shared by ModeSelector, ModeIndicator, etc. */
 export const MODE_COLORS: Record<OsaMode, string> = {
@@ -103,6 +128,18 @@ function getInitialMode(): OsaMode {
   }
 }
 
+function getInitialRuntime(): AgentRuntime {
+  if (!browser) return DEFAULT_RUNTIME;
+  try {
+    const stored = localStorage.getItem(
+      STORAGE_KEY_RUNTIME,
+    ) as AgentRuntime | null;
+    return stored && VALID_RUNTIMES.includes(stored) ? stored : DEFAULT_RUNTIME;
+  } catch {
+    return DEFAULT_RUNTIME;
+  }
+}
+
 // ─── Store ───────────────────────────────────────────────────────────────────
 
 function createOsaStore() {
@@ -123,6 +160,7 @@ function createOsaStore() {
     attachments: [],
     activeModel: null,
     activeProvider: null,
+    activeRuntime: getInitialRuntime(),
   };
 
   const { subscribe, set, update } = writable<OsaState>(initialState);
@@ -240,6 +278,66 @@ function createOsaStore() {
 
     clearError() {
       update((s) => ({ ...s, error: null }));
+    },
+
+    setRuntime(runtime: AgentRuntime) {
+      update((s) => ({ ...s, activeRuntime: runtime }));
+      if (browser) {
+        try {
+          localStorage.setItem(STORAGE_KEY_RUNTIME, runtime);
+        } catch {
+          // localStorage unavailable
+        }
+      }
+    },
+
+    /** Feed terminal output into the streaming bubble (for agent runtime mode) */
+    appendTerminalChunk(chunk: string) {
+      update((s) => ({
+        ...s,
+        isStreaming: true,
+        isExpanded: true,
+        streamingContent: s.streamingContent + chunk,
+      }));
+    },
+
+    /** Finalize a terminal stream into a conversation message */
+    finalizeTerminalStream() {
+      const state = getState();
+      if (!state.streamingContent.trim()) {
+        update((s) => ({ ...s, isStreaming: false, streamingContent: "" }));
+        return;
+      }
+      const msg: OsaMessage = {
+        id: crypto.randomUUID(),
+        role: "osa",
+        content: state.streamingContent,
+        mode: state.activeMode,
+        timestamp: new Date(),
+      };
+      update((s) => ({
+        ...s,
+        conversation: [...s.conversation, msg],
+        isStreaming: false,
+        streamingContent: "",
+      }));
+    },
+
+    /** Add a user message to the conversation without sending to API */
+    addUserMessage(content: string) {
+      const state = getState();
+      const msg: OsaMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content,
+        mode: state.activeMode,
+        timestamp: new Date(),
+      };
+      update((s) => ({
+        ...s,
+        conversation: [...s.conversation, msg],
+        isExpanded: true,
+      }));
     },
 
     clearConversation() {

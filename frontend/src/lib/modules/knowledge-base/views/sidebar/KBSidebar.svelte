@@ -6,7 +6,7 @@
 	import { sidebarStore, activeDocumentStore, favoriteDocuments, documentTree } from '../../stores/documents';
 	import { createDocument, deleteDocument, duplicateDocument, toggleFavorite, fetchProfiles, createProfile, type ProfileType, defaultProfileIcons } from '../../services/documents.service';
 	import { ScrollArea, Separator, Tooltip, Modal } from '$lib/ui';
-	import { Search, Plus, ChevronLeft, ChevronRight, Star, Clock, FileText, Trash2, Network, Globe, Users, Building2, FolderKanban, User, UserPlus, X, Layers, Radio, Zap, Activity } from 'lucide-svelte';
+	import { Search, Plus, ChevronLeft, ChevronRight, Star, Clock, FileText, Network, Globe, Users, Building2, FolderKanban, User, UserPlus, X, Layers, Radio, Zap, Activity } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
 	import SettingsPanel from './SettingsPanel.svelte';
@@ -85,8 +85,7 @@
 		{ id: 'all', label: 'All Pages', icon: FileText },
 		{ id: 'favorites', label: 'Favorites', icon: Star },
 		{ id: 'recent', label: 'Recent', icon: Clock },
-		{ id: 'knowledge-graph', label: 'Knowledge Graph', icon: Globe },
-		{ id: 'trash', label: 'Trash', icon: Trash2 }
+		{ id: 'knowledge-graph', label: 'Knowledge Graph', icon: Globe }
 	];
 
 	// Context Profile view options
@@ -327,6 +326,7 @@
 			{onNewDocument}
 			{onOpenSearch}
 			onOpenSettings={handleOpenSettings}
+			onOpenTrash={() => sidebarStore.setView('trash')}
 		/>
 
 		<nav class="bos-sidebar__nav">
