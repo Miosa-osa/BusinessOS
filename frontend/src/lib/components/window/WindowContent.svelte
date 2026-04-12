@@ -35,6 +35,8 @@
 		code: '/code',
 		analytics: '/usage',
 		modules: '/settings',
+		admin: '/admin',
+		computer: '/computer',
 	};
 
 	// Iframe titles for accessibility
@@ -57,7 +59,9 @@
 		knowledge: 'Pages',
 		'ai-settings': 'AI Settings',
 		integrations: 'Integrations',
-		help: 'Help'
+		help: 'Help',
+		admin: 'Platform Admin',
+		computer: 'Computer',
 	};
 
 	interface Props {

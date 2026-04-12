@@ -149,6 +149,20 @@ export const moduleDefaults: Record<
     minWidth: 450,
     minHeight: 400,
   },
+  admin: {
+    title: "Platform Admin",
+    width: 1100,
+    height: 750,
+    minWidth: 800,
+    minHeight: 500,
+  },
+  computer: {
+    title: "Computer",
+    width: 1100,
+    height: 800,
+    minWidth: 700,
+    minHeight: 500,
+  },
   folder: {
     title: "Folder",
     width: 600,
