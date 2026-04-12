@@ -14,8 +14,9 @@
 	import VoiceSettings from '$lib/components/settings/VoiceSettings.svelte';
 	import PersonalizationSettings from '$lib/components/settings/PersonalizationSettings.svelte';
 	import DesktopSettings from '$lib/components/settings/DesktopSettings.svelte';
+	import CloudConnectionSettings from '$lib/components/settings/CloudConnectionSettings.svelte';
 
-	type TabId = 'general' | 'ai' | 'notifications' | 'integrations' | 'account' | 'usage' | 'voice' | 'personalization' | 'desktop';
+	type TabId = 'general' | 'ai' | 'notifications' | 'integrations' | 'account' | 'usage' | 'voice' | 'personalization' | 'desktop' | 'cloud';
 
 	const session = useSession();
 
@@ -37,6 +38,7 @@
 		{ id: 'voice', label: 'Voice' },
 		{ id: 'personalization', label: 'Personalize' },
 		{ id: 'desktop', label: 'Desktop', desktopOnly: true },
+		{ id: 'cloud', label: 'Cloud' },
 	];
 
 	const externalTabs: Array<{ label: string; href: string }> = [
@@ -181,6 +183,10 @@
 
 				{#if activeTab === 'desktop' && isDesktop}
 					<DesktopSettings />
+				{/if}
+
+				{#if activeTab === 'cloud'}
+					<CloudConnectionSettings />
 				{/if}
 			</div>
 		</div>

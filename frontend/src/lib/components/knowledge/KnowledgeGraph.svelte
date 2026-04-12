@@ -63,7 +63,7 @@
 
 	// ── Colors ────────────────────────────────────────────────────────────────
 	const NODE_HOVER   = '#7c3aed';
-	const LINK_DEFAULT = 'rgba(0,0,0,0.06)';
+	const LINK_DEFAULT = 'rgba(0,0,0,0.12)';
 	const LINK_HOVER   = 'rgba(124,58,237,0.5)';
 
 	// Node type → color
@@ -74,13 +74,8 @@
 		entity:   '#3b82f6'
 	};
 
-	// Obsidian-matched repulsion (no collision — repulsion handles spacing)
-	const TYPE_CHARGE: Record<GNodeType, number> = {
-		core:     -20,
-		folder:   -12,
-		document: -8,
-		entity:   -15
-	};
+	// Juggl-matched repulsion (proven Obsidian-like graph implementation)
+	const CHARGE = -100;
 
 	// ── Component state ────────────────────────────────────────────────────────
 	let container  = $state<HTMLDivElement | null>(null);
@@ -313,12 +308,12 @@
 					const nType   = node.nodeType ?? 'document';
 					const isHov   = id === _hovId;
 					const isCon   = _connN.has(id);
-					// Obsidian-style: all dots roughly same small size
-					const baseR   = nType === 'core'     ? 3
-					              : nType === 'entity'   ? 2.5
-					              : nType === 'folder'   ? 1.8
-					              :                        1.2;
-					const r       = baseR; // Fixed size, no scaling
+					// Visible nodes — balls that never touch
+					const baseR   = nType === 'core'     ? 5
+					              : nType === 'entity'   ? 4
+					              : nType === 'folder'   ? 3
+					              :                        2;
+					const r       = baseR;
 					const baseCol = TYPE_COLOR[nType] ?? '#4a4a4a';
 
 					ctx.beginPath();
@@ -376,7 +371,7 @@
 				.linkWidth((link: { source: GNode | string; target: GNode | string }) => {
 					const s = typeof link.source === 'object' ? link.source.id : link.source;
 					const t = typeof link.target === 'object' ? link.target.id : link.target;
-					return (_connL.has(`${s}__${t}`) || _connL.has(`${t}__${s}`)) ? 1.5 : 0.3;
+					return (_connL.has(`${s}__${t}`) || _connL.has(`${t}__${s}`)) ? 2 : 0.5;
 				})
 				// ── Physics — FROZEN after layout ────────────────────────────────
 				// Run 500 ticks before first render, then STOP simulation completely.
@@ -455,34 +450,14 @@
 				})
 				.onBackgroundClick(() => onDeselect?.());
 
-			// ── Obsidian-matched forces ──────────────────────────────────────────
-			graph.d3Force('charge')?.strength((node: GNode) => TYPE_CHARGE[node.nodeType] ?? -12);
+			// ── Juggl-matched forces (proven Obsidian-like graph) ────────────────
+			graph.d3Force('charge')?.strength(CHARGE).distanceMin(5);
+			graph.d3Force('link')?.distance(80).strength(0.5);
+			graph.d3Force('center')?.strength(0.08);
 
-			// Link springs — Obsidian uses distance ~198, strength ~0.44
-			graph.d3Force('link')
-				?.distance((link: any) => {
-					const rel = link.relation ?? 'contains';
-					if (rel === 'sibling')    return 120;
-					if (rel === 'belongs_to') return 80;
-					if (rel === 'cross_ref')  return 60;
-					return 40;
-				})
-				.strength(0.4);
-
-			// Center pull — Obsidian uses ~0.48
-			graph.d3Force('center')?.strength(0.3);
-
-			// NO collision force — Obsidian uses repulsion only for spacing
-
-			// Gentle radial hint — keeps core near center without forcing rigid rings
-			graph.d3Force('radial', d3.forceRadial(
-				(node: any) => {
-					const nt = (node as GNode).nodeType;
-					if (nt === 'core')   return 0;
-					if (nt === 'entity') return 80;
-					return 200;
-				}
-			).strength(0.05));
+			// Collision — prevents overlap. Nodes are balls that never touch.
+			const d3 = await import('d3-force');
+			graph.d3Force('collide', d3.forceCollide().radius(15).strength(0.9));
 
 			// Size the canvas
 			const w = container.clientWidth;
