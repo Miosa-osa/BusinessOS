@@ -36,7 +36,4 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	h.registerPlatformRoutes(api, auth)
 	h.registerOSARoutes(api, auth)
 	h.registerOptimalRoutes(api)
-
-	// Platform admin routes — superadmin only
-	RegisterPlatformAdminRoutes(api, NewPlatformAdminHandler(h.pool), auth)
 }
