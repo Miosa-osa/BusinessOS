@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
@@ -34,6 +35,7 @@ func RegisterPlatformAdminRoutes(api *gin.RouterGroup, h *PlatformAdminHandler, 
 		admin.GET("/users", h.ListUsers)
 		admin.GET("/computers", h.ListComputers)
 		admin.POST("/users/:id/role", h.SetUserRole)
+		admin.GET("/audit-log", h.ListAuditLog)
 	}
 }
 
@@ -108,6 +110,18 @@ type adminComputerRow struct {
 
 type setRoleRequest struct {
 	Role string `json:"role" binding:"required"`
+}
+
+type auditLogEntry struct {
+	ID         string            `json:"id"`
+	ActorID    string            `json:"actor_id"`
+	ActorRole  string            `json:"actor_role"`
+	Action     string            `json:"action"`
+	TargetType *string           `json:"target_type"`
+	TargetID   *string           `json:"target_id"`
+	Details    map[string]string `json:"details"`
+	IPAddress  *string           `json:"ip_address"`
+	CreatedAt  time.Time         `json:"created_at"`
 }
 
 // ── handlers ──────────────────────────────────────────────────────────────────
@@ -338,6 +352,77 @@ func (h *PlatformAdminHandler) ListComputers(c *gin.Context) {
 			TotalPages: int((total + int64(pg.PageSize) - 1) / int64(pg.PageSize)),
 			HasMore:    int64(pg.Offset)+int64(pg.Limit) < total,
 		},
+	})
+}
+
+// ListAuditLog handles GET /api/v1/admin/audit-log.
+// Returns the 50 most recent platform audit log entries ordered newest-first.
+// Response: { "entries": [...], "total": N }
+func (h *PlatformAdminHandler) ListAuditLog(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	const q = `
+		SELECT
+			id,
+			actor_id,
+			actor_role,
+			action,
+			target_type,
+			target_id,
+			details,
+			ip_address,
+			created_at
+		FROM platform_audit_log
+		ORDER BY created_at DESC
+		LIMIT 50
+	`
+
+	rows, err := h.pool.Query(ctx, q)
+	if err != nil {
+		utils.RespondInternalError(c, slog.Default(), "list audit log", err)
+		return
+	}
+	defer rows.Close()
+
+	entries := make([]auditLogEntry, 0, 50)
+	for rows.Next() {
+		var e auditLogEntry
+		var details []byte
+		if err := rows.Scan(
+			&e.ID,
+			&e.ActorID,
+			&e.ActorRole,
+			&e.Action,
+			&e.TargetType,
+			&e.TargetID,
+			&details,
+			&e.IPAddress,
+			&e.CreatedAt,
+		); err != nil {
+			utils.RespondInternalError(c, slog.Default(), "scan audit log", err)
+			return
+		}
+		if len(details) > 0 {
+			if err := json.Unmarshal(details, &e.Details); err != nil {
+				slog.WarnContext(ctx, "platform_admin: audit log details unmarshal failed",
+					"entry_id", e.ID, "error", err)
+			}
+		}
+		entries = append(entries, e)
+	}
+	if err := rows.Err(); err != nil {
+		utils.RespondInternalError(c, slog.Default(), "iterate audit log", err)
+		return
+	}
+
+	var total int64
+	if err := h.pool.QueryRow(ctx, `SELECT COUNT(*) FROM platform_audit_log`).Scan(&total); err != nil {
+		slog.WarnContext(ctx, "platform_admin: audit log count failed", "error", err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"entries": entries,
+		"total":   total,
 	})
 }
 

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/cache"
 	"github.com/rhl/businessos-backend/internal/config"
@@ -95,6 +96,18 @@ type Handlers struct {
 // disable the SQLite-backed graph/search endpoints gracefully.
 func (h *Handlers) SetOptimalHandler(nodesRoot, osRoot, enginePath, dbPath string) {
 	h.optimalHandler = NewOptimalHandler(nodesRoot, osRoot, enginePath, dbPath)
+}
+
+// Auth returns the appropriate authentication middleware for this handler set.
+// Uses Redis-cached auth when a session cache is configured (horizontal scaling),
+// falling back to direct DB auth for single-instance mode.
+// Call this to get the auth middleware for route groups defined outside of
+// RegisterRoutes (e.g. computer, billing, sync, admin routes in cmd/server/).
+func (h *Handlers) Auth() gin.HandlerFunc {
+	if h.sessionCache != nil {
+		return middleware.CachedAuthMiddleware(h.pool, h.sessionCache)
+	}
+	return middleware.AuthMiddleware(h.pool)
 }
 
 // NewHandlers creates a new Handlers instance

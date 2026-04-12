@@ -3,14 +3,16 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/handlers"
+	"github.com/rhl/businessos-backend/internal/middleware"
 )
 
 // registerComputerRoutes wires up all Computer and Billing API endpoints.
-// These routes are intentionally unauthenticated at the transport layer —
-// the handlers return mock data and will gain auth middleware once MIOSA
-// integration is complete.
-func registerComputerRoutes(api *gin.RouterGroup, ch *handlers.ComputerHandler, bh *handlers.BillingHandler) {
+// auth is the shared authentication middleware; it is applied to all routes
+// except GET /billing/plans (public pricing page) and the Stripe webhook
+// (registered separately on the bare router with no auth).
+func registerComputerRoutes(api *gin.RouterGroup, ch *handlers.ComputerHandler, bh *handlers.BillingHandler, auth gin.HandlerFunc) {
 	comp := api.Group("/computer")
+	comp.Use(auth, middleware.RequireAuth())
 	{
 		comp.GET("", ch.GetComputer)
 		comp.POST("", ch.CreateComputer)
@@ -24,13 +26,18 @@ func registerComputerRoutes(api *gin.RouterGroup, ch *handlers.ComputerHandler, 
 		comp.GET("/desktop-stream", ch.GetDesktopStream)
 	}
 
+	// GET /billing/plans is intentionally public — no auth required to view pricing.
 	billing := api.Group("/billing")
+	billing.GET("/plans", bh.GetPlans)
+
+	// All other billing routes require authentication.
+	billingAuth := api.Group("/billing")
+	billingAuth.Use(auth, middleware.RequireAuth())
 	{
-		billing.GET("/plans", bh.GetPlans)
-		billing.GET("/subscription", bh.GetSubscription)
-		billing.POST("/subscribe", bh.Subscribe)
-		billing.POST("/credits/purchase", bh.PurchaseCredits)
-		billing.POST("/portal", bh.ManageSubscription)
+		billingAuth.GET("/subscription", bh.GetSubscription)
+		billingAuth.POST("/subscribe", bh.Subscribe)
+		billingAuth.POST("/credits/purchase", bh.PurchaseCredits)
+		billingAuth.POST("/portal", bh.ManageSubscription)
 		// NOTE: /billing/webhook is registered separately (no auth, raw body required).
 	}
 }
