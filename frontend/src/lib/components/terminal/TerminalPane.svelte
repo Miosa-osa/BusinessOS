@@ -9,12 +9,13 @@
 		pane: PaneLeaf;
 		config: TerminalConfig;
 		activeFocusMode?: string;
+		environmentMode?: string;
 		onSessionCreated?: (paneId: string, sessionId: string) => void;
 		onFocus?: (paneId: string) => void;
 		onShellReady?: (paneId: string, write: (data: string) => void) => void;
 	}
 
-	let { pane, config, activeFocusMode, onSessionCreated, onFocus, onShellReady }: Props = $props();
+	let { pane, config, activeFocusMode, environmentMode = 'local', onSessionCreated, onFocus, onShellReady }: Props = $props();
 
 	let shellRef: TerminalShell | undefined = $state();
 	let aiChatRef: TerminalAIChat | undefined = $state();
@@ -127,14 +128,17 @@
 	aria-label="Terminal pane"
 >
 	{#if shellMounted}
-		<TerminalShell
-			bind:this={shellRef}
-			paneId={pane.id}
-			{config}
-			visible={showShell}
-			{onSessionCreated}
-			onFocus={onFocus}
-		/>
+		{#key environmentMode}
+			<TerminalShell
+				bind:this={shellRef}
+				paneId={pane.id}
+				{config}
+				visible={showShell}
+				{environmentMode}
+				{onSessionCreated}
+				onFocus={onFocus}
+			/>
+		{/key}
 	{/if}
 
 	{#if showAI}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { getApiBaseUrl } from '$lib/api/base';
 
@@ -64,6 +64,8 @@
 	let plans = $state<Plan[]>([]);
 	let loading = $state(true);
 	let showPricingModal = $state(false);
+	let activeView = $state<'dashboard' | 'desktop'>('dashboard');
+	let desktopStreamAuth = $state('');
 	let stoppingRuntime = $state<string | null>(null);
 
 	// ── Derived ────────────────────────────────────────────────────────────────
@@ -72,7 +74,9 @@
 		metrics ? Math.round((metrics.ram_used_gb / metrics.ram_total_gb) * 100) : 0
 	);
 	let storagePercent = $derived(
-		metrics ? Math.round((metrics.storage_used_gb / metrics.storage_total_gb) * 100) : 0
+		metrics && metrics.storage_total_gb > 0
+			? Math.round((metrics.storage_used_gb / metrics.storage_total_gb) * 100)
+			: 0
 	);
 	let creditsPercent = $derived(
 		subscription
@@ -117,6 +121,40 @@
 			return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 		} catch {
 			return iso;
+		}
+	}
+
+	function formatDate(iso: string): string {
+		try {
+			return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+		} catch {
+			return iso;
+		}
+	}
+
+	function calcUptime(createdAt: string): string {
+		try {
+			const seconds = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
+			if (seconds < 60) return `${seconds}s`;
+			if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+			const h = Math.floor(seconds / 3600);
+			const m = Math.floor((seconds % 3600) / 60);
+			if (h < 24) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+			const d = Math.floor(h / 24);
+			const rh = h % 24;
+			return rh > 0 ? `${d}d ${rh}h` : `${d}d`;
+		} catch {
+			return '—';
+		}
+	}
+
+	function extractSlug(domain: string): string {
+		try {
+			// Extract subdomain or first path segment as the slug
+			const url = domain.startsWith('http') ? new URL(domain) : new URL(`https://${domain}`);
+			return url.hostname.split('.')[0];
+		} catch {
+			return domain.split('.')[0] ?? domain;
 		}
 	}
 
@@ -185,20 +223,115 @@
 
 	// ── Lifecycle ──────────────────────────────────────────────────────────────
 
+	// Keepalive — ping the computer every 2 minutes to prevent auto-stop
+	let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+
+	// Metrics auto-refresh — every 30s when dashboard is active and computer is running
+	let metricsInterval: ReturnType<typeof setInterval> | null = null;
+
+	function startKeepalive() {
+		if (keepaliveTimer) return;
+		keepaliveTimer = setInterval(async () => {
+			if (!computer || computer.status !== 'running') return;
+			try {
+				await apiFetch('/computer');
+			} catch { /* silent */ }
+		}, 120_000); // 2 minutes
+	}
+
+	function startMetricsRefresh() {
+		if (metricsInterval) return;
+		metricsInterval = setInterval(async () => {
+			if (activeView !== 'dashboard' || !computer || computer.status !== 'running') return;
+			const metResp = await apiFetch<{ ram_used_mb: number; ram_total_mb: number; cpu_percent: number; storage_used_gb: number; storage_total_gb: number }>('/computer/metrics');
+			if (metResp) {
+				metrics = {
+					ram_used_gb: (metResp.ram_used_mb ?? 0) / 1024,
+					ram_total_gb: (metResp.ram_total_mb ?? 0) / 1024,
+					cpu_percent: metResp.cpu_percent ?? 0,
+					cpu_cores: metrics?.cpu_cores ?? 2,
+					storage_used_gb: metResp.storage_used_gb ?? 0,
+					storage_total_gb: metResp.storage_total_gb ?? 0,
+				};
+			}
+		}, 30_000); // 30 seconds
+	}
+
+	onDestroy(() => {
+		if (keepaliveTimer) clearInterval(keepaliveTimer);
+		if (metricsInterval) clearInterval(metricsInterval);
+	});
+
 	onMount(async () => {
-		const [comp, met, rt, sub, pl] = await Promise.all([
-			apiFetch<Computer>('/computer'),
-			apiFetch<Metrics>('/computer/metrics'),
-			apiFetch<Runtime[]>('/computer/runtimes'),
-			apiFetch<Subscription>('/billing/subscription'),
-			apiFetch<Plan[]>('/billing/plans'),
+		// API returns wrapped objects — extract the inner data
+		const [compResp, metResp, rtResp, subResp, plResp] = await Promise.all([
+			apiFetch<{ computer: Computer | null }>('/computer'),
+			apiFetch<{ ram_used_mb: number; ram_total_mb: number; cpu_percent: number; storage_used_gb: number; storage_total_gb: number }>('/computer/metrics'),
+			apiFetch<{ runtimes: Array<{ name: string; status: string; memory_mb: number; uptime_seconds: number }> }>('/computer/runtimes'),
+			apiFetch<{ subscription: { plan: string; price_monthly: number; credits_total: number; credits_used: number; seats_used: number; next_billing_at: string; status: string } }>('/billing/subscription'),
+			apiFetch<{ plans: Array<{ id: string; name: string; price_monthly: number; ram_gb: number; cpus: number; storage_gb: number; credits_included: number; features: string[] }> }>('/billing/plans'),
 		]);
 
-		computer = comp;
-		metrics = met;
-		runtimes = rt ?? FALLBACK_RUNTIMES;
-		subscription = sub;
-		plans = pl ?? FALLBACK_PLANS;
+		// Extract computer (null = no cloud computer)
+		computer = compResp?.computer ?? null;
+
+		// Map metrics (backend returns MB, frontend expects GB)
+		if (metResp) {
+			metrics = {
+				ram_used_gb: (metResp.ram_used_mb ?? 0) / 1024,
+				ram_total_gb: (metResp.ram_total_mb ?? 0) / 1024,
+				cpu_percent: metResp.cpu_percent ?? 0,
+				cpu_cores: 2,
+				storage_used_gb: metResp.storage_used_gb ?? 0,
+				storage_total_gb: metResp.storage_total_gb ?? 0,
+			};
+		}
+
+		// Map runtimes
+		if (rtResp?.runtimes) {
+			runtimes = rtResp.runtimes.map((r, i) => ({
+				id: `r${i}`,
+				name: r.name,
+				status: r.status as Runtime['status'],
+				memory_gb: (r.memory_mb ?? 0) / 1024,
+				uptime_seconds: r.uptime_seconds,
+			}));
+		} else {
+			runtimes = FALLBACK_RUNTIMES;
+		}
+
+		// Map subscription
+		if (subResp?.subscription) {
+			const s = subResp.subscription;
+			subscription = {
+				plan_name: s.plan,
+				price_cents: s.price_monthly,
+				interval: 'month',
+				credits_used: s.credits_used,
+				credits_total: s.credits_total,
+				seats: s.seats_used,
+				next_billing_date: s.next_billing_at,
+			};
+		}
+
+		// Map plans
+		if (plResp?.plans && plResp.plans.length > 0) {
+			plans = plResp.plans.map((p) => ({
+				id: p.id,
+				name: p.name,
+				price_cents: p.price_monthly,
+				interval: 'month' as const,
+				ram_gb: p.ram_gb,
+				cpu_cores: p.cpus,
+				storage_gb: p.storage_gb,
+				credits: p.credits_included,
+				seats: 'Unlimited',
+				features: p.features ?? [],
+				is_popular: p.id === 'growth',
+			}));
+		} else {
+			plans = FALLBACK_PLANS;
+		}
 
 		// Mark current plan
 		if (subscription && plans.length > 0) {
@@ -209,9 +342,177 @@
 		}
 
 		loading = false;
+
+		// Start keepalive, metrics refresh, and pre-load desktop URL if computer is running
+		if (computer && (computer.status === 'running' || computer.status === 'active')) {
+			startKeepalive();
+			startMetricsRefresh();
+			loadDesktopStream(); // Pre-load so Desktop tab is instant
+		}
 	});
 
 	// ── Actions ────────────────────────────────────────────────────────────────
+
+	let provisioning = $state(false);
+	let provisionError = $state<string | null>(null);
+	let startingComputer = $state(false);
+
+	// Desktop iframe URL — loaded from the backend desktop-stream endpoint
+	let desktopSrc = $state('');
+
+	async function loadDesktopStream() {
+		if (!computer) return;
+		try {
+			const res = await fetch(`${getApiBaseUrl()}/computer/desktop-stream`, {
+				credentials: 'include',
+				headers: buildHeaders(),
+				signal: AbortSignal.timeout(15000),
+			});
+			if (!res.ok) {
+				console.error('[Desktop] fetch failed:', res.status);
+				return;
+			}
+			const data = await res.json();
+			console.log('[Desktop] response:', data);
+			if (data?.mode === 'cloud' && data.desktop_url) {
+				desktopSrc = data.desktop_url;
+				desktopStreamAuth = 'loaded';
+				console.log('[Desktop] iframe src set:', desktopSrc.substring(0, 80));
+			}
+		} catch (err) {
+			console.error('[Desktop] error:', err);
+		}
+	}
+
+	async function switchToDesktop() {
+		activeView = 'desktop';
+		if (!desktopSrc) {
+			await loadDesktopStream();
+		}
+	}
+
+	async function handleStartComputer() {
+		if (!computer) return;
+		startingComputer = true;
+		try {
+			// Call MIOSA start via our backend terminal-session endpoint (it auto-wakes)
+			const res = await fetch(`${getApiBaseUrl()}/computer/terminal-session`, {
+				credentials: 'include',
+				signal: AbortSignal.timeout(90000), // 90s — VM boot can take a while
+			});
+			if (res.ok) {
+				const data = await res.json();
+				if (data.mode === 'cloud') {
+					// Computer is now running — reload all data
+					computer = { ...computer!, status: 'running' };
+				}
+			}
+			// Reload computer status regardless
+			const statusRes = await apiFetch<{ computer: Computer | null }>('/computer');
+			if (statusRes?.computer) {
+				computer = statusRes.computer;
+			}
+		} catch {
+			// Timeout is expected if VM takes long — reload status
+			const statusRes = await apiFetch<{ computer: Computer | null }>('/computer');
+			if (statusRes?.computer) {
+				computer = statusRes.computer;
+			}
+		} finally {
+			startingComputer = false;
+		}
+	}
+
+	async function selectPlan(planId: string) {
+		provisioning = true;
+		provisionError = null;
+		showPricingModal = false;
+
+		try {
+			// 1. Subscribe to the plan
+			const subRes = await fetch(`${getApiBaseUrl()}/billing/subscribe`, {
+				method: 'POST',
+				credentials: 'include',
+				headers: { 'Content-Type': 'application/json' },
+				signal: AbortSignal.timeout(10000),
+				body: JSON.stringify({ plan: planId }),
+			});
+			if (!subRes.ok) throw new Error(`Subscribe failed: ${subRes.status}`);
+			const subData = await subRes.json();
+
+			// Update subscription state
+			if (subData?.subscription) {
+				const s = subData.subscription;
+				subscription = {
+					plan_name: s.plan,
+					price_cents: s.price_monthly,
+					interval: 'month',
+					credits_used: s.credits_used ?? 0,
+					credits_total: s.credits_total ?? 500,
+					seats: s.seats_used ?? 1,
+					next_billing_date: s.next_billing_at ?? '',
+				};
+			}
+
+			// 2. Create the computer
+			const compRes = await fetch(`${getApiBaseUrl()}/computer`, {
+				method: 'POST',
+				credentials: 'include',
+				headers: { 'Content-Type': 'application/json' },
+				signal: AbortSignal.timeout(15000),
+				body: JSON.stringify({ plan: planId }),
+			});
+			if (!compRes.ok) throw new Error(`Create computer failed: ${compRes.status}`);
+			const compData = await compRes.json();
+
+			// Update computer state
+			if (compData?.computer) {
+				const c = compData.computer;
+				computer = {
+					id: c.id,
+					status: c.status === 'provisioning' ? 'running' : c.status,
+					domain: c.domain ?? `${planId}.app.businessos.com`,
+					region: 'us-east-1',
+					created_at: c.created_at ?? new Date().toISOString(),
+				};
+			}
+
+			// 3. Load metrics + runtimes for the new computer
+			const [metResp, rtResp] = await Promise.all([
+				apiFetch<{ ram_used_mb: number; ram_total_mb: number; cpu_percent: number; storage_used_gb: number; storage_total_gb: number }>('/computer/metrics'),
+				apiFetch<{ runtimes: Array<{ name: string; status: string; memory_mb: number; uptime_seconds: number }> }>('/computer/runtimes'),
+			]);
+
+			if (metResp) {
+				metrics = {
+					ram_used_gb: (metResp.ram_used_mb ?? 0) / 1024,
+					ram_total_gb: (metResp.ram_total_mb ?? 0) / 1024,
+					cpu_percent: metResp.cpu_percent ?? 0,
+					cpu_cores: planId === 'business' ? 8 : planId === 'growth' ? 4 : 2,
+					storage_used_gb: metResp.storage_used_gb ?? 0,
+					storage_total_gb: metResp.storage_total_gb ?? 10,
+				};
+			}
+
+			if (rtResp?.runtimes) {
+				runtimes = rtResp.runtimes.map((r, i) => ({
+					id: `r${i}`,
+					name: r.name,
+					status: r.status as Runtime['status'],
+					memory_gb: (r.memory_mb ?? 0) / 1024,
+					uptime_seconds: r.uptime_seconds,
+				}));
+			}
+
+			// Mark current plan
+			plans = plans.map((p) => ({ ...p, is_current: p.id === planId }));
+
+		} catch (err) {
+			provisionError = err instanceof Error ? err.message : 'Failed to create computer';
+		} finally {
+			provisioning = false;
+		}
+	}
 
 	async function stopRuntime(id: string) {
 		stoppingRuntime = id;
@@ -334,8 +635,12 @@
 								Current Plan
 							</button>
 						{:else}
-							<button class="cp-plan-btn cp-plan-btn--upgrade" onclick={() => (showPricingModal = false)}>
-								{subscription ? 'Upgrade' : 'Get Started'}
+							<button
+								class="cp-plan-btn cp-plan-btn--upgrade"
+								onclick={() => selectPlan(plan.id)}
+								disabled={provisioning}
+							>
+								{provisioning ? 'Creating...' : subscription ? 'Upgrade' : 'Get Started'}
 							</button>
 						{/if}
 					</div>
@@ -364,10 +669,32 @@
 			</div>
 		</div>
 
+	{:else if provisioning}
+		<!-- ── Provisioning State ──────────────────────────────────────────────── -->
+		<div class="cp-empty" in:fade={{ duration: 250 }}>
+			<div class="cp-empty-card" in:fly={{ y: 16, duration: 300 }}>
+				<div class="cp-empty-icon cp-empty-icon--spin" aria-hidden="true">
+					<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+					</svg>
+				</div>
+				<h1 class="cp-empty-title">Creating Your Computer...</h1>
+				<p class="cp-empty-subtitle">
+					Setting up your cloud environment. This takes about 60 seconds.
+				</p>
+			</div>
+		</div>
+
 	{:else if computer === null}
 		<!-- ── Free / No Computer State ────────────────────────────────────────── -->
 		<div class="cp-empty" in:fade={{ duration: 250 }}>
 			<div class="cp-empty-card" in:fly={{ y: 16, duration: 300 }}>
+				{#if provisionError}
+					<div class="cp-error-banner" role="alert">
+						<span>{provisionError}</span>
+						<button onclick={() => (provisionError = null)}>Dismiss</button>
+					</div>
+				{/if}
 				<div class="cp-empty-icon" aria-hidden="true">
 					<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
 						<rect x="2" y="3" width="20" height="14" rx="2"/>
@@ -417,32 +744,97 @@
 				</div>
 			</div>
 			<div class="cp-hero-actions">
-				<a
-					href="ssh://{computer.domain}"
-					class="cp-btn cp-btn--outline"
-					aria-label="Open terminal for {computer.domain}"
-				>
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-						<polyline points="4 17 10 11 4 5"/>
-						<line x1="12" y1="19" x2="20" y2="19"/>
-					</svg>
-					Open Terminal
-				</a>
-				<button class="cp-btn cp-btn--outline" aria-label="Restart computer">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-						<polyline points="23 4 23 10 17 10"/>
-						<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-					</svg>
-					Restart
-				</button>
-				<button class="cp-btn cp-btn--outline" aria-label="Hibernate computer">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-						<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-					</svg>
-					Hibernate
-				</button>
+				{#if computer.status === 'stopped' || computer.status === 'hibernating'}
+					<button
+						class="cp-btn cp-btn--primary"
+						disabled={startingComputer}
+						onclick={handleStartComputer}
+					>
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<polygon points="5 3 19 12 5 21 5 3"/>
+						</svg>
+						{startingComputer ? 'Starting...' : 'Start Computer'}
+					</button>
+				{:else}
+					<a
+						href="/terminal"
+						class="cp-btn cp-btn--outline"
+						aria-label="Open terminal"
+					>
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<polyline points="4 17 10 11 4 5"/>
+							<line x1="12" y1="19" x2="20" y2="19"/>
+						</svg>
+						Open Terminal
+					</a>
+					<button
+						class="cp-btn cp-btn--outline"
+						aria-label="Open desktop"
+						onclick={switchToDesktop}
+					>
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<rect x="2" y="3" width="20" height="14" rx="2"/>
+							<path d="M8 21h8M12 17v4"/>
+						</svg>
+						Open Desktop
+					</button>
+					<button class="cp-btn cp-btn--outline" aria-label="Restart computer">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<polyline points="23 4 23 10 17 10"/>
+							<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+						</svg>
+						Restart
+					</button>
+					<button class="cp-btn cp-btn--outline" aria-label="Hibernate computer">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+						</svg>
+						Hibernate
+					</button>
+				{/if}
 			</div>
 		</section>
+
+		<!-- View Toggle: Dashboard / Desktop -->
+		{#if computer.status === 'running'}
+			<div class="cp-view-tabs">
+				<button class="cp-view-tab" class:active={activeView === 'dashboard'} onclick={() => (activeView = 'dashboard')}>
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+					Dashboard
+				</button>
+				<button class="cp-view-tab" class:active={activeView === 'desktop'} onclick={switchToDesktop}>
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+					Desktop
+				</button>
+			</div>
+		{/if}
+
+		{#if activeView === 'desktop' && computer.status === 'running'}
+			<!-- Desktop VNC Stream -->
+			<section class="cp-desktop-container">
+				{#if desktopSrc}
+					<iframe
+						src={desktopSrc}
+						title="BusinessOS Desktop"
+						class="cp-desktop-iframe"
+						allow="clipboard-read; clipboard-write; autoplay"
+					></iframe>
+				{:else}
+					<div class="cp-desktop-loading">
+						<div class="cp-desktop-spinner"></div>
+						<p>Connecting to desktop...</p>
+						<button class="cp-btn cp-btn--outline" style="margin-top: 12px;" onclick={loadDesktopStream}>
+							Retry
+						</button>
+						{#if computer?.domain}
+							<a href={computer.domain} target="_blank" class="cp-btn cp-btn--outline" style="margin-top: 8px;">
+								Open in new tab
+							</a>
+						{/if}
+					</div>
+				{/if}
+			</section>
+		{:else}
 
 		<!-- ── Section 2: Resource Meters ───────────────────────────────────────── -->
 		<section class="cp-metrics-grid" aria-label="Resource usage" in:fly={{ y: 12, duration: 300, delay: 50 }}>
@@ -510,17 +902,93 @@
 			</div>
 		</section>
 
+		<!-- ── Section 2b: Computer Info ───────────────────────────────────────── -->
+		<section class="cp-info-card" aria-label="Computer information" in:fly={{ y: 12, duration: 300, delay: 75 }}>
+			<div class="cp-info-header">
+				<h2 class="cp-panel-title">Computer Info</h2>
+			</div>
+			<div class="cp-info-grid">
+				<div class="cp-info-row">
+					<span class="cp-info-label">Name</span>
+					<span class="cp-info-value">Your Computer</span>
+				</div>
+				<div class="cp-info-row">
+					<span class="cp-info-label">Slug</span>
+					<span class="cp-info-value cp-info-value--mono">{extractSlug(computer.domain)}</span>
+				</div>
+				<div class="cp-info-row">
+					<span class="cp-info-label">Template</span>
+					<span class="cp-info-value">MIOSA Desktop</span>
+				</div>
+				<div class="cp-info-row">
+					<span class="cp-info-label">Region</span>
+					<span class="cp-info-value">{computer.region}</span>
+				</div>
+				<div class="cp-info-row">
+					<span class="cp-info-label">Created</span>
+					<span class="cp-info-value">{formatDate(computer.created_at)}</span>
+				</div>
+				<div class="cp-info-row">
+					<span class="cp-info-label">Uptime</span>
+					<span class="cp-info-value">{calcUptime(computer.created_at)}</span>
+				</div>
+				<div class="cp-info-row">
+					<span class="cp-info-label">IP Address</span>
+					<span class="cp-info-value">Cloud (MIOSA)</span>
+				</div>
+				<div class="cp-info-row">
+					<span class="cp-info-label">Desktop URL</span>
+					<a
+						href={computer.domain.startsWith('http') ? computer.domain : `https://${computer.domain}`}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="cp-info-link"
+					>
+						{computer.domain}
+						<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+							<polyline points="15 3 21 3 21 9"/>
+							<line x1="10" y1="14" x2="21" y2="3"/>
+						</svg>
+					</a>
+				</div>
+			</div>
+		</section>
+
 		<!-- ── Section 3: Runtimes + Plan ───────────────────────────────────────── -->
 		<section class="cp-bottom-grid" in:fly={{ y: 12, duration: 300, delay: 100 }}>
 
 			<!-- Runtimes column -->
 			<div class="cp-panel">
 				<div class="cp-panel-header">
-					<h2 class="cp-panel-title">Runtimes</h2>
-					<span class="cp-panel-count">{runtimes.filter((r) => r.status !== 'stopped').length} running</span>
+					<h2 class="cp-panel-title">Installed Tools</h2>
+					<span class="cp-panel-count">{runtimes.filter((r) => r.status !== 'stopped').length + 5} installed</span>
 				</div>
 
 				<div class="cp-runtimes-list">
+					<!-- Hardcoded tools present on every BusinessOS computer -->
+					{#each [
+						{ id: 'cc', name: 'Claude Code', status: 'active', label: 'AI Agent' },
+						{ id: 'codex', name: 'Codex', status: 'active', label: 'AI Agent' },
+						{ id: 'pg', name: 'PostgreSQL', status: 'active', label: 'Database' },
+						{ id: 'redis', name: 'Redis', status: 'active', label: 'Cache' },
+						{ id: 'go', name: 'Go', status: 'idle', label: 'Runtime' },
+					] as tool}
+						<div class="cp-runtime-row">
+							<div class="cp-runtime-left">
+								<div class="cp-runtime-status-dot cp-runtime-status-dot--{tool.status}" aria-hidden="true"></div>
+								<div class="cp-runtime-info">
+									<span class="cp-runtime-name">{tool.name}</span>
+									<span class="cp-runtime-meta">
+										<span class="cp-runtime-status-badge cp-runtime-status-badge--{tool.status}">{tool.status === 'active' ? 'Active' : 'Installed'}</span>
+										<span class="cp-runtime-stat">{tool.label}</span>
+									</span>
+								</div>
+							</div>
+						</div>
+					{/each}
+
+					<!-- Dynamic runtimes from API -->
 					{#each runtimes as runtime (runtime.id)}
 						<div class="cp-runtime-row" in:fade={{ duration: 150 }}>
 							<div class="cp-runtime-left">
@@ -650,20 +1118,94 @@
 			</div>
 
 		</section>
-	{/if}
+	{/if} <!-- end desktop/dashboard toggle -->
+	{/if} <!-- end main computer view -->
 
 </div>
 
 <style>
+	/* ── View Tabs ─────────────────────────────────────────────────────────── */
+	.cp-view-tabs {
+		display: flex;
+		gap: 2px;
+		background: var(--dbg, #fff);
+		border: 1px solid var(--dbd, #e5e7eb);
+		border-radius: 8px;
+		padding: 3px;
+		width: fit-content;
+	}
+
+	.cp-view-tab {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 16px;
+		border-radius: 8px;
+		border: none;
+		background: transparent;
+		color: var(--dt3, #6b7280);
+		font-size: 13px;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.cp-view-tab:hover { background: var(--dbg2, #f3f4f6); color: var(--dt, #111); }
+	.cp-view-tab.active { background: var(--dt, #111); color: #fff; }
+	:global(.dark) .cp-view-tab.active { background: #3b82f6; }
+
+	/* ── Desktop Stream ───────────────────────────────────────────────────── */
+	.cp-desktop-container {
+		border-radius: 8px;
+		overflow: hidden;
+		border: 1px solid var(--dbd, #e5e7eb);
+		background: #000;
+		position: relative;
+		flex: 1;
+		min-height: 0;
+	}
+
+	.cp-desktop-iframe {
+		width: 100%;
+		height: 100%;
+		border: none;
+		display: block;
+	}
+
+	.cp-desktop-loading {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		height: 500px;
+		color: #888;
+		gap: 12px;
+	}
+
+	.cp-desktop-spinner {
+		width: 32px;
+		height: 32px;
+		border: 3px solid rgba(255,255,255,0.1);
+		border-top-color: #7c3aed;
+		border-radius: 50%;
+		animation: cp-dspin 0.8s linear infinite;
+	}
+
+	@keyframes cp-dspin {
+		to { transform: rotate(360deg); }
+	}
+
 	/* ── Page layout ───────────────────────────────────────────────────────── */
 	.cp-page {
-		padding: 24px;
-		max-width: 1280px;
+		padding: 0 16px 16px;
+		max-width: 100%;
 		margin: 0 auto;
 		display: flex;
 		flex-direction: column;
-		gap: 16px;
+		gap: 8px;
 		min-height: 100%;
+		height: 100vh;
+		overflow: hidden;
 		background: var(--dbg2, #f5f5f7);
 	}
 
@@ -704,11 +1246,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 16px;
-		padding: 20px 24px;
+		gap: 10px;
+		padding: 10px 16px;
 		background: var(--dbg, #ffffff);
 		border: 1px solid var(--dbd, rgba(0,0,0,0.07));
-		border-radius: 12px;
+		border-radius: 8px;
 		flex-wrap: wrap;
 	}
 
@@ -1325,6 +1867,45 @@
 		justify-content: center;
 	}
 
+	.cp-empty-icon--spin {
+		animation: cp-spin 1s linear infinite;
+	}
+
+	@keyframes cp-spin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
+	}
+
+	.cp-error-banner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		width: 100%;
+		padding: 10px 14px;
+		border-radius: 8px;
+		background: rgba(239, 68, 68, 0.1);
+		border: 1px solid rgba(239, 68, 68, 0.25);
+		color: #dc2626;
+		font-size: 13px;
+		margin-bottom: 12px;
+	}
+
+	.cp-error-banner button {
+		background: none;
+		border: none;
+		color: #dc2626;
+		font-weight: 600;
+		cursor: pointer;
+		font-size: 12px;
+		padding: 2px 8px;
+		border-radius: 4px;
+	}
+
+	.cp-error-banner button:hover {
+		background: rgba(239, 68, 68, 0.15);
+	}
+
 	.cp-empty-title {
 		font-size: 26px;
 		font-weight: 700;
@@ -1663,4 +2244,80 @@
 		background: rgba(34, 197, 94, 0.12);
 		color: #4ade80;
 	}
+
+	/* ── Computer Info card ────────────────────────────────────────────────── */
+	.cp-info-card {
+		background: var(--dbg, #ffffff);
+		border: 1px solid var(--dbd, rgba(0,0,0,0.07));
+		border-radius: 12px;
+		overflow: hidden;
+	}
+
+	:global(.dark) .cp-info-card {
+		background: var(--dbg, rgba(255,255,255,0.03));
+		border-color: var(--dbd, rgba(255,255,255,0.07));
+	}
+
+	.cp-info-header {
+		padding: 16px 20px 0;
+	}
+
+	.cp-info-grid {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 0;
+		padding: 12px 20px 16px;
+	}
+
+	@media (max-width: 1100px) {
+		.cp-info-grid { grid-template-columns: repeat(2, 1fr); }
+	}
+
+	@media (max-width: 600px) {
+		.cp-info-grid { grid-template-columns: 1fr; }
+	}
+
+	.cp-info-row {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		padding: 10px 12px;
+	}
+
+	.cp-info-label {
+		font-size: 10px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.07em;
+		color: var(--dt3, #9ca3af);
+	}
+
+	.cp-info-value {
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--dt, #111827);
+	}
+	:global(.dark) .cp-info-value { color: var(--dt, #f3f4f6); }
+
+	.cp-info-value--mono {
+		font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
+		font-size: 12px;
+	}
+
+	.cp-info-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 12px;
+		font-weight: 500;
+		color: #3b82f6;
+		text-decoration: none;
+		font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
+		max-width: 200px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.cp-info-link:hover { text-decoration: underline; }
+	:global(.dark) .cp-info-link { color: #60a5fa; }
 </style>

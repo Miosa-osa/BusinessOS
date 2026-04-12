@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { createTerminalService, type TerminalService } from '$lib/services/terminal.service';
+	import { createTerminalService, getCloudTerminalSession, type TerminalService } from '$lib/services/terminal.service';
 	import { Terminal } from '@xterm/xterm';
 	import { FitAddon } from '@xterm/addon-fit';
 	import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -13,11 +13,15 @@
 		paneId: string;
 		config: TerminalConfig;
 		visible?: boolean;
+		environmentMode?: string;
 		onSessionCreated?: (paneId: string, sessionId: string) => void;
 		onFocus?: (paneId: string) => void;
 	}
 
-	let { paneId, config, visible = true, onSessionCreated, onFocus }: Props = $props();
+	let { paneId, config, visible = true, environmentMode = 'local', onSessionCreated, onFocus }: Props = $props();
+
+	// Cloud computer URL — resolved when switching to production mode
+	let cloudUrl = $state<string | null>(null);
 
 	let terminalContainer = $state<HTMLDivElement | undefined>(undefined);
 	let xterm: Terminal | null = null;
@@ -29,7 +33,7 @@
 	let isConnected = $state(false);
 	let connectionError = $state<string | null>(null);
 
-	function initTerminal() {
+	async function initTerminal() {
 		if (!terminalContainer || initialized) return;
 		initialized = true;
 
@@ -57,55 +61,119 @@
 		const t2 = setTimeout(() => fitAddon?.fit(), 100);
 		initTimers.push(t1, t2);
 
-		// User input → backend
+		// Input/resize handlers are registered AFTER the connection is established
+		// to avoid duplicate handlers between cloud and local modes.
+
+		// Cloud mode: get a pre-authenticated WebSocket URL from the backend
+		let cloudWsUrl: string | undefined = undefined;
+		if (environmentMode === 'production') {
+			xterm?.write('\x1b[36m[Connecting to cloud computer...]\x1b[0m\r\n');
+			try {
+				const session = await getCloudTerminalSession();
+				if (session?.mode === 'cloud' && session.ws_url) {
+					cloudWsUrl = session.ws_url;
+					cloudUrl = session.ws_url;
+					xterm?.write(`\x1b[36m[Session: ${session.session_id?.slice(0, 8)}... on ${session.slug}]\x1b[0m\r\n`);
+				} else {
+					const msg = session?.message || 'No active cloud computer';
+					xterm?.write(`\x1b[33m[${msg} — falling back to local]\x1b[0m\r\n`);
+				}
+			} catch {
+				xterm?.write('\x1b[33m[Could not reach cloud — falling back to local]\x1b[0m\r\n');
+			}
+		}
+
+		if (cloudWsUrl) {
+			// Direct WebSocket to cloud VM — bypass the normal terminal service
+			try {
+				const ws = new WebSocket(cloudWsUrl);
+				ws.binaryType = 'arraybuffer';
+				ws.onopen = () => {
+					isConnected = true;
+					connectionError = null;
+					xterm?.write('\x1b[32m[Connected to cloud computer]\x1b[0m\r\n');
+					onSessionCreated?.(paneId, 'cloud');
+				};
+				ws.onmessage = (event) => {
+					if (event.data instanceof ArrayBuffer) {
+						xterm?.write(new Uint8Array(event.data));
+					} else {
+						xterm?.write(event.data);
+					}
+				};
+				ws.onclose = () => {
+					isConnected = false;
+					xterm?.write('\r\n\x1b[31m[Cloud terminal disconnected]\x1b[0m\r\n');
+				};
+				ws.onerror = () => {
+					connectionError = 'Cloud terminal connection failed';
+					xterm?.write('\r\n\x1b[31m[Cloud terminal error]\x1b[0m\r\n');
+				};
+				// Store reference for cleanup (input handler registered below, after branching)
+				service = {
+					isConnected: () => ws.readyState === WebSocket.OPEN,
+					sendInput: (data: string) => { if (ws.readyState === WebSocket.OPEN) ws.send(data); },
+					resize: (cols: number, rows: number) => {
+						if (ws.readyState === WebSocket.OPEN) {
+							ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+						}
+					},
+					disconnect: () => ws.close(),
+					connect: () => {},
+				} as unknown as TerminalService;
+			} catch (err) {
+				xterm?.write(`\r\n\x1b[31m[Failed to connect: ${err}]\x1b[0m\r\n`);
+			}
+		} else {
+			// Local mode: use the standard terminal service
+			const currentService = createTerminalService({
+				onData: (data) => {
+					xterm?.write(data);
+				},
+				onConnect: (sessionId) => {
+					isConnected = true;
+					connectionError = null;
+					onSessionCreated?.(paneId, sessionId);
+
+					const svc = currentService;
+					const t3 = setTimeout(() => {
+						if (xterm && fitAddon && svc.isConnected()) {
+							const dims = fitAddon.proposeDimensions();
+							if (dims) svc.resize(dims.cols, dims.rows);
+						}
+					}, 150);
+					initTimers.push(t3);
+				},
+				onDisconnect: () => {
+					isConnected = false;
+					xterm?.write('\r\n\x1b[31m[Disconnected]\x1b[0m\r\n');
+				},
+				onError: (error) => {
+					connectionError = error;
+					xterm?.write(`\r\n\x1b[31m[Error: ${error}]\x1b[0m\r\n`);
+				}
+			}, {
+				cols: xterm.cols,
+				rows: xterm.rows,
+				shell: config.cursorStyle ? 'zsh' : 'zsh',
+			});
+
+			service = currentService;
+			service.connect();
+		}
+
+		// Register unified input/resize handlers (works for both cloud and local)
 		xterm.onData((data) => {
 			if (service?.isConnected()) {
 				service.sendInput(data);
 			}
 		});
 
-		// Resize → backend
 		xterm.onResize(({ cols, rows }) => {
 			if (service?.isConnected()) {
 				service.resize(cols, rows);
 			}
 		});
-
-		// Capture service instance for closure safety
-		const currentService = createTerminalService({
-			onData: (data) => {
-				xterm?.write(data);
-			},
-			onConnect: (sessionId) => {
-				isConnected = true;
-				connectionError = null;
-				onSessionCreated?.(paneId, sessionId);
-
-				const svc = currentService;
-				const t3 = setTimeout(() => {
-					if (xterm && fitAddon && svc.isConnected()) {
-						const dims = fitAddon.proposeDimensions();
-						if (dims) svc.resize(dims.cols, dims.rows);
-					}
-				}, 150);
-				initTimers.push(t3);
-			},
-			onDisconnect: () => {
-				isConnected = false;
-				xterm?.write('\r\n\x1b[31m[Disconnected]\x1b[0m\r\n');
-			},
-			onError: (error) => {
-				connectionError = error;
-				xterm?.write(`\r\n\x1b[31m[Error: ${error}]\x1b[0m\r\n`);
-			}
-		}, {
-			cols: xterm.cols,
-			rows: xterm.rows,
-			shell: config.cursorStyle ? 'zsh' : 'zsh' // TODO: make configurable
-		});
-
-		service = currentService;
-		service.connect();
 	}
 
 	function handleResize() {
@@ -144,6 +212,9 @@
 			setTimeout(() => fitAddon?.fit(), 50);
 		}
 	});
+
+	// Mode switching is handled by {#key environmentMode} in TerminalPane —
+	// it destroys and recreates this component on mode change, so no $effect needed.
 
 	onMount(() => {
 		initTerminal();

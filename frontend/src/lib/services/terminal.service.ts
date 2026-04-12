@@ -69,7 +69,10 @@ export class TerminalService {
       params.set("cwd", this.config.cwd);
     }
 
-    const wsUrl = `${wsBase}/api/terminal/ws?${params.toString()}`;
+    // Cloud mode uses /term/ws (MIOSA compute proxy), local uses /api/terminal/ws
+    const termPath =
+      this.config.environmentMode === "cloud" ? "/term/ws" : "/api/terminal/ws";
+    const wsUrl = `${wsBase}${termPath}?${params.toString()}`;
 
     try {
       this.ws = new WebSocket(wsUrl);
@@ -267,12 +270,25 @@ export class TerminalService {
 }
 
 /**
- * Create a terminal service instance with the default API URL
+ * Create a terminal service instance with the default API URL.
+ * If computerUrl is provided (e.g. "https://myosa.sandbox.miosa.ai"),
+ * connects to the cloud computer's terminal instead of the local backend.
  */
 export function createTerminalService(
   handlers: TerminalEventHandler,
   config?: TerminalConfig,
+  computerUrl?: string,
 ): TerminalService {
+  // Cloud computer mode: connect to the VM's terminal via compute proxy
+  if (computerUrl) {
+    if (import.meta.env.DEV)
+      console.log("[Terminal] Connecting to cloud computer:", computerUrl);
+    return new TerminalService(computerUrl, handlers, {
+      ...config,
+      environmentMode: "cloud",
+    });
+  }
+
   // Check for Electron or custom API URL
   const customUrl =
     typeof window !== "undefined"
@@ -300,4 +316,54 @@ export function createTerminalService(
     );
 
   return new TerminalService(apiUrl, handlers, config);
+}
+
+/**
+ * Cloud terminal session info returned by GET /api/computer/terminal-session.
+ */
+export interface CloudTerminalSession {
+  mode: "cloud" | "local";
+  ws_url?: string;
+  session_id?: string;
+  computer_id?: string;
+  slug?: string;
+  expires_at?: number;
+  message?: string;
+}
+
+/**
+ * Get a cloud terminal session with a pre-authenticated WebSocket URL.
+ * Calls the BusinessOS backend which proxies to MIOSA to create a PTY session.
+ * Returns the full wss:// URL with auth token, ready to connect.
+ */
+export async function getCloudTerminalSession(): Promise<CloudTerminalSession | null> {
+  try {
+    const res = await fetch(
+      `${getBackendUrl()}/api/computer/terminal-session`,
+      {
+        credentials: "include",
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+    if (!res.ok) return null;
+    const data: CloudTerminalSession = await res.json();
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/** @deprecated Use getCloudTerminalSession instead */
+export async function getCloudTerminalUrl(): Promise<string | null> {
+  const session = await getCloudTerminalSession();
+  if (session?.mode === "cloud" && session.ws_url) {
+    // Extract base URL from wss URL
+    try {
+      const url = new URL(session.ws_url.replace("wss:", "https:"));
+      return `${url.protocol}//${url.host}`;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }

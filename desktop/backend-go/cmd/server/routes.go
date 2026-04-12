@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/config"
 	"github.com/rhl/businessos-backend/internal/handlers"
+	"github.com/rhl/businessos-backend/internal/integrations/miosa"
 	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	redisClient "github.com/rhl/businessos-backend/internal/redis"
@@ -48,6 +49,14 @@ func buildCSRFConfig(cfg *config.Config) middleware.CSRFConfig {
 		}
 		if strings.HasPrefix(path, "/api/internal/osa/") ||
 			strings.HasPrefix(path, "/api/v1/internal/osa/") {
+			return true
+		}
+		if strings.HasPrefix(path, "/api/computer") ||
+			strings.HasPrefix(path, "/api/v1/computer") ||
+			strings.HasPrefix(path, "/api/billing") ||
+			strings.HasPrefix(path, "/api/v1/billing") ||
+			strings.HasPrefix(path, "/api/sync") ||
+			strings.HasPrefix(path, "/api/v1/sync") {
 			return true
 		}
 		if path == "/health" || path == "/ready" || path == "/health/detailed" ||
@@ -138,8 +147,12 @@ func registerRoutes(app *AppServices, skillsHandler *handlers.SkillsHandler, osa
 	}
 
 	// ── Computer + Billing endpoints ─────────────────────────────────────────
-	computerHandler := handlers.NewComputerHandler(cfg)
-	billingHandler := handlers.NewBillingHandler(cfg)
+	var miosaComputeClient *miosa.ComputeClient
+	if cfg.MIOSAAPIKey != "" && cfg.MIOSAAPIUrl != "" {
+		miosaComputeClient = miosa.NewComputeClient(cfg.MIOSAAPIUrl, cfg.MIOSAAPIKey)
+	}
+	computerHandler := handlers.NewComputerHandler(cfg, miosaComputeClient)
+	billingHandler := handlers.NewBillingHandler(cfg, miosaComputeClient)
 	registerComputerRoutes(api, computerHandler, billingHandler)
 	registerComputerRoutes(apiv1, computerHandler, billingHandler)
 

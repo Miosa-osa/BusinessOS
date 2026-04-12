@@ -156,6 +156,9 @@ func Load() (*Config, error) {
 	viper.SetDefault("MIOSA_API_KEY", "")
 	viper.SetDefault("MIOSA_CLOUD_URL", "https://api.miosa.ai")
 
+	// MIOSA Compute API (platform API for VM provisioning)
+	viper.SetDefault("MIOSA_API_URL", "http://localhost:4000")
+
 	// Cloud Deployment (MIOSA Firecracker VM)
 	viper.SetDefault("DEPLOYMENT_MODE", "local") // "local" | "cloud"
 	viper.SetDefault("MIOSA_TENANT_ID", "")

@@ -20,6 +20,8 @@ func registerComputerRoutes(api *gin.RouterGroup, ch *handlers.ComputerHandler, 
 		comp.GET("/runtimes", ch.GetRuntimes)
 		comp.POST("/runtimes/:name/start", ch.StartRuntime)
 		comp.POST("/runtimes/:name/stop", ch.StopRuntime)
+		comp.GET("/terminal-session", ch.GetTerminalSession)
+		comp.GET("/desktop-stream", ch.GetDesktopStream)
 	}
 
 	billing := api.Group("/billing")

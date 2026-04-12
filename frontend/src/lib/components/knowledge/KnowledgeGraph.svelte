@@ -74,12 +74,12 @@
 		entity:   '#3b82f6'
 	};
 
-	// Node type → d3 charge strength (reduced to prevent explosion)
+	// Obsidian-matched repulsion (no collision — repulsion handles spacing)
 	const TYPE_CHARGE: Record<GNodeType, number> = {
-		core:     -10,
-		folder:   -2,
-		document: -0.5,
-		entity:   -5
+		core:     -20,
+		folder:   -12,
+		document: -8,
+		entity:   -15
 	};
 
 	// ── Component state ────────────────────────────────────────────────────────
@@ -381,12 +381,12 @@
 				// ── Physics — FROZEN after layout ────────────────────────────────
 				// Run 500 ticks before first render, then STOP simulation completely.
 				// No bouncing, no jittering. Completely static after initial layout.
-				// Obsidian-style: simulation always alive, heavy damping
+				// Obsidian-matched physics: settles, reheats on drag
 				.warmupTicks(300)
-				.cooldownTime(Infinity)
-				.d3AlphaDecay(0)
-				.d3AlphaMin(0)
-				.d3VelocityDecay(0.65)
+				.cooldownTime(15000)
+				.d3AlphaDecay(0.0228)
+				.d3AlphaMin(0.001)
+				.d3VelocityDecay(0.4)
 				.enableNodeDrag(true)
 				// ── Events ───────────────────────────────────────────────────────
 				.onZoom(({ k }: { k: number }) => {
@@ -399,9 +399,20 @@
 				})
 				.onNodeDrag((node: any) => {
 					setHover(node as GNode);
+					// Obsidian drag: pin node to cursor, reheat simulation
+					// Spring forces PULL connected nodes. Repulsion PUSHES others aside.
+					node.fx = node.x;
+					node.fy = node.y;
+					const sim = (graph as any)?._simulation;
+					if (sim) sim.alphaTarget(0.3).restart();
 					if (container) container.style.cursor = 'grabbing';
 				})
-				.onNodeDragEnd(() => {
+				.onNodeDragEnd((node: any) => {
+					// Unpin node, let simulation cool down naturally
+					node.fx = undefined;
+					node.fy = undefined;
+					const sim = (graph as any)?._simulation;
+					if (sim) sim.alphaTarget(0);
 					setHover(null);
 					if (container) container.style.cursor = 'default';
 				})
@@ -444,55 +455,42 @@
 				})
 				.onBackgroundClick(() => onDeselect?.());
 
-			// ── Per-node charge via d3Force ──────────────────────────────────────
-			graph.d3Force('charge')?.strength((node: GNode) => TYPE_CHARGE[node.nodeType] ?? -10);
+			// ── Obsidian-matched forces ──────────────────────────────────────────
+			graph.d3Force('charge')?.strength((node: GNode) => TYPE_CHARGE[node.nodeType] ?? -12);
 
-			// Link distance + strength by relationship type
+			// Link springs — Obsidian uses distance ~198, strength ~0.44
 			graph.d3Force('link')
 				?.distance((link: any) => {
 					const rel = link.relation ?? 'contains';
-					if (rel === 'sibling')    return 40;    // core-core: enough space between cores
-					if (rel === 'belongs_to') return 30;    // entity-core: nearby but not overlapping
-					if (rel === 'cross_ref')  return 20;    // cross-refs
-					return 15;                               // contains: parent-child
+					if (rel === 'sibling')    return 120;
+					if (rel === 'belongs_to') return 80;
+					if (rel === 'cross_ref')  return 60;
+					return 40;
 				})
-				.strength((link: any) => {
-					const rel = link.relation ?? 'contains';
-					if (rel === 'sibling')    return 0.2;   // gentle grouping
-					if (rel === 'belongs_to') return 0.3;   // moderate chain
-					if (rel === 'cross_ref')  return 0.4;   // moderate
-					return 0.6;                              // contains: strong parent pull
-				});
+				.strength(0.4);
 
-			graph.d3Force('center')?.strength(0.05);
+			// Center pull — Obsidian uses ~0.48
+			graph.d3Force('center')?.strength(0.3);
 
-			// Collision to prevent overlap
-			const d3 = await import('d3-force');
-			graph.d3Force('collide', d3.forceCollide().radius(12).strength(1.0));
+			// NO collision force — Obsidian uses repulsion only for spacing
 
-			// Radial force — pulls nodes into a spherical shell by type
-			// core → center (radius 0), entity → inner ring, folder → mid ring, document → outer ring
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			// Gentle radial hint — keeps core near center without forcing rigid rings
 			graph.d3Force('radial', d3.forceRadial(
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				(node: any) => {
 					const nt = (node as GNode).nodeType;
 					if (nt === 'core')   return 0;
-					if (nt === 'entity') return 100;
-					if (nt === 'folder') return 220;
-					return 380; // document — outer ring
+					if (nt === 'entity') return 80;
+					return 200;
 				}
-			).strength(0.15));
+			).strength(0.05));
 
 			// Size the canvas
 			const w = container.clientWidth;
 			const h = container.clientHeight;
 			if (w > 0 && h > 0) graph.width(w).height(h);
 
-			// Keep simulation warm at low energy — nodes float like orbs
+			// Zoom to fit after warmup settles
 			setTimeout(() => {
-				const sim = (graph as any)?._simulation;
-				if (sim) sim.alpha(0.05).alphaTarget(0.02).restart();
 				graph?.zoomToFit(400, 30);
 			}, 500);
 			loading = false;

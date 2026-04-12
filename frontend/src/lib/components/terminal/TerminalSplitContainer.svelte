@@ -9,12 +9,13 @@
 		node: PaneNode;
 		config: TerminalConfig;
 		activeFocusMode?: string;
+		environmentMode?: string;
 		onSessionCreated?: (paneId: string, sessionId: string) => void;
 		onFocus?: (paneId: string) => void;
 		onShellReady?: (paneId: string, write: (data: string) => void) => void;
 	}
 
-	let { node, config, activeFocusMode, onSessionCreated, onFocus, onShellReady }: Props = $props();
+	let { node, config, activeFocusMode, environmentMode = 'local', onSessionCreated, onFocus, onShellReady }: Props = $props();
 
 	let containerEl = $state<HTMLDivElement | undefined>(undefined);
 	let isDragging = $state(false);
@@ -113,6 +114,7 @@
 		pane={node}
 		{config}
 		{activeFocusMode}
+		{environmentMode}
 		{onSessionCreated}
 		{onFocus}
 		{onShellReady}
@@ -132,6 +134,7 @@
 				node={node.children[0]}
 				{config}
 				{activeFocusMode}
+				{environmentMode}
 				{onSessionCreated}
 				{onFocus}
 				{onShellReady}

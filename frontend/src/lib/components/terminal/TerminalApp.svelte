@@ -274,6 +274,7 @@
 						node={paneTree}
 						{config}
 						{activeFocusMode}
+						environmentMode={currentEnvMode}
 						onSessionCreated={handleSessionCreated}
 						onFocus={handlePaneFocus}
 						onShellReady={handleShellReady}

@@ -7,18 +7,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/config"
+	"github.com/rhl/businessos-backend/internal/integrations/miosa"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 
 // BillingHandler serves plan and subscription endpoints.
-// All responses are mock data — no Stripe integration yet.
 type BillingHandler struct {
-	cfg *config.Config
+	cfg         *config.Config
+	miosaClient *miosa.ComputeClient
 }
 
 // NewBillingHandler constructs a BillingHandler.
-func NewBillingHandler(cfg *config.Config) *BillingHandler {
-	return &BillingHandler{cfg: cfg}
+func NewBillingHandler(cfg *config.Config, miosaClient *miosa.ComputeClient) *BillingHandler {
+	return &BillingHandler{cfg: cfg, miosaClient: miosaClient}
 }
 
 // availablePlans is the canonical list of paid tiers.
@@ -109,8 +110,44 @@ func (h *BillingHandler) GetPlans(c *gin.Context) {
 }
 
 // GetSubscription handles GET /api/billing/subscription.
-// Returns the current subscription (free plan by default).
+// Pulls real data from MIOSA: credits balance + computer existence = plan.
 func (h *BillingHandler) GetSubscription(c *gin.Context) {
+	if h.miosaClient != nil {
+		// Get real credits
+		credits, credErr := h.miosaClient.GetCreditBalance(c.Request.Context())
+		computers, compErr := h.miosaClient.ListComputers(c.Request.Context())
+
+		hasComputer := compErr == nil && len(computers) > 0
+		plan := "free"
+		price := 0
+		if hasComputer {
+			plan = "pro"
+			price = 4000
+		}
+
+		creditsTotal := 0
+		creditsUsed := 0
+		if credErr == nil && credits != nil {
+			creditsTotal = credits.Balance + credits.LifetimeSpent
+			creditsUsed = credits.LifetimeSpent
+			if creditsTotal == 0 {
+				creditsTotal = credits.Balance
+			}
+		}
+
+		sub := Subscription{
+			Plan:          plan,
+			PriceMonthly:  price,
+			CreditsTotal:  creditsTotal,
+			CreditsUsed:   creditsUsed,
+			SeatsUsed:     1,
+			BillingCycle:  "monthly",
+			NextBillingAt: time.Now().UTC().AddDate(0, 1, 0),
+			Status:        "active",
+		}
+		c.JSON(http.StatusOK, gin.H{"subscription": sub})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"subscription": freePlanSubscription})
 }
 

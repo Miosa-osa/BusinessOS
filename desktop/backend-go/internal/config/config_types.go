@@ -200,6 +200,11 @@ type Config struct {
 	MIOSAAPIKey   string `mapstructure:"MIOSA_API_KEY"`   // MIOSA Cloud API key
 	MIOSACloudURL string `mapstructure:"MIOSA_CLOUD_URL"` // Override cloud endpoint (default: https://api.miosa.ai)
 
+	// MIOSA Compute API — platform API for provisioning and managing cloud VMs.
+	// Distinct from MIOSACloudURL (workspace sync). Set MIOSA_API_URL for the
+	// Phoenix/Elixir backend (prod: http://api.miosa.ai, dev: http://localhost:4000).
+	MIOSAAPIUrl string `mapstructure:"MIOSA_API_URL"` // e.g. http://localhost:4000
+
 	// Cloud Deployment (MIOSA Firecracker VM)
 	// DeploymentMode selects how this instance was launched: "local" (Electron desktop,
 	// default) or "cloud" (MIOSA Firecracker VM). In cloud mode the MIOSA JWT auth
