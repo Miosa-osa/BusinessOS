@@ -20,7 +20,7 @@ func (h *BillingHandler) HandleStripeWebhook(c *gin.Context) {
 		return
 	}
 
-	payload, err := io.ReadAll(c.Request.Body)
+	payload, err := io.ReadAll(io.LimitReader(c.Request.Body, 1<<20)) // 1 MB limit
 	if err != nil {
 		slog.ErrorContext(c.Request.Context(), "stripe webhook: failed to read body", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot read body"})

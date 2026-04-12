@@ -68,6 +68,8 @@
 	// Action menu
 	let openMenuId = $state<string | null>(null);
 	let actionBusy = $state(false);
+	let actionError = $state<string | null>(null);
+	let accessDenied = $state(false);
 
 	let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -96,6 +98,10 @@
 				headers: buildHeaders(),
 				signal: AbortSignal.timeout(10000),
 			});
+			if (res.status === 403) {
+				accessDenied = true;
+				return null;
+			}
 			if (!res.ok) return null;
 			return res.json() as Promise<T>;
 		} catch {
@@ -160,9 +166,14 @@
 	async function setUserRole(userId: string, role: 'admin' | 'user') {
 		if (actionBusy) return;
 		actionBusy = true;
+		actionError = null;
 		openMenuId = null;
-		await adminPost(`/admin/users/${userId}/role`, { role });
-		await loadUsers();
+		const ok = await adminPost(`/admin/users/${userId}/role`, { role });
+		if (!ok) {
+			actionError = 'Failed to update user role. Please try again.';
+		} else {
+			await loadUsers();
+		}
 		actionBusy = false;
 	}
 
@@ -225,6 +236,21 @@
 
 	<div class="flex-1 overflow-y-auto">
 		<div class="max-w-6xl mx-auto px-6 py-4">
+
+			<!-- Access denied banner -->
+			{#if accessDenied}
+				<div class="adm-error-banner" role="alert">
+					Access denied. You must be a superadmin to view this page.
+				</div>
+			{/if}
+
+			<!-- Action error banner -->
+			{#if actionError}
+				<div class="adm-error-banner" role="alert">
+					{actionError}
+					<button onclick={() => (actionError = null)} class="adm-error-dismiss" aria-label="Dismiss error">Dismiss</button>
+				</div>
+			{/if}
 
 			<!-- Tab Navigation -->
 			<div class="mb-4">
@@ -594,6 +620,33 @@
 	.adm-page {
 		background: var(--dbg);
 	}
+
+	/* ── Error banners ───────────────────────────────────────────────────────── */
+	.adm-error-banner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 12px;
+		padding: 10px 14px;
+		border-radius: 8px;
+		border: 1px solid #fecaca;
+		background: #fef2f2;
+		color: #dc2626;
+		font-size: 0.8125rem;
+	}
+	:global(.dark) .adm-error-banner {
+		border-color: #991b1b;
+		background: rgba(127, 29, 29, 0.25);
+		color: #fca5a5;
+	}
+	.adm-error-dismiss {
+		font-size: 0.75rem;
+		text-decoration: underline;
+		opacity: 0.75;
+		flex-shrink: 0;
+	}
+	.adm-error-dismiss:hover { opacity: 1; }
 	.adm-header {
 		border-bottom: 1px solid var(--dbd);
 	}

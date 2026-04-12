@@ -128,7 +128,8 @@
 	let isCollapsed = $state(false);
 
 	$effect(() => {
-		// Load collapsed state from localStorage
+		// Load collapsed state from localStorage (browser-only — SSR has no localStorage)
+		if (!browser) return;
 		const stored = localStorage.getItem('sidebar-collapsed');
 		if (stored !== null) {
 			isCollapsed = stored === 'true';
@@ -137,7 +138,7 @@
 
 	function toggleSidebar() {
 		isCollapsed = !isCollapsed;
-		localStorage.setItem('sidebar-collapsed', String(isCollapsed));
+		if (browser) localStorage.setItem('sidebar-collapsed', String(isCollapsed));
 	}
 
 	// Auth is handled server-side in +layout.server.ts — no duplicate client-side check needed.

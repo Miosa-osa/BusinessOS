@@ -125,7 +125,7 @@
 		<nav class="lp-nav__links" aria-label="Site navigation">
 			<a href="#modules" class="lp-nav__link">Modules</a>
 			<a href="#pricing" class="lp-nav__link">Pricing</a>
-			<a href="/docs" class="lp-nav__link">Docs</a>
+			<a href="https://github.com/Miosa-osa/businessos" target="_blank" rel="noopener" class="lp-nav__link">Docs</a>
 			<a href="https://github.com/miosa-osa/businessos" target="_blank" rel="noopener" class="lp-nav__link">GitHub</a>
 		</nav>
 		<div class="lp-nav__actions">
@@ -152,7 +152,7 @@
 				The AI-native platform that runs your entire business. CRM, projects, tasks, agents, and a cloud computer — all in one desktop app.
 			</p>
 			<div class="lp-hero__ctas">
-				<a href="#download" class="lp-btn lp-btn--primary lp-btn--lg">
+				<a href="https://github.com/Miosa-osa/businessos/releases" target="_blank" rel="noopener" class="lp-btn lp-btn--primary lp-btn--lg">
 					<svg class="lp-icon" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
 					</svg>
@@ -326,7 +326,7 @@
 					</svg>
 					View on GitHub
 				</a>
-				<a href="/docs" class="lp-btn lp-btn--outline lp-btn--lg">
+				<a href="https://github.com/Miosa-osa/businessos" target="_blank" rel="noopener" class="lp-btn lp-btn--outline lp-btn--lg">
 					Read the Docs
 				</a>
 			</div>
@@ -350,7 +350,7 @@
 		</div>
 		<nav class="lp-footer__links" aria-label="Footer navigation">
 			<a href="https://github.com/miosa-osa/businessos" target="_blank" rel="noopener" class="lp-footer__link">GitHub</a>
-			<a href="/docs" class="lp-footer__link">Documentation</a>
+			<a href="https://github.com/Miosa-osa/businessos" target="_blank" rel="noopener" class="lp-footer__link">Documentation</a>
 			<a href="#pricing" class="lp-footer__link">Pricing</a>
 			<a href="/privacy" class="lp-footer__link">Privacy</a>
 			<a href="mailto:hello@businessos.dev" class="lp-footer__link">Contact</a>

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -89,6 +90,18 @@ func planToMIOSASize(plan string) string {
 		return "large"
 	default: // "pro" and anything else
 		return "small"
+	}
+}
+
+// sizeToplan derives a BusinessOS plan slug from a MIOSA VM size string.
+func sizeToplan(size string) string {
+	switch size {
+	case "medium":
+		return "growth"
+	case "large":
+		return "business"
+	default:
+		return "pro"
 	}
 }
 
@@ -185,7 +198,7 @@ func (h *ComputerHandler) GetComputer(c *gin.Context) {
 						best = mc
 					}
 				}
-				comp := mapMIOSAComputer(best, "pro")
+				comp := mapMIOSAComputer(best, sizeToplan(best.Size))
 				c.JSON(http.StatusOK, gin.H{"computer": comp})
 				return
 			}
@@ -212,7 +225,7 @@ func (h *ComputerHandler) GetComputer(c *gin.Context) {
 					break
 				}
 			}
-			comp := mapMIOSAComputer(best, "pro")
+			comp := mapMIOSAComputer(best, sizeToplan(best.Size))
 			c.JSON(http.StatusOK, gin.H{"computer": comp})
 			return
 		}
@@ -237,6 +250,27 @@ func (h *ComputerHandler) CreateComputer(c *gin.Context) {
 	slog.InfoContext(c.Request.Context(), "computer: create requested", "plan", req.Plan)
 
 	if h.miosaClient != nil {
+		// Idempotency: return existing computer instead of creating a duplicate.
+		existing, listErr := h.miosaClient.ListComputers(c.Request.Context())
+		if listErr == nil && len(existing) > 0 {
+			best := existing[0]
+			for _, mc := range existing {
+				if mc.TemplateType == "business_os" {
+					best = mc
+					break
+				}
+			}
+			slog.InfoContext(c.Request.Context(), "computer: existing computer found, returning it",
+				"id", best.ID, "status", best.Status)
+			comp := mapMIOSAComputer(best, sizeToplan(best.Size))
+			c.JSON(http.StatusOK, gin.H{
+				"computer": comp,
+				"status":   best.Status,
+				"message":  "Computer already exists.",
+			})
+			return
+		}
+
 		size := planToMIOSASize(req.Plan)
 		mc, err := h.miosaClient.CreateComputer(c.Request.Context(), "BusinessOS", "business_os", size)
 		if err == nil {
@@ -574,8 +608,14 @@ func (h *ComputerHandler) GetTerminalSession(c *gin.Context) {
 
 		// Poll for the computer to become active (max 60s, check every 3s)
 		maxAttempts := 20
+	pollLoop:
 		for i := 0; i < maxAttempts; i++ {
-			time.Sleep(3 * time.Second)
+			select {
+			case <-time.After(3 * time.Second):
+			case <-c.Request.Context().Done():
+				c.JSON(http.StatusOK, gin.H{"mode": "local", "message": "Request cancelled"})
+				return
+			}
 			updated, pollErr := h.miosaClient.GetComputer(c.Request.Context(), comp.ID)
 			if pollErr != nil {
 				continue
@@ -583,7 +623,7 @@ func (h *ComputerHandler) GetTerminalSession(c *gin.Context) {
 			if updated.Status == "active" || updated.Status == "running" {
 				comp = *updated
 				slog.InfoContext(c.Request.Context(), "miosa: computer is now active", "id", comp.ID, "attempt", i+1)
-				break
+				break pollLoop
 			}
 			slog.InfoContext(c.Request.Context(), "miosa: waiting for computer to wake", "id", comp.ID, "status", updated.Status, "attempt", i+1)
 		}
@@ -607,7 +647,12 @@ func (h *ComputerHandler) GetTerminalSession(c *gin.Context) {
 		}
 		slog.WarnContext(c.Request.Context(), "miosa: terminal session attempt failed, retrying",
 			"attempt", attempt+1, "error", termErr)
-		time.Sleep(3 * time.Second)
+		select {
+		case <-time.After(3 * time.Second):
+		case <-c.Request.Context().Done():
+			c.JSON(http.StatusOK, gin.H{"mode": "local", "message": "Request cancelled"})
+			return
+		}
 	}
 
 	if termErr != nil || session == nil || session.SessionID == "" {
@@ -678,6 +723,11 @@ func (h *ComputerHandler) GetDesktopStream(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"mode": "local", "message": "Failed to get stream token."})
 		return
 	}
+	if streamToken.Token == "" {
+		slog.WarnContext(c.Request.Context(), "miosa: stream token is empty")
+		c.JSON(http.StatusOK, gin.H{"mode": "local", "message": "Stream token is empty."})
+		return
+	}
 
 	slug := comp.Slug
 	if slug == "" && len(comp.ID) >= 8 {
@@ -685,7 +735,7 @@ func (h *ComputerHandler) GetDesktopStream(c *gin.Context) {
 	}
 
 	host := slug + ".sandbox.miosa.ai"
-	relayPath := "vnc/websockify?auth=" + streamToken.Token
+	relayPath := "vnc/websockify?auth=" + url.QueryEscape(streamToken.Token)
 	desktopURL := "https://" + host + "/desktop/index.html?autoconnect=1&host=" + host + "&encrypt=1&path=" + relayPath + "&resize=remote&show_control_bar=0&view_only=0&reconnect=1&password=&shared=1"
 
 	c.JSON(http.StatusOK, gin.H{

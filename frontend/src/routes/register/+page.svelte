@@ -133,6 +133,7 @@
 				placeholder="John Smith"
 				autocomplete="name"
 				required
+				maxlength={100}
 			/>
 
 			<FormInput
@@ -143,6 +144,7 @@
 				placeholder="you@company.com"
 				autocomplete="email"
 				required
+				maxlength={255}
 			/>
 
 			<PasswordInput
@@ -152,6 +154,7 @@
 				autocomplete="new-password"
 				required
 				showStrength
+				maxlength={128}
 			/>
 
 			<PasswordInput
@@ -160,6 +163,7 @@
 				bind:value={confirmPassword}
 				autocomplete="new-password"
 				required
+				maxlength={128}
 			/>
 
 			<!-- Terms -->

@@ -36,7 +36,11 @@ type StripeService struct {
 }
 
 // NewStripeService creates a StripeService.
+// stripe.Key is set once here so per-method assignments are not needed.
 func NewStripeService(secretKey, webhookSecret, priceProID, priceGrowthID, priceBusinessID string) *StripeService {
+	if secretKey != "" {
+		stripe.Key = secretKey
+	}
 	return &StripeService{
 		secretKey:       secretKey,
 		webhookSecret:   webhookSecret,
@@ -89,8 +93,6 @@ func (s *StripeService) CreateCheckoutSession(workspaceID, plan, successURL, can
 		return "", err
 	}
 
-	stripe.Key = s.secretKey
-
 	params := &stripe.CheckoutSessionParams{
 		Mode:       stripe.String(string(stripe.CheckoutSessionModeSubscription)),
 		SuccessURL: stripe.String(successURL),
@@ -124,8 +126,6 @@ func (s *StripeService) CreatePortalSession(customerID, returnURL string) (strin
 		return "", ErrStripeNotConfigured
 	}
 
-	stripe.Key = s.secretKey
-
 	params := &stripe.BillingPortalSessionParams{
 		Customer:  stripe.String(customerID),
 		ReturnURL: stripe.String(returnURL),
@@ -146,8 +146,6 @@ func (s *StripeService) GetSubscription(customerID string) (*StripeSubscription,
 	if !s.Enabled() {
 		return nil, ErrStripeNotConfigured
 	}
-
-	stripe.Key = s.secretKey
 
 	status := string(stripe.SubscriptionStatusActive)
 	params := &stripe.SubscriptionListParams{

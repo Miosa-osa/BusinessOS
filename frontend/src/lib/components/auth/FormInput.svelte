@@ -10,6 +10,7 @@
 		error?: string;
 		autocomplete?: HTMLInputAttributes['autocomplete'];
 		required?: boolean;
+		maxlength?: number;
 	}
 
 	let {
@@ -20,7 +21,8 @@
 		placeholder = '',
 		error = '',
 		autocomplete = '',
-		required = false
+		required = false,
+		maxlength = undefined
 	}: Props = $props();
 </script>
 
@@ -36,6 +38,7 @@
 		{placeholder}
 		{autocomplete}
 		{required}
+		maxlength={maxlength}
 		class="input input-square w-full {error ? 'border-red-500 focus:ring-red-500' : ''}"
 	/>
 	{#if error}

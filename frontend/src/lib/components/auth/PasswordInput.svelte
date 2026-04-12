@@ -10,6 +10,7 @@
 		autocomplete?: HTMLInputAttributes['autocomplete'];
 		required?: boolean;
 		showStrength?: boolean;
+		maxlength?: number;
 	}
 
 	let {
@@ -20,7 +21,8 @@
 		error = '',
 		autocomplete = 'current-password',
 		required = false,
-		showStrength = false
+		showStrength = false,
+		maxlength = undefined
 	}: Props = $props();
 
 	let showPassword = $state(false);
@@ -56,6 +58,7 @@
 			{placeholder}
 			{autocomplete}
 			{required}
+			maxlength={maxlength}
 			class="input input-square w-full pr-10 {error ? 'border-red-500 focus:ring-red-500' : ''}"
 		/>
 		<button
