@@ -133,3 +133,14 @@ osa
 *.merged
 *.pre-merge-bak
 *.pre-widget-bak
+
+# Personal data — NEVER commit
+desktop/backend-go/.env
+.system/index.db
+.system/*.db
+*.sqlite
+*.sqlite3
+
+# Engine build artifacts
+engine/_build/
+engine/deps/
