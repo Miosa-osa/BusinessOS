@@ -41,7 +41,7 @@
 		errors.inviteCode = '';
 
 		try {
-			const response = await fetch('${get(cloudServerUrl)}/api/workspaces/invites/validate', {
+			const response = await fetch(`${get(cloudServerUrl)}/api/workspaces/invites/validate`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				credentials: 'include',
@@ -86,7 +86,7 @@
 	// Accept invite and join workspace
 	async function acceptInviteAndJoin(): Promise<boolean> {
 		try {
-			const response = await fetch('${get(cloudServerUrl)}/api/workspaces/invites/accept', {
+			const response = await fetch(`${get(cloudServerUrl)}/api/workspaces/invites/accept`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				credentials: 'include',

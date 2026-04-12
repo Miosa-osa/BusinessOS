@@ -60,7 +60,7 @@
 
 	function handleBack() {
 		onboardingStore.prevStep();
-		goto('/onboarding/signin');
+		goto('/onboarding/quick-info');
 	}
 </script>
 

@@ -15,7 +15,7 @@
 	async function handleEnterOS() {
 		try {
 			// Call backend to mark onboarding complete (use relative URL)
-			await fetch('${get(cloudServerUrl)}/api/users/me/complete-onboarding', {
+			await fetch(`${get(cloudServerUrl)}/api/users/me/complete-onboarding`, {
 				method: 'POST',
 				credentials: 'include',
 			});

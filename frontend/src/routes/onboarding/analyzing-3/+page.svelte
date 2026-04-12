@@ -15,7 +15,7 @@
 	onMount(() => {
 		setTimeout(() => {
 			onboardingStore.nextStep();
-			goto('/onboarding/starter-apps');
+			goto('/onboarding/ready');
 		}, 2000);
 	});
 </script>

@@ -40,7 +40,7 @@
 
 	function handleContinue() {
 		onboardingStore.nextStep();
-		goto('/onboarding/signin');
+		goto('/onboarding/connect');
 	}
 
 	function handleBack() {
