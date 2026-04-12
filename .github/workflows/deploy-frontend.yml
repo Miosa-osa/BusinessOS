@@ -1,0 +1,151 @@
+name: Deploy Frontend to Production
+
+on:
+  push:
+    branches:
+      - main  # Production deployments only from main branch
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:  # Allow manual deployment
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  deploy-vercel:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+
+    # Only deploy from main branch
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: |
+          echo "Installing dependencies..."
+          npm ci
+
+      - name: Run TypeScript check
+        working-directory: frontend
+        run: |
+          echo "Running TypeScript type checking..."
+          npm run check
+
+      - name: Build application
+        working-directory: frontend
+        env:
+          PUBLIC_API_URL: ${{ secrets.PUBLIC_API_URL }}
+          PUBLIC_ENVIRONMENT: production
+        run: |
+          echo "Building SvelteKit application for production..."
+          npm run build
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        working-directory: frontend
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        working-directory: frontend
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel
+        id: deploy
+        working-directory: frontend
+        run: |
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $DEPLOY_URL"
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests against deployed frontend..."
+          DEPLOY_URL="${{ steps.deploy.outputs.url }}"
+
+          # Test 1: Homepage responds
+          echo "Test 1: Homepage accessibility"
+          HOME_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL")
+          if [ "$HOME_RESPONSE" != "200" ]; then
+            echo "Homepage check failed with status: $HOME_RESPONSE"
+            exit 1
+          fi
+          echo "Homepage check passed."
+
+          # Test 2: Check for common assets
+          echo "Test 2: Static assets loading"
+          ASSETS_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/_app/version.json" || echo "skip")
+          echo "Assets check: $ASSETS_RESPONSE"
+
+          echo "All smoke tests passed."
+
+      - name: Send deployment notification
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          DEPLOY_URL="${{ steps.deploy.outputs.url }}"
+          COMMIT_SHA="${{ github.sha }}"
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+
+          echo "Deployment Status: $STATUS"
+          echo "Deploy URL: $DEPLOY_URL"
+          echo "Commit: $COMMIT_SHA"
+          echo "Commit Message: $COMMIT_MSG"
+
+          # Add Slack/Discord notification here if needed
+
+      - name: Create deployment summary
+        if: always()
+        run: |
+          echo "## Frontend Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platform:** Vercel" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** ${{ steps.deploy.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Commit Message" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          git log -1 --pretty=%B >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # Alternative: Deploy to Cloud Run (comment out Vercel job if using this)
+  # deploy-cloud-run:
+  #   name: Deploy to Cloud Run
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main'
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Authenticate to Google Cloud
+  #       uses: google-github-actions/auth@v2
+  #       with:
+  #         credentials_json: ${{ secrets.GCP_SA_KEY }}
+  #
+  #     - name: Set up Cloud SDK
+  #       uses: google-github-actions/setup-gcloud@v2
+  #
+  #     - name: Build and deploy to Cloud Run
+  #       working-directory: frontend
+  #       run: |
+  #         gcloud builds submit --tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/businessos-frontend
+  #         gcloud run deploy businessos-frontend \
+  #           --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/businessos-frontend \
+  #           --platform managed \
+  #           --region us-central1 \
+  #           --allow-unauthenticated

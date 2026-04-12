@@ -1,0 +1,44 @@
+{{define "content"}}
+<div style="text-align: center;">
+    <div class="icon-circle" style="margin: 0 auto 20px;">📧</div>
+    <h1>Verify Your Email</h1>
+</div>
+
+<p>Hi <strong>{{.UserName}}</strong>,</p>
+
+<p>Welcome to OSA! You're just one step away from unlocking your business superpowers. Verify your email to get started.</p>
+
+<div class="button-wrapper">
+    <a href="{{.VerificationLink}}" class="button">✓ Verify My Email</a>
+</div>
+
+{{if .VerificationCode}}
+<div class="divider-gradient"></div>
+
+<div class="code-label">Or enter this code manually</div>
+<div class="code-box">{{.VerificationCode}}</div>
+{{end}}
+
+<div class="info-box purple">
+    <table cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+            <td width="32" valign="top">⏱️</td>
+            <td style="padding-left: 12px;">
+                <p class="text-small" style="margin: 0; color: #5b21b6;">
+                    <strong>Expires in {{.ExpiresIn}}</strong><br>
+                    <span style="color: #7c3aed;">For your security, this link will expire soon.</span>
+                </p>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<div class="link-fallback">
+    <p>🔗 Button not working? Copy this link:</p>
+    <a href="{{.VerificationLink}}">{{.VerificationLink}}</a>
+</div>
+{{end}}
+
+{{define "footer"}}
+<p style="color: #64748b;">Didn't create an OSA account? No worries—just ignore this email.</p>
+{{end}}

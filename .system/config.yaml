@@ -1,0 +1,6 @@
+engine:
+  name: businessos
+  version: "5.0.0"
+  index_db: .system/index.db
+  nodes_root: nodes
+  rhythm_root: rhythm
