@@ -27,8 +27,12 @@
 			goto('/dashboard');
 			return;
 		}
-		if (!$session.isPending && $session.data) {
-			goto('/window');
+		if (!$session.isPending) {
+			if ($session.data) {
+				goto('/dashboard');
+			} else {
+				goto('/landing');
+			}
 		}
 	});
 

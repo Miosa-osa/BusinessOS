@@ -155,6 +155,8 @@ func registerRoutes(app *AppServices, skillsHandler *handlers.SkillsHandler, osa
 	billingHandler := handlers.NewBillingHandler(cfg, miosaComputeClient)
 	registerComputerRoutes(api, computerHandler, billingHandler)
 	registerComputerRoutes(apiv1, computerHandler, billingHandler)
+	// Stripe webhook: must be on the bare router (no auth, raw body required).
+	RegisterStripeWebhookRoute(router, billingHandler)
 
 	// ── Cloud sync endpoints (push/pull/status) ───────────────────────────────
 	cloudSyncHandler := handlers.NewCloudSyncHandler(app.pool)

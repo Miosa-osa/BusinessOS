@@ -30,5 +30,15 @@ func registerComputerRoutes(api *gin.RouterGroup, ch *handlers.ComputerHandler, 
 		billing.GET("/subscription", bh.GetSubscription)
 		billing.POST("/subscribe", bh.Subscribe)
 		billing.POST("/credits/purchase", bh.PurchaseCredits)
+		billing.POST("/portal", bh.ManageSubscription)
+		// NOTE: /billing/webhook is registered separately (no auth, raw body required).
 	}
+}
+
+// RegisterStripeWebhookRoute registers the Stripe webhook endpoint on the
+// bare router (no auth middleware, no body parsing) so Stripe's signature
+// verification has access to the raw request body.
+func RegisterStripeWebhookRoute(router gin.IRouter, bh *handlers.BillingHandler) {
+	router.POST("/api/v1/billing/webhook", bh.HandleStripeWebhook)
+	router.POST("/api/billing/webhook", bh.HandleStripeWebhook)
 }
