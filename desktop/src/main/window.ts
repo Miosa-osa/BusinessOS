@@ -46,9 +46,16 @@ export async function createMainWindow(): Promise<BrowserWindow> {
   // Load the app
   if (isDev) {
     // In development, load from the Vite dev server (port 5173)
-    const devUrl = "http://localhost:5173";
+    const devUrl = "http://localhost:5173/window";
     console.log(`Loading from ${devUrl}`);
-    await mainWindow.loadURL(devUrl);
+    try {
+      await mainWindow.loadURL(devUrl);
+    } catch (err) {
+      console.error("Failed to load URL, retrying...", err);
+      // Retry once after 2 seconds
+      await new Promise((r) => setTimeout(r, 2000));
+      await mainWindow.loadURL(devUrl);
+    }
   } else {
     // In production, use the custom app:// protocol to serve files
     // This allows SvelteKit's router to work correctly
