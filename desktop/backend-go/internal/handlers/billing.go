@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/config"
 	"github.com/rhl/businessos-backend/internal/integrations/miosa"
-	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 
@@ -16,20 +15,11 @@ import (
 type BillingHandler struct {
 	cfg         *config.Config
 	miosaClient *miosa.ComputeClient
-	stripe      *services.StripeService
 }
 
 // NewBillingHandler constructs a BillingHandler.
-// When STRIPE_SECRET_KEY is empty the handler falls back to mock data.
 func NewBillingHandler(cfg *config.Config, miosaClient *miosa.ComputeClient) *BillingHandler {
-	stripeSvc := services.NewStripeService(
-		cfg.StripeSecretKey,
-		cfg.StripeWebhookSecret,
-		cfg.StripePricePro,
-		cfg.StripePriceGrowth,
-		cfg.StripePriceBusiness,
-	)
-	return &BillingHandler{cfg: cfg, miosaClient: miosaClient, stripe: stripeSvc}
+	return &BillingHandler{cfg: cfg, miosaClient: miosaClient}
 }
 
 // availablePlans is the canonical list of paid tiers.
@@ -101,9 +91,7 @@ var freePlanSubscription = Subscription{
 // ── request types ─────────────────────────────────────────────────────────────
 
 type subscribeRequest struct {
-	Plan       string `json:"plan" binding:"required"`
-	SuccessURL string `json:"success_url"`
-	CancelURL  string `json:"cancel_url"`
+	Plan string `json:"plan" binding:"required"`
 }
 
 type purchaseCreditsRequest struct {
@@ -122,10 +110,10 @@ func (h *BillingHandler) GetPlans(c *gin.Context) {
 }
 
 // GetSubscription handles GET /api/billing/subscription.
-// When Stripe is configured it reads the subscription from MIOSA/Stripe.
-// Falls back to mock data when credentials are absent.
+// Pulls real data from MIOSA: credits balance + computer existence = plan.
 func (h *BillingHandler) GetSubscription(c *gin.Context) {
 	if h.miosaClient != nil {
+		// Get real credits
 		credits, credErr := h.miosaClient.GetCreditBalance(c.Request.Context())
 		computers, compErr := h.miosaClient.ListComputers(c.Request.Context())
 
@@ -160,18 +148,11 @@ func (h *BillingHandler) GetSubscription(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"subscription": sub})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"subscription": freePlanSubscription})
 }
 
 // Subscribe handles POST /api/billing/subscribe.
-//
-// When Stripe is configured: creates a Checkout Session and returns the
-// hosted checkout URL. The frontend redirects the user there; the webhook
-// confirms payment and persists the subscription record.
-//
-// When Stripe is NOT configured: returns a mock active subscription
-// (development / local mode).
+// Accepts {"plan": "pro"} and returns a mock active subscription.
 func (h *BillingHandler) Subscribe(c *gin.Context) {
 	var req subscribeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -191,37 +172,8 @@ func (h *BillingHandler) Subscribe(c *gin.Context) {
 		return
 	}
 
-	slog.InfoContext(c.Request.Context(), "billing: subscribe requested", "plan", req.Plan, "stripe_enabled", h.stripe.Enabled())
+	slog.InfoContext(c.Request.Context(), "billing: subscribe requested", "plan", req.Plan)
 
-	// ── Real Stripe path ───────────────────────────────────────────────────────
-	if h.stripe.Enabled() {
-		successURL := req.SuccessURL
-		cancelURL := req.CancelURL
-		if successURL == "" {
-			successURL = h.cfg.BaseURL + "/billing?success=true"
-		}
-		if cancelURL == "" {
-			cancelURL = h.cfg.BaseURL + "/billing?cancelled=true"
-		}
-
-		// Use workspace ID from context if available; fall back to a placeholder.
-		workspaceID := workspaceIDFromContext(c)
-
-		checkoutURL, err := h.stripe.CreateCheckoutSession(workspaceID, req.Plan, successURL, cancelURL)
-		if err != nil {
-			slog.ErrorContext(c.Request.Context(), "billing: stripe checkout session failed", "plan", req.Plan, "error", err)
-			utils.RespondInternalError(c, slog.Default(), "create checkout session", err)
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"checkout_url": checkoutURL,
-			"plan":         req.Plan,
-		})
-		return
-	}
-
-	// ── Mock path (no Stripe credentials) ─────────────────────────────────────
 	sub := Subscription{
 		Plan:          matched.ID,
 		PriceMonthly:  matched.PriceMonthly,
@@ -240,11 +192,7 @@ func (h *BillingHandler) Subscribe(c *gin.Context) {
 }
 
 // PurchaseCredits handles POST /api/billing/credits/purchase.
-//
-// When Stripe is configured: creates a one-time Checkout Session for
-// a credit pack purchase. The webhook confirms payment.
-//
-// When Stripe is NOT configured: returns a mock purchase confirmation.
+// Accepts {"amount": 1000} and returns a mock purchase confirmation.
 func (h *BillingHandler) PurchaseCredits(c *gin.Context) {
 	var req purchaseCreditsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -252,9 +200,8 @@ func (h *BillingHandler) PurchaseCredits(c *gin.Context) {
 		return
 	}
 
-	slog.InfoContext(c.Request.Context(), "billing: credit purchase requested", "amount", req.Amount, "stripe_enabled", h.stripe.Enabled())
+	slog.InfoContext(c.Request.Context(), "billing: credit purchase requested", "amount", req.Amount)
 
-	// ── Mock path (Stripe not configured, or credit packs not yet priced) ─────
 	c.JSON(http.StatusCreated, gin.H{
 		"purchased":      req.Amount,
 		"credits_total":  freePlanSubscription.CreditsTotal + req.Amount,
@@ -262,50 +209,4 @@ func (h *BillingHandler) PurchaseCredits(c *gin.Context) {
 		"message":        "Credit purchase confirmed.",
 		"transaction_id": "txn_mock_01j9xk9",
 	})
-}
-
-// ManageSubscription handles POST /api/billing/portal.
-// Returns a Stripe Customer Portal URL for managing the subscription.
-// Requires STRIPE_SECRET_KEY to be set.
-func (h *BillingHandler) ManageSubscription(c *gin.Context) {
-	if !h.stripe.Enabled() {
-		utils.RespondBadRequest(c, slog.Default(), "billing portal requires Stripe configuration")
-		return
-	}
-
-	type portalRequest struct {
-		CustomerID string `json:"customer_id" binding:"required"`
-		ReturnURL  string `json:"return_url"`
-	}
-
-	var req portalRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.RespondInvalidRequest(c, slog.Default(), err)
-		return
-	}
-
-	returnURL := req.ReturnURL
-	if returnURL == "" {
-		returnURL = h.cfg.BaseURL + "/billing"
-	}
-
-	portalURL, err := h.stripe.CreatePortalSession(req.CustomerID, returnURL)
-	if err != nil {
-		slog.ErrorContext(c.Request.Context(), "billing: stripe portal session failed", "customer_id", req.CustomerID, "error", err)
-		utils.RespondInternalError(c, slog.Default(), "create portal session", err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"portal_url": portalURL})
-}
-
-// workspaceIDFromContext extracts the workspace ID from Gin context keys
-// set by the auth middleware. Falls back to an empty string if not present.
-func workspaceIDFromContext(c *gin.Context) string {
-	if v, exists := c.Get("workspace_id"); exists {
-		if id, ok := v.(string); ok {
-			return id
-		}
-	}
-	return ""
 }

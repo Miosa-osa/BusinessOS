@@ -19,21 +19,11 @@
 	const session = useSession();
 
 	$effect(() => {
-		if (isElectron && $appMode === null) {
-			showModeSelector = true;
-			return;
+		// Authenticated → go to desktop (same for Electron and browser)
+		if (!$session.isPending && $session.data) {
+			goto('/window');
 		}
-		if (isElectron && $appMode === 'local') {
-			goto('/dashboard');
-			return;
-		}
-		if (!$session.isPending) {
-			if ($session.data) {
-				goto('/dashboard');
-			} else {
-				goto('/landing');
-			}
-		}
+		// Not authenticated → show landing page (handled by template below)
 	});
 
 	function selectLocalMode() {

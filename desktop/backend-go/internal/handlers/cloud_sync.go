@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -14,16 +13,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-// validColumnName restricts column names to identifiers that are safe to embed
-// in SQL. Accepts only letters, digits, and underscores; must start with a
-// letter or underscore; max 63 characters (PostgreSQL identifier limit).
-var validColumnName = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
-
-// isValidColumnName returns true when name is a safe SQL identifier.
-func isValidColumnName(name string) bool {
-	return len(name) <= 63 && validColumnName.MatchString(name)
-}
 
 // syncableTables is the allowlist of tables that are permitted to participate
 // in bidirectional sync. Any table name not in this map is rejected before
@@ -388,7 +377,6 @@ func (h *CloudSyncHandler) collectChanges(ctx context.Context, since time.Time) 
 			)
 			continue
 		}
-		defer rows.Close() //nolint:staticcheck // closed before next iteration via rows.Close() at bottom
 
 		for rows.Next() {
 			var id string
@@ -493,45 +481,30 @@ func (h *CloudSyncHandler) querySyncStatus(ctx context.Context, deviceID string)
 
 // buildInsertParts converts a column map into the components needed for an
 // INSERT statement: "col1, col2, col3", "$1, $2, $3", and the value slice.
-// Column order is deterministic (sorted by name). Column names are validated
-// against isValidColumnName and quoted with double-quotes for PostgreSQL safety.
-// Invalid column names are silently dropped.
+// Column order is deterministic (sorted by name).
 func buildInsertParts(cols map[string]any) (colNames, placeholders string, args []any) {
 	keys := sortedKeys(cols)
 	names := make([]string, 0, len(keys))
 	pholds := make([]string, 0, len(keys))
 
-	idx := 1
-	for _, k := range keys {
-		if !isValidColumnName(k) {
-			slog.Warn("cloud_sync: dropping column with invalid name from INSERT", "column", k)
-			continue
-		}
-		names = append(names, `"`+k+`"`)
-		pholds = append(pholds, fmt.Sprintf("$%d", idx))
+	for i, k := range keys {
+		names = append(names, k)
+		pholds = append(pholds, fmt.Sprintf("$%d", i+1))
 		args = append(args, cols[k])
-		idx++
 	}
 
 	return strings.Join(names, ", "), strings.Join(pholds, ", "), args
 }
 
 // buildSetParts converts a column map into the SET clause fragment and bound
-// args for an UPDATE statement. Placeholder numbering starts at $1. Column
-// names are validated and double-quoted. Invalid names are silently dropped.
+// args for an UPDATE statement. Placeholder numbering starts at $1.
 func buildSetParts(cols map[string]any) (setClauses string, args []any) {
 	keys := sortedKeys(cols)
 	parts := make([]string, 0, len(keys))
 
-	idx := 1
-	for _, k := range keys {
-		if !isValidColumnName(k) {
-			slog.Warn("cloud_sync: dropping column with invalid name from UPDATE", "column", k)
-			continue
-		}
-		parts = append(parts, fmt.Sprintf(`"%s" = $%d`, k, idx))
+	for i, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s = $%d", k, i+1))
 		args = append(args, cols[k])
-		idx++
 	}
 
 	return strings.Join(parts, ", "), args

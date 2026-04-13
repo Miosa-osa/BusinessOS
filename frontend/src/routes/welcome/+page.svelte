@@ -9,14 +9,14 @@
 
 	function handleLocalMode() {
 		if (!browser) return;
-		try { localStorage.setItem('businessos_setup_complete', 'local'); } catch { /* private browsing */ }
+		localStorage.setItem('businessos_setup_complete', 'local');
 		goto('/onboarding');
 	}
 
 	function handleCloudMode() {
 		if (!browser) return;
 		// Mark as cloud intent so layout doesn't redirect back here
-		try { localStorage.setItem('businessos_setup_complete', 'cloud'); } catch { /* private browsing */ }
+		localStorage.setItem('businessos_setup_complete', 'cloud');
 		goto('/settings?tab=cloud');
 	}
 </script>

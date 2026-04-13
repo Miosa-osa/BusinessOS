@@ -114,7 +114,7 @@ export function initiateGoogleOAuth(serverUrl?: string): boolean {
   const redirectUrl = encodeURIComponent(
     window.location.origin + "/auth/callback",
   );
-  const authUrl = `${baseUrl}/api/v1/auth/google?redirect=${redirectUrl}`;
+  const authUrl = `${baseUrl}/api/auth/google?redirect=${redirectUrl}`;
 
   if (isElectron && (window as any).electron?.openExternal) {
     // Use Electron's shell to open in system browser
@@ -136,7 +136,7 @@ export async function signUpWithEmail(
   const baseUrl = getAuthBase(serverUrl);
 
   try {
-    const response = await fetch(`${baseUrl}/api/v1/auth/sign-up/email`, {
+    const response = await fetch(`${baseUrl}/api/auth/sign-up/email`, {
       method: "POST",
       headers: addCSRFHeaders({ "Content-Type": "application/json" }),
       credentials: "include",
@@ -162,7 +162,7 @@ export async function signInWithEmail(
   serverUrl?: string,
 ) {
   const baseUrl = getAuthBase(serverUrl);
-  const url = `${baseUrl}/api/v1/auth/sign-in/email`;
+  const url = `${baseUrl}/api/auth/sign-in/email`;
   const csrfToken = getCSRFToken();
   const headers = addCSRFHeaders({ "Content-Type": "application/json" });
   const bodyPayload = { email, password };
@@ -211,7 +211,7 @@ export async function getSession(serverUrl?: string) {
   const baseUrl = getAuthBase(serverUrl);
 
   try {
-    const response = await fetch(`${baseUrl}/api/v1/auth/session`, {
+    const response = await fetch(`${baseUrl}/api/auth/session`, {
       method: "GET",
       credentials: "include",
     });
@@ -291,19 +291,19 @@ export async function signOutFromServer(
         `Sign out failed with status ${response.status}: ${errorText}`,
       );
       // Still redirect to clear client-side state even if server fails
-      window.location.href = "/";
+      window.location.href = "/login";
       return { success: false, error: `Server returned ${response.status}` };
     }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Network error";
     console.error("Sign out error:", errorMessage);
     // Still redirect to clear client-side state
-    window.location.href = "/";
+    window.location.href = "/login";
     return { success: false, error: errorMessage };
   }
 
   // Clear local session state
-  window.location.href = "/";
+  window.location.href = "/login";
   return { success: true };
 }
 
@@ -368,7 +368,13 @@ function getBaseURL(): string {
 const cloudSession = writable<{
   isPending: boolean;
   data: {
-    user: { id: string; email: string; name: string; image?: string; createdAt?: string };
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      image?: string;
+      createdAt?: string;
+    };
     session: { id: string };
   } | null;
   error: string | null;

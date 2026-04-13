@@ -73,7 +73,7 @@ func buildCSRFConfig(cfg *config.Config) middleware.CSRFConfig {
 
 // registerRoutes attaches all routes to app.router.
 // It is called at the end of bootstrap() after all services are initialized.
-func registerRoutes(app *AppServices, skillsHandler *handlers.SkillsHandler, osaClient *osa.ResilientClient) { //nolint:cyclop
+func registerRoutes(app *AppServices, skillsHandler *handlers.SkillsHandler, osaClient *osa.ResilientClient) {
 	router := app.router
 	cfg := app.cfg
 
@@ -146,11 +146,6 @@ func registerRoutes(app *AppServices, skillsHandler *handlers.SkillsHandler, osa
 		app.jobsHandler.RegisterRoutes(apiv1)
 	}
 
-	// Build auth middleware once — shared across all route groups registered here.
-	// Mirrors the same logic in handlers.RegisterRoutes so the auth strategy is
-	// consistent regardless of which route file a handler lives in.
-	auth := app.handlers.Auth()
-
 	// ── Computer + Billing endpoints ─────────────────────────────────────────
 	var miosaComputeClient *miosa.ComputeClient
 	if cfg.MIOSAAPIKey != "" && cfg.MIOSAAPIUrl != "" {
@@ -158,21 +153,12 @@ func registerRoutes(app *AppServices, skillsHandler *handlers.SkillsHandler, osa
 	}
 	computerHandler := handlers.NewComputerHandler(cfg, miosaComputeClient)
 	billingHandler := handlers.NewBillingHandler(cfg, miosaComputeClient)
-	registerComputerRoutes(api, computerHandler, billingHandler, auth)
-	registerComputerRoutes(apiv1, computerHandler, billingHandler, auth)
-	// Stripe webhook: must be on the bare router (no auth, raw body required).
-	RegisterStripeWebhookRoute(router, billingHandler)
+	registerComputerRoutes(api, computerHandler, billingHandler)
+	registerComputerRoutes(apiv1, computerHandler, billingHandler)
 
 	// ── Cloud sync endpoints (push/pull/status) ───────────────────────────────
 	cloudSyncHandler := handlers.NewCloudSyncHandler(app.pool)
-	registerSyncRoutes(api, cloudSyncHandler, auth)
-	registerSyncRoutes(apiv1, cloudSyncHandler, auth)
-
-	// ── Platform admin endpoints (superadmin only) ────────────────────────────
-	// RegisterPlatformAdminRoutes mounts at /v1/admin internally, so we pass
-	// the bare /api group — not /api/v1 — to avoid a double /v1/v1 prefix.
-	adminHandler := handlers.NewPlatformAdminHandler(app.pool)
-	handlers.RegisterPlatformAdminRoutes(api, adminHandler, auth)
+	registerSyncRoutes(apiv1, cloudSyncHandler)
 
 	// ── Public OSA health endpoint (no auth required) ─────────────────────────
 	if osaClient != nil {

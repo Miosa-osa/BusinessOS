@@ -71,9 +71,7 @@
 	// ── Derived ────────────────────────────────────────────────────────────────
 
 	let ramPercent = $derived(
-		metrics && metrics.ram_total_gb > 0
-			? Math.round((metrics.ram_used_gb / metrics.ram_total_gb) * 100)
-			: 0
+		metrics ? Math.round((metrics.ram_used_gb / metrics.ram_total_gb) * 100) : 0
 	);
 	let storagePercent = $derived(
 		metrics && metrics.storage_total_gb > 0
@@ -81,7 +79,7 @@
 			: 0
 	);
 	let creditsPercent = $derived(
-		subscription && subscription.credits_total > 0
+		subscription
 			? Math.round(((subscription.credits_total - subscription.credits_used) / subscription.credits_total) * 100)
 			: 0
 	);
@@ -166,16 +164,12 @@
 		return '#ef4444';
 	}
 
-	function statusLabel(status: string): string {
-		return (
-			({ running: 'Running', hibernating: 'Hibernating', stopped: 'Stopped', provisioning: 'Provisioning', error: 'Error' } as Record<string, string>)[status] ?? status
-		);
+	function statusLabel(status: Computer['status']): string {
+		return { running: 'Running', hibernating: 'Hibernating', stopped: 'Stopped' }[status];
 	}
 
-	function runtimeStatusLabel(status: string): string {
-		return (
-			({ active: 'Active', idle: 'Idle', stopped: 'Stopped' } as Record<string, string>)[status] ?? status
-		);
+	function runtimeStatusLabel(status: Runtime['status']): string {
+		return { active: 'Active', idle: 'Idle', stopped: 'Stopped' }[status];
 	}
 
 	// ── Fallback plans (used when /api/billing/plans is unavailable) ───────────
@@ -526,11 +520,10 @@
 			await fetch(`${getApiBaseUrl()}/computer/runtimes/${id}/stop`, {
 				method: 'POST',
 				credentials: 'include',
-				signal: AbortSignal.timeout(10000),
 			});
 			runtimes = runtimes.map((r) => (r.id === id ? { ...r, status: 'stopped' } : r));
 		} catch {
-			// no-op — gracefully ignore (includes timeout)
+			// no-op — gracefully ignore
 		} finally {
 			stoppingRuntime = null;
 		}
@@ -785,14 +778,14 @@
 						</svg>
 						Open Desktop
 					</button>
-					<button class="cp-btn cp-btn--outline" aria-label="Restart computer" disabled title="Coming soon">
+					<button class="cp-btn cp-btn--outline" aria-label="Restart computer">
 						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 							<polyline points="23 4 23 10 17 10"/>
 							<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
 						</svg>
 						Restart
 					</button>
-					<button class="cp-btn cp-btn--outline" aria-label="Hibernate computer" disabled title="Coming soon">
+					<button class="cp-btn cp-btn--outline" aria-label="Hibernate computer">
 						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 							<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
 						</svg>

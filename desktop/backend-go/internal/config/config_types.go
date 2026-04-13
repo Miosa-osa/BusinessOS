@@ -205,13 +205,6 @@ type Config struct {
 	// Phoenix/Elixir backend (prod: http://api.miosa.ai, dev: http://localhost:4000).
 	MIOSAAPIUrl string `mapstructure:"MIOSA_API_URL"` // e.g. http://localhost:4000
 
-	// Stripe Billing
-	StripeSecretKey     string `mapstructure:"STRIPE_SECRET_KEY"`
-	StripeWebhookSecret string `mapstructure:"STRIPE_WEBHOOK_SECRET"`
-	StripePricePro      string `mapstructure:"STRIPE_PRICE_PRO"`
-	StripePriceGrowth   string `mapstructure:"STRIPE_PRICE_GROWTH"`
-	StripePriceBusiness string `mapstructure:"STRIPE_PRICE_BUSINESS"`
-
 	// Cloud Deployment (MIOSA Firecracker VM)
 	// DeploymentMode selects how this instance was launched: "local" (Electron desktop,
 	// default) or "cloud" (MIOSA Firecracker VM). In cloud mode the MIOSA JWT auth

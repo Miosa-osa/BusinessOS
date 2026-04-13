@@ -117,10 +117,8 @@
     const key = apiKey.trim();
     if (!key) return;
 
+    localStorage.setItem(LS_KEY, key);
     await validateKey(key);
-    if (status === 'connected') {
-      localStorage.setItem(LS_KEY, key);
-    }
   }
 
   function handleDisconnect(): void {
