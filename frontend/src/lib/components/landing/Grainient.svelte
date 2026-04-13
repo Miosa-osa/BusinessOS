@@ -196,17 +196,19 @@ void main(){
 
 		const mesh = new Mesh(gl, { geometry, program });
 
-		const setSize = () => {
-			const rect = container.getBoundingClientRect();
-			const width = Math.max(1, Math.floor(rect.width));
-			const height = Math.max(1, Math.floor(rect.height));
+		const setSize = (w?: number, h?: number) => {
+			const width = Math.max(1, Math.floor(w ?? container.clientWidth));
+			const height = Math.max(1, Math.floor(h ?? container.clientHeight));
 			renderer.setSize(width, height);
 			const res = (program.uniforms.iResolution as { value: Float32Array }).value;
 			res[0] = gl.drawingBufferWidth;
 			res[1] = gl.drawingBufferHeight;
 		};
 
-		const ro = new ResizeObserver(setSize);
+		const ro = new ResizeObserver((entries) => {
+			const { width, height } = entries[0].contentRect;
+			setSize(width, height);
+		});
 		ro.observe(container);
 		setSize();
 
@@ -216,19 +218,24 @@ void main(){
 		const t0 = performance.now();
 
 		const loop = (t: number) => {
-			if (!scrolling) {
-				(program.uniforms.iTime as { value: number }).value = (t - t0) * 0.001;
-				renderer.render({ scene: mesh });
-			}
+			(program.uniforms.iTime as { value: number }).value = (t - t0) * 0.001;
+			renderer.render({ scene: mesh });
 			raf = requestAnimationFrame(loop);
 		};
 		raf = requestAnimationFrame(loop);
 
-		// Pause shader during scroll — resume 200ms after scroll stops
+		// CANCEL the RAF loop during scroll — zero GPU/CPU work while scrolling
+		// Resume 200ms after scroll stops (last frame stays on canvas)
 		const onScroll = () => {
-			scrolling = true;
+			if (!scrolling) {
+				scrolling = true;
+				cancelAnimationFrame(raf);
+			}
 			clearTimeout(scrollTimer);
-			scrollTimer = setTimeout(() => { scrolling = false; }, 200);
+			scrollTimer = setTimeout(() => {
+				scrolling = false;
+				raf = requestAnimationFrame(loop);
+			}, 200);
 		};
 		window.addEventListener('scroll', onScroll, { passive: true });
 
@@ -237,10 +244,8 @@ void main(){
 			clearTimeout(scrollTimer);
 			window.removeEventListener('scroll', onScroll);
 			ro.disconnect();
-			try {
+			if (container.contains(canvas)) {
 				container.removeChild(canvas);
-			} catch {
-				// already removed
 			}
 		};
 	});
@@ -256,11 +261,6 @@ void main(){
 		height: 100%;
 		overflow: hidden;
 		z-index: 0;
-		will-change: transform;
-		transform: translateZ(0);
-		-webkit-transform: translateZ(0);
-		backface-visibility: hidden;
-		-webkit-backface-visibility: hidden;
 		/* Fallback gradient if WebGL fails (mobile) */
 		background: radial-gradient(ellipse at 30% 20%, #2a2a2a 0%, #0a0a0e 50%, #000 100%);
 	}

@@ -14,7 +14,7 @@
 		}
 		visible = true;
 		const handleScroll = () => { scrolled = window.scrollY > 20; };
-		window.addEventListener('scroll', handleScroll);
+		window.addEventListener('scroll', handleScroll, { passive: true });
 		return () => window.removeEventListener('scroll', handleScroll);
 	});
 
@@ -499,7 +499,7 @@
 		inset-block-start: 0;
 		inset-inline: 0;
 		z-index: 50;
-		transition: background 0.3s, border-color 0.3s, backdrop-filter 0.3s;
+		transition: background 0.3s, border-color 0.3s;
 		border-bottom: 1px solid transparent;
 	}
 	.lp-nav--scrolled {
@@ -610,11 +610,6 @@
 		inset: 0;
 		z-index: 0;
 		pointer-events: none;
-		will-change: transform;
-		transform: translateZ(0);
-		-webkit-transform: translateZ(0);
-		backface-visibility: hidden;
-		-webkit-backface-visibility: hidden;
 	}
 
 	/* All content sits above the shader */
