@@ -165,7 +165,8 @@
 <!-- Nav -->
 <header class="lp-nav {scrolled ? 'lp-nav--scrolled' : ''}">
 	<div class="lp-container lp-nav__inner">
-		<a href="/landing" class="lp-logo" aria-label="BusinessOS home">
+		<a href="/" class="lp-logo" aria-label="BusinessOS home">
+			<img src="/logo.png" alt="" class="lp-logo__icon" />
 			<span class="lp-logo__word">BUSINESS</span><span class="lp-logo__suffix">OS</span>
 		</a>
 		<nav class="lp-nav__links" aria-label="Site navigation">
@@ -470,9 +471,14 @@
 	/* ─── Logo ───────────────────────────────────────────────────── */
 	.lp-logo {
 		display: flex;
-		align-items: baseline;
-		gap: 0;
+		align-items: center;
+		gap: 0.5rem;
 		text-decoration: none;
+	}
+	.lp-logo__icon {
+		width: 1.5rem;
+		height: 1.5rem;
+		object-fit: contain;
 	}
 	.lp-logo__word {
 		font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
