@@ -20,13 +20,8 @@ function getApiBase(): string {
 
   if (isElectron) {
     const mode = localStorage.getItem("businessos_mode");
-    let cloudUrl = localStorage.getItem("businessos_cloud_url");
-
-    // Auto-configure URL if not set
-    if (!cloudUrl) {
-      cloudUrl = isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
-      localStorage.setItem("businessos_cloud_url", cloudUrl);
-    }
+    // Always use correct URL for current environment
+    const cloudUrl = isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
 
     if (mode === "cloud" && cloudUrl) {
       const result = `${cloudUrl}/api/${API_VERSION}`;

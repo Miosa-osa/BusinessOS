@@ -25,18 +25,16 @@ if (typeof window !== "undefined") {
     | "cloud"
     | "local"
     | null;
-  let savedUrl = localStorage.getItem("businessos_cloud_url") || "";
 
-  // Auto-configure backend URL based on environment
-  if (!savedUrl) {
-    // In dev mode, use local backend; in production, use Cloud Run
-    savedUrl = isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
-    localStorage.setItem("businessos_cloud_url", savedUrl);
-    // Auto-set to cloud mode
-    if (!savedMode) {
-      savedMode = "cloud";
-      localStorage.setItem("businessos_mode", "cloud");
-    }
+  // Always use the correct backend URL for the current environment
+  // Never trust stale localStorage values from old deployments
+  const correctUrl = isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
+  let savedUrl = correctUrl;
+  localStorage.setItem("businessos_cloud_url", correctUrl);
+
+  if (!savedMode) {
+    savedMode = "cloud";
+    localStorage.setItem("businessos_mode", "cloud");
   }
 
   appMode.set(savedMode);
