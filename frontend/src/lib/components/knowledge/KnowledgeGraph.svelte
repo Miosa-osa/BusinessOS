@@ -152,24 +152,37 @@
 		for (const n of nodeData) { neighbors.set(n.id, new Set()); nodeLinks.set(n.id, new Set()); }
 
 		// D3-force simulation — exact physics from demo
+		// Depth helper — deeper nodes get tighter links
+		const nodeDepth = new Map<string, number>();
+		for (const n of nodeData) {
+			nodeDepth.set(n.id, (n.id.match(/\//g) || []).length); // count path segments
+		}
+
 		sim = forceSimulation<GNodeDatum>(nodeData)
 			.force('center', forceCenter(0, 0))
 			.force('charge', forceManyBody<GNodeDatum>().strength(-120).distanceMax(400))
 			.force('link', forceLink<GNodeDatum, GLinkDatum>(linkData).id(d => d.id)
 				.distance((l: GLinkDatum) => {
 					const rel = l.relation;
-					if (rel === 'contains')    return 25;   // parent→child: tight clusters
-					if (rel === 'sibling')     return 200;  // core→core: WIDE separation between clusters
-					if (rel === 'belongs_to')  return 80;   // entity→core: medium
-					if (rel === 'cross_ref')   return 120;  // cross-references: wide
-					return 50;
+					if (rel === 'contains') {
+						// Hierarchy depth: core→domain=60, domain→project=40, project→doc=20
+						const tgt = typeof l.target === 'object' ? l.target : null;
+						const depth = tgt ? (nodeDepth.get(tgt.id) ?? 1) : 1;
+						if (depth <= 1) return 60;   // core → domain folder (platform, agency)
+						if (depth === 2) return 40;  // domain → project/subfolder
+						return 20;                    // deep docs — very tight
+					}
+					if (rel === 'sibling')     return 250;  // core→core: WIDE
+					if (rel === 'belongs_to')  return 100;  // entity→core
+					if (rel === 'cross_ref')   return 150;  // cross-references: bridges between clusters
+					return 60;
 				})
 				.strength((l: GLinkDatum) => {
 					const rel = l.relation;
-					if (rel === 'contains')    return 0.8;  // strong pull keeps clusters tight
-					if (rel === 'sibling')     return 0.05; // very weak — just hints, doesn't crush
-					if (rel === 'belongs_to')  return 0.3;
-					if (rel === 'cross_ref')   return 0.1;
+					if (rel === 'contains')    return 0.7;  // strong pull keeps clusters tight
+					if (rel === 'sibling')     return 0.03; // very weak — just hints
+					if (rel === 'belongs_to')  return 0.2;
+					if (rel === 'cross_ref')   return 0.08;
 					return 0.4;
 				})
 			)
