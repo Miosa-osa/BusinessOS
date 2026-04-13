@@ -222,6 +222,12 @@ export async function getSession(serverUrl?: string) {
       return { data: null, error: "Not authenticated" };
     }
 
+    // Guard against non-JSON responses (e.g., HTML error pages)
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      return { data: null, error: "Invalid response from server" };
+    }
+
     const data = await response.json();
     return { data, error: null };
   } catch (err) {

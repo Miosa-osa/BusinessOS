@@ -18,12 +18,15 @@
 
 	const session = useSession();
 
+	// Show landing page by default. Only redirect if authenticated.
+	let showLanding = $state(!isElectron);
+
 	$effect(() => {
-		// Authenticated → go to desktop (same for Electron and browser)
 		if (!$session.isPending && $session.data) {
-			goto('/window');
+			goto('/dashboard');
+		} else if (!$session.isPending) {
+			showLanding = true;
 		}
-		// Not authenticated → show landing page (handled by template below)
 	});
 
 	function selectLocalMode() {

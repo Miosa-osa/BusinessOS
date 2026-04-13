@@ -51,7 +51,7 @@
 			class="text-4xl md:text-6xl font-bold text-black leading-[1.1] mb-6 tracking-tight"
 			in:fly={{ y: 30, duration: 600, delay: 100 }}
 		>
-			Your operating system for the{' '}
+			Your business operating system for the{' '}
 			<span class="text-gray-400 glitch-text" data-text="agentic era">agentic era</span>
 		</h1>
 
