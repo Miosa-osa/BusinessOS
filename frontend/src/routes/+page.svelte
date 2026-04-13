@@ -536,6 +536,8 @@
 
 	@media (max-width: 640px) {
 		.lp-nav__links { display: none; }
+		.lp-nav__actions { gap: 0.5rem; }
+		.lp-nav__actions .lp-btn--ghost { display: none; }
 	}
 
 	/* ─── Buttons ────────────────────────────────────────────────── */
@@ -1290,5 +1292,57 @@
 		font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
 		font-size: 0.6875rem;
 		color: rgba(255,255,255,0.18);
+	}
+
+	/* ─── Mobile Optimization ────────────────────────────────────── */
+	@media (max-width: 768px) {
+		.lp-container { padding-inline: 1.25rem; }
+
+		/* Video hero */
+		.lp-video-hero { padding: 4.5rem 0 1rem; }
+		.lp-video-hero__container { padding: 0 1rem; }
+
+		/* Hero headline */
+		.lp-hero { padding-block: 3rem 4rem; }
+		.lp-hero__headline { font-size: clamp(1.75rem, 7vw, 2.5rem); }
+		.lp-hero__subtitle { font-size: 0.9375rem; }
+		.lp-hero__ctas { flex-direction: column; width: 100%; max-width: 20rem; }
+		.lp-hero__ctas .lp-btn { width: 100%; justify-content: center; }
+		.lp-hero__pills { gap: 0.375rem; }
+		.lp-hero__pill { font-size: 0.625rem; padding: 0.25rem 0.625rem; }
+
+		/* Section headers */
+		.lp-headline { font-size: clamp(1.5rem, 5vw, 2rem); }
+		.lp-subheadline { font-size: 0.875rem; }
+
+		/* Modules grid */
+		.lp-modules__grid { grid-template-columns: 1fr 1fr; }
+		.lp-module-card { padding: 1.25rem; }
+		.lp-module-card__name { font-size: 0.8125rem; }
+		.lp-module-card__desc { font-size: 0.75rem; }
+
+		/* Hierarchy */
+		.lp-hierarchy__flow { flex-direction: column; align-items: center; gap: 0.75rem; }
+		.lp-hierarchy__connector { transform: rotate(90deg); }
+		.lp-hierarchy__item { width: auto; min-width: 160px; }
+
+		/* Computer */
+		.lp-computer__inner { grid-template-columns: 1fr; gap: 2rem; }
+		.lp-computer__runtimes { justify-content: center; }
+
+		/* Pricing */
+		.lp-pricing__grid { grid-template-columns: 1fr; max-width: 24rem; margin-inline: auto; }
+
+		/* Footer */
+		.lp-footer__inner { flex-direction: column; align-items: center; text-align: center; gap: 1.5rem; }
+		.lp-footer__links { flex-wrap: wrap; justify-content: center; }
+	}
+
+	@media (max-width: 480px) {
+		.lp-modules__grid { grid-template-columns: 1fr; }
+		.lp-hero__headline { font-size: 1.625rem; }
+		.lp-video-hero__container { padding: 0 0.75rem; }
+		.lp-computer__text { text-align: center; align-items: center; }
+		.lp-computer__features { text-align: left; }
 	}
 </style>

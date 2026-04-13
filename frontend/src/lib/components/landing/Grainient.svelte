@@ -241,5 +241,7 @@ void main(){
 		height: 100%;
 		overflow: hidden;
 		z-index: 0;
+		/* Fallback gradient if WebGL fails (mobile) */
+		background: radial-gradient(ellipse at 30% 20%, #2a2a2a 0%, #0a0a0e 50%, #000 100%);
 	}
 </style>
