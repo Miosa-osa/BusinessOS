@@ -330,7 +330,7 @@
 					c.beginPath(); c.arc(n.x, n.y, r, 0, Math.PI * 2);
 					c.fillStyle = color; c.fill();
 				})
-				.warmupTicks(400)
+				.warmupTicks(50)
 				.cooldownTime(15000)
 				.d3AlphaDecay(0.02)
 				.d3AlphaMin(0.001)
@@ -367,7 +367,9 @@
 			const w = container.clientWidth, h = container.clientHeight;
 			if (w > 0 && h > 0) graph.width(w).height(h);
 			tuneForces();
-			setTimeout(() => { graph?.zoomToFit(400, 30); }, 500);
+			// Zoom to fit after simulation settles enough to show content
+			setTimeout(() => { graph?.zoomToFit(600, 40); }, 2000);
+			setTimeout(() => { graph?.zoomToFit(400, 40); }, 5000);
 			loading = false;
 		} catch (err) {
 			error   = err instanceof Error ? err.message : 'Failed to load graph';

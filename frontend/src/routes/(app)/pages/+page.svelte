@@ -42,11 +42,7 @@
 	let graphMemories = $state<Memory[]>([]);
 	let graphNodeMap = $state<Map<string, { name: string; type: string }>>(new Map());
 
-	$effect(() => {
-		if (currentView === 'knowledge-graph' && graphMemories.length === 0 && documents.length > 0) {
-			loadGraphData();
-		}
-	});
+	// Graph data loaded directly by KnowledgeGraph component from API — no need to preload here
 
 	async function loadGraphData() {
 		const now = new Date().toISOString();
