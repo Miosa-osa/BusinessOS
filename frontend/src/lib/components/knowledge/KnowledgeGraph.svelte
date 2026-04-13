@@ -377,16 +377,20 @@
 				}
 			}
 
-			// Core–core sibling links
-			const coreList = coreNodes.map(n => n.slug);
-			for (let i = 0; i < coreList.length; i++)
-				for (let j = i + 1; j < coreList.length; j++)
-					gLinks.push({ source: coreList[i], target: coreList[j], relation: 'sibling' });
+			// NO sibling links — let cores spread via repulsion, each gets its own space
 
-			// Entity–core + cross-ref edges
+			// Entity→core: only keep ONE strongest connection per entity (prevents center collapse)
+			const entityBestCore = new Map<string, string>();
 			for (const e of graphData.edges) {
-				if (entityIds.has(e.source) && slugSet.has(e.target)) gLinks.push({ source: e.source, target: e.target, relation: 'belongs_to' });
-				if (entityIds.has(e.target) && slugSet.has(e.source)) gLinks.push({ source: e.target, target: e.source, relation: 'belongs_to' });
+				if (entityIds.has(e.source) && slugSet.has(e.target)) {
+					if (!entityBestCore.has(e.source)) entityBestCore.set(e.source, e.target);
+				}
+				if (entityIds.has(e.target) && slugSet.has(e.source)) {
+					if (!entityBestCore.has(e.target)) entityBestCore.set(e.target, e.source);
+				}
+			}
+			for (const [entity, core] of entityBestCore) {
+				gLinks.push({ source: entity, target: core, relation: 'belongs_to' });
 			}
 			const seenLinks = new Set<string>();
 			function addLink(s: string, t: string, rel: string) {
