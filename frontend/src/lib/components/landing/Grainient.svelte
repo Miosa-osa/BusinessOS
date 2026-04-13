@@ -211,10 +211,12 @@ void main(){
 		setSize();
 
 		let raf = 0;
-		let paused = false;
+		let scrolling = false;
+		let scrollTimer: ReturnType<typeof setTimeout>;
 		const t0 = performance.now();
+
 		const loop = (t: number) => {
-			if (!paused) {
+			if (!scrolling) {
 				(program.uniforms.iTime as { value: number }).value = (t - t0) * 0.001;
 				renderer.render({ scene: mesh });
 			}
@@ -222,17 +224,19 @@ void main(){
 		};
 		raf = requestAnimationFrame(loop);
 
-		// Pause rendering when not visible (fixes scroll flicker)
-		const io = new IntersectionObserver(
-			([entry]) => { paused = !entry.isIntersecting; },
-			{ threshold: 0 }
-		);
-		io.observe(container);
+		// Pause shader during scroll — resume 200ms after scroll stops
+		const onScroll = () => {
+			scrolling = true;
+			clearTimeout(scrollTimer);
+			scrollTimer = setTimeout(() => { scrolling = false; }, 200);
+		};
+		window.addEventListener('scroll', onScroll, { passive: true });
 
 		return () => {
 			cancelAnimationFrame(raf);
+			clearTimeout(scrollTimer);
+			window.removeEventListener('scroll', onScroll);
 			ro.disconnect();
-			io.disconnect();
 			try {
 				container.removeChild(canvas);
 			} catch {
