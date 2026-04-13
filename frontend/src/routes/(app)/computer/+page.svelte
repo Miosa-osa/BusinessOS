@@ -423,6 +423,24 @@
 		}
 	}
 
+	async function handleDeleteComputer() {
+		if (!computer || !confirm('Delete this computer? This cannot be undone.')) return;
+		try {
+			const res = await fetch(`${getApiBaseUrl()}/computer/${computer.id}`, {
+				method: 'DELETE',
+				credentials: 'include',
+			});
+			if (res.ok) {
+				computer = null;
+				metrics = { ram_used_gb: 0, ram_total_gb: 2, cpu_percent: 0, cpu_cores: 2, storage_used_gb: 0, storage_total_gb: 10 };
+				runtimes = [];
+				activeView = 'dashboard';
+			}
+		} catch (err) {
+			console.error('Delete failed:', err);
+		}
+	}
+
 	async function selectPlan(planId: string) {
 		provisioning = true;
 		provisionError = null;
@@ -790,6 +808,12 @@
 							<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
 						</svg>
 						Hibernate
+					</button>
+					<button class="cp-btn cp-btn--danger" aria-label="Delete computer" onclick={handleDeleteComputer}>
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+						</svg>
+						Delete
 					</button>
 				{/if}
 			</div>
@@ -1383,6 +1407,13 @@
 		color: #ffffff;
 	}
 	.cp-btn--primary:hover:not(:disabled) { background: #2563eb; }
+
+	.cp-btn--danger {
+		background: transparent;
+		color: #ef4444;
+		border: 1px solid #ef444433;
+	}
+	.cp-btn--danger:hover { background: #ef44440d; border-color: #ef4444; }
 
 	.cp-btn--outline {
 		background: transparent;

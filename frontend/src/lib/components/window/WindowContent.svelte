@@ -28,6 +28,7 @@
 		help: '/help',
 		agents: '/agents',
 		crm: '/crm',
+		computer: '/computer',
 		notifications: '/notifications',
 		profile: '/profile',
 		'voice-notes': '/voice-notes',
