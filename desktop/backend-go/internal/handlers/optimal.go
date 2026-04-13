@@ -76,6 +76,16 @@ func RegisterOptimalRoutes(api *gin.RouterGroup, h *OptimalHandler) {
 		g.GET("/projects", h.GetProjects)
 		g.GET("/rhythm/weekly", h.GetWeeklyRhythm)
 		g.GET("/health", h.GetHealth)
+
+		// Phase-4: advanced engine operations.
+		g.GET("/health/full", h.FullHealthCheck)
+		g.POST("/verify", h.Verify)
+		g.GET("/l0", h.GetL0)
+		g.POST("/intent", h.AnalyzeIntent)
+		g.POST("/compress", h.Compress)
+		g.POST("/extract", h.ExtractMemories)
+		g.POST("/spec/parse", h.ParseSpec)
+		g.GET("/topology", h.GetTopology)
 	}
 }
 
@@ -627,4 +637,177 @@ func parsePositiveInt(s string) (int, error) {
 // isNotExist reports whether err (or any error in its chain) wraps os.ErrNotExist.
 func isNotExist(err error) bool {
 	return errors.Is(err, os.ErrNotExist)
+}
+
+// ── phase-4 handlers ──────────────────────────────────────────────────────────
+
+// FullHealthCheck handles GET /api/optimal/health/full
+// Runs the 10-check Diagnose suite and returns a HealthReport.
+func (h *OptimalHandler) FullHealthCheck(c *gin.Context) {
+	report, err := optimal.Diagnose(h.nodesRoot, h.dbPath)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: full health check failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "full health check", err)
+		return
+	}
+	httpStatus := http.StatusOK
+	if report.Status == "error" {
+		httpStatus = http.StatusServiceUnavailable
+	}
+	c.JSON(httpStatus, report)
+}
+
+// verifyRequest is the request body for POST /api/optimal/verify.
+type verifyRequest struct {
+	SampleSize int `json:"sample_size"` // 0 → default 10
+}
+
+// Verify handles POST /api/optimal/verify
+// Samples N contexts and checks L0 fidelity using Jaccard similarity.
+func (h *OptimalHandler) Verify(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	var req verifyRequest
+	_ = c.ShouldBindJSON(&req) // optional body
+	if req.SampleSize <= 0 {
+		req.SampleSize = 10
+	}
+
+	result, err := optimal.Verify(h.dbPath, req.SampleSize)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: verify failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "optimal verify", err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// GetL0 handles GET /api/optimal/l0
+// Returns L0 abstracts for all nodes (title + first paragraph, ~100 tokens each).
+func (h *OptimalHandler) GetL0(c *gin.Context) {
+	nodes, err := optimal.ListNodes(h.nodesRoot)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: get l0 failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "get l0", err)
+		return
+	}
+	type l0Entry struct {
+		Slug     string `json:"slug"`
+		Name     string `json:"name"`
+		Abstract string `json:"abstract"`
+	}
+	entries := make([]l0Entry, 0, len(nodes))
+	for _, n := range nodes {
+		abstract := optimal.L0Abstract(n.ContextMD)
+		entries = append(entries, l0Entry{
+			Slug:     n.Slug,
+			Name:     n.Name,
+			Abstract: abstract,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"l0": entries, "count": len(entries)})
+}
+
+// intentRequest is the request body for POST /api/optimal/intent.
+type intentRequest struct {
+	Query string `json:"query" binding:"required"`
+}
+
+// AnalyzeIntent handles POST /api/optimal/intent
+// Classifies the query intent (lookup, comparison, temporal, decision, exploration).
+func (h *OptimalHandler) AnalyzeIntent(c *gin.Context) {
+	var req intentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+	result := optimal.AnalyzeIntent(req.Query)
+	c.JSON(http.StatusOK, result)
+}
+
+// compressRequest is the request body for POST /api/optimal/compress.
+type compressRequest struct {
+	Transcript string `json:"transcript" binding:"required"`
+	MaxTokens  int    `json:"max_tokens"` // 0 → default 2000
+}
+
+// Compress handles POST /api/optimal/compress
+// Reduces a conversation transcript while preserving key information.
+func (h *OptimalHandler) Compress(c *gin.Context) {
+	var req compressRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+	if req.MaxTokens <= 0 {
+		req.MaxTokens = 2000
+	}
+	compressed := optimal.CompressTranscript(req.Transcript, req.MaxTokens)
+	origLen := len(req.Transcript)
+	compLen := len(compressed)
+	ratio := 0.0
+	if origLen > 0 {
+		ratio = float64(compLen) / float64(origLen)
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"compressed":       compressed,
+		"original_chars":   origLen,
+		"compressed_chars": compLen,
+		"ratio":            ratio,
+	})
+}
+
+// extractRequest is the request body for POST /api/optimal/extract.
+type extractRequest struct {
+	Messages []string `json:"messages" binding:"required"`
+}
+
+// ExtractMemories handles POST /api/optimal/extract
+// Pulls structured memories from a list of conversation messages.
+func (h *OptimalHandler) ExtractMemories(c *gin.Context) {
+	var req extractRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+	memories := optimal.ExtractMemories(req.Messages)
+	if memories == nil {
+		memories = []optimal.ExtractedMemory{}
+	}
+	c.JSON(http.StatusOK, gin.H{"memories": memories, "count": len(memories)})
+}
+
+// parseSpecRequest is the request body for POST /api/optimal/spec/parse.
+type parseSpecRequest struct {
+	Content string `json:"content" binding:"required"`
+}
+
+// ParseSpec handles POST /api/optimal/spec/parse
+// Parses a .spec.md file content and returns structured requirements.
+func (h *OptimalHandler) ParseSpec(c *gin.Context) {
+	var req parseSpecRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+	spec, err := optimal.ParseSpec(req.Content)
+	if err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+	c.JSON(http.StatusOK, spec)
+}
+
+// GetTopology handles GET /api/optimal/topology
+// Loads topology config from .system/config.yaml and returns routing rules + node/people configs.
+func (h *OptimalHandler) GetTopology(c *gin.Context) {
+	import_path := h.osRoot + "/.system/config.yaml"
+	cfg, err := optimal.LoadTopology(import_path)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: load topology failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "load topology", err)
+		return
+	}
+	c.JSON(http.StatusOK, cfg)
 }
