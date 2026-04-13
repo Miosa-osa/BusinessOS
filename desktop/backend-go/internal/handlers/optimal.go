@@ -27,11 +27,15 @@ type OptimalHandler struct {
 //   - enginePath — absolute path to the engine/ directory (contains mix.exs)
 //   - dbPath     — absolute path to .system/index.db (SQLite, may be empty string)
 func NewOptimalHandler(nodesRoot, osRoot, enginePath, dbPath string) *OptimalHandler {
+	eng := optimal.NewEngineConfig(enginePath)
+	eng.DBPath = dbPath
+	eng.NodesRoot = nodesRoot
+	eng.OSRoot = osRoot
 	return &OptimalHandler{
 		nodesRoot: nodesRoot,
 		osRoot:    osRoot,
 		dbPath:    dbPath,
-		engine:    optimal.NewEngineConfig(enginePath),
+		engine:    eng,
 	}
 }
 
@@ -56,6 +60,14 @@ func RegisterOptimalRoutes(api *gin.RouterGroup, h *OptimalHandler) {
 		g.GET("/graph", h.GetGraph)
 		g.GET("/graph/hubs", h.GetGraphHubs)
 		g.GET("/graph/search", h.GraphSearch)
+		g.GET("/graph/triangles", h.GetGraphTriangles)
+		g.GET("/graph/clusters", h.GetGraphClusters)
+
+		// Signal Theory classifier.
+		g.POST("/classify", h.ClassifyText)
+
+		// Scenario simulation.
+		g.POST("/simulate", h.Simulate)
 
 		// Aggregated data endpoints.
 		g.GET("/dashboard", h.GetDashboard)
@@ -480,6 +492,112 @@ func (h *OptimalHandler) GetHealth(c *gin.Context) {
 		httpStatus = http.StatusServiceUnavailable
 	}
 	c.JSON(httpStatus, status)
+}
+
+// ── phase-3 handlers ──────────────────────────────────────────────────────────
+
+// classifyRequest is the request body for POST /api/optimal/classify.
+type classifyRequest struct {
+	Text string `json:"text" binding:"required"`
+}
+
+// ClassifyText handles POST /api/optimal/classify.
+// Runs the Signal Theory classifier and returns S=(M,G,T,F,W) + S/N ratio.
+func (h *OptimalHandler) ClassifyText(c *gin.Context) {
+	var req classifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+	result := optimal.Classify(req.Text)
+	c.JSON(http.StatusOK, result)
+}
+
+// GetGraphTriangles handles GET /api/optimal/graph/triangles?limit=20.
+// Returns open triangles (synthesis opportunities) from the knowledge graph.
+func (h *OptimalHandler) GetGraphTriangles(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	limit := 20
+	if v := c.Query("limit"); v != "" {
+		if n, err := parsePositiveInt(v); err == nil {
+			limit = n
+		}
+	}
+	triangles, err := optimal.FindTriangles(h.dbPath, limit)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: find triangles failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "find graph triangles", err)
+		return
+	}
+	if triangles == nil {
+		triangles = []optimal.Triangle{}
+	}
+	c.JSON(http.StatusOK, gin.H{"triangles": triangles, "count": len(triangles)})
+}
+
+// GetGraphClusters handles GET /api/optimal/graph/clusters.
+// Returns connected components of the knowledge graph via BFS.
+func (h *OptimalHandler) GetGraphClusters(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	clusters, err := optimal.FindClusters(h.dbPath)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: find clusters failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "find graph clusters", err)
+		return
+	}
+	if clusters == nil {
+		clusters = []optimal.Cluster{}
+	}
+	c.JSON(http.StatusOK, gin.H{"clusters": clusters, "count": len(clusters)})
+}
+
+// simulateRequest is the request body for POST /api/optimal/simulate.
+type simulateRequest struct {
+	Mutation    string `json:"mutation"    binding:"required"`
+	Simulations int    `json:"simulations"` // optional Monte Carlo count; 0 → default 1000
+	Budget      int    `json:"budget"`      // optional MCTS budget; 0 → default 32
+}
+
+// simulateResponse is the full response for POST /api/optimal/simulate.
+type simulateResponse struct {
+	Simulation *optimal.SimulationResult `json:"simulation"`
+	MonteCarlo *optimal.MonteCarloResult `json:"monte_carlo"`
+	MCTS       *optimal.MCTSResult       `json:"mcts"`
+}
+
+// Simulate handles POST /api/optimal/simulate.
+// Runs Simulate → Sample (Monte Carlo) → PlanResponse (MCTS) in sequence and
+// returns all three result sets in a single response.
+func (h *OptimalHandler) Simulate(c *gin.Context) {
+	var req simulateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+	if !h.hasDB(c) {
+		return
+	}
+
+	simResult, err := optimal.Simulate(h.dbPath, req.Mutation)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: simulate failed",
+			"mutation", req.Mutation, "error", err)
+		utils.RespondInternalError(c, slog.Default(), "optimal simulate", err)
+		return
+	}
+
+	mcResult := optimal.Sample(simResult, req.Simulations)
+	mctsResult := optimal.PlanResponse(simResult, req.Budget)
+
+	c.JSON(http.StatusOK, simulateResponse{
+		Simulation: simResult,
+		MonteCarlo: mcResult,
+		MCTS:       mctsResult,
+	})
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
