@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import Grainient from '$lib/components/landing/Grainient.svelte';
 
 	let scrolled = $state(false);
 	let visible = $state(false);
@@ -60,10 +61,21 @@
 	];
 
 	const computerFeatures = [
-		'Claude Code pre-installed and ready',
-		'Full Linux desktop in the cloud',
-		'Automations that run while you sleep',
-		'Team access — share your computer'
+		'Bring your own API keys — use any model',
+		'Pairs with Claude Code, Codex, OSA-Agent, and more',
+		'Schedule agents to run automations 24/7',
+		'Full Linux desktop — your environment, your rules'
+	];
+
+	const agentRuntimes = [
+		'Claude Code', 'Codex', 'OSA-Agent', 'Mes-Agent', 'Devin', 'Custom Agents'
+	];
+
+	const hierarchy = [
+		{ level: 'Company', desc: 'Your organization. One source of truth.', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
+		{ level: 'Teams', desc: 'People + AI agents working together.', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+		{ level: 'Projects', desc: 'Work streams with tasks and milestones.', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+		{ level: 'Signals', desc: 'Every action produces a signal. The system learns.', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
 	];
 
 	const plans = [
@@ -72,7 +84,7 @@
 			price: '$0',
 			period: '',
 			desc: 'Local only. No credit card.',
-			features: ['Local app only', 'Unlimited modules', 'Connect your own AI', 'MIT licensed'],
+			features: ['Local app only', 'Unlimited modules', 'Bring your own API keys', 'Apache 2.0 licensed'],
 			cta: 'Download Free',
 			href: '#download',
 			highlight: false
@@ -116,6 +128,34 @@
 	<meta name="description" content="The AI-native platform that runs your entire business. CRM, projects, tasks, agents, and a cloud computer — all in one desktop app." />
 </svelte:head>
 
+<!-- Full-page Grainient background -->
+<div class="lp-grainient-bg" aria-hidden="true">
+	<Grainient
+		color1="#4f4f4f"
+		color2="#000000"
+		color3="#c4c4c4"
+		timeSpeed={0.25}
+		colorBalance={0}
+		warpStrength={1}
+		warpFrequency={5}
+		warpSpeed={2}
+		warpAmplitude={50}
+		blendAngle={0}
+		blendSoftness={0.05}
+		rotationAmount={500}
+		noiseScale={2}
+		grainAmount={0.1}
+		grainScale={2}
+		grainAnimated={false}
+		contrast={1.5}
+		gamma={1}
+		saturation={1}
+		centerX={0}
+		centerY={0}
+		zoom={0.9}
+	/>
+</div>
+
 <!-- Nav -->
 <header class="lp-nav {scrolled ? 'lp-nav--scrolled' : ''}">
 	<div class="lp-container lp-nav__inner">
@@ -136,55 +176,62 @@
 </header>
 
 <main>
-	<!-- Section 1: Hero -->
-	<section class="lp-hero" aria-labelledby="lp-hero-headline">
-		<div class="lp-hero__bg" aria-hidden="true">
-			<div class="lp-hero__mesh"></div>
-			<div class="lp-hero__glow lp-hero__glow--1"></div>
-			<div class="lp-hero__glow lp-hero__glow--2"></div>
+	<!-- Section 1: Video in app frame -->
+	<section class="lp-video-hero">
+		<div class="lp-video-hero__container">
+			<div class="lp-video-hero__frame">
+				<div class="lp-video-hero__titlebar" aria-hidden="true">
+					<span class="lp-demo__dot lp-demo__dot--red"></span>
+					<span class="lp-demo__dot lp-demo__dot--yellow"></span>
+					<span class="lp-demo__dot lp-demo__dot--green"></span>
+					<span class="lp-video-hero__titlebar-label">BusinessOS</span>
+				</div>
+				<div class="lp-video-hero__screen">
+					<!-- Replace src with your MP4: /demo.mp4 in static/ -->
+					<video
+						class="lp-video-hero__video"
+						autoplay
+						muted
+						loop
+						playsinline
+					>
+						<!-- <source src="/demo.mp4" type="video/mp4" /> -->
+					</video>
+					<!-- Placeholder until video is added -->
+					<div class="lp-video-hero__placeholder">
+						<svg width="48" height="48" fill="none" stroke="rgba(255,255,255,0.25)" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<span class="lp-video-hero__placeholder-text">Product Demo</span>
+					</div>
+				</div>
+			</div>
 		</div>
+	</section>
+
+	<!-- Section 2: Headline + CTAs -->
+	<section class="lp-hero" aria-labelledby="lp-hero-headline">
 		<div class="lp-container lp-hero__content {visible ? 'lp-hero__content--visible' : ''}">
-			<p class="lp-hero__eyebrow">AI-native. Open source. Built to last.</p>
 			<h1 class="lp-hero__headline" id="lp-hero-headline">
-				Your Business,<br />One Operating System
+				Your First Self-Learning Business OS
 			</h1>
 			<p class="lp-hero__subtitle">
-				The AI-native platform that runs your entire business. CRM, projects, tasks, agents, and a cloud computer — all in one desktop app.
+				Proactive agents that run in your cloud computer. Automations that learn your workflows. A system that gets smarter with every decision you make.
 			</p>
 			<div class="lp-hero__ctas">
 				<a href="https://github.com/Miosa-osa/businessos/releases" target="_blank" rel="noopener" class="lp-btn lp-btn--primary lp-btn--lg">
-					<svg class="lp-icon" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-					</svg>
 					Download for Mac
 				</a>
 				<a href="/register" class="lp-btn lp-btn--ghost lp-btn--lg">
 					Start in Browser
 				</a>
 			</div>
-			<p class="lp-hero__trust">Free and open source. No credit card required.</p>
-		</div>
-	</section>
-
-	<!-- Section 2: Demo / Screenshot -->
-	<section class="lp-demo" aria-label="Product preview">
-		<div class="lp-container">
-			<div class="lp-demo__frame">
-				<div class="lp-demo__titlebar" aria-hidden="true">
-					<span class="lp-demo__dot lp-demo__dot--red"></span>
-					<span class="lp-demo__dot lp-demo__dot--yellow"></span>
-					<span class="lp-demo__dot lp-demo__dot--green"></span>
-					<span class="lp-demo__titlebar-label">BusinessOS — Dashboard</span>
-				</div>
-				<div class="lp-demo__screen">
-					<div class="lp-demo__placeholder">
-						<svg class="lp-demo__play" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-						</svg>
-						<span class="lp-demo__label">Demo Video</span>
-					</div>
-				</div>
+			<div class="lp-hero__pills">
+				<span class="lp-hero__pill">Proactive AI agents</span>
+				<span class="lp-hero__pill">Cloud computer</span>
+				<span class="lp-hero__pill">Self-evolving</span>
+				<span class="lp-hero__pill">Bring your own keys</span>
 			</div>
 		</div>
 	</section>
@@ -199,7 +246,7 @@
 			</div>
 			<div class="lp-modules__grid" role="list">
 				{#each modules as mod}
-					<div class="lp-module-card" role="listitem">
+					<a href="/modules/{mod.name.toLowerCase()}" class="lp-module-card" role="listitem">
 						<div class="lp-module-card__icon" aria-hidden="true">
 							<svg class="lp-icon lp-icon--md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={mod.icon} />
@@ -207,23 +254,66 @@
 						</div>
 						<h3 class="lp-module-card__name">{mod.name}</h3>
 						<p class="lp-module-card__desc">{mod.desc}</p>
-					</div>
+						<span class="lp-module-card__arrow">→</span>
+					</a>
 				{/each}
 			</div>
 		</div>
 	</section>
 
-	<!-- Section 4: Computer Feature -->
+	<!-- Section 4: How It Works — Hierarchy -->
+	<section class="lp-hierarchy" aria-labelledby="lp-hierarchy-headline">
+		<div class="lp-container">
+			<div class="lp-section-header">
+				<p class="lp-eyebrow">Built on Signal Theory</p>
+				<h2 class="lp-headline" id="lp-hierarchy-headline">Not just an OS.<br />The optimal system.</h2>
+				<p class="lp-subheadline">Every action in your business produces a signal. BusinessOS captures, routes, and learns from every signal — so nothing falls through the cracks. A continuous feedback loop from company to code.</p>
+			</div>
+			<div class="lp-hierarchy__flow" role="list">
+				{#each hierarchy as item, i}
+					<div class="lp-hierarchy__item" role="listitem">
+						<div class="lp-hierarchy__icon">
+							<svg class="lp-icon lp-icon--md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={item.icon} />
+							</svg>
+						</div>
+						<h3 class="lp-hierarchy__level">{item.level}</h3>
+						<p class="lp-hierarchy__desc">{item.desc}</p>
+					</div>
+					{#if i < hierarchy.length - 1}
+						<div class="lp-hierarchy__connector" aria-hidden="true">
+							<svg width="24" height="24" fill="none" stroke="rgba(255,255,255,0.2)" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+							</svg>
+						</div>
+					{/if}
+				{/each}
+			</div>
+			<div class="lp-hierarchy__cycle">
+				<p class="lp-hierarchy__cycle-text">
+					<span class="lp-hierarchy__cycle-icon">↻</span>
+					Signals flow up. Context flows down. Daily reports, weekly reviews, and continuous feedback — your business gets smarter every cycle.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<!-- Section 5: Your Computer -->
 	<section class="lp-computer" aria-labelledby="lp-computer-headline">
 		<div class="lp-container lp-computer__inner">
 			<div class="lp-computer__text">
-				<p class="lp-eyebrow lp-eyebrow--light">Cloud Computer</p>
+				<p class="lp-eyebrow lp-eyebrow--light">Your Computer</p>
 				<h2 class="lp-headline lp-headline--light" id="lp-computer-headline">
-					Your Business<br />in the Cloud
+					Bring your own keys.<br />Run any agent.
 				</h2>
 				<p class="lp-subheadline lp-subheadline--light">
-					Every BusinessOS subscription comes with a cloud computer. Run AI agents 24/7, access your system from anywhere, and let your team join in.
+					Your cloud computer runs the agent runtimes you choose. Bring your own API keys, schedule automations, and let AI agents power your business around the clock.
 				</p>
+				<div class="lp-computer__runtimes">
+					{#each agentRuntimes as runtime}
+						<span class="lp-computer__runtime-badge">{runtime}</span>
+					{/each}
+				</div>
 				<ul class="lp-computer__features" role="list">
 					{#each computerFeatures as feat}
 						<li class="lp-computer__feature">
@@ -311,7 +401,7 @@
 			</div>
 			<h2 class="lp-headline" id="lp-oss-headline">Free and Open Source</h2>
 			<p class="lp-subheadline lp-subheadline--narrow">
-				BusinessOS is MIT licensed. Run it locally, modify it, make it yours. The cloud is optional — use it if you want, skip it if you don't.
+				BusinessOS is Apache 2.0 licensed. Run it locally, customize every module, bring your own API keys. The cloud syncs your data — use it if you want, skip it if you don't.
 			</p>
 			<div class="lp-oss__actions">
 				<a
@@ -331,7 +421,7 @@
 				</a>
 			</div>
 			<div class="lp-oss__badges" role="list">
-				{#each ['MIT Licensed', 'Self-hostable', 'No telemetry', 'Open roadmap'] as badge}
+				{#each ['Apache 2.0 Licensed', 'Self-hostable', 'No telemetry', 'Open roadmap'] as badge}
 					<span class="lp-oss__badge" role="listitem">{badge}</span>
 				{/each}
 			</div>
@@ -355,7 +445,7 @@
 			<a href="/privacy" class="lp-footer__link">Privacy</a>
 			<a href="mailto:hello@businessos.dev" class="lp-footer__link">Contact</a>
 		</nav>
-		<p class="lp-footer__copy">&copy; {new Date().getFullYear()} MIOSA. MIT License.</p>
+		<p class="lp-footer__copy">&copy; {new Date().getFullYear()} MIOSA. Apache 2.0 License.</p>
 	</div>
 </footer>
 
@@ -501,6 +591,22 @@
 	.lp-icon--md { width: 1.25rem; height: 1.25rem; }
 	.lp-icon--xl { width: 2.5rem; height: 2.5rem; }
 
+	/* ─── Full-page Grainient background ────────────────────────── */
+	.lp-grainient-bg {
+		position: fixed;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+	}
+
+	/* All content sits above the shader */
+	:global(.lp-nav),
+	main,
+	footer {
+		position: relative;
+		z-index: 1;
+	}
+
 	/* ─── Section typography ─────────────────────────────────────── */
 	.lp-section-header {
 		text-align: center;
@@ -536,54 +642,97 @@
 	.lp-subheadline--narrow { max-width: 34rem; }
 
 	/* ─── Hero ───────────────────────────────────────────────────── */
-	.lp-hero {
+	/* ─── Video Hero ────────────────────────────────────────────── */
+	.lp-video-hero {
 		position: relative;
-		min-height: 100svh;
+		width: 100%;
+		padding: 7rem 0 2rem;
 		display: flex;
 		align-items: center;
-		background: #0a0a0e;
+		justify-content: center;
+	}
+	.lp-video-hero__container {
+		width: 100%;
+		max-width: 1100px;
+		margin: 0 auto;
+		padding: 0 1.5rem;
+	}
+	.lp-video-hero__frame {
+		border-radius: 0.875rem;
 		overflow: hidden;
-		padding-block: 6rem 4rem;
+		border: 1px solid rgba(255,255,255,0.1);
+		backdrop-filter: blur(4px);
+		box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+	}
+	.lp-video-hero__titlebar {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.625rem 1rem;
+		background: rgba(24, 24, 31, 0.9);
+		border-bottom: 1px solid rgba(255,255,255,0.07);
+	}
+	.lp-video-hero__titlebar-label {
+		font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+		font-size: 0.6875rem;
+		color: rgba(255,255,255,0.3);
+		margin-left: 0.5rem;
+	}
+	.lp-video-hero__screen {
+		position: relative;
+		aspect-ratio: 16 / 9;
+		background: rgba(10, 10, 14, 0.9);
+	}
+	.lp-video-hero__video {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+	.lp-video-hero__placeholder {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.75rem;
+	}
+	.lp-video-hero__placeholder-text {
+		font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+		font-size: 0.75rem;
+		color: rgba(255,255,255,0.2);
+		letter-spacing: 0.05em;
+	}
+
+	/* ─── Headline section ───────────────────────────────────────── */
+	.lp-hero {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: transparent;
+		padding-block: 4rem 5rem;
+		text-align: center;
 	}
 	.lp-hero__bg {
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
 	}
-	.lp-hero__mesh {
-		position: absolute;
-		inset: 0;
-		background-image:
-			linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-		background-size: 60px 60px;
-	}
-	.lp-hero__glow {
-		position: absolute;
-		border-radius: 50%;
-		filter: blur(120px);
-		opacity: 0.18;
-	}
-	.lp-hero__glow--1 {
-		width: 600px;
-		height: 600px;
-		top: -200px;
-		left: -100px;
-		background: radial-gradient(circle, #6366f1 0%, transparent 70%);
-	}
-	.lp-hero__glow--2 {
-		width: 500px;
-		height: 500px;
-		bottom: -150px;
-		right: -50px;
-		background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
-	}
+	/* Old mesh/glow replaced by Grainient WebGL shader */
 	.lp-hero__content {
 		position: relative;
 		z-index: 1;
 		opacity: 0;
 		transform: translateY(24px);
 		transition: opacity 0.7s ease, transform 0.7s ease;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		max-width: 48rem;
+		margin-inline: auto;
 	}
 	.lp-hero__content--visible {
 		opacity: 1;
@@ -610,12 +759,12 @@
 		animation: lp-pulse 2s ease-in-out infinite;
 	}
 	.lp-hero__headline {
-		font-size: clamp(2.5rem, 6vw, 5rem);
-		font-weight: 800;
-		letter-spacing: -0.03em;
-		line-height: 1.05;
+		font-size: clamp(2rem, 4.5vw, 3.5rem);
+		font-weight: 700;
+		letter-spacing: -0.025em;
+		line-height: 1.15;
 		color: #fff;
-		margin-bottom: 1.5rem;
+		margin-bottom: 1.25rem;
 	}
 	.lp-hero__subtitle {
 		font-size: clamp(1rem, 1.5vw, 1.125rem);
@@ -626,14 +775,33 @@
 	}
 	.lp-hero__ctas {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.75rem;
+		justify-content: center;
+		gap: 1rem;
 		margin-bottom: 1.25rem;
+		width: 100%;
+		max-width: 28rem;
+		margin-inline: auto;
 	}
 	.lp-hero__trust {
 		font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
 		font-size: 0.75rem;
 		color: rgba(255,255,255,0.3);
+	}
+	.lp-hero__pills {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.5rem;
+		margin-top: 1.5rem;
+	}
+	.lp-hero__pill {
+		font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+		font-size: 0.6875rem;
+		color: rgba(255,255,255,0.5);
+		border: 1px solid rgba(255,255,255,0.1);
+		padding: 0.375rem 0.875rem;
+		border-radius: 100px;
+		letter-spacing: 0.02em;
 	}
 
 	@keyframes lp-pulse {
@@ -643,12 +811,13 @@
 
 	/* ─── Demo ───────────────────────────────────────────────────── */
 	.lp-demo {
-		background: #0a0a0e;
+		background: transparent;
 		padding-block: 0 5rem;
 	}
 	.lp-demo__frame {
 		border-radius: 0.875rem;
 		overflow: hidden;
+		backdrop-filter: blur(4px);
 		border: 1px solid rgba(255,255,255,0.1);
 		background: #111117;
 		box-shadow: 0 32px 80px rgba(0,0,0,0.6);
@@ -658,7 +827,7 @@
 		align-items: center;
 		gap: 0.375rem;
 		padding: 0.625rem 1rem;
-		background: #18181f;
+		background: rgba(24, 24, 31, 0.8);
 		border-bottom: 1px solid rgba(255,255,255,0.07);
 	}
 	.lp-demo__dot {
@@ -681,7 +850,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #0d0d12;
+		background: rgba(13, 13, 18, 0.8);
 	}
 	.lp-demo__placeholder {
 		display: flex;
@@ -702,15 +871,15 @@
 
 	/* ─── Modules ────────────────────────────────────────────────── */
 	.lp-modules {
-		background: #111117;
+		background: transparent;
 		padding-block: 5rem;
 	}
 	.lp-modules__grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
 		gap: 1px;
-		background: rgba(255,255,255,0.07);
-		border: 1px solid rgba(255,255,255,0.07);
+		background: rgba(255,255,255,0.04);
+		border: 1px solid rgba(255,255,255,0.06);
 		border-radius: 0.875rem;
 		overflow: hidden;
 	}
@@ -723,11 +892,12 @@
 	}
 
 	.lp-module-card {
-		background: #111117;
+		background: rgba(17, 17, 23, 0.6);
+		backdrop-filter: blur(4px);
 		padding: 1.75rem;
 		transition: background 0.15s;
 	}
-	.lp-module-card:hover { background: #18181f; }
+	.lp-module-card:hover { background: rgba(24, 24, 31, 0.7); }
 	.lp-module-card__icon {
 		width: 2.25rem;
 		height: 2.25rem;
@@ -750,10 +920,97 @@
 		color: rgba(255,255,255,0.4);
 		line-height: 1.5;
 	}
+	.lp-module-card__arrow {
+		position: absolute;
+		top: 1.25rem;
+		right: 1.25rem;
+		font-size: 1rem;
+		color: rgba(255,255,255,0.15);
+		transition: color 0.15s, transform 0.15s;
+	}
+	.lp-module-card:hover .lp-module-card__arrow {
+		color: rgba(255,255,255,0.5);
+		transform: translateX(2px);
+	}
+	a.lp-module-card {
+		text-decoration: none;
+		position: relative;
+		display: block;
+		cursor: pointer;
+	}
+
+	/* ─── Hierarchy / Signal Theory ──────────────────────────────── */
+	.lp-hierarchy {
+		background: transparent;
+		padding-block: 5rem;
+	}
+	.lp-hierarchy__flow {
+		display: flex;
+		align-items: flex-start;
+		justify-content: center;
+		gap: 0;
+		flex-wrap: wrap;
+		margin-bottom: 2.5rem;
+	}
+	.lp-hierarchy__item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		gap: 0.625rem;
+		flex: 0 0 auto;
+		width: 140px;
+	}
+	.lp-hierarchy__icon {
+		width: 3rem;
+		height: 3rem;
+		border-radius: 0.75rem;
+		background: rgba(255,255,255,0.06);
+		border: 1px solid rgba(255,255,255,0.08);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: rgba(255,255,255,0.6);
+	}
+	.lp-hierarchy__level {
+		font-size: 0.9375rem;
+		font-weight: 600;
+		color: #fff;
+	}
+	.lp-hierarchy__desc {
+		font-size: 0.75rem;
+		color: rgba(255,255,255,0.4);
+		line-height: 1.4;
+	}
+	.lp-hierarchy__connector {
+		display: flex;
+		align-items: center;
+		padding-top: 0.75rem;
+	}
+	.lp-hierarchy__cycle {
+		text-align: center;
+		max-width: 36rem;
+		margin-inline: auto;
+	}
+	.lp-hierarchy__cycle-text {
+		font-size: 0.875rem;
+		color: rgba(255,255,255,0.35);
+		line-height: 1.6;
+	}
+	.lp-hierarchy__cycle-icon {
+		display: inline-block;
+		font-size: 1.125rem;
+		margin-right: 0.375rem;
+		color: rgba(255,255,255,0.25);
+	}
+	@media (max-width: 640px) {
+		.lp-hierarchy__flow { flex-direction: column; align-items: center; gap: 1rem; }
+		.lp-hierarchy__connector { transform: rotate(90deg); }
+	}
 
 	/* ─── Computer ───────────────────────────────────────────────── */
 	.lp-computer {
-		background: #0a0a0e;
+		background: rgba(10, 10, 14, 0.5);
 		padding-block: 5rem;
 	}
 	.lp-computer__inner {
@@ -784,18 +1041,35 @@
 		color: rgba(255,255,255,0.65);
 	}
 	.lp-computer__check { color: #22c55e; }
+	.lp-computer__runtimes {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 1.5rem;
+	}
+	.lp-computer__runtime-badge {
+		font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+		font-size: 0.6875rem;
+		color: rgba(255,255,255,0.6);
+		background: rgba(255,255,255,0.06);
+		border: 1px solid rgba(255,255,255,0.1);
+		padding: 0.3125rem 0.75rem;
+		border-radius: 100px;
+		letter-spacing: 0.02em;
+	}
 	.lp-computer__screen {
 		border-radius: 0.75rem;
 		overflow: hidden;
 		border: 1px solid rgba(255,255,255,0.1);
-		background: #18181f;
+		background: rgba(24, 24, 31, 0.7);
+		backdrop-filter: blur(4px);
 	}
 	.lp-computer__screen-bar {
 		display: flex;
 		align-items: center;
 		gap: 0.375rem;
 		padding: 0.625rem 0.875rem;
-		background: #111117;
+		background: rgba(17, 17, 23, 0.8);
 		border-bottom: 1px solid rgba(255,255,255,0.07);
 	}
 	.lp-computer__screen-label {
@@ -832,7 +1106,8 @@
 
 	/* ─── Pricing ────────────────────────────────────────────────── */
 	.lp-pricing {
-		background: #111117;
+		background: rgba(10, 10, 14, 0.6);
+		backdrop-filter: blur(2px);
 		padding-block: 5rem;
 	}
 	.lp-pricing__grid {
@@ -850,7 +1125,8 @@
 
 	.lp-plan {
 		position: relative;
-		background: #18181f;
+		background: rgba(24, 24, 31, 0.6);
+		backdrop-filter: blur(4px);
 		border: 1px solid rgba(255,255,255,0.08);
 		border-radius: 0.875rem;
 		padding: 1.75rem;
@@ -862,7 +1138,7 @@
 	.lp-plan:hover { border-color: rgba(255,255,255,0.18); }
 	.lp-plan--highlight {
 		border-color: rgba(255,255,255,0.3);
-		background: #1e1e28;
+		background: rgba(30, 30, 40, 0.7);
 	}
 	.lp-plan__badge {
 		position: absolute;
@@ -923,7 +1199,7 @@
 
 	/* ─── Open Source ────────────────────────────────────────────── */
 	.lp-oss {
-		background: #0a0a0e;
+		background: rgba(10, 10, 14, 0.5);
 		padding-block: 5rem;
 	}
 	.lp-oss__inner {
@@ -962,7 +1238,7 @@
 
 	/* ─── Footer ─────────────────────────────────────────────────── */
 	.lp-footer {
-		background: #0a0a0e;
+		background: rgba(10, 10, 14, 0.7);
 		border-top: 1px solid rgba(255,255,255,0.07);
 		padding-block: 2.5rem;
 	}
