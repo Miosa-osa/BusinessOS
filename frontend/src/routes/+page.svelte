@@ -610,6 +610,11 @@
 		inset: 0;
 		z-index: 0;
 		pointer-events: none;
+		will-change: transform;
+		transform: translateZ(0);
+		-webkit-transform: translateZ(0);
+		backface-visibility: hidden;
+		-webkit-backface-visibility: hidden;
 	}
 
 	/* All content sits above the shader */

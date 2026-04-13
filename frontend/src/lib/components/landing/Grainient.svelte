@@ -252,6 +252,11 @@ void main(){
 		height: 100%;
 		overflow: hidden;
 		z-index: 0;
+		will-change: transform;
+		transform: translateZ(0);
+		-webkit-transform: translateZ(0);
+		backface-visibility: hidden;
+		-webkit-backface-visibility: hidden;
 		/* Fallback gradient if WebGL fails (mobile) */
 		background: radial-gradient(ellipse at 30% 20%, #2a2a2a 0%, #0a0a0e 50%, #000 100%);
 	}
