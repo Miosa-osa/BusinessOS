@@ -211,17 +211,28 @@ void main(){
 		setSize();
 
 		let raf = 0;
+		let paused = false;
 		const t0 = performance.now();
 		const loop = (t: number) => {
-			(program.uniforms.iTime as { value: number }).value = (t - t0) * 0.001;
-			renderer.render({ scene: mesh });
+			if (!paused) {
+				(program.uniforms.iTime as { value: number }).value = (t - t0) * 0.001;
+				renderer.render({ scene: mesh });
+			}
 			raf = requestAnimationFrame(loop);
 		};
 		raf = requestAnimationFrame(loop);
 
+		// Pause rendering when not visible (fixes scroll flicker)
+		const io = new IntersectionObserver(
+			([entry]) => { paused = !entry.isIntersecting; },
+			{ threshold: 0 }
+		);
+		io.observe(container);
+
 		return () => {
 			cancelAnimationFrame(raf);
 			ro.disconnect();
+			io.disconnect();
 			try {
 				container.removeChild(canvas);
 			} catch {
