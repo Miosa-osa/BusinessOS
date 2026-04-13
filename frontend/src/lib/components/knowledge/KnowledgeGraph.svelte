@@ -138,7 +138,7 @@
 			// Add text label
 			const txt = new Text({ text: raw.label ?? raw.id, style: raw.nodeType === 'core' ? coreLabelStyle : labelStyle });
 			txt.anchor.set(0, 0.5);
-			txt.visible = raw.nodeType === 'core'; // Only core labels visible by default
+			txt.visible = false; // Labels only on hover or zoom
 			labelLayer.addChild(txt);
 
 			const datum: GNodeDatum = { ...raw, radius: nodeRadius(raw), gfx, _label: txt } as GNodeDatum & { _label: Text };
@@ -153,9 +153,9 @@
 
 		// D3-force simulation — exact physics from demo
 		sim = forceSimulation<GNodeDatum>(nodeData)
-			.force('center', forceCenter(0, 0).strength(0.15))
-			.force('charge', forceManyBody<GNodeDatum>().strength(-60).distanceMax(300))
-			.force('link', forceLink<GNodeDatum, GLinkDatum>(linkData).id(d => d.id).distance(30).strength(0.6))
+			.force('center', forceCenter(0, 0))
+			.force('charge', forceManyBody<GNodeDatum>().strength(-120).distanceMax(400))
+			.force('link', forceLink<GNodeDatum, GLinkDatum>(linkData).id(d => d.id).distance(80).strength(0.5))
 			.alphaDecay(0.02).velocityDecay(0.4);
 
 		// Build adjacency after d3 resolves source/target references
