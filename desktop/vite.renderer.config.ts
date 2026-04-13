@@ -1,33 +1,34 @@
-import { defineConfig } from 'vite';
-import path from 'path';
-import fs from 'fs';
+import { defineConfig } from "vite";
+import path from "path";
+import fs from "fs";
 
 // https://vitejs.dev/config
 // This config serves the pre-built SvelteKit files without transformation
 export default defineConfig({
-  root: path.resolve(__dirname, 'src/renderer'),
+  root: path.resolve(__dirname, "src/renderer"),
   // Disable all processing - serve files as-is
   optimizeDeps: {
-    exclude: ['**/*'],
+    exclude: ["**/*"],
   },
   server: {
-    // Serve static files without transformation
+    port: 5199, // Fixed port — avoids conflicting with SvelteKit on 5173
+    strictPort: true,
     fs: {
       strict: false,
-      allow: [path.resolve(__dirname, 'src/renderer')],
+      allow: [path.resolve(__dirname, "src/renderer")],
     },
   },
   build: {
-    outDir: path.resolve(__dirname, '.vite/renderer/main_window'),
+    outDir: path.resolve(__dirname, ".vite/renderer/main_window"),
     emptyOutDir: true,
     // Minimal build - Vite will create index.html entry but we'll overwrite
     rollupOptions: {
       // Use index.html as entry to satisfy Vite
-      input: path.resolve(__dirname, 'src/renderer/index.html'),
+      input: path.resolve(__dirname, "src/renderer/index.html"),
       // Disable code splitting which causes the ../chunks issue
       output: {
         manualChunks: undefined,
-      }
+      },
     },
     // Disable minification to avoid transforming the already-built code
     minify: false,
@@ -36,7 +37,7 @@ export default defineConfig({
   },
   plugins: [
     {
-      name: 'serve-static-assets',
+      name: "serve-static-assets",
       configureServer(server) {
         // Serve static files directly without processing
         server.middlewares.use((req, res, next) => {
@@ -46,11 +47,14 @@ export default defineConfig({
       },
     },
     {
-      name: 'copy-sveltekit-assets',
+      name: "copy-sveltekit-assets",
       closeBundle: async () => {
         // Copy the _app folder which contains all the pre-built SvelteKit assets
-        const srcAppDir = path.resolve(__dirname, 'src/renderer/_app');
-        const destAppDir = path.resolve(__dirname, '.vite/renderer/main_window/_app');
+        const srcAppDir = path.resolve(__dirname, "src/renderer/_app");
+        const destAppDir = path.resolve(
+          __dirname,
+          ".vite/renderer/main_window/_app",
+        );
 
         const copyRecursive = (src: string, dest: string) => {
           if (!fs.existsSync(src)) return;
@@ -70,25 +74,33 @@ export default defineConfig({
         copyRecursive(srcAppDir, destAppDir);
 
         // Also copy other static assets
-        const staticDirs = ['downloads'];
+        const staticDirs = ["downloads"];
         for (const dir of staticDirs) {
-          const srcDir = path.resolve(__dirname, 'src/renderer', dir);
-          const destDir = path.resolve(__dirname, '.vite/renderer/main_window', dir);
+          const srcDir = path.resolve(__dirname, "src/renderer", dir);
+          const destDir = path.resolve(
+            __dirname,
+            ".vite/renderer/main_window",
+            dir,
+          );
           copyRecursive(srcDir, destDir);
         }
 
         // Copy root files
-        const rootFiles = ['index.html', 'robots.txt', 'osa-logo.png'];
+        const rootFiles = ["index.html", "robots.txt", "osa-logo.png"];
         for (const file of rootFiles) {
-          const src = path.resolve(__dirname, 'src/renderer', file);
-          const dest = path.resolve(__dirname, '.vite/renderer/main_window', file);
+          const src = path.resolve(__dirname, "src/renderer", file);
+          const dest = path.resolve(
+            __dirname,
+            ".vite/renderer/main_window",
+            file,
+          );
           if (fs.existsSync(src)) {
             fs.copyFileSync(src, dest);
           }
         }
 
-        console.log('Copied SvelteKit assets to renderer output');
-      }
-    }
+        console.log("Copied SvelteKit assets to renderer output");
+      },
+    },
   ],
 });
