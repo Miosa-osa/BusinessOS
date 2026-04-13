@@ -155,7 +155,24 @@
 		sim = forceSimulation<GNodeDatum>(nodeData)
 			.force('center', forceCenter(0, 0))
 			.force('charge', forceManyBody<GNodeDatum>().strength(-120).distanceMax(400))
-			.force('link', forceLink<GNodeDatum, GLinkDatum>(linkData).id(d => d.id).distance(80).strength(0.5))
+			.force('link', forceLink<GNodeDatum, GLinkDatum>(linkData).id(d => d.id)
+				.distance((l: GLinkDatum) => {
+					const rel = l.relation;
+					if (rel === 'contains')    return 25;   // parent→child: tight clusters
+					if (rel === 'sibling')     return 200;  // core→core: WIDE separation between clusters
+					if (rel === 'belongs_to')  return 80;   // entity→core: medium
+					if (rel === 'cross_ref')   return 120;  // cross-references: wide
+					return 50;
+				})
+				.strength((l: GLinkDatum) => {
+					const rel = l.relation;
+					if (rel === 'contains')    return 0.8;  // strong pull keeps clusters tight
+					if (rel === 'sibling')     return 0.05; // very weak — just hints, doesn't crush
+					if (rel === 'belongs_to')  return 0.3;
+					if (rel === 'cross_ref')   return 0.1;
+					return 0.4;
+				})
+			)
 			.alphaDecay(0.02).velocityDecay(0.4);
 
 		// Build adjacency after d3 resolves source/target references
