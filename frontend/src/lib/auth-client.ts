@@ -11,7 +11,9 @@ const isDev =
 
 // Backend URLs
 const LOCAL_BACKEND_URL = "http://localhost:8001";
-const CLOUD_RUN_URL = "https://businessos-api-460433387676.us-central1.run.app";
+const PRODUCTION_BACKEND_URL =
+  (typeof window !== "undefined" && import.meta.env.VITE_BACKEND_URL) ||
+  "https://api.businessos.dev";
 
 // App mode store - 'cloud' or 'local'
 export const appMode = writable<"cloud" | "local" | null>(null);
@@ -28,7 +30,7 @@ if (typeof window !== "undefined") {
   // Auto-configure backend URL based on environment
   if (!savedUrl) {
     // In dev mode, use local backend; in production, use Cloud Run
-    savedUrl = isDev ? LOCAL_BACKEND_URL : CLOUD_RUN_URL;
+    savedUrl = isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
     localStorage.setItem("businessos_cloud_url", savedUrl);
     // Auto-set to cloud mode
     if (!savedMode) {

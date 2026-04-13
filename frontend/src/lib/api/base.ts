@@ -1,6 +1,7 @@
 // Backend URLs
 const LOCAL_BACKEND_URL = "http://localhost:8001";
-const CLOUD_RUN_URL = "https://businessos-api-460433387676.us-central1.run.app";
+const PRODUCTION_BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || "https://api.businessos.dev";
 
 // API Version (centralized configuration)
 const API_VERSION = "v1";
@@ -23,7 +24,7 @@ function getApiBase(): string {
 
     // Auto-configure URL if not set
     if (!cloudUrl) {
-      cloudUrl = isDev ? LOCAL_BACKEND_URL : CLOUD_RUN_URL;
+      cloudUrl = isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
       localStorage.setItem("businessos_cloud_url", cloudUrl);
     }
 
@@ -45,7 +46,7 @@ function getApiBase(): string {
   // (same origin for cookie set and API calls)
   const result = isDev
     ? `/api/${API_VERSION}`
-    : `${CLOUD_RUN_URL}/api/${API_VERSION}`;
+    : `${PRODUCTION_BACKEND_URL}/api/${API_VERSION}`;
   return result;
 }
 
@@ -145,7 +146,7 @@ export function getBackendUrl(): string {
     let cloudUrl = localStorage.getItem("businessos_cloud_url");
 
     if (!cloudUrl) {
-      cloudUrl = isDev ? LOCAL_BACKEND_URL : CLOUD_RUN_URL;
+      cloudUrl = isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
     }
 
     if (mode === "cloud" && cloudUrl) {
@@ -160,7 +161,7 @@ export function getBackendUrl(): string {
   if (import.meta.env.VITE_BACKEND_URL) {
     return import.meta.env.VITE_BACKEND_URL;
   }
-  return isDev ? LOCAL_BACKEND_URL : CLOUD_RUN_URL;
+  return isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
 }
 
 export interface RequestOptions {

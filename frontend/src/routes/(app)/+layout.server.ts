@@ -1,11 +1,12 @@
 import { redirect } from "@sveltejs/kit";
 import type { LayoutServerLoad } from "./$types";
 
-// Backend URL based on environment
+// Backend URL for session validation (SSR mode only — ignored in static/SPA builds)
+const BACKEND_URL =
+  process.env.BACKEND_URL ||
+  process.env.VITE_BACKEND_URL ||
+  "http://localhost:8001";
 const isDev = process.env.NODE_ENV !== "production";
-const BACKEND_URL = isDev
-  ? "http://localhost:8001"
-  : "https://businessos-api-460433387676.us-central1.run.app";
 
 // Session cache: avoids re-validating with backend on every client-side navigation.
 // The session is verified once per cookie value and cached for 60 seconds.
@@ -42,14 +43,6 @@ export const load: LayoutServerLoad = async ({
         user: null,
         session: null,
         isEmbed: true,
-      };
-    }
-
-    // DEV MODE: bypass auth so modules load with seed/mock data
-    if (isDev) {
-      return {
-        user: { id: "dev-user", name: "Developer", email: "dev@localhost" },
-        session: { id: "dev-session" },
       };
     }
 
