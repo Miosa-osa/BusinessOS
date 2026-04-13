@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { Application, Graphics, Container } from 'pixi.js';
+	import { Application, Graphics, Container, Text, TextStyle } from 'pixi.js';
 	import type { FederatedPointerEvent } from 'pixi.js';
 	import { forceSimulation, forceCenter, forceManyBody, forceLink } from 'd3-force';
 	import type { SimulationNodeDatum, SimulationLinkDatum } from 'd3-force';
@@ -116,8 +116,8 @@
 		app.stage.addChild(world);
 		world.x = w / 2; world.y = h / 2;
 
-		const linkLayer = new Container(), nodeLayer = new Container();
-		world.addChild(linkLayer); world.addChild(nodeLayer);
+		const linkLayer = new Container(), nodeLayer = new Container(), labelLayer = new Container();
+		world.addChild(linkLayer); world.addChild(nodeLayer); world.addChild(labelLayer);
 
 		// Create link graphics
 		const linkData: GLinkDatum[] = gLinksRaw.map(l => {
@@ -126,12 +126,22 @@
 				target: l.target as unknown as GNodeDatum, relation: l.relation, gfx };
 		});
 
-		// Create node graphics
+		// Create node graphics + labels
+		const labelStyle = new TextStyle({ fontFamily: '-apple-system, system-ui, sans-serif', fontSize: 10, fill: '#374151' });
+		const coreLabelStyle = new TextStyle({ fontFamily: '-apple-system, system-ui, sans-serif', fontSize: 11, fontWeight: '600', fill: '#111827' });
+
 		const nodeData: GNodeDatum[] = gNodesRaw.map(raw => {
 			const gfx = new Graphics();
 			gfx.eventMode = 'static'; gfx.cursor = 'pointer';
 			nodeLayer.addChild(gfx);
-			const datum: GNodeDatum = { ...raw, radius: nodeRadius(raw), gfx };
+
+			// Add text label
+			const txt = new Text({ text: raw.label ?? raw.id, style: raw.nodeType === 'core' ? coreLabelStyle : labelStyle });
+			txt.anchor.set(0, 0.5);
+			txt.visible = raw.nodeType === 'core'; // Only core labels visible by default
+			labelLayer.addChild(txt);
+
+			const datum: GNodeDatum = { ...raw, radius: nodeRadius(raw), gfx, _label: txt } as GNodeDatum & { _label: Text };
 			drawNode(datum, false, false);
 			return datum;
 		});
@@ -143,9 +153,9 @@
 
 		// D3-force simulation — exact physics from demo
 		sim = forceSimulation<GNodeDatum>(nodeData)
-			.force('center', forceCenter(0, 0))
-			.force('charge', forceManyBody<GNodeDatum>().strength(-120).distanceMax(400))
-			.force('link', forceLink<GNodeDatum, GLinkDatum>(linkData).id(d => d.id).distance(80).strength(0.5))
+			.force('center', forceCenter(0, 0).strength(0.15))
+			.force('charge', forceManyBody<GNodeDatum>().strength(-60).distanceMax(300))
+			.force('link', forceLink<GNodeDatum, GLinkDatum>(linkData).id(d => d.id).distance(30).strength(0.6))
 			.alphaDecay(0.02).velocityDecay(0.4);
 
 		// Build adjacency after d3 resolves source/target references
@@ -176,9 +186,26 @@
 			for (const l of linkData) drawLink(l, cl.has(l), !cl.has(l));
 		}
 
-		// Simulation tick — update positions + redraw links
+		// Simulation tick — update positions, labels, redraw links
 		sim.on('tick', () => {
-			for (const n of nodeData) { if (n.x != null) { n.gfx.x = n.x!; n.gfx.y = n.y!; } }
+			const z = scale;
+			for (const n of nodeData) {
+				if (n.x != null) {
+					n.gfx.x = n.x!; n.gfx.y = n.y!;
+					// Position label next to node
+					const lbl = (n as any)._label as Text | undefined;
+					if (lbl) {
+						lbl.x = n.x! + n.radius + 3;
+						lbl.y = n.y!;
+						// Show labels: core always, entity at zoom>1.5, all at zoom>3, hovered always
+						const isHov = n.id === hoveredNode?.id;
+						const isCon = hoveredNode && neighbors.get(hoveredNode.id)?.has(n.id);
+						lbl.visible = isHov || !!isCon || n.nodeType === 'core' || (n.nodeType === 'entity' && z > 1.5) || z > 3;
+						lbl.alpha = isHov ? 1 : isCon ? 0.8 : 0.6;
+						lbl.scale.set(1 / z); // Keep label size constant regardless of zoom
+					}
+				}
+			}
 			const hn = hoveredNode;
 			if (hn) {
 				const cl = nodeLinks.get(hn.id)!;
