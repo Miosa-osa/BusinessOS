@@ -40,11 +40,20 @@ func TestMakeSlug_truncatesAtWordBoundary(t *testing.T) {
 
 func TestBuildSignalContent_containsExpectedFields(t *testing.T) {
 	ts := mustParseDate("2026-04-11")
-	content := buildSignalContent("note", ts, "some text here")
+	cl := SignalClassification{
+		Mode:      "linguistic",
+		Genre:     "note",
+		Type:      "inform",
+		Format:    "unknown",
+		Structure: "note/context-content-route",
+		SNRatio:   0.5,
+	}
+	r := RoutingResult{PrimaryNode: "09-new-stuff", CrossRefNodes: nil, Confidence: 0.1}
+	content := buildSignalContent("note", cl, r, ts, "some text here")
 
 	checks := []string{
 		"genre: note",
-		"date: 2026-04-11",
+		"valid_from: \"2026-04-11\"",
 		"mode: linguistic",
 		"type: inform",
 		"some text here",

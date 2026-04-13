@@ -1,15 +1,15 @@
 package optimal
 
 import (
-	"encoding/json"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"sort"
 )
 
 // StoreEmbedding saves a float32 embedding vector for the given contextID.
-// The embedding is serialised as JSON and stored in the embeddings column of
-// the contexts table. The column is added if missing.
+// The embedding is serialised as a raw BLOB (IEEE 754 little-endian float32)
+// and stored in the vectors table, which is separate from contexts.
 func StoreEmbedding(dbPath, contextID string, embedding []float32) error {
 	if dbPath == "" {
 		return fmt.Errorf("optimal/vector: dbPath must not be empty")
@@ -27,15 +27,28 @@ func StoreEmbedding(dbPath, contextID string, embedding []float32) error {
 	}
 	defer db.Close()
 
-	// Ensure the embeddings column exists — added lazily so we don't require a migration.
-	_, _ = db.Exec(`ALTER TABLE contexts ADD COLUMN embeddings TEXT`)
-
-	blob, err := json.Marshal(embedding)
+	// Ensure vectors table exists — matches the real Elixir engine schema.
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS vectors (
+			context_id TEXT PRIMARY KEY,
+			embedding  BLOB    NOT NULL,
+			model      TEXT    NOT NULL DEFAULT 'nomic-embed-text',
+			dimensions INTEGER NOT NULL DEFAULT 768,
+			created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+		)`)
 	if err != nil {
-		return fmt.Errorf("optimal/vector: marshal embedding: %w", err)
+		return fmt.Errorf("optimal/vector: ensure table: %w", err)
 	}
 
-	_, err = db.Exec(`UPDATE contexts SET embeddings = ? WHERE id = ?`, string(blob), contextID)
+	blob := float32sToBlob(embedding)
+
+	_, err = db.Exec(`
+		INSERT INTO vectors (context_id, embedding, dimensions)
+		VALUES (?, ?, ?)
+		ON CONFLICT(context_id) DO UPDATE SET embedding = excluded.embedding,
+		                                      dimensions = excluded.dimensions`,
+		contextID, blob, len(embedding),
+	)
 	if err != nil {
 		return fmt.Errorf("optimal/vector: store embedding: %w", err)
 	}
@@ -62,9 +75,14 @@ func SearchByVector(dbPath string, queryEmbedding []float32, limit int) ([]Searc
 	}
 	defer db.Close()
 
-	rows, err := db.Query(`SELECT COALESCE(path,''), title, COALESCE(embeddings,'') FROM contexts WHERE embeddings != ''`)
+	// Join vectors with contexts to get path and title for result display.
+	rows, err := db.Query(`
+		SELECT v.context_id, COALESCE(c.path, ''), COALESCE(c.title, v.context_id), v.embedding
+		FROM vectors v
+		LEFT JOIN contexts c ON c.id = v.context_id
+		WHERE v.embedding != ''`)
 	if err != nil {
-		return nil, fmt.Errorf("optimal/vector: query embeddings: %w", err)
+		return nil, fmt.Errorf("optimal/vector: query vectors: %w", err)
 	}
 	defer rows.Close()
 
@@ -76,15 +94,16 @@ func SearchByVector(dbPath string, queryEmbedding []float32, limit int) ([]Searc
 	var candidates []scored
 
 	for rows.Next() {
-		var path, title, blob string
-		if err := rows.Scan(&path, &title, &blob); err != nil {
+		var contextID, path, title string
+		var blob []byte
+		if err := rows.Scan(&contextID, &path, &title, &blob); err != nil {
 			continue
 		}
-		if blob == "" {
+		if len(blob) == 0 {
 			continue
 		}
-		var vec []float32
-		if err := json.Unmarshal([]byte(blob), &vec); err != nil {
+		vec := blobToFloat32s(blob)
+		if len(vec) == 0 {
 			continue
 		}
 		sim := CosineSimilarity(queryEmbedding, vec)
@@ -130,4 +149,29 @@ func CosineSimilarity(a, b []float32) float64 {
 		return 0
 	}
 	return dot / denom
+}
+
+// float32sToBlob serialises a []float32 as a raw BLOB using IEEE 754
+// little-endian encoding. 4 bytes per element.
+func float32sToBlob(vecs []float32) []byte {
+	buf := make([]byte, len(vecs)*4)
+	for i, v := range vecs {
+		bits := math.Float32bits(v)
+		binary.LittleEndian.PutUint32(buf[i*4:], bits)
+	}
+	return buf
+}
+
+// blobToFloat32s deserialises a raw BLOB back to []float32.
+// Returns nil when the blob length is not a multiple of 4.
+func blobToFloat32s(blob []byte) []float32 {
+	if len(blob)%4 != 0 {
+		return nil
+	}
+	vecs := make([]float32, len(blob)/4)
+	for i := range vecs {
+		bits := binary.LittleEndian.Uint32(blob[i*4:])
+		vecs[i] = math.Float32frombits(bits)
+	}
+	return vecs
 }

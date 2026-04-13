@@ -16,6 +16,7 @@ type Session struct {
 	CommittedAt  string `json:"committed_at,omitempty"`
 	Summary      string `json:"summary"`
 	MessageCount int    `json:"message_count"`
+	Metadata     string `json:"metadata,omitempty"`
 }
 
 // StartSession creates a new session record in SQLite and returns its ID.
@@ -34,7 +35,11 @@ func StartSession(dbPath string) (string, error) {
 	id := uuid.New().String()
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	_, err = db.Exec(`INSERT INTO sessions (id, started_at) VALUES (?, ?)`, id, now)
+	_, err = db.Exec(`
+		INSERT INTO sessions (id, started_at, message_count, metadata)
+		VALUES (?, ?, 0, '{}')`,
+		id, now,
+	)
 	if err != nil {
 		return "", fmt.Errorf("optimal/session: insert session: %w", err)
 	}
@@ -43,6 +48,7 @@ func StartSession(dbPath string) (string, error) {
 
 // AddMessage appends a message to an existing session.
 // role should be one of: "user", "assistant", "system".
+// It writes the message to session_messages and increments message_count on sessions.
 func AddMessage(dbPath, sessionID, role, content string) error {
 	if sessionID == "" {
 		return fmt.Errorf("optimal/session: sessionID must not be empty")
@@ -62,6 +68,8 @@ func AddMessage(dbPath, sessionID, role, content string) error {
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
+
+	// Write to session_messages table (local, not part of core Elixir schema — used for detail).
 	_, err = db.Exec(`
 		INSERT INTO session_messages (session_id, role, content, created_at)
 		VALUES (?, ?, ?, ?)`,
@@ -69,6 +77,15 @@ func AddMessage(dbPath, sessionID, role, content string) error {
 	)
 	if err != nil {
 		return fmt.Errorf("optimal/session: insert message: %w", err)
+	}
+
+	// Increment message_count on the parent session.
+	_, err = db.Exec(`
+		UPDATE sessions SET message_count = message_count + 1 WHERE id = ?`,
+		sessionID,
+	)
+	if err != nil {
+		return fmt.Errorf("optimal/session: increment message_count: %w", err)
 	}
 	return nil
 }
@@ -106,7 +123,7 @@ func CommitSession(dbPath, sessionID, summary string) error {
 	return nil
 }
 
-// GetSession retrieves a session by ID, including its message count.
+// GetSession retrieves a session by ID.
 // Returns an error wrapping sql.ErrNoRows when the session does not exist.
 func GetSession(dbPath, sessionID string) (*Session, error) {
 	db, err := openDB(dbPath)
@@ -122,13 +139,11 @@ func GetSession(dbPath, sessionID string) (*Session, error) {
 	var s Session
 	var committedAt sql.NullString
 	err = db.QueryRow(`
-		SELECT s.id, s.started_at, s.committed_at, COALESCE(s.summary, ''),
-		       COUNT(m.id) AS message_count
-		FROM sessions s
-		LEFT JOIN session_messages m ON m.session_id = s.id
-		WHERE s.id = ?
-		GROUP BY s.id`, sessionID,
-	).Scan(&s.ID, &s.StartedAt, &committedAt, &s.Summary, &s.MessageCount)
+		SELECT id, started_at, committed_at, COALESCE(summary, ''),
+		       message_count, COALESCE(metadata, '{}')
+		FROM sessions
+		WHERE id = ?`, sessionID,
+	).Scan(&s.ID, &s.StartedAt, &committedAt, &s.Summary, &s.MessageCount, &s.Metadata)
 	if err != nil {
 		return nil, fmt.Errorf("optimal/session: get session: %w", err)
 	}
@@ -139,7 +154,7 @@ func GetSession(dbPath, sessionID string) (*Session, error) {
 }
 
 // ListSessions returns the most recent limit sessions, ordered by start time
-// descending. Includes message counts.
+// descending.
 func ListSessions(dbPath string, limit int) ([]Session, error) {
 	if limit <= 0 {
 		limit = 20
@@ -156,12 +171,10 @@ func ListSessions(dbPath string, limit int) ([]Session, error) {
 	}
 
 	rows, err := db.Query(`
-		SELECT s.id, s.started_at, COALESCE(s.committed_at, ''), COALESCE(s.summary, ''),
-		       COUNT(m.id) AS message_count
-		FROM sessions s
-		LEFT JOIN session_messages m ON m.session_id = s.id
-		GROUP BY s.id
-		ORDER BY s.started_at DESC
+		SELECT id, started_at, COALESCE(committed_at, ''), COALESCE(summary, ''),
+		       message_count, COALESCE(metadata, '{}')
+		FROM sessions
+		ORDER BY started_at DESC
 		LIMIT ?`, limit,
 	)
 	if err != nil {
@@ -172,7 +185,7 @@ func ListSessions(dbPath string, limit int) ([]Session, error) {
 	var sessions []Session
 	for rows.Next() {
 		var s Session
-		if err := rows.Scan(&s.ID, &s.StartedAt, &s.CommittedAt, &s.Summary, &s.MessageCount); err != nil {
+		if err := rows.Scan(&s.ID, &s.StartedAt, &s.CommittedAt, &s.Summary, &s.MessageCount, &s.Metadata); err != nil {
 			return nil, fmt.Errorf("optimal/session: scan session: %w", err)
 		}
 		sessions = append(sessions, s)
@@ -184,14 +197,18 @@ func ListSessions(dbPath string, limit int) ([]Session, error) {
 }
 
 // ensureSessionTables creates the sessions and session_messages tables if they
-// do not exist. Called before every session operation.
+// do not exist. The sessions table matches the real Elixir engine schema with
+// message_count and metadata columns. session_messages is a local extension for
+// storing individual message records.
 func ensureSessionTables(db *sql.DB) error {
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS sessions (
-			id           TEXT PRIMARY KEY,
-			started_at   TEXT NOT NULL,
-			committed_at TEXT,
-			summary      TEXT
+			id            TEXT PRIMARY KEY,
+			started_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+			committed_at  TEXT,
+			summary       TEXT    NOT NULL DEFAULT '',
+			message_count INTEGER NOT NULL DEFAULT 0,
+			metadata      TEXT    NOT NULL DEFAULT '{}'
 		);
 		CREATE TABLE IF NOT EXISTS session_messages (
 			id         INTEGER PRIMARY KEY AUTOINCREMENT,

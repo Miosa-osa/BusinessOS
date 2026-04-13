@@ -86,6 +86,24 @@ func RegisterOptimalRoutes(api *gin.RouterGroup, h *OptimalHandler) {
 		g.POST("/extract", h.ExtractMemories)
 		g.POST("/spec/parse", h.ParseSpec)
 		g.GET("/topology", h.GetTopology)
+
+		// Learning loop.
+		g.POST("/remember", h.Remember)
+		g.GET("/observations", h.ListObservations)
+		g.GET("/escalations", h.GetEscalations)
+		g.POST("/rethink", h.Rethink)
+		g.POST("/reweave", h.Reweave)
+
+		// Sessions.
+		g.POST("/sessions", h.StartSession)
+		g.GET("/sessions", h.ListSessions)
+		g.GET("/sessions/:id", h.GetSessionDetail)
+
+		// Routing.
+		g.POST("/route", h.RouteText)
+
+		// Reflector.
+		g.GET("/reflect", h.Reflect)
 	}
 }
 
@@ -810,4 +828,228 @@ func (h *OptimalHandler) GetTopology(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, cfg)
+}
+
+// ── learning loop handlers ────────────────────────────────────────────────────
+
+// rememberRequest is the request body for POST /api/optimal/remember.
+type rememberRequest struct {
+	Content  string `json:"content"  binding:"required"`
+	Category string `json:"category"`
+	Source   string `json:"source"`
+}
+
+// Remember handles POST /api/optimal/remember.
+// Stores an observation in the learning loop for future synthesis.
+func (h *OptimalHandler) Remember(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	var req rememberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+	if err := optimal.Remember(h.dbPath, req.Content, req.Category, req.Source); err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: remember failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "remember observation", err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"status": "stored"})
+}
+
+// ListObservations handles GET /api/optimal/observations?category=<cat>.
+// Returns all stored observations, optionally filtered by category.
+func (h *OptimalHandler) ListObservations(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	category := c.Query("category")
+	obs, err := optimal.ListObservations(h.dbPath, category)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: list observations failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "list observations", err)
+		return
+	}
+	if obs == nil {
+		obs = []optimal.Observation{}
+	}
+	c.JSON(http.StatusOK, gin.H{"observations": obs, "count": len(obs)})
+}
+
+// GetEscalations handles GET /api/optimal/escalations.
+// Returns categories with 3+ observations that are ready for Rethink synthesis.
+func (h *OptimalHandler) GetEscalations(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	escalations, err := optimal.GetEscalations(h.dbPath)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: get escalations failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "get escalations", err)
+		return
+	}
+	if escalations == nil {
+		escalations = map[string]int{}
+	}
+	c.JSON(http.StatusOK, gin.H{"escalations": escalations})
+}
+
+// rethinkRequest is the request body for POST /api/optimal/rethink.
+type rethinkRequest struct {
+	Topic string `json:"topic" binding:"required"`
+}
+
+// Rethink handles POST /api/optimal/rethink.
+// Synthesizes accumulated observations about a topic into a knowledge update.
+func (h *OptimalHandler) Rethink(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	var req rethinkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+	report, err := optimal.Rethink(h.dbPath, h.nodesRoot, req.Topic)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: rethink failed",
+			"topic", req.Topic, "error", err)
+		utils.RespondInternalError(c, slog.Default(), "rethink", err)
+		return
+	}
+	c.JSON(http.StatusOK, report)
+}
+
+// reweaveRequest is the request body for POST /api/optimal/reweave.
+type reweaveRequest struct {
+	Topic   string `json:"topic"    binding:"required"`
+	MaxDays int    `json:"max_days"` // 0 → default 30
+}
+
+// Reweave handles POST /api/optimal/reweave.
+// Finds stale contexts related to a topic and suggests updates.
+func (h *OptimalHandler) Reweave(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	var req reweaveRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+	results, err := optimal.Reweave(h.dbPath, req.Topic, req.MaxDays)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: reweave failed",
+			"topic", req.Topic, "error", err)
+		utils.RespondInternalError(c, slog.Default(), "reweave", err)
+		return
+	}
+	if results == nil {
+		results = []optimal.StaleContext{}
+	}
+	c.JSON(http.StatusOK, gin.H{"stale_contexts": results, "count": len(results)})
+}
+
+// ── session handlers ──────────────────────────────────────────────────────────
+
+// StartSession handles POST /api/optimal/sessions.
+// Creates a new session and returns its ID.
+func (h *OptimalHandler) StartSession(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	id, err := optimal.StartSession(h.dbPath)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: start session failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "start session", err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
+
+// ListSessions handles GET /api/optimal/sessions?limit=20.
+// Returns the most recent sessions ordered by start time descending.
+func (h *OptimalHandler) ListSessions(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	limit := 20
+	if v := c.Query("limit"); v != "" {
+		if n, err := parsePositiveInt(v); err == nil {
+			limit = n
+		}
+	}
+	sessions, err := optimal.ListSessions(h.dbPath, limit)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: list sessions failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "list sessions", err)
+		return
+	}
+	if sessions == nil {
+		sessions = []optimal.Session{}
+	}
+	c.JSON(http.StatusOK, gin.H{"sessions": sessions, "count": len(sessions)})
+}
+
+// GetSessionDetail handles GET /api/optimal/sessions/:id.
+// Returns a single session by ID.
+func (h *OptimalHandler) GetSessionDetail(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	id := c.Param("id")
+	session, err := optimal.GetSession(h.dbPath, id)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: get session failed",
+			"session_id", id, "error", err)
+		utils.RespondInternalError(c, slog.Default(), "get session", err)
+		return
+	}
+	c.JSON(http.StatusOK, session)
+}
+
+// ── routing handler ───────────────────────────────────────────────────────────
+
+// routeRequest is the request body for POST /api/optimal/route.
+type routeRequest struct {
+	Text string `json:"text" binding:"required"`
+}
+
+// RouteText handles POST /api/optimal/route.
+// Runs the signal routing logic and returns the primary node and cross-refs.
+func (h *OptimalHandler) RouteText(c *gin.Context) {
+	var req routeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+	result := optimal.Route(req.Text)
+	c.JSON(http.StatusOK, result)
+}
+
+// ── reflector handler ─────────────────────────────────────────────────────────
+
+// Reflect handles GET /api/optimal/reflect?min=3.
+// Returns entity pairs that co-occur without a direct edge — synthesis opportunities.
+func (h *OptimalHandler) Reflect(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	min := 2
+	if v := c.Query("min"); v != "" {
+		if n, err := parsePositiveInt(v); err == nil {
+			min = n
+		}
+	}
+	pairs, err := optimal.Reflect(h.dbPath, min)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: reflect failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "reflect", err)
+		return
+	}
+	if pairs == nil {
+		pairs = []optimal.MissingEdge{}
+	}
+	c.JSON(http.StatusOK, gin.H{"pairs": pairs, "count": len(pairs)})
 }
