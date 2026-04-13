@@ -81,10 +81,17 @@
 	}
 
 	onMount(async () => {
-		// First-run detection: redirect to welcome screen if setup is not complete
-		if (browser && !localStorage.getItem('businessos_setup_complete')) {
+		// First-run detection: only redirect to welcome in Electron (desktop app)
+		// Web users who signed in are already in cloud mode — skip welcome
+		const isElectron = browser && 'electron' in window;
+		if (isElectron && !localStorage.getItem('businessos_setup_complete')) {
 			goto('/welcome');
 			return;
+		}
+		// Auto-mark web users as cloud setup complete
+		if (browser && !localStorage.getItem('businessos_setup_complete')) {
+			localStorage.setItem('businessos_setup_complete', 'cloud');
+			localStorage.setItem('businessos_mode', 'cloud');
 		}
 
 		// Initialize CSRF token first (required before any state-changing requests)
