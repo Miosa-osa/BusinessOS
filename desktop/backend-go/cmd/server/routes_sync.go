@@ -6,15 +6,16 @@ import (
 )
 
 // registerSyncRoutes attaches the cloud-mode sync endpoints to the given API
-// router group. Both push and pull are intentional stubs at this stage —
-// they validate payloads and return correct shapes but perform no DB work.
+// router group.
 //
 // Routes registered:
 //
-//	POST /api/sync/push
-//	GET  /api/sync/pull
+//	POST /api/sync/push    — receive a batch of changes from a local client
+//	GET  /api/sync/pull    — return changes since a given timestamp
+//	GET  /api/sync/status  — last push/pull timestamps + connectivity signal
 func registerSyncRoutes(api *gin.RouterGroup, h *handlers.CloudSyncHandler) {
 	sync := api.Group("/sync")
 	sync.POST("/push", h.Push)
 	sync.GET("/pull", h.Pull)
+	sync.GET("/status", h.Status)
 }

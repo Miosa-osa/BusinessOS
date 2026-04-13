@@ -156,9 +156,8 @@ func registerRoutes(app *AppServices, skillsHandler *handlers.SkillsHandler, osa
 	registerComputerRoutes(api, computerHandler, billingHandler)
 	registerComputerRoutes(apiv1, computerHandler, billingHandler)
 
-	// ── Cloud sync endpoints (push/pull) ──────────────────────────────────────
-	cloudSyncHandler := handlers.NewCloudSyncHandler()
-	registerSyncRoutes(api, cloudSyncHandler)
+	// ── Cloud sync endpoints (push/pull/status) ───────────────────────────────
+	cloudSyncHandler := handlers.NewCloudSyncHandler(app.pool)
 	registerSyncRoutes(apiv1, cloudSyncHandler)
 
 	// ── Public OSA health endpoint (no auth required) ─────────────────────────

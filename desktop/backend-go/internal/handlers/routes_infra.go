@@ -37,8 +37,10 @@ func (h *Handlers) registerInfraRoutes(api *gin.RouterGroup, auth gin.HandlerFun
 		filesystem.DELETE("/delete", fsH.DeleteFileOrDir)
 	}
 
-	// Sync routes - /api/sync (and per-table /{table}/sync convenience endpoints)
-	RegisterSyncRoutes(api, NewSyncHandler(h.pool), auth)
+	// Sync routes — replaced by cloud_sync.go (registered in routes_sync.go)
+	// The old SyncHandler is superseded by CloudSyncHandler which handles
+	// bidirectional local ↔ cloud sync with MIOSA integration.
+	// RegisterSyncRoutes(api, NewSyncHandler(h.pool), auth)
 
 	// =============================================================================
 	// MOBILE API - /api/mobile/v1

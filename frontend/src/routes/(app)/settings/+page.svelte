@@ -56,8 +56,16 @@
 
 		isLoading = false;
 
-		// Handle OAuth callback query params
+		// Handle tab query param (e.g. ?tab=cloud from welcome page)
 		const url = new URL(window.location.href);
+		const tabParam = url.searchParams.get('tab') as TabId | null;
+		if (tabParam && tabs.some((t) => t.id === tabParam)) {
+			activeTab = tabParam;
+			url.searchParams.delete('tab');
+			window.history.replaceState({}, '', url.toString());
+		}
+
+		// Handle OAuth callback query params
 		if (url.searchParams.get('google_connected') === 'true') {
 			activeTab = 'integrations';
 			googleMessage = 'Google Calendar connected successfully!';

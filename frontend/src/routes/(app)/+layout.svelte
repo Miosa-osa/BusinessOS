@@ -81,6 +81,12 @@
 	}
 
 	onMount(async () => {
+		// First-run detection: redirect to welcome screen if setup is not complete
+		if (browser && !localStorage.getItem('businessos_setup_complete')) {
+			goto('/welcome');
+			return;
+		}
+
 		// Initialize CSRF token first (required before any state-changing requests)
 		await initCSRF();
 

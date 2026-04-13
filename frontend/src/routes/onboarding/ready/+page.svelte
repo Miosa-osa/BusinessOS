@@ -25,6 +25,11 @@
 			// Don't block - continue anyway
 		}
 
+		// Mark first-run setup complete so the layout doesn't redirect back to /welcome
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('businessos_setup_complete', 'local');
+		}
+
 		await onboardingStore.complete();
 		goto('/window');
 	}
