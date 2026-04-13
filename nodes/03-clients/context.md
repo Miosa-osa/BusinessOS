@@ -1,10 +1,21 @@
 ---
-name: "clients"
-type: node
+name: "Clients"
+type: registry
 health: green
-owner: ""
 ---
 
-# clients
+# Clients
 
-> Add your context here.
+> Track your clients, deals, and delivery.
+
+## Active Clients
+
+| Client | Project | Status | Value |
+|--------|---------|--------|-------|
+| | | | |
+
+## Pipeline
+
+| Lead | Stage | Est. Value | Next Step |
+|------|-------|-----------|-----------|
+| | | | |

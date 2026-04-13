@@ -1,10 +1,12 @@
 ---
-name: "inUbox"
-type: node
+name: "Inbox"
+type: inbox
 health: green
-owner: ""
 ---
 
-# inUbox
+# Inbox
 
-> Add your context here.
+> Unrouted signals land here. Process them weekly.
+
+When you ingest information that can't be classified, it routes here automatically.
+Review this folder weekly and move signals to the right node.

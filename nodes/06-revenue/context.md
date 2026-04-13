@@ -1,10 +1,25 @@
 ---
-name: "revenue"
-type: node
+name: "Revenue"
+type: cross-cutting
 health: green
-owner: ""
 ---
 
-# revenue
+# Revenue
 
-> Add your context here.
+> Financial tracking across all business areas.
+
+## Revenue Streams
+
+| Stream | Model | Monthly | Target |
+|--------|-------|---------|--------|
+| | | | |
+
+## Total MRR
+
+$0
+
+## Key Financial Decisions
+
+| Date | Decision | Impact |
+|------|----------|--------|
+| | | |
