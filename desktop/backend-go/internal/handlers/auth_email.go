@@ -155,6 +155,59 @@ func NewEmailAuthHandler(pool *pgxpool.Pool, cfg *config.Config, notifTriggers *
 	}
 }
 
+// provisionDefaultWorkspace creates a default workspace and makes the user an owner.
+// It is intentionally idempotent: a UNIQUE constraint on workspaces.slug means a
+// second call for the same user returns an error, which callers should log and ignore.
+//
+// The full sequence mirrors WorkspaceService.CreateWorkspace:
+//  1. INSERT into workspaces
+//  2. Seed the 6 default system roles via the DB function
+//  3. INSERT the user into workspace_members as 'owner'
+func provisionDefaultWorkspace(ctx context.Context, pool *pgxpool.Pool, userID string, logger *slog.Logger) {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		logger.Error("provisionDefaultWorkspace: begin transaction", slog.String("user_id", userID), slog.Any("error", err))
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	slug := fmt.Sprintf("my-workspace-%s", strings.ToLower(userID))
+
+	var workspaceID string
+	err = tx.QueryRow(ctx, `
+		INSERT INTO workspaces (name, slug, owner_id, plan_type)
+		VALUES ('My Workspace', $1, $2, 'free')
+		RETURNING id
+	`, slug, userID).Scan(&workspaceID)
+	if err != nil {
+		logger.Error("provisionDefaultWorkspace: insert workspace", slog.String("user_id", userID), slog.Any("error", err))
+		return
+	}
+
+	if _, err = tx.Exec(ctx, "SELECT seed_default_workspace_roles($1)", workspaceID); err != nil {
+		logger.Error("provisionDefaultWorkspace: seed default roles", slog.String("workspace_id", workspaceID), slog.Any("error", err))
+		return
+	}
+
+	if _, err = tx.Exec(ctx, `
+		INSERT INTO workspace_members (workspace_id, user_id, role, status, joined_at)
+		VALUES ($1, $2, 'owner', 'active', NOW())
+	`, workspaceID, userID); err != nil {
+		logger.Error("provisionDefaultWorkspace: insert workspace_members", slog.String("workspace_id", workspaceID), slog.Any("error", err))
+		return
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		logger.Error("provisionDefaultWorkspace: commit", slog.String("user_id", userID), slog.Any("error", err))
+		return
+	}
+
+	logger.Info("provisionDefaultWorkspace: done", slog.String("user_id", userID), slog.String("workspace_id", workspaceID))
+}
+
 // SignUp handles user registration with email/password
 func (h *EmailAuthHandler) SignUp(c *gin.Context) {
 	var req SignUpRequest
@@ -222,6 +275,9 @@ func (h *EmailAuthHandler) SignUp(c *gin.Context) {
 		utils.RespondInternalError(c, slog.Default(), "commit transaction", err)
 		return
 	}
+
+	// Provision default workspace for the new user (non-blocking).
+	go provisionDefaultWorkspace(context.Background(), h.pool, userID, h.logger)
 
 	// Create session
 	sessionToken, err := h.createSession(ctx, userID)

@@ -134,6 +134,7 @@
 	<meta name="description" content="The AI-native platform that runs your entire business. CRM, projects, tasks, agents, and a cloud computer — all in one desktop app." />
 </svelte:head>
 
+<div class="lp-page-wrap">
 <!-- Nav -->
 <header class="lp-nav {scrolled ? 'lp-nav--scrolled' : ''}">
 	<div class="lp-container lp-nav__inner">
@@ -453,10 +454,19 @@
 		<p class="lp-footer__copy">&copy; {new Date().getFullYear()} MIOSA. Apache 2.0 License.</p>
 	</div>
 </footer>
+</div><!-- /lp-page-wrap -->
 
 <style>
 	/* ─── Reset & Base ───────────────────────────────────────────── */
 	:global(html) { scroll-behavior: smooth; }
+	:global(body) { background: #0a0a0e; }
+
+	/* Page wrapper — dark background for entire landing page */
+	:global(.lp-page-wrap) {
+		background: #0a0a0e;
+		color: #fff;
+		min-height: 100vh;
+	}
 
 	/* ─── Layout ─────────────────────────────────────────────────── */
 	.lp-container {
@@ -1301,7 +1311,7 @@
 
 		/* Hero headline */
 		.lp-hero { padding-block: 3rem 4rem; }
-		.lp-hero__headline { font-size: clamp(1.75rem, 7vw, 2.5rem); }
+		.lp-hero__headline { font-size: clamp(1.5rem, 6vw, 2.25rem); word-break: break-word; }
 		.lp-hero__subtitle { font-size: 0.9375rem; }
 		.lp-hero__ctas { flex-direction: column; width: 100%; max-width: 20rem; }
 		.lp-hero__ctas .lp-btn { width: 100%; justify-content: center; }

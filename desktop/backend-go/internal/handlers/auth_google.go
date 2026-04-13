@@ -221,10 +221,15 @@ func (h *GoogleAuthHandler) HandleGoogleLoginCallback(c *gin.Context) {
 	}
 
 	// Create or update user in database
-	userID, err := h.upsertUser(c.Request.Context(), userInfo)
+	userID, isNewUser, err := h.upsertUser(c.Request.Context(), userInfo)
 	if err != nil {
 		utils.RespondInternalError(c, slog.Default(), "create/update user", err)
 		return
+	}
+
+	// Provision default workspace for brand-new Google sign-ups (non-blocking).
+	if isNewUser {
+		go provisionDefaultWorkspace(context.Background(), h.pool, userID, slog.Default())
 	}
 
 	// Create session
@@ -281,8 +286,9 @@ func (h *GoogleAuthHandler) getGoogleUserInfo(accessToken string) (*GoogleUserIn
 	return &userInfo, nil
 }
 
-// upsertUser creates or updates a user based on Google info
-func (h *GoogleAuthHandler) upsertUser(ctx context.Context, info *GoogleUserInfo) (string, error) {
+// upsertUser creates or updates a user based on Google info.
+// Returns (userID, isNewUser, error).
+func (h *GoogleAuthHandler) upsertUser(ctx context.Context, info *GoogleUserInfo) (string, bool, error) {
 	// Check if user exists by email
 	var existingID string
 	err := h.pool.QueryRow(ctx, `
@@ -297,9 +303,9 @@ func (h *GoogleAuthHandler) upsertUser(ctx context.Context, info *GoogleUserInfo
 			WHERE id = $4
 		`, info.Name, info.Picture, info.VerifiedEmail, existingID)
 		if err != nil {
-			return "", fmt.Errorf("failed to update user: %w", err)
+			return "", false, fmt.Errorf("failed to update user: %w", err)
 		}
-		return existingID, nil
+		return existingID, false, nil
 	}
 
 	// Create new user
@@ -310,10 +316,10 @@ func (h *GoogleAuthHandler) upsertUser(ctx context.Context, info *GoogleUserInfo
 	`, userID, info.Name, info.Email, info.VerifiedEmail, info.Picture)
 
 	if err != nil {
-		return "", fmt.Errorf("failed to create user: %w", err)
+		return "", false, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	return userID, nil
+	return userID, true, nil
 }
 
 // createSession creates a new session for the user
