@@ -46,15 +46,24 @@ export async function createMainWindow(): Promise<BrowserWindow> {
   // Load the app
   if (isDev) {
     // In development, load from the Vite dev server (port 5173)
-    const devUrl = "http://localhost:5173";
-    console.log(`Loading from ${devUrl}`);
-    try {
-      await mainWindow.loadURL(devUrl);
-    } catch (err) {
-      console.error("Failed to load URL, retrying...", err);
-      // Retry once after 2 seconds
+    // Try SvelteKit dev server first (5173), fall back to Electron renderer (5199)
+    const urls = ["http://localhost:5173", "http://localhost:5199"];
+    let loaded = false;
+    for (const url of urls) {
+      try {
+        console.log(`Trying ${url}...`);
+        await mainWindow.loadURL(url);
+        console.log(`Loaded from ${url}`);
+        loaded = true;
+        break;
+      } catch (err) {
+        console.warn(`Failed: ${url}`, err);
+      }
+    }
+    if (!loaded) {
+      // Last resort retry on 5173
       await new Promise((r) => setTimeout(r, 2000));
-      await mainWindow.loadURL(devUrl);
+      await mainWindow.loadURL("http://localhost:5173");
     }
   } else {
     // In production, use the custom app:// protocol to serve files
