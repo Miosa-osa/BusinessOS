@@ -135,6 +135,34 @@
 </svelte:head>
 
 <div class="lp-page-wrap">
+<!-- Full-page Grainient background (fixed, low-res for performance) -->
+<div class="lp-bg-fixed" aria-hidden="true">
+	<Grainient
+		color1="#4f4f4f"
+		color2="#000000"
+		color3="#c4c4c4"
+		timeSpeed={0.15}
+		colorBalance={0}
+		warpStrength={1}
+		warpFrequency={5}
+		warpSpeed={1.5}
+		warpAmplitude={50}
+		blendAngle={0}
+		blendSoftness={0.05}
+		rotationAmount={500}
+		noiseScale={2}
+		grainAmount={0.08}
+		grainScale={2}
+		grainAnimated={false}
+		contrast={1.5}
+		gamma={1}
+		saturation={1}
+		centerX={0}
+		centerY={0}
+		zoom={0.9}
+	/>
+</div>
+
 <!-- Nav -->
 <header class="lp-nav {scrolled ? 'lp-nav--scrolled' : ''}">
 	<div class="lp-container lp-nav__inner">
@@ -158,32 +186,7 @@
 <main>
 	<!-- Section 1: Video in app frame -->
 	<section class="lp-video-hero">
-		<div class="lp-video-hero__bg" aria-hidden="true">
-			<Grainient
-				color1="#4f4f4f"
-				color2="#000000"
-				color3="#c4c4c4"
-				timeSpeed={0.25}
-				colorBalance={0}
-				warpStrength={1}
-				warpFrequency={5}
-				warpSpeed={2}
-				warpAmplitude={50}
-				blendAngle={0}
-				blendSoftness={0.05}
-				rotationAmount={500}
-				noiseScale={2}
-				grainAmount={0.1}
-				grainScale={2}
-				grainAnimated={false}
-				contrast={1.5}
-				gamma={1}
-				saturation={1}
-				centerX={0}
-				centerY={0}
-				zoom={0.9}
-			/>
-		</div>
+		<!-- Background provided by full-page fixed Grainient -->
 		<div class="lp-video-hero__container">
 			<div class="lp-video-hero__frame">
 				<div class="lp-video-hero__titlebar" aria-hidden="true">
@@ -194,23 +197,11 @@
 				</div>
 				<div class="lp-video-hero__screen">
 					<!-- Replace src with your MP4: /demo.mp4 in static/ -->
-					<video
+					<img
+						src="/og-image.jpg"
+						alt="BusinessOS Desktop"
 						class="lp-video-hero__video"
-						autoplay
-						muted
-						loop
-						playsinline
-					>
-						<!-- <source src="/demo.mp4" type="video/mp4" /> -->
-					</video>
-					<!-- Placeholder until video is added -->
-					<div class="lp-video-hero__placeholder">
-						<svg width="48" height="48" fill="none" stroke="rgba(255,255,255,0.25)" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-						</svg>
-						<span class="lp-video-hero__placeholder-text">Product Demo</span>
-					</div>
+					/>
 				</div>
 			</div>
 		</div>
@@ -463,7 +454,7 @@
 
 	/* Page wrapper — dark background for entire landing page */
 	:global(.lp-page-wrap) {
-		background: #0a0a0e;
+		background: transparent;
 		color: #fff;
 		min-height: 100vh;
 	}
@@ -613,7 +604,15 @@
 	.lp-icon--md { width: 1.25rem; height: 1.25rem; }
 	.lp-icon--xl { width: 2.5rem; height: 2.5rem; }
 
-	/* All content sits above backgrounds */
+	/* Fixed full-page Grainient */
+	.lp-bg-fixed {
+		position: fixed;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+	}
+
+	/* All content sits above the shader */
 	:global(.lp-nav),
 	main,
 	footer {
@@ -840,7 +839,7 @@
 		overflow: hidden;
 		/* backdrop-filter removed for scroll performance */
 		border: 1px solid rgba(255,255,255,0.1);
-		background: #111117;
+		background: rgba(17, 17, 23, 0.4);
 		box-shadow: 0 32px 80px rgba(0,0,0,0.6);
 	}
 	.lp-demo__titlebar {
@@ -871,7 +870,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #0d0d12;
+		background: transparent;
 	}
 	.lp-demo__placeholder {
 		display: flex;
@@ -913,7 +912,7 @@
 	}
 
 	.lp-module-card {
-		background: #111117;
+		background: rgba(17, 17, 23, 0.4);
 		/* backdrop-filter removed for scroll performance */
 		padding: 1.75rem;
 		transition: background 0.15s;
@@ -1031,7 +1030,7 @@
 
 	/* ─── Computer ───────────────────────────────────────────────── */
 	.lp-computer {
-		background: #0a0a0e;
+		background: transparent;
 		padding-block: 5rem;
 	}
 	.lp-computer__inner {
@@ -1090,7 +1089,7 @@
 		align-items: center;
 		gap: 0.375rem;
 		padding: 0.625rem 0.875rem;
-		background: #111117;
+		background: rgba(17, 17, 23, 0.4);
 		border-bottom: 1px solid rgba(255,255,255,0.07);
 	}
 	.lp-computer__screen-label {
@@ -1127,7 +1126,7 @@
 
 	/* ─── Pricing ────────────────────────────────────────────────── */
 	.lp-pricing {
-		background: #0d0d12;
+		background: transparent;
 		/* backdrop-filter removed for scroll performance */
 		padding-block: 5rem;
 	}
@@ -1220,7 +1219,7 @@
 
 	/* ─── Open Source ────────────────────────────────────────────── */
 	.lp-oss {
-		background: #0a0a0e;
+		background: transparent;
 		padding-block: 5rem;
 	}
 	.lp-oss__inner {
@@ -1259,7 +1258,7 @@
 
 	/* ─── Footer ─────────────────────────────────────────────────── */
 	.lp-footer {
-		background: #0a0a0e;
+		background: transparent;
 		border-top: 1px solid rgba(255,255,255,0.07);
 		padding-block: 2.5rem;
 	}

@@ -153,7 +153,7 @@ void main(){
 			webgl: 2,
 			alpha: true,
 			antialias: false,
-			dpr: Math.min(window.devicePixelRatio || 1, 2)
+			dpr: 1 // Fixed at 1x for scroll performance
 		});
 
 		const gl = renderer.gl;
