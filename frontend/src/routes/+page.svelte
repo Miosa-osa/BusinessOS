@@ -134,34 +134,6 @@
 	<meta name="description" content="The AI-native platform that runs your entire business. CRM, projects, tasks, agents, and a cloud computer — all in one desktop app." />
 </svelte:head>
 
-<!-- Full-page Grainient background -->
-<div class="lp-grainient-bg" aria-hidden="true">
-	<Grainient
-		color1="#4f4f4f"
-		color2="#000000"
-		color3="#c4c4c4"
-		timeSpeed={0.25}
-		colorBalance={0}
-		warpStrength={1}
-		warpFrequency={5}
-		warpSpeed={2}
-		warpAmplitude={50}
-		blendAngle={0}
-		blendSoftness={0.05}
-		rotationAmount={500}
-		noiseScale={2}
-		grainAmount={0.1}
-		grainScale={2}
-		grainAnimated={false}
-		contrast={1.5}
-		gamma={1}
-		saturation={1}
-		centerX={0}
-		centerY={0}
-		zoom={0.9}
-	/>
-</div>
-
 <!-- Nav -->
 <header class="lp-nav {scrolled ? 'lp-nav--scrolled' : ''}">
 	<div class="lp-container lp-nav__inner">
@@ -185,6 +157,32 @@
 <main>
 	<!-- Section 1: Video in app frame -->
 	<section class="lp-video-hero">
+		<div class="lp-video-hero__bg" aria-hidden="true">
+			<Grainient
+				color1="#4f4f4f"
+				color2="#000000"
+				color3="#c4c4c4"
+				timeSpeed={0.25}
+				colorBalance={0}
+				warpStrength={1}
+				warpFrequency={5}
+				warpSpeed={2}
+				warpAmplitude={50}
+				blendAngle={0}
+				blendSoftness={0.05}
+				rotationAmount={500}
+				noiseScale={2}
+				grainAmount={0.1}
+				grainScale={2}
+				grainAnimated={false}
+				contrast={1.5}
+				gamma={1}
+				saturation={1}
+				centerX={0}
+				centerY={0}
+				zoom={0.9}
+			/>
+		</div>
 		<div class="lp-video-hero__container">
 			<div class="lp-video-hero__frame">
 				<div class="lp-video-hero__titlebar" aria-hidden="true">
@@ -605,15 +603,7 @@
 	.lp-icon--md { width: 1.25rem; height: 1.25rem; }
 	.lp-icon--xl { width: 2.5rem; height: 2.5rem; }
 
-	/* ─── Full-page Grainient background ────────────────────────── */
-	.lp-grainient-bg {
-		position: fixed;
-		inset: 0;
-		z-index: 0;
-		pointer-events: none;
-	}
-
-	/* All content sits above the shader */
+	/* All content sits above backgrounds */
 	:global(.lp-nav),
 	main,
 	footer {
@@ -657,6 +647,13 @@
 
 	/* ─── Hero ───────────────────────────────────────────────────── */
 	/* ─── Video Hero ────────────────────────────────────────────── */
+	.lp-video-hero__bg {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+		overflow: hidden;
+	}
 	.lp-video-hero {
 		position: relative;
 		width: 100%;
@@ -675,7 +672,7 @@
 		border-radius: 0.875rem;
 		overflow: hidden;
 		border: 1px solid rgba(255,255,255,0.1);
-		backdrop-filter: blur(4px);
+		/* backdrop-filter removed for scroll performance */
 		box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
 	}
 	.lp-video-hero__titlebar {
@@ -683,7 +680,7 @@
 		align-items: center;
 		gap: 0.375rem;
 		padding: 0.625rem 1rem;
-		background: rgba(24, 24, 31, 0.9);
+		background: #18181f;
 		border-bottom: 1px solid rgba(255,255,255,0.07);
 	}
 	.lp-video-hero__titlebar-label {
@@ -831,7 +828,7 @@
 	.lp-demo__frame {
 		border-radius: 0.875rem;
 		overflow: hidden;
-		backdrop-filter: blur(4px);
+		/* backdrop-filter removed for scroll performance */
 		border: 1px solid rgba(255,255,255,0.1);
 		background: #111117;
 		box-shadow: 0 32px 80px rgba(0,0,0,0.6);
@@ -841,7 +838,7 @@
 		align-items: center;
 		gap: 0.375rem;
 		padding: 0.625rem 1rem;
-		background: rgba(24, 24, 31, 0.8);
+		background: #18181f;
 		border-bottom: 1px solid rgba(255,255,255,0.07);
 	}
 	.lp-demo__dot {
@@ -864,7 +861,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgba(13, 13, 18, 0.8);
+		background: #0d0d12;
 	}
 	.lp-demo__placeholder {
 		display: flex;
@@ -906,12 +903,12 @@
 	}
 
 	.lp-module-card {
-		background: rgba(17, 17, 23, 0.6);
-		backdrop-filter: blur(4px);
+		background: #111117;
+		/* backdrop-filter removed for scroll performance */
 		padding: 1.75rem;
 		transition: background 0.15s;
 	}
-	.lp-module-card:hover { background: rgba(24, 24, 31, 0.7); }
+	.lp-module-card:hover { background: #1a1a22; }
 	.lp-module-card__icon {
 		width: 2.25rem;
 		height: 2.25rem;
@@ -1024,7 +1021,7 @@
 
 	/* ─── Computer ───────────────────────────────────────────────── */
 	.lp-computer {
-		background: rgba(10, 10, 14, 0.5);
+		background: #0a0a0e;
 		padding-block: 5rem;
 	}
 	.lp-computer__inner {
@@ -1075,15 +1072,15 @@
 		border-radius: 0.75rem;
 		overflow: hidden;
 		border: 1px solid rgba(255,255,255,0.1);
-		background: rgba(24, 24, 31, 0.7);
-		backdrop-filter: blur(4px);
+		background: #1a1a22;
+		/* backdrop-filter removed for scroll performance */
 	}
 	.lp-computer__screen-bar {
 		display: flex;
 		align-items: center;
 		gap: 0.375rem;
 		padding: 0.625rem 0.875rem;
-		background: rgba(17, 17, 23, 0.8);
+		background: #111117;
 		border-bottom: 1px solid rgba(255,255,255,0.07);
 	}
 	.lp-computer__screen-label {
@@ -1120,8 +1117,8 @@
 
 	/* ─── Pricing ────────────────────────────────────────────────── */
 	.lp-pricing {
-		background: rgba(10, 10, 14, 0.6);
-		backdrop-filter: blur(2px);
+		background: #0d0d12;
+		/* backdrop-filter removed for scroll performance */
 		padding-block: 5rem;
 	}
 	.lp-pricing__grid {
@@ -1139,8 +1136,8 @@
 
 	.lp-plan {
 		position: relative;
-		background: rgba(24, 24, 31, 0.6);
-		backdrop-filter: blur(4px);
+		background: #18181f;
+		/* backdrop-filter removed for scroll performance */
 		border: 1px solid rgba(255,255,255,0.08);
 		border-radius: 0.875rem;
 		padding: 1.75rem;
@@ -1152,7 +1149,7 @@
 	.lp-plan:hover { border-color: rgba(255,255,255,0.18); }
 	.lp-plan--highlight {
 		border-color: rgba(255,255,255,0.3);
-		background: rgba(30, 30, 40, 0.7);
+		background: #1e1e28;
 	}
 	.lp-plan__badge {
 		position: absolute;
@@ -1213,7 +1210,7 @@
 
 	/* ─── Open Source ────────────────────────────────────────────── */
 	.lp-oss {
-		background: rgba(10, 10, 14, 0.5);
+		background: #0a0a0e;
 		padding-block: 5rem;
 	}
 	.lp-oss__inner {
@@ -1252,7 +1249,7 @@
 
 	/* ─── Footer ─────────────────────────────────────────────────── */
 	.lp-footer {
-		background: rgba(10, 10, 14, 0.7);
+		background: #0a0a0e;
 		border-top: 1px solid rgba(255,255,255,0.07);
 		padding-block: 2.5rem;
 	}
