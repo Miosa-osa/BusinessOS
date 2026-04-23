@@ -43,20 +43,13 @@
 		error = '';
 
 		try {
-			if (import.meta.env.DEV) console.log('[Username] Checking availability for:', username);
 			const response = await checkUsernameAvailability(username);
-			if (import.meta.env.DEV) console.log('[Username] Response:', response);
 			isAvailable = response.available;
 
 			if (!response.available) {
 				error = response.reason || 'Username is already taken';
 			}
 		} catch (err) {
-			console.error('[Username] Error checking availability:', err);
-			console.error('[Username] Error details:', {
-				message: err instanceof Error ? err.message : String(err),
-				username: username
-			});
 			error = 'Unable to check availability. Please try again.';
 			isAvailable = null;
 		} finally {

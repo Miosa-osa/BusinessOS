@@ -25,8 +25,8 @@
 					rememberMe = true;
 				}
 			}
-		} catch (e) {
-			console.error('Error loading remembered user:', e);
+		} catch {
+			// localStorage read failure — non-critical, proceed without remembered user
 		}
 	});
 

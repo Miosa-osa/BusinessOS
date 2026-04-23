@@ -81,7 +81,6 @@ class VoiceTranscriptionService {
     }
 
     try {
-      if (import.meta.env.DEV) console.log("[Voice] Starting (Web Speech API)...");
       this.callback = onTranscript;
       this.onStopCallback = onStop ?? null;
       this.restartAttempts = 0;
@@ -132,11 +131,6 @@ class VoiceTranscriptionService {
           this.restartTimer = setTimeout(() => {
             if (!this.shouldRestart || !this.isActive) return;
             try {
-              if (import.meta.env.DEV) {
-                console.log(
-                  `[Voice] Auto-restart (attempt ${this.restartAttempts})`,
-                );
-              }
               recognition.start();
             } catch {
               // Already started or disposed — ignore
@@ -153,7 +147,6 @@ class VoiceTranscriptionService {
       this.isActive = true;
       this.shouldRestart = true;
 
-      if (import.meta.env.DEV) console.log("[Voice] Ready");
       return true;
     } catch (err) {
       console.error("[Voice] Start failed:", err);
@@ -164,7 +157,6 @@ class VoiceTranscriptionService {
 
   /** Called by the user/component — deliberate stop. Does NOT fire onStopCallback. */
   stop() {
-    if (import.meta.env.DEV) console.log("[Voice] Stopping (user-initiated)");
     this.shouldRestart = false;
     this.isActive = false;
 
@@ -188,7 +180,6 @@ class VoiceTranscriptionService {
 
   /** Called internally when recognition dies unexpectedly — fires onStopCallback. */
   private cleanupAndNotify() {
-    if (import.meta.env.DEV) console.log("[Voice] Stopped unexpectedly");
     this.shouldRestart = false;
     this.isActive = false;
 

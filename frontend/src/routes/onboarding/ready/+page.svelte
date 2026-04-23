@@ -19,7 +19,6 @@
 				method: 'POST',
 				credentials: 'include',
 			});
-			if (import.meta.env.DEV) console.log('Onboarding marked complete in backend');
 		} catch (err) {
 			console.error('Failed to mark onboarding complete:', err);
 			// Don't block - continue anyway

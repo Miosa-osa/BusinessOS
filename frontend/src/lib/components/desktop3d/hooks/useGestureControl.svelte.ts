@@ -39,11 +39,6 @@ export function useGestureControl(
 
   async function enableGesture(): Promise<void> {
     if (gestureLoading || gestureEnabled) {
-      if (import.meta.env.DEV) {
-        console.log(
-          "[useGestureControl] Already initializing or enabled, skipping...",
-        );
-      }
       return;
     }
 
@@ -117,7 +112,6 @@ export function useGestureControl(
       controller = newController;
       gestureEnabled = true;
       gestureLoading = false;
-      if (import.meta.env.DEV) console.log("[useGestureControl] Gesture control enabled");
     } catch (error) {
       console.error(
         "[useGestureControl] Failed to enable gesture control:",
@@ -149,7 +143,6 @@ export function useGestureControl(
       controller = null;
     }
     gestureEnabled = false;
-    if (import.meta.env.DEV) console.log("[useGestureControl] Gesture control disabled");
   }
 
   async function toggleGesture(): Promise<void> {

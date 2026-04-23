@@ -33,17 +33,9 @@ function createCameraStore() {
       );
 
       if (newDistance === cameraDistance) {
-        if (import.meta.env.DEV) console.log("[Camera Store] Camera distance at limit:", newDistance);
+        if (import.meta.env.DEV)
+          console.log("[Camera Store] Camera distance at limit:", newDistance);
         return;
-      }
-
-      // Log only significant changes (> 5 units)
-      if (Math.abs(delta) > 5) {
-        if (import.meta.env.DEV) {
-          console.log(
-            `[Camera Store] Camera distance: ${cameraDistance.toFixed(1)} → ${newDistance.toFixed(1)}`,
-          );
-        }
       }
 
       cameraDistance = newDistance;
@@ -51,7 +43,6 @@ function createCameraStore() {
 
     // Reset camera distance to default (400)
     resetCameraDistance() {
-      if (import.meta.env.DEV) console.log("[Camera Store] Resetting camera distance to default (400)");
       cameraDistance = DEFAULT_CAMERA_DISTANCE;
     },
 

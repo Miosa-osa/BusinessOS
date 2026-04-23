@@ -3,7 +3,7 @@
  * Detects whether running in Electron vs Web browser
  */
 
-import { browser } from '$app/environment';
+import { browser } from "$app/environment";
 
 // Type definition for the Electron API exposed via preload
 export interface ElectronAPI {
@@ -43,16 +43,22 @@ export interface ElectronAPI {
     openPath: (path: string) => Promise<void>;
   };
   dialog: {
-    showOpen: (options: any) => Promise<{ canceled: boolean; filePaths: string[] }>;
-    showSave: (options: any) => Promise<{ canceled: boolean; filePath?: string }>;
-    showMessage: (options: any) => Promise<{ response: number }>;
+    showOpen: (
+      options: Record<string, unknown>,
+    ) => Promise<{ canceled: boolean; filePaths: string[] }>;
+    showSave: (
+      options: Record<string, unknown>,
+    ) => Promise<{ canceled: boolean; filePath?: string }>;
+    showMessage: (
+      options: Record<string, unknown>,
+    ) => Promise<{ response: number }>;
   };
   window: {
-    getState: () => Promise<any>;
-    setState: (state: any) => void;
+    getState: () => Promise<Record<string, unknown>>;
+    setState: (state: Record<string, unknown>) => void;
   };
-  on: (channel: string, callback: (...args: any[]) => void) => () => void;
-  once: (channel: string, callback: (...args: any[]) => void) => void;
+  on: (channel: string, callback: (...args: unknown[]) => void) => () => void;
+  once: (channel: string, callback: (...args: unknown[]) => void) => void;
 }
 
 // Declare the global electron object
@@ -68,17 +74,17 @@ declare global {
  */
 export function isElectron(): boolean {
   if (!browser) return false;
-  if (typeof window === 'undefined') return false;
+  if (typeof window === "undefined") return false;
 
   // Method 1: Check for preload-exposed API
-  if (typeof window.electron !== 'undefined') return true;
+  if (typeof window.electron !== "undefined") return true;
 
   // Method 2: Check user agent for Electron
-  if (navigator.userAgent.toLowerCase().includes('electron')) return true;
+  if (navigator.userAgent.toLowerCase().includes("electron")) return true;
 
   // Method 3: Check for Electron-specific process object
-  if (typeof (window as any).process !== 'undefined' &&
-      (window as any).process.type === 'renderer') return true;
+  const win = window as Window & { process?: { type?: string } };
+  if (win.process?.type === "renderer") return true;
 
   return false;
 }
@@ -88,7 +94,7 @@ export function isElectron(): boolean {
  */
 export function isMacOS(): boolean {
   if (!browser) return false;
-  return navigator.platform.toLowerCase().includes('mac');
+  return navigator.platform.toLowerCase().includes("mac");
 }
 
 /**
@@ -119,7 +125,7 @@ export async function getAppVersion(): Promise<string> {
     }
   }
   // Fallback for web
-  return '1.0.0';
+  return "1.0.0";
 }
 
 /**
@@ -143,10 +149,14 @@ export async function getPlatformInfo(): Promise<{
   }
 
   // Web browser fallback
-  const platform = browser ? navigator.platform.toLowerCase() : 'unknown';
+  const platform = browser ? navigator.platform.toLowerCase() : "unknown";
   return {
-    platform: platform.includes('win') ? 'win32' : platform.includes('mac') ? 'darwin' : 'linux',
-    arch: 'unknown',
+    platform: platform.includes("win")
+      ? "win32"
+      : platform.includes("mac")
+        ? "darwin"
+        : "linux",
+    arch: "unknown",
     isElectron: false,
     isPackaged: false,
   };
@@ -165,13 +175,13 @@ export async function getApiBaseUrl(): Promise<string> {
         return await api.backend.getUrl();
       } catch {
         // Fallback to default
-        return 'http://localhost:18080';
+        return "http://localhost:18080"; // Electron backend fallback
       }
     }
   }
 
   // Web browser - use relative URL or environment variable
-  return '/api';
+  return "/api";
 }
 
 /**
@@ -189,7 +199,7 @@ export async function openExternal(url: string): Promise<void> {
 
   // Web browser fallback
   if (browser) {
-    window.open(url, '_blank', 'noopener,noreferrer');
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 }
 
@@ -223,7 +233,7 @@ export function onNavigate(callback: (path: string) => void): () => void {
   const api = getElectronAPI();
   if (!api) return () => {};
 
-  return api.on('navigate', callback);
+  return api.on("navigate", callback);
 }
 
 /**
@@ -236,5 +246,5 @@ export function onShortcut(callback: (shortcut: string) => void): () => void {
   const api = getElectronAPI();
   if (!api) return () => {};
 
-  return api.on('shortcut', callback);
+  return api.on("shortcut", callback);
 }

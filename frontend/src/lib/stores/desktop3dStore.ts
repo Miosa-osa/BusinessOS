@@ -240,7 +240,7 @@ function createDesktop3DStore() {
             targetScale: 1,
             opacity: 1,
             targetOpacity: 1,
-            isCore: CORE_MODULES.includes(module as any),
+            isCore: (CORE_MODULES as readonly string[]).includes(module),
             isOpen: true,
             isFocused: false,
             lastFocused: Date.now(),
@@ -333,22 +333,7 @@ function createDesktop3DStore() {
 
     // Focus on a window
     focusWindow: (windowId: string) => {
-      if (import.meta.env.DEV) {
-        console.log(
-          `[Desktop3D Store] focusWindow() called for windowId: "${windowId}"`,
-        );
-      }
-
       update((state) => {
-        const targetWindow = state.windows.find((w) => w.id === windowId);
-        if (import.meta.env.DEV) {
-          console.log(`[Desktop3D Store] Target window:`, {
-            found: !!targetWindow,
-            module: targetWindow?.module,
-            isOpen: targetWindow?.isOpen,
-          });
-        }
-
         const windows = state.windows.map((w) => ({
           ...w,
           isFocused: w.id === windowId,
@@ -356,12 +341,6 @@ function createDesktop3DStore() {
           targetScale: w.id === windowId ? 1.5 : 0.8,
           lastFocused: w.id === windowId ? Date.now() : w.lastFocused,
         }));
-
-        if (import.meta.env.DEV) {
-          console.log(
-            `[Desktop3D Store] Focused window "${windowId}", switching to 'focused' viewMode`,
-          );
-        }
 
         return {
           ...state,
@@ -396,31 +375,12 @@ function createDesktop3DStore() {
 
     // Open a module window
     openWindow: (module: ModuleId) => {
-      if (import.meta.env.DEV) {
-        console.log(
-          `[Desktop3D Store] openWindow() called for module: "${module}"`,
-        );
-      }
-
       update((state) => {
         // Check if already open
         const existing = state.windows.find((w) => w.module === module);
-        if (import.meta.env.DEV) {
-          console.log(`[Desktop3D Store] Existing window check:`, {
-            found: !!existing,
-            isOpen: existing?.isOpen,
-            windowId: existing?.id,
-          });
-        }
 
         if (existing?.isOpen) {
           // Window already open - focus it instead
-          if (import.meta.env.DEV) {
-            console.log(
-              `[Desktop3D Store] Window "${module}" already open, focusing it (id: ${existing.id})`,
-            );
-          }
-
           // Don't call nested store method — manipulate state directly
           const windows = state.windows.map((w) => ({
             ...w,
@@ -450,12 +410,6 @@ function createDesktop3DStore() {
 
         if (existing) {
           // Reopen existing window (was closed before)
-          if (import.meta.env.DEV) {
-            console.log(
-              `[Desktop3D Store] Reopening existing window "${module}" at position:`,
-              position,
-            );
-          }
           const windows = state.windows.map((w) =>
             w.module === module
               ? {
@@ -471,12 +425,6 @@ function createDesktop3DStore() {
         }
 
         // Create new window (never existed before)
-        if (import.meta.env.DEV) {
-          console.log(
-            `[Desktop3D Store] Creating NEW window for "${module}" at position:`,
-            position,
-          );
-        }
         const newWindow: Window3DState = {
           id: `window-${module}-${Date.now()}`,
           module,
@@ -488,7 +436,7 @@ function createDesktop3DStore() {
           targetScale: 1,
           opacity: 1,
           targetOpacity: 1,
-          isCore: CORE_MODULES.includes(module as any),
+          isCore: (CORE_MODULES as readonly string[]).includes(module),
           isOpen: true,
           isFocused: false,
           lastFocused: Date.now(),
@@ -497,24 +445,10 @@ function createDesktop3DStore() {
           height: 600, // Default window height
         };
 
-        if (import.meta.env.DEV) {
-          console.log(`[Desktop3D Store] New window created:`, {
-            id: newWindow.id,
-            module: newWindow.module,
-            title: newWindow.title,
-          });
-        }
-
         return { ...state, windows: [...state.windows, newWindow] };
       });
 
-      if (import.meta.env.DEV) {
-        console.log(
-          `[Desktop3D Store] Recalculating positions after opening "${module}"`,
-        );
-      }
       desktop3dStore.recalculatePositions();
-      if (import.meta.env.DEV) console.log(`[Desktop3D Store] openWindow() complete for "${module}"`);
     },
 
     // Close a window (core modules just minimize)
@@ -565,7 +499,8 @@ function createDesktop3DStore() {
         );
 
         if (newRadius === state.sphereRadius) {
-          if (import.meta.env.DEV) console.log("[Desktop3D Store] Sphere radius at limit:", newRadius);
+          if (import.meta.env.DEV)
+            console.log("[Desktop3D Store] Sphere radius at limit:", newRadius);
           return state;
         }
 
@@ -765,7 +700,8 @@ function createDesktop3DStore() {
         );
 
         if (newSpacing === state.gridSpacing) {
-          if (import.meta.env.DEV) console.log("[Desktop3D Store] Grid spacing at limit:", newSpacing);
+          if (import.meta.env.DEV)
+            console.log("[Desktop3D Store] Grid spacing at limit:", newSpacing);
           return state;
         }
 
@@ -792,7 +728,8 @@ function createDesktop3DStore() {
         const newColumns = Math.max(2, Math.min(8, state.gridColumns + delta));
 
         if (newColumns === state.gridColumns) {
-          if (import.meta.env.DEV) console.log("[Desktop3D Store] Grid columns at limit:", newColumns);
+          if (import.meta.env.DEV)
+            console.log("[Desktop3D Store] Grid columns at limit:", newColumns);
           return state;
         }
 
@@ -885,7 +822,7 @@ function createDesktop3DStore() {
     removeModule: (moduleId: string) => {
       update((state) => {
         // Don't allow removing core modules
-        if (CORE_MODULES.includes(moduleId as any)) {
+        if ((CORE_MODULES as readonly string[]).includes(moduleId)) {
           console.warn(
             `[Desktop3D Store] Cannot remove core module: ${moduleId}`,
           );
@@ -894,7 +831,8 @@ function createDesktop3DStore() {
 
         const windows = state.windows.filter((w) => w.module !== moduleId);
 
-        if (import.meta.env.DEV) console.log(`[Desktop3D Store] Removed dynamic module: ${moduleId}`);
+        if (import.meta.env.DEV)
+          console.log(`[Desktop3D Store] Removed dynamic module: ${moduleId}`);
 
         return {
           ...state,
@@ -909,7 +847,7 @@ function createDesktop3DStore() {
       });
 
       // Clean up MODULE_INFO for dynamic modules (keep built-in)
-      if (!BUILTIN_MODULES.includes(moduleId as any)) {
+      if (!(BUILTIN_MODULES as readonly string[]).includes(moduleId)) {
         delete MODULE_INFO[moduleId];
       }
 

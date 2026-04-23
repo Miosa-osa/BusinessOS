@@ -699,7 +699,7 @@ export function parseMessageContent(content: string): ParsedPart[] {
         });
       }
     } catch {
-      if (import.meta.env.DEV) console.log("Failed to parse artifact JSON, possibly incomplete");
+      // Incomplete artifact JSON during streaming — skip silently
     }
 
     lastIndex = match.index + match[0].length;

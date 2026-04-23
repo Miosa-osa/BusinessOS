@@ -189,14 +189,12 @@
 
 			// Handle successful Google OAuth from connect page
 			if (source === 'google-oauth' || (integration === 'google' && status === 'connected')) {
-				if (import.meta.env.DEV) console.log('[Building] Google OAuth successful, updating store');
 				onboardingStore.setUserData({ gmailConnected: true });
 				onboardingStore.setIntegrationsConnected(['google-oauth']);
 			}
 
 			// Handle other OAuth integrations (slack, notion, etc.)
 			if (integration && status === 'connected') {
-				if (import.meta.env.DEV) console.log(`[Building] ${integration} OAuth successful, updating store`);
 				const storeValue = get(onboardingStore);
 				const currentIntegrations = storeValue.userData.integrationsConnected || [];
 				if (!currentIntegrations.includes(integration)) {

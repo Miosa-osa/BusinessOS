@@ -105,7 +105,6 @@ function addCSRFHeaders(headers: HeadersInit = {}): HeadersInit {
 export function initiateGoogleOAuth(serverUrl?: string): boolean {
   const baseUrl = serverUrl || get(cloudServerUrl);
   if (!baseUrl) {
-    console.error("No cloud server URL configured");
     return false;
   }
 
@@ -116,9 +115,9 @@ export function initiateGoogleOAuth(serverUrl?: string): boolean {
   );
   const authUrl = `${baseUrl}/api/auth/google?redirect=${redirectUrl}`;
 
-  if (isElectron && (window as any).electron?.openExternal) {
+  if (isElectron && window.electron?.openExternal) {
     // Use Electron's shell to open in system browser
-    (window as any).electron.openExternal(authUrl);
+    window.electron.openExternal(authUrl);
   } else {
     // Standard web redirect
     window.location.href = authUrl;
@@ -292,17 +291,12 @@ export async function signOutFromServer(
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => "Unknown error");
-      console.error(
-        `Sign out failed with status ${response.status}: ${errorText}`,
-      );
       // Still redirect to clear client-side state even if server fails
       window.location.href = "/login";
       return { success: false, error: `Server returned ${response.status}` };
     }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Network error";
-    console.error("Sign out error:", errorMessage);
     // Still redirect to clear client-side state
     window.location.href = "/login";
     return { success: false, error: errorMessage };
@@ -334,13 +328,7 @@ const localSession = writable({
   error: null,
 });
 
-// Log when local mode session is used (helps debug auth issues)
-if (typeof window !== "undefined" && isElectron) {
-  const mode = localStorage.getItem("businessos_mode");
-  if (mode === "local") {
-    console.info("[Auth] Using local mode - no server authentication required");
-  }
-}
+// Local mode flag checked at session init (no console logging needed)
 
 // For when mode is not yet selected - return a "pending" state
 const pendingSession = writable({

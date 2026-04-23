@@ -93,7 +93,6 @@
 			// Updating state before redirect causes issues if user cancels or OAuth fails
 			// The /onboarding/building page will check URL params and update state on success
 
-			if (import.meta.env.DEV) console.log('[Connect] Redirecting to Google OAuth with redirect:', redirectAfter);
 			window.location.href = `${backendUrl}/api/auth/google?redirect=${encodeURIComponent(redirectAfter)}`;
 		} catch (err) {
 			oauthError = err instanceof Error ? err.message : 'Failed to connect';

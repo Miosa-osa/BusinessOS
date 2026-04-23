@@ -265,13 +265,10 @@ function createDeployedAppsStore() {
     // Start polling for deployed apps
     startDiscovery: async () => {
       if (isDiscovering) {
-        if (import.meta.env.DEV) console.log("Discovery already running");
         return;
       }
 
       isDiscovering = true;
-      if (import.meta.env.DEV)
-        console.log("[deployedAppsStore] Starting discovery...");
 
       // Initial fetch
       await refresh();
@@ -287,8 +284,6 @@ function createDeployedAppsStore() {
         pollInterval = null;
       }
       isDiscovering = false;
-      if (import.meta.env.DEV)
-        console.log("[deployedAppsStore] Stopped discovery");
     },
 
     // Manual refresh

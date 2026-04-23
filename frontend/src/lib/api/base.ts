@@ -1,10 +1,11 @@
-// Backend URLs
-const LOCAL_BACKEND_URL = "http://localhost:8001";
-const PRODUCTION_BACKEND_URL =
+// Backend URLs (centralized — import these from here, don't hardcode elsewhere)
+export const LOCAL_BACKEND_URL = "http://localhost:8001";
+export const LOCAL_OSA_URL = "http://localhost:18080";
+export const PRODUCTION_BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "https://api.businessos.dev";
 
 // API Version (centralized configuration)
-const API_VERSION = "v1";
+export const API_VERSION = "v1";
 
 // Shared fetch logic copied from the original ApiClient.request implementation
 function getApiBase(): string {
@@ -27,7 +28,7 @@ function getApiBase(): string {
       const result = `${cloudUrl}/api/${API_VERSION}`;
       return result;
     } else if (mode === "local") {
-      return `http://localhost:18080/api/${API_VERSION}`;
+      return `${LOCAL_OSA_URL}/api/${API_VERSION}`;
     }
     const result = `${cloudUrl}/api/${API_VERSION}`;
     return result;
@@ -91,19 +92,9 @@ export async function initCSRF(): Promise<void> {
 
     if (response.ok) {
       await response.json();
-      if (import.meta.env.DEV) {
-        console.log(
-          "[CSRF] Token initialized:",
-          document.cookie.includes("csrf_token")
-            ? "cookie set"
-            : "cookie missing",
-        );
-      }
-    } else {
-      console.error("[CSRF] Init failed, status:", response.status);
     }
-  } catch (error) {
-    console.warn("[CSRF] Failed to initialize CSRF token:", error);
+  } catch {
+    // CSRF init is best-effort — app continues without it
   }
 }
 
@@ -147,7 +138,7 @@ export function getBackendUrl(): string {
     if (mode === "cloud" && cloudUrl) {
       return cloudUrl;
     } else if (mode === "local") {
-      return "http://localhost:18080";
+      return LOCAL_OSA_URL;
     }
     return cloudUrl;
   }
@@ -390,9 +381,6 @@ export async function request<T>(
           .json()
           .catch(() => ({ detail: "Request failed" }));
         const errorMessage = error.detail || error.message || "Request failed";
-        console.error(
-          `[API] ${method} ${endpoint} failed with status ${response.status}: ${errorMessage}`,
-        );
         throw new Error(`${errorMessage} (HTTP ${response.status})`);
       }
 

@@ -13,6 +13,7 @@
 
 import { api, getCustomAgents } from "$lib/api";
 import type { CustomAgent } from "$lib/api";
+import type { Memory } from "$lib/api/memory/types";
 import { handleApiCall } from "$lib/utils/api-handler";
 import type { SlashCommand, AgentPreset } from "./types";
 
@@ -61,7 +62,7 @@ function createChatAgentStore() {
   // ── Memory injection ────────────────────────────────────────────────────
 
   let selectedMemoryIds = $state<string[]>([]);
-  let activeMemories = $state<any[]>([]);
+  let activeMemories = $state<Memory[]>([]);
 
   // ── Async loaders ───────────────────────────────────────────────────────
 
@@ -482,7 +483,7 @@ function createChatAgentStore() {
     get activeMemories() {
       return activeMemories;
     },
-    set activeMemories(v: any[]) {
+    set activeMemories(v: Memory[]) {
       activeMemories = v;
     },
 

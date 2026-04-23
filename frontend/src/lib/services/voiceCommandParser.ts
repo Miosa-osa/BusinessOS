@@ -144,35 +144,24 @@ export class VoiceCommandParser {
    */
   parse(transcript: string): VoiceCommand {
     const lower = transcript.toLowerCase().trim();
-    if (import.meta.env.DEV) console.log("[Parser] ANALYZING:", transcript);
 
     // Layer 1: Strip wake word
-    const { stripped: afterWake, hadWakeWord } = this.stripWakeWord(lower);
-    if (hadWakeWord && import.meta.env.DEV) {
-      console.log("[Parser] Wake word stripped:", afterWake);
-    }
+    const { stripped: afterWake } = this.stripWakeWord(lower);
 
     const normalized = this.normalize(afterWake);
-    if (import.meta.env.DEV) console.log("[Parser] Normalized:", normalized);
 
     // Layer 2: Exact pattern matching
     const exactMatch = this.tryAllPatterns(normalized);
     if (exactMatch) {
-      if (import.meta.env.DEV)
-        console.log("[Parser] EXACT MATCH:", exactMatch.type);
       return exactMatch;
     }
 
     // Layer 3: Strip conversational wrapper, retry
     const { extracted, confidence } = this.extractCommand(normalized);
-    if (import.meta.env.DEV)
-      console.log("[Parser] Extracted:", { extracted, confidence });
 
     if (extracted !== normalized && confidence > 0.7) {
       const extractedMatch = this.tryAllPatterns(extracted);
       if (extractedMatch) {
-        if (import.meta.env.DEV)
-          console.log("[Parser] EXTRACTED MATCH:", extractedMatch.type);
         return extractedMatch;
       }
     }
@@ -188,7 +177,6 @@ export class VoiceCommandParser {
       /^list\s+commands$/i,
     ];
     if (helpPatterns.some((p) => p.test(normalized.trim()))) {
-      if (import.meta.env.DEV) console.log("[Parser] HELP COMMAND");
       return { type: "help" };
     }
 
@@ -198,11 +186,9 @@ export class VoiceCommandParser {
     const isConv = this.isConversational(normalized);
 
     if (isQuestion || wordCount > 7 || isConv) {
-      if (import.meta.env.DEV) console.log("[Parser] ROUTING TO AI");
       return { type: "unknown", text: transcript };
     }
 
-    if (import.meta.env.DEV) console.log("[Parser] UNKNOWN");
     return { type: "unknown", text: transcript };
   }
 

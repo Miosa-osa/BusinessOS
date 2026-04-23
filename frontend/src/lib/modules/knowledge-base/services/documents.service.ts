@@ -503,18 +503,15 @@ export async function fetchOptimalDocuments(): Promise<DocumentMeta[] | null> {
   let nodes: OptimalNode[];
   try {
     const url = `${base}/optimal/nodes`;
-    console.log("[OptimalOS] Fetching nodes from:", url);
     const res = await fetch(url, {
       method: "GET",
       headers,
       credentials: "include",
       signal: AbortSignal.timeout(8000),
     });
-    console.log("[OptimalOS] Nodes response:", res.status);
     if (!res.ok) return null;
     const data: { nodes?: OptimalNode[] } = await res.json();
     nodes = Array.isArray(data.nodes) ? data.nodes : [];
-    console.log("[OptimalOS] Got", nodes.length, "nodes");
   } catch (err) {
     console.error("[OptimalOS] Fetch failed:", err);
     return null;

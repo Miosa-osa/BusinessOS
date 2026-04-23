@@ -470,8 +470,7 @@ export class ChatStreamManager {
       clearTimeout(connectionTimeoutId);
       if (error.name === "AbortError") {
         if (this._userAborted) {
-          if (import.meta.env.DEV)
-            console.log("[ChatStreamManager] Request aborted by user");
+          // User-initiated abort — no action needed
         } else {
           // Timeout abort — backend didn't respond within 30 seconds
           callbacks.onStreamError(

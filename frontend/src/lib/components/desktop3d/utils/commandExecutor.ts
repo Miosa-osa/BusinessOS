@@ -92,47 +92,29 @@ export function executeCommandAction(
     }
 
     case "open_layout_manager":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Opening layout manager");
       openLayoutManager();
       break;
 
     case "reset_layout":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Resetting to default layout");
       desktop3dLayoutStore.resetToDefault();
       break;
 
     case "focus_module": {
-      if (import.meta.env.DEV)
-        console.log(`[commandExecutor] focus_module: "${command.module}"`);
       const win = windows.find((w) => w.module === command.module);
       if (win) {
-        if (import.meta.env.DEV)
-          console.log(
-            `[commandExecutor] Focusing existing window (id: ${win.id})`,
-          );
         desktop3dStore.focusWindow(win.id);
       } else {
-        if (import.meta.env.DEV)
-          console.log(
-            `[commandExecutor] Opening NEW window for module: "${command.module}"`,
-          );
         desktop3dStore.openWindow(command.module);
       }
       break;
     }
 
     case "open_module": {
-      if (import.meta.env.DEV)
-        console.log(`[commandExecutor] open_module: "${command.module}"`);
       desktop3dStore.openWindow(command.module);
       break;
     }
 
     case "close_module": {
-      if (import.meta.env.DEV)
-        console.log(`[commandExecutor] close_module: "${command.module}"`);
       const closeWin = windows.find((w) => w.module === command.module);
       if (closeWin) {
         desktop3dStore.closeWindow(closeWin.id);
@@ -145,20 +127,14 @@ export function executeCommandAction(
     }
 
     case "close_all_windows":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Closing all windows");
       desktop3dStore.closeAllWindows();
       break;
 
     case "minimize_window":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Minimizing window (unfocusing)");
       desktop3dStore.unfocusWindow();
       break;
 
     case "maximize_window":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Maximizing window");
       if (state.focusedWindowId) {
         desktop3dStore.resizeFocusedWindow(200, 150);
       } else if (windows.length > 0) {
@@ -179,88 +155,64 @@ export function executeCommandAction(
       break;
 
     case "rotate_left":
-      if (import.meta.env.DEV) console.log("[commandExecutor] Rotating left");
       desktop3dStore.setAutoRotate(false);
       // TODO: Implement manual rotation control
       break;
 
     case "rotate_right":
-      if (import.meta.env.DEV) console.log("[commandExecutor] Rotating right");
       desktop3dStore.setAutoRotate(false);
       // TODO: Implement manual rotation control
       break;
 
     case "stop_rotation":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Stopping rotation");
       desktop3dStore.setAutoRotate(false);
       break;
 
     case "rotate_faster":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Increasing rotation speed");
       desktop3dStore.adjustRotationSpeed(0.2);
       break;
 
     case "rotate_slower":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Decreasing rotation speed");
       desktop3dStore.adjustRotationSpeed(-0.2);
       break;
 
     case "zoom_in":
-      if (import.meta.env.DEV) console.log("[commandExecutor] Zoom in");
       desktop3dStore.adjustCameraDistance(-1.0);
       break;
 
     case "zoom_out":
-      if (import.meta.env.DEV) console.log("[commandExecutor] Zoom out");
       desktop3dStore.adjustCameraDistance(1.0);
       break;
 
     case "reset_zoom":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Resetting camera zoom");
       desktop3dStore.resetCameraDistance();
       break;
 
     case "expand_orb":
-      if (import.meta.env.DEV) console.log("[commandExecutor] Expanding orb");
       desktop3dStore.adjustSphereRadius(3.0);
       break;
 
     case "contract_orb":
-      if (import.meta.env.DEV) console.log("[commandExecutor] Contracting orb");
       desktop3dStore.adjustSphereRadius(-3.0);
       break;
 
     case "increase_grid_spacing":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Increasing grid spacing");
       desktop3dStore.adjustGridSpacing(10);
       break;
 
     case "decrease_grid_spacing":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Decreasing grid spacing");
       desktop3dStore.adjustGridSpacing(-10);
       break;
 
     case "more_grid_columns":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Adding grid columns");
       desktop3dStore.adjustGridColumns(1);
       break;
 
     case "less_grid_columns":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Removing grid columns");
       desktop3dStore.adjustGridColumns(-1);
       break;
 
     case "unfocus":
-      if (import.meta.env.DEV)
-        console.log("[commandExecutor] Unfocusing window");
       desktop3dStore.unfocusWindow();
       break;
 
@@ -272,8 +224,6 @@ export function executeCommandAction(
         shorter: [0, -100],
       };
       const [widthDelta, heightDelta] = deltaMap[command.direction];
-      if (import.meta.env.DEV)
-        console.log(`[commandExecutor] Resizing window: ${command.direction}`);
       desktop3dStore.resizeFocusedWindow(widthDelta, heightDelta);
       break;
     }

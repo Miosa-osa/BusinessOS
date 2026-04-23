@@ -26,18 +26,6 @@ export function useKeyboardShortcuts(
     const target = e.target as HTMLElement;
     const activeEl = document.activeElement;
 
-    // DEBUG: Log keyboard events to diagnose focus issues
-    if (import.meta.env.DEV) {
-      console.log(
-        "[useKeyboardShortcuts] Key pressed:",
-        e.key,
-        "target:",
-        target?.tagName,
-        "activeElement:",
-        activeEl?.tagName,
-      );
-    }
-
     const isInteractiveElement =
       target?.tagName === "INPUT" ||
       target?.tagName === "TEXTAREA" ||
@@ -59,11 +47,6 @@ export function useKeyboardShortcuts(
 
     // Don't handle any other shortcuts when user is in terminal/inputs
     if (isInteractiveElement) {
-      if (import.meta.env.DEV) {
-        console.log(
-          "[useKeyboardShortcuts] Skipping shortcut - interactive element has focus",
-        );
-      }
       return;
     }
 

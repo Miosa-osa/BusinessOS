@@ -59,7 +59,7 @@
 
 	// Derived: filter out dismissed suggestions
 	const visibleSuggestions = $derived(
-		response?.suggestions.filter(s =>
+		response?.suggestions.filter((s: TaskSuggestion) =>
 			!dismissedIds.has(getSuggestionId(s))
 		) ?? []
 	);
@@ -69,11 +69,11 @@
 	);
 
 	const prepSuggestions = $derived(
-		displaySuggestions.filter(s => s.type === 'prep')
+		displaySuggestions.filter((s: TaskSuggestion) => s.type === 'prep')
 	);
 
 	const followUpSuggestions = $derived(
-		displaySuggestions.filter(s => s.type === 'follow_up')
+		displaySuggestions.filter((s: TaskSuggestion) => s.type === 'follow_up')
 	);
 
 	const hasMoreSuggestions = $derived(

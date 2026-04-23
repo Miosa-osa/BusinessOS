@@ -2,6 +2,7 @@
  * onboardingTypes.ts
  * Shared types, constants, and static data for the conversational onboarding flow.
  */
+import { LOCAL_BACKEND_URL, LOCAL_OSA_URL } from "$lib/api/base";
 
 export type OnboardingPhase =
   | "loading"
@@ -222,8 +223,8 @@ export function getApiBase(): string {
     const mode = localStorage.getItem("businessos_mode");
     const cloudUrl = localStorage.getItem("businessos_cloud_url");
     if (mode === "cloud" && cloudUrl) return `${cloudUrl}/api`;
-    if (mode === "local") return "http://localhost:18080/api";
-    return "http://localhost:8001/api";
+    if (mode === "local") return `${LOCAL_OSA_URL}/api`;
+    return `${LOCAL_BACKEND_URL}/api`;
   }
   return import.meta.env.VITE_API_URL || "/api";
 }

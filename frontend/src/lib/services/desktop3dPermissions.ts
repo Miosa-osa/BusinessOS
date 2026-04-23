@@ -21,15 +21,15 @@
  * ```
  */
 
-import { writable, get } from 'svelte/store';
-import { browser } from '$app/environment';
+import { writable, get } from "svelte/store";
+import { browser } from "$app/environment";
 
 // Permission states
-export type PermissionState = 'prompt' | 'granted' | 'denied';
+export type PermissionState = "prompt" | "granted" | "denied";
 
 // Stores for permission states
-export const cameraPermission = writable<PermissionState>('prompt');
-export const microphonePermission = writable<PermissionState>('prompt');
+export const cameraPermission = writable<PermissionState>("prompt");
+export const microphonePermission = writable<PermissionState>("prompt");
 export const cameraStream = writable<MediaStream | null>(null);
 export const microphoneStream = writable<MediaStream | null>(null);
 
@@ -38,345 +38,312 @@ export const microphoneStream = writable<MediaStream | null>(null);
  * Singleton service for managing camera and microphone access
  */
 export class Desktop3DPermissions {
-	private static instance: Desktop3DPermissions | null = null;
-	private isInitialized = false;
+  private static instance: Desktop3DPermissions | null = null;
+  private isInitialized = false;
 
-	private constructor() {
-		// Private constructor for singleton pattern
-	}
+  private constructor() {
+    // Private constructor for singleton pattern
+  }
 
-	/**
-	 * Get singleton instance
-	 */
-	static getInstance(): Desktop3DPermissions {
-		if (!this.instance) {
-			this.instance = new Desktop3DPermissions();
-		}
-		return this.instance;
-	}
+  /**
+   * Get singleton instance
+   */
+  static getInstance(): Desktop3DPermissions {
+    if (!this.instance) {
+      this.instance = new Desktop3DPermissions();
+    }
+    return this.instance;
+  }
 
-	/**
-	 * Initialize the service
-	 * Should be called when entering 3D Desktop mode
-	 */
-	initialize(): void {
-		if (this.isInitialized) {
-			console.warn('[Desktop3D Permissions] Already initialized');
-			return;
-		}
+  /**
+   * Initialize the service
+   * Should be called when entering 3D Desktop mode
+   */
+  initialize(): void {
+    if (this.isInitialized) {
+      return;
+    }
 
-		this.isInitialized = true;
-		if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Service initialized');
-	}
+    this.isInitialized = true;
+  }
 
-	/**
-	 * Request camera access
-	 *
-	 * @returns Promise<boolean> - true if granted, false if denied
-	 */
-	async requestCamera(): Promise<boolean> {
-		if (!browser) {
-			console.warn('[Desktop3D Permissions] Not in browser environment');
-			return false;
-		}
+  /**
+   * Request camera access
+   *
+   * @returns Promise<boolean> - true if granted, false if denied
+   */
+  async requestCamera(): Promise<boolean> {
+    if (!browser) {
+      return false;
+    }
 
-		// Check if we already have a stream
-		const existingStream = get(cameraStream);
-		if (existingStream && existingStream.active) {
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Camera already active');
-			return true;
-		}
+    // Check if we already have a stream
+    const existingStream = get(cameraStream);
+    if (existingStream && existingStream.active) {
+      return true;
+    }
 
-		try {
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Requesting camera permission...');
+    try {
+      // Request stream to get browser permission
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, max: 60 },
+        },
+      });
 
-			// Request stream to get browser permission
-			const stream = await navigator.mediaDevices.getUserMedia({
-				video: {
-					width: { ideal: 1280 },
-					height: { ideal: 720 },
-					frameRate: { ideal: 30, max: 60 }
-				}
-			});
+      // IMMEDIATELY stop all tracks (turn off camera)
+      stream.getTracks().forEach((track) => {
+        track.stop();
+      });
 
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] ✅ Camera permission granted');
+      // Store permission status but NOT the stream
+      cameraPermission.set("granted");
+      cameraStream.set(null); // Don't store stream - will be requested when actually needed
 
-			// IMMEDIATELY stop all tracks (turn off camera)
-			stream.getTracks().forEach(track => {
-				track.stop();
-				if (import.meta.env.DEV) console.log('[Desktop3D Permissions] 📹 Stopped camera track (permission only)');
-			});
+      return true;
+    } catch (err) {
+      const error = err as Error;
+      console.error(
+        "[Desktop3D Permissions] ❌ Camera access denied:",
+        error.message,
+      );
 
-			// Store permission status but NOT the stream
-			cameraPermission.set('granted');
-			cameraStream.set(null); // Don't store stream - will be requested when actually needed
+      cameraPermission.set("denied");
+      cameraStream.set(null);
 
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Camera is OFF - will activate when you enable features');
+      return false;
+    }
+  }
 
-			return true;
-		} catch (err) {
-			const error = err as Error;
-			console.error('[Desktop3D Permissions] ❌ Camera access denied:', error.message);
+  /**
+   * Request microphone access
+   *
+   * @returns Promise<boolean> - true if granted, false if denied
+   */
+  async requestMicrophone(): Promise<boolean> {
+    if (!browser) {
+      return false;
+    }
 
-			cameraPermission.set('denied');
-			cameraStream.set(null);
+    // Check if we already have a stream
+    const existingStream = get(microphoneStream);
+    if (existingStream && existingStream.active) {
+      return true;
+    }
 
-			return false;
-		}
-	}
+    try {
+      // Request stream to get browser permission
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
 
-	/**
-	 * Request microphone access
-	 *
-	 * @returns Promise<boolean> - true if granted, false if denied
-	 */
-	async requestMicrophone(): Promise<boolean> {
-		if (!browser) {
-			console.warn('[Desktop3D Permissions] Not in browser environment');
-			return false;
-		}
+      // IMMEDIATELY stop all tracks (turn off microphone)
+      stream.getTracks().forEach((track) => {
+        track.stop();
+      });
 
-		// Check if we already have a stream
-		const existingStream = get(microphoneStream);
-		if (existingStream && existingStream.active) {
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Microphone already active');
-			return true;
-		}
+      // Store permission status but NOT the stream
+      microphonePermission.set("granted");
+      microphoneStream.set(null); // Don't store stream - will be requested when actually needed
 
-		try {
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Requesting microphone permission...');
+      return true;
+    } catch (err) {
+      const error = err as Error;
+      console.error(
+        "[Desktop3D Permissions] ❌ Microphone access denied:",
+        error.message,
+      );
 
-			// Request stream to get browser permission
-			const stream = await navigator.mediaDevices.getUserMedia({
-				audio: {
-					echoCancellation: true,
-					noiseSuppression: true,
-					autoGainControl: true
-				}
-			});
+      microphonePermission.set("denied");
+      microphoneStream.set(null);
 
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] ✅ Microphone permission granted');
+      return false;
+    }
+  }
 
-			// IMMEDIATELY stop all tracks (turn off microphone)
-			stream.getTracks().forEach(track => {
-				track.stop();
-				if (import.meta.env.DEV) console.log('[Desktop3D Permissions] 🎤 Stopped microphone track (permission only)');
-			});
+  /**
+   * Request both camera and microphone access
+   *
+   * @returns Promise with results for both permissions
+   */
+  async requestAll(): Promise<{ camera: boolean; microphone: boolean }> {
+    const [camera, microphone] = await Promise.all([
+      this.requestCamera(),
+      this.requestMicrophone(),
+    ]);
 
-			// Store permission status but NOT the stream
-			microphonePermission.set('granted');
-			microphoneStream.set(null); // Don't store stream - will be requested when actually needed
+    return { camera, microphone };
+  }
 
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Microphone is OFF - will activate when you enable features');
+  /**
+   * Cleanup all media streams
+   * IMPORTANT: Must be called when leaving 3D Desktop mode
+   */
+  cleanup(): void {
+    // Stop camera stream
+    const camera = get(cameraStream);
+    if (camera) {
+      camera.getTracks().forEach((track) => {
+        track.stop();
+      });
+      cameraStream.set(null);
+    }
 
-			return true;
-		} catch (err) {
-			const error = err as Error;
-			console.error('[Desktop3D Permissions] ❌ Microphone access denied:', error.message);
+    // Stop microphone stream
+    const microphone = get(microphoneStream);
+    if (microphone) {
+      microphone.getTracks().forEach((track) => {
+        track.stop();
+      });
+      microphoneStream.set(null);
+    }
 
-			microphonePermission.set('denied');
-			microphoneStream.set(null);
+    this.isInitialized = false;
+  }
 
-			return false;
-		}
-	}
+  /**
+   * Check if camera is currently active
+   */
+  hasCamera(): boolean {
+    const permission = get(cameraPermission);
+    const stream = get(cameraStream);
+    return permission === "granted" && stream !== null && stream.active;
+  }
 
-	/**
-	 * Request both camera and microphone access
-	 *
-	 * @returns Promise with results for both permissions
-	 */
-	async requestAll(): Promise<{ camera: boolean; microphone: boolean }> {
-		if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Requesting camera and microphone access...');
+  /**
+   * Check if microphone is currently active
+   */
+  hasMicrophone(): boolean {
+    const permission = get(microphonePermission);
+    const stream = get(microphoneStream);
+    return permission === "granted" && stream !== null && stream.active;
+  }
 
-		const [camera, microphone] = await Promise.all([
-			this.requestCamera(),
-			this.requestMicrophone()
-		]);
+  /**
+   * Get current camera stream (may be null if not acquired yet)
+   */
+  getCameraStream(): MediaStream | null {
+    return get(cameraStream);
+  }
 
-		const result = { camera, microphone };
+  /**
+   * Get current microphone stream (may be null if not acquired yet)
+   */
+  getMicrophoneStream(): MediaStream | null {
+    return get(microphoneStream);
+  }
 
-		if (camera && microphone) {
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] ✅ All permissions granted');
-		} else if (!camera && !microphone) {
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] ❌ All permissions denied');
-		} else {
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] ⚠️ Partial permissions granted', result);
-		}
+  /**
+   * Actually acquire camera stream (turns camera ON)
+   * Call this when user enables gesture control
+   * This will request permission if not already granted
+   */
+  async acquireCameraStream(): Promise<MediaStream | null> {
+    if (!browser) return null;
 
-		return result;
-	}
+    // Check if we already have an active stream
+    const existing = get(cameraStream);
+    if (existing && existing.active) {
+      return existing;
+    }
 
-	/**
-	 * Cleanup all media streams
-	 * IMPORTANT: Must be called when leaving 3D Desktop mode
-	 */
-	cleanup(): void {
-		if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Cleaning up media streams...');
+    try {
+      // Request stream (will prompt for permission if not granted)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, max: 60 },
+        },
+      });
 
-		// Stop camera stream
-		const camera = get(cameraStream);
-		if (camera) {
-			camera.getTracks().forEach(track => {
-				track.stop();
-				if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Stopped camera track:', track.label);
-			});
-			cameraStream.set(null);
-		}
+      // Store permission and stream
+      cameraPermission.set("granted");
+      cameraStream.set(stream);
 
-		// Stop microphone stream
-		const microphone = get(microphoneStream);
-		if (microphone) {
-			microphone.getTracks().forEach(track => {
-				track.stop();
-				if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Stopped microphone track:', track.label);
-			});
-			microphoneStream.set(null);
-		}
+      return stream;
+    } catch (err) {
+      console.error(
+        "[Desktop3D Permissions] Failed to acquire camera stream:",
+        err,
+      );
+      cameraPermission.set("denied");
+      return null;
+    }
+  }
 
-		this.isInitialized = false;
-		if (import.meta.env.DEV) console.log('[Desktop3D Permissions] ✅ Cleanup complete');
-	}
+  /**
+   * Actually acquire microphone stream (turns mic ON)
+   * Call this when user enables voice commands
+   * This will request permission if not already granted
+   */
+  async acquireMicrophoneStream(): Promise<MediaStream | null> {
+    if (!browser) return null;
 
-	/**
-	 * Check if camera is currently active
-	 */
-	hasCamera(): boolean {
-		const permission = get(cameraPermission);
-		const stream = get(cameraStream);
-		return permission === 'granted' && stream !== null && stream.active;
-	}
+    // Check if we already have an active stream
+    const existing = get(microphoneStream);
+    if (existing && existing.active) {
+      return existing;
+    }
 
-	/**
-	 * Check if microphone is currently active
-	 */
-	hasMicrophone(): boolean {
-		const permission = get(microphonePermission);
-		const stream = get(microphoneStream);
-		return permission === 'granted' && stream !== null && stream.active;
-	}
+    try {
+      // Request stream (will prompt for permission if not granted)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
 
-	/**
-	 * Get current camera stream (may be null if not acquired yet)
-	 */
-	getCameraStream(): MediaStream | null {
-		return get(cameraStream);
-	}
+      // Store permission and stream
+      microphonePermission.set("granted");
+      microphoneStream.set(stream);
 
-	/**
-	 * Get current microphone stream (may be null if not acquired yet)
-	 */
-	getMicrophoneStream(): MediaStream | null {
-		return get(microphoneStream);
-	}
+      return stream;
+    } catch (err) {
+      console.error(
+        "[Desktop3D Permissions] Failed to acquire microphone stream:",
+        err,
+      );
+      microphonePermission.set("denied");
+      return null;
+    }
+  }
 
-	/**
-	 * Actually acquire camera stream (turns camera ON)
-	 * Call this when user enables gesture control
-	 * This will request permission if not already granted
-	 */
-	async acquireCameraStream(): Promise<MediaStream | null> {
-		if (!browser) return null;
+  /**
+   * Check if permissions API is supported
+   */
+  isSupported(): boolean {
+    if (!browser) return false;
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  }
 
-		// Check if we already have an active stream
-		const existing = get(cameraStream);
-		if (existing && existing.active) {
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Camera stream already active');
-			return existing;
-		}
-
-		try {
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] 📹 Acquiring camera stream...');
-
-			// Request stream (will prompt for permission if not granted)
-			const stream = await navigator.mediaDevices.getUserMedia({
-				video: {
-					width: { ideal: 1280 },
-					height: { ideal: 720 },
-					frameRate: { ideal: 30, max: 60 }
-				}
-			});
-
-			// Store permission and stream
-			cameraPermission.set('granted');
-			cameraStream.set(stream);
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] ✅ Camera stream acquired and ACTIVE');
-
-			return stream;
-		} catch (err) {
-			console.error('[Desktop3D Permissions] Failed to acquire camera stream:', err);
-			cameraPermission.set('denied');
-			return null;
-		}
-	}
-
-	/**
-	 * Actually acquire microphone stream (turns mic ON)
-	 * Call this when user enables voice commands
-	 * This will request permission if not already granted
-	 */
-	async acquireMicrophoneStream(): Promise<MediaStream | null> {
-		if (!browser) return null;
-
-		// Check if we already have an active stream
-		const existing = get(microphoneStream);
-		if (existing && existing.active) {
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] Microphone stream already active');
-			return existing;
-		}
-
-		try {
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] 🎤 Acquiring microphone stream...');
-
-			// Request stream (will prompt for permission if not granted)
-			const stream = await navigator.mediaDevices.getUserMedia({
-				audio: {
-					echoCancellation: true,
-					noiseSuppression: true,
-					autoGainControl: true
-				}
-			});
-
-			// Store permission and stream
-			microphonePermission.set('granted');
-			microphoneStream.set(stream);
-			if (import.meta.env.DEV) console.log('[Desktop3D Permissions] ✅ Microphone stream acquired and ACTIVE');
-
-			return stream;
-		} catch (err) {
-			console.error('[Desktop3D Permissions] Failed to acquire microphone stream:', err);
-			microphonePermission.set('denied');
-			return null;
-		}
-	}
-
-	/**
-	 * Check if permissions API is supported
-	 */
-	isSupported(): boolean {
-		if (!browser) return false;
-		return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-	}
-
-	/**
-	 * Get detailed permission status
-	 */
-	getStatus() {
-		return {
-			supported: this.isSupported(),
-			initialized: this.isInitialized,
-			camera: {
-				permission: get(cameraPermission),
-				active: this.hasCamera(),
-				stream: get(cameraStream)
-			},
-			microphone: {
-				permission: get(microphonePermission),
-				active: this.hasMicrophone(),
-				stream: get(microphoneStream)
-			}
-		};
-	}
+  /**
+   * Get detailed permission status
+   */
+  getStatus() {
+    return {
+      supported: this.isSupported(),
+      initialized: this.isInitialized,
+      camera: {
+        permission: get(cameraPermission),
+        active: this.hasCamera(),
+        stream: get(cameraStream),
+      },
+      microphone: {
+        permission: get(microphonePermission),
+        active: this.hasMicrophone(),
+        stream: get(microphoneStream),
+      },
+    };
+  }
 }
 
 // Export singleton instance

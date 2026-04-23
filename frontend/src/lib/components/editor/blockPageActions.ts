@@ -45,14 +45,6 @@ export async function createSubPage(
   parentContextId: string | undefined,
   icon?: string,
 ): Promise<void> {
-  if (import.meta.env.DEV)
-    console.log(
-      "[Block] createSubPage called, parentContextId:",
-      parentContextId,
-      "icon:",
-      icon,
-    );
-
   editor.updateBlock(blockId, "");
   editor.hideSlashMenu();
   await tick();
@@ -61,10 +53,6 @@ export async function createSubPage(
   }
 
   if (!parentContextId) {
-    if (import.meta.env.DEV)
-      console.log(
-        "[Block] No parentContextId - creating local page block only",
-      );
     editor.changeBlockType(blockId, "page");
     editor.updateBlock(blockId, "New page", { icon: icon || "document" });
     await tick();
@@ -98,16 +86,6 @@ export async function createSubPage(
     if (blockElement) {
       blockElement.innerText = "New page";
     }
-
-    if (import.meta.env.DEV)
-      console.log(
-        "[Block] Sub-page created:",
-        newContext.id,
-        "under parent:",
-        parentContextId,
-        "with icon:",
-        icon,
-      );
   } catch (e) {
     console.error("Failed to create sub-page:", e);
   }

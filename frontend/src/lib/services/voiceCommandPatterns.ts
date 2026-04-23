@@ -123,8 +123,6 @@ export function parseLayoutCommand(text: string): VoiceCommand | null {
  * Parse module navigation commands (open/focus/close)
  */
 export function parseModuleCommand(text: string): VoiceCommand | null {
-  if (import.meta.env.DEV) console.log("[Parser] Checking modules for:", text);
-
   for (const module of VOICE_MODULE_IDS) {
     const moduleName = module.replace(/-/g, " ");
     const openPatterns = [
@@ -155,8 +153,6 @@ export function parseModuleCommand(text: string): VoiceCommand | null {
     ];
 
     if (matchesPattern(text, openPatterns)) {
-      if (import.meta.env.DEV)
-        console.log(`[Parser] Module matched: "${module}"`);
       return { type: "focus_module", module };
     }
   }
@@ -176,8 +172,6 @@ export function parseModuleCommand(text: string): VoiceCommand | null {
     ];
 
     if (matchesPattern(text, closePatterns)) {
-      if (import.meta.env.DEV)
-        console.log(`[Parser] Close module: "${module}"`);
       return { type: "close_module", module };
     }
   }

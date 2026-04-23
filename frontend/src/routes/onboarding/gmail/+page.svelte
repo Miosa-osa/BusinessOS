@@ -45,7 +45,8 @@
 
 		// Redirect to backend Google OAuth endpoint
 		// Backend will handle the OAuth flow and redirect back
-		const backendURL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+		const { getBackendUrl } = await import('$lib/api/base');
+		const backendURL = getBackendUrl();
 		const redirectURL = `/onboarding/gmail`;
 
 		// Redirect to Google OAuth

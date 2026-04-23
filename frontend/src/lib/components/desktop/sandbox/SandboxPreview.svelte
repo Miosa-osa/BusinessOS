@@ -253,7 +253,7 @@
 		<div class="border-t border-gray-200 dark:border-gray-700 px-4 py-3">
 			<ApproveReject
 				{sandboxId}
-				state={sandbox.state}
+				sandboxState={sandbox.state}
 				onApprove={handleApproved}
 				onReject={handleRejected}
 				disabled={isLoading || isValidating}

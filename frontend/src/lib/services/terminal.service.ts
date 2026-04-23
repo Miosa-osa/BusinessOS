@@ -87,7 +87,6 @@ export class TerminalService {
     if (!this.ws) return;
 
     this.ws.onopen = () => {
-      if (import.meta.env.DEV) console.log("Terminal WebSocket connected");
       this.reconnectAttempts = 0;
       this.startHeartbeat();
     };
@@ -109,8 +108,6 @@ export class TerminalService {
     };
 
     this.ws.onclose = (event) => {
-      if (import.meta.env.DEV)
-        console.log("WebSocket closed:", event.code, event.reason);
       this.stopHeartbeat();
       this.handlers.onDisconnect();
 
@@ -134,20 +131,8 @@ export class TerminalService {
         break;
 
       case "status":
-        if (import.meta.env.DEV)
-          console.log(
-            "[Terminal] Status message:",
-            message.data,
-            "metadata:",
-            message.metadata,
-          );
         if (message.data === "connected" && message.metadata?.session_id) {
           this.sessionId = message.metadata.session_id as string;
-          if (import.meta.env.DEV)
-            console.log(
-              "[Terminal] Calling onConnect with session:",
-              this.sessionId,
-            );
           this.handlers.onConnect(this.sessionId, message.metadata);
         }
         break;
@@ -229,11 +214,6 @@ export class TerminalService {
     this.reconnectAttempts++;
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000);
 
-    if (import.meta.env.DEV)
-      console.log(
-        `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`,
-      );
-
     setTimeout(() => {
       if (!this.destroyed) this.connect();
     }, delay);
@@ -281,8 +261,6 @@ export function createTerminalService(
 ): TerminalService {
   // Cloud computer mode: connect to the VM's terminal via compute proxy
   if (computerUrl) {
-    if (import.meta.env.DEV)
-      console.log("[Terminal] Connecting to cloud computer:", computerUrl);
     return new TerminalService(computerUrl, handlers, {
       ...config,
       environmentMode: "cloud",
@@ -307,13 +285,6 @@ export function createTerminalService(
 
   const apiUrl =
     customUrl || (isDev ? window.location.origin : getBackendUrl());
-
-  if (import.meta.env.DEV)
-    console.log(
-      "[Terminal] Connecting to backend:",
-      apiUrl,
-      isDev ? "(via Vite proxy)" : "(direct)",
-    );
 
   return new TerminalService(apiUrl, handlers, config);
 }
