@@ -68,6 +68,53 @@ func LoadTopology(configPath string) (*TopologyConfig, error) {
 	return cfg, nil
 }
 
+// ToInternalRules converts the YAML RoutingRule slice into the internal
+// routingRule type used by RouteWithRules. Returns nil when there are no routes
+// so callers can fall back to defaultRoutingRules with a simple nil check.
+func (t *TopologyConfig) ToInternalRules() []routingRule {
+	if len(t.Routes) == 0 {
+		return nil
+	}
+	out := make([]routingRule, len(t.Routes))
+	for i, r := range t.Routes {
+		out[i] = routingRule{
+			keywords:  r.Keywords,
+			primary:   r.Target,
+			crossRefs: r.CrossRef,
+		}
+	}
+	return out
+}
+
+// GetPersonConfig returns the PersonConfig for a given name (case-insensitive).
+// The lookup matches against People map keys first, then against Role values.
+// Returns nil if not found.
+func (t *TopologyConfig) GetPersonConfig(name string) *PersonConfig {
+	lower := toLower(name)
+	for key, pc := range t.People {
+		if toLower(key) == lower || toLower(pc.Role) == lower {
+			// Copy to avoid returning a pointer into a map value (map iteration
+			// aliasing — the value would change on the next iteration).
+			copy := pc
+			return &copy
+		}
+	}
+	return nil
+}
+
+// GetPersonGenre returns the preferred output genre for the named person.
+// The lookup is case-insensitive against People map keys. Returns an empty
+// string when the person is not found.
+func (t *TopologyConfig) GetPersonGenre(name string) string {
+	lname := toLower(name)
+	for key, p := range t.People {
+		if toLower(key) == lname {
+			return p.Genre
+		}
+	}
+	return ""
+}
+
 // RouteQuery returns the RoutingRule whose keywords best match query (case-insensitive).
 // Returns nil when no rule matches.
 func (t *TopologyConfig) RouteQuery(query string) *RoutingRule {

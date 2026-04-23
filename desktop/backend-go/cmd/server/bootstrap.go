@@ -666,6 +666,21 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 			dbPath = filepath.Join(osRoot, ".system", "index.db")
 		}
 		h.SetOptimalHandler(nodesRoot, osRoot, enginePath, dbPath)
+
+		// Initialize the OptimalOS engine: auto-create SQLite schema + load topology.
+		if engine := h.GetOptimalEngine(); engine != nil {
+			if err := engine.Init(); err != nil {
+				slog.Warn("OptimalOS schema init failed (non-fatal)", "error", err)
+			}
+			topoPath := ""
+			if osRoot != "" {
+				topoPath = filepath.Join(osRoot, "topology.yaml")
+			}
+			if err := engine.LoadTopologyConfig(topoPath); err != nil {
+				slog.Warn("OptimalOS topology load failed (non-fatal)", "error", err)
+			}
+		}
+
 		slog.Info("OptimalOS bridge initialized",
 			"nodes_root", nodesRoot,
 			"engine_path", enginePath,

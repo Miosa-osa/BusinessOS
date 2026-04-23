@@ -96,8 +96,21 @@ var financialKeywords = []string{
 }
 
 // Route determines which node(s) a signal should be stored in, using the
-// default routing table. To override rules, use RouteWithRules.
+// default routing table. To override rules, use RouteWithRules or
+// RouteWithTopology.
 func Route(text string) RoutingResult {
+	return RouteWithRules(text, defaultRoutingRules)
+}
+
+// RouteWithTopology routes text using rules loaded from a TopologyConfig.
+// When topo is nil or contains no routes, it falls back to defaultRoutingRules
+// so callers without a configured topology.yaml work without changes.
+func RouteWithTopology(text string, topo *TopologyConfig) RoutingResult {
+	if topo != nil {
+		if rules := topo.ToInternalRules(); rules != nil {
+			return RouteWithRules(text, rules)
+		}
+	}
 	return RouteWithRules(text, defaultRoutingRules)
 }
 

@@ -9,12 +9,13 @@ import (
 // SignalClassification represents the 5-dimensional Signal Theory decomposition
 // S=(Mode, Genre, Type, Format, Structure) plus a signal-to-noise ratio score.
 type SignalClassification struct {
-	Mode      string  `json:"mode"`      // linguistic, visual, code, data, mixed
-	Genre     string  `json:"genre"`     // transcript, brief, spec, plan, note, decision-log, standup, review, report, pitch
-	Type      string  `json:"type"`      // direct, inform, commit, decide, express
-	Format    string  `json:"format"`    // markdown, code, json, yaml, unknown
-	Structure string  `json:"structure"` // genre-specific skeleton label
-	SNRatio   float64 `json:"sn_ratio"`  // 0.0–1.0 signal quality
+	Mode         string        `json:"mode"`          // linguistic, visual, code, data, mixed
+	Genre        string        `json:"genre"`         // transcript, brief, spec, plan, note, decision-log, standup, review, report, pitch
+	Type         string        `json:"type"`          // direct, inform, commit, decide, express
+	Format       string        `json:"format"`        // markdown, code, json, yaml, unknown
+	Structure    string        `json:"structure"`     // genre-specific skeleton label
+	SNRatio      float64       `json:"sn_ratio"`      // 0.0–1.0 signal quality
+	FailureModes []FailureMode `json:"failure_modes"` // detected Signal Theory quality issues
 }
 
 // ── compiled patterns (package-level to avoid repeated compilation) ───────────
@@ -85,7 +86,7 @@ func Classify(text string) SignalClassification {
 	structure := genreStructure(genre)
 	snRatio := computeSNRatio(text)
 
-	return SignalClassification{
+	cl := SignalClassification{
 		Mode:      mode,
 		Genre:     genre,
 		Type:      sigType,
@@ -93,6 +94,11 @@ func Classify(text string) SignalClassification {
 		Structure: structure,
 		SNRatio:   snRatio,
 	}
+
+	// Step 7: detect Signal Theory failure modes against the classified signal.
+	cl.FailureModes = DetectFailureModes(cl, text, nil)
+
+	return cl
 }
 
 // ── dimension detectors ───────────────────────────────────────────────────────

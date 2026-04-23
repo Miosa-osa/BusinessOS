@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -39,7 +40,15 @@ type IndexParams struct {
 // Ingest writes a new signal to the filesystem and indexes it in SQLite.
 // It runs the full pipeline: Classify → Route → generate abstracts → write file
 // → index with all 22 columns → extract entities → create edges.
+// Routing uses defaultRoutingRules. For topology-aware routing use IngestWithConfig.
 func Ingest(osRoot, nodesRoot, dbPath, text, genre string) error {
+	return IngestWithConfig(osRoot, nodesRoot, dbPath, text, genre, nil)
+}
+
+// IngestWithConfig is the topology-aware variant of Ingest. When cfg is non-nil
+// and cfg.Topology has routing rules loaded, those rules are used instead of
+// defaultRoutingRules. All other behaviour is identical to Ingest.
+func IngestWithConfig(osRoot, nodesRoot, dbPath, text, genre string, cfg *EngineConfig) error {
 	if text == "" {
 		return fmt.Errorf("optimal/ingest: text must not be empty")
 	}
@@ -50,8 +59,20 @@ func Ingest(osRoot, nodesRoot, dbPath, text, genre string) error {
 		genre = classification.Genre
 	}
 
-	// 2. ROUTE
-	routing := Route(text)
+	// S/N QUALITY GATE — reject signals below the minimum threshold.
+	// A score of 0.3 or below means the content is predominantly noise.
+	if classification.SNRatio < 0.3 {
+		slog.Warn("optimal/ingest: signal rejected — S/N ratio below threshold",
+			"sn_ratio", classification.SNRatio, "genre", genre)
+		return fmt.Errorf("optimal/ingest: signal rejected — sn_ratio %.2f < 0.3 threshold", classification.SNRatio)
+	}
+
+	// 2. ROUTE — use topology when available, fall back to default rules.
+	var topo *TopologyConfig
+	if cfg != nil {
+		topo = cfg.Topology
+	}
+	routing := RouteWithTopology(text, topo)
 	// Resolve the short numeric node ID (e.g. "09") to the full directory name
 	// (e.g. "09-new-stuff"). When nodesRoot is set we scan for the matching dir;
 	// otherwise we use the canonical fallback map so indexing still works.
@@ -158,7 +179,7 @@ func indexSignalFull(dbPath string, p IndexParams, now time.Time) error {
 	nowStr := now.UTC().Format(time.RFC3339)
 
 	_, err = db.Exec(`
-		INSERT OR IGNORE INTO contexts
+		INSERT OR REPLACE INTO contexts
 			(id, uri, type, path, title, l0_abstract, l1_overview, content,
 			 mode, genre, signal_type, format, structure, node, sn_ratio,
 			 entities, created_at, modified_at, valid_from, routed_to, metadata, indexed_at)

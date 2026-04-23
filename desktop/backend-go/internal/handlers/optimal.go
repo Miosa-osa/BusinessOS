@@ -47,6 +47,7 @@ func RegisterOptimalRoutes(api *gin.RouterGroup, h *OptimalHandler) {
 		g.GET("/rhythm/today", h.GetTodayRhythm)
 		g.POST("/search", h.Search)
 		g.POST("/ingest", h.Ingest)
+		g.POST("/compose", h.Compose)
 		g.GET("/nodes/:slug/files", h.GetNodeFileTree)
 		g.GET("/nodes/:slug/file/*filepath", h.GetNodeFile)
 		g.PUT("/nodes/:slug/file/*filepath", h.SaveNodeFile)
@@ -64,6 +65,23 @@ func RegisterOptimalRoutes(api *gin.RouterGroup, h *OptimalHandler) {
 		g.GET("/projects", h.GetProjects)
 		g.GET("/rhythm/weekly", h.GetWeeklyRhythm)
 		g.GET("/health", h.GetHealth)
+
+		// L9 Operating System endpoints
+		g.GET("/diagnose", h.Diagnose)
+		g.POST("/reweave", h.Reweave)
+		g.POST("/verify", h.VerifyL0)
+
+		// L8 Learning & Feedback endpoints
+		g.POST("/remember", h.Remember)
+		g.GET("/observations", h.GetObservations)
+		g.GET("/escalations", h.GetEscalations)
+		g.POST("/rethink", h.Rethink)
+
+		// Context Assembler — budget-aware tiered context retrieval
+		g.POST("/assemble", h.AssembleContext)
+
+		// Reindex — rebuild the full search index from the filesystem.
+		g.POST("/reindex", h.Reindex)
 	}
 }
 
@@ -179,6 +197,46 @@ func (h *OptimalHandler) Search(c *gin.Context) {
 		"results": results,
 		"count":   len(results),
 	})
+}
+
+// composeRequest is the body for POST /api/optimal/compose.
+type composeRequest struct {
+	Content  string `json:"content"  binding:"required"`
+	Receiver string `json:"receiver"` // person name from topology
+	Genre    string `json:"genre"`    // explicit genre override
+}
+
+// Compose handles POST /api/optimal/compose
+// Reformats content for a specific receiver based on their preferred genre from
+// topology. If genre is provided explicitly it takes precedence over the topology
+// lookup. When neither receiver nor genre is provided, content is returned unchanged.
+func (h *OptimalHandler) Compose(c *gin.Context) {
+	var req composeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+
+	// Explicit genre: bypass topology lookup.
+	if req.Genre != "" {
+		composed := optimal.Compose(req.Content, req.Genre)
+		c.JSON(http.StatusOK, gin.H{
+			"content":   composed,
+			"genre":     req.Genre,
+			"receiver":  req.Receiver,
+			"converted": composed != req.Content,
+		})
+		return
+	}
+
+	// Receiver-aware: resolve genre from topology.
+	var topo *optimal.TopologyConfig
+	if h.engine != nil && h.engine.Topology != nil {
+		topo = h.engine.Topology
+	}
+
+	result := optimal.ComposeForReceiver(req.Content, req.Receiver, topo)
+	c.JSON(http.StatusOK, result)
 }
 
 // ingestRequest is the request body for POST /api/optimal/ingest.
@@ -480,6 +538,251 @@ func (h *OptimalHandler) GetHealth(c *gin.Context) {
 		httpStatus = http.StatusServiceUnavailable
 	}
 	c.JSON(httpStatus, status)
+}
+
+// Diagnose handles GET /api/optimal/diagnose
+// Runs the full 10-check diagnostic suite against filesystem and SQLite index.
+func (h *OptimalHandler) Diagnose(c *gin.Context) {
+	report, err := optimal.Diagnose(h.nodesRoot, h.dbPath)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: diagnose failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "optimal diagnose", err)
+		return
+	}
+	httpStatus := http.StatusOK
+	if report.Status == "error" {
+		httpStatus = http.StatusServiceUnavailable
+	}
+	c.JSON(httpStatus, report)
+}
+
+// Reweave handles POST /api/optimal/reweave
+// Finds stale contexts related to a topic that need updating.
+func (h *OptimalHandler) Reweave(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+
+	var req struct {
+		Topic   string `json:"topic" binding:"required"`
+		MaxDays int    `json:"max_days"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+
+	results, err := optimal.Reweave(h.dbPath, req.Topic, req.MaxDays)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: reweave failed",
+			"topic", req.Topic, "error", err)
+		utils.RespondInternalError(c, slog.Default(), "optimal reweave", err)
+		return
+	}
+	if results == nil {
+		results = []optimal.StaleContext{}
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"topic":   req.Topic,
+		"results": results,
+		"count":   len(results),
+	})
+}
+
+// VerifyL0 handles POST /api/optimal/verify
+// Runs L0 fidelity cold-read test on a random sample of contexts.
+func (h *OptimalHandler) VerifyL0(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+
+	var req struct {
+		SampleSize int `json:"sample_size"`
+	}
+	// Don't require body — use defaults if not provided.
+	_ = c.ShouldBindJSON(&req)
+	if req.SampleSize <= 0 {
+		req.SampleSize = 10
+	}
+
+	result, err := optimal.Verify(h.dbPath, req.SampleSize)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: verify failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "optimal verify", err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// ── L8 learning & feedback handlers ──────────────────────────────────────────
+
+// rememberRequest is the body for POST /api/optimal/remember.
+type rememberRequest struct {
+	Content  string `json:"content"  binding:"required"`
+	Category string `json:"category"` // process, people, tool, decision, pattern, friction
+	Source   string `json:"source"`   // explicit, contextual, mining
+}
+
+// Remember handles POST /api/optimal/remember
+// Stores an observation for the learning feedback loop.
+func (h *OptimalHandler) Remember(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	var req rememberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+
+	if err := optimal.Remember(h.dbPath, req.Content, req.Category, req.Source); err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: remember failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "optimal remember", err)
+		return
+	}
+
+	// Check for escalations after storing — auto-trigger awareness.
+	escalations, _ := optimal.GetEscalations(h.dbPath)
+
+	c.JSON(http.StatusCreated, gin.H{
+		"status":      "stored",
+		"category":    req.Category,
+		"escalations": escalations,
+	})
+}
+
+// GetObservations handles GET /api/optimal/observations?category=...
+// Returns stored observations, optionally filtered by category.
+func (h *OptimalHandler) GetObservations(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	category := c.Query("category")
+	obs, err := optimal.ListObservations(h.dbPath, category)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: list observations failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "list observations", err)
+		return
+	}
+	if obs == nil {
+		obs = []optimal.Observation{}
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"observations": obs,
+		"count":        len(obs),
+	})
+}
+
+// GetEscalations handles GET /api/optimal/escalations
+// Returns categories with 3+ observations ready for Rethink synthesis.
+func (h *OptimalHandler) GetEscalations(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	escalations, err := optimal.GetEscalations(h.dbPath)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: get escalations failed", "error", err)
+		utils.RespondInternalError(c, slog.Default(), "get escalations", err)
+		return
+	}
+	if escalations == nil {
+		escalations = make(map[string]int)
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"escalations": escalations,
+		"count":       len(escalations),
+	})
+}
+
+// rethinkRequest is the body for POST /api/optimal/rethink.
+type rethinkRequest struct {
+	Topic string `json:"topic" binding:"required"`
+}
+
+// Rethink handles POST /api/optimal/rethink
+// Synthesizes accumulated observations and search hits for a topic.
+func (h *OptimalHandler) Rethink(c *gin.Context) {
+	if !h.hasDB(c) {
+		return
+	}
+	var req rethinkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+
+	report, err := optimal.Rethink(h.dbPath, h.nodesRoot, req.Topic)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: rethink failed",
+			"topic", req.Topic, "error", err)
+		utils.RespondInternalError(c, slog.Default(), "optimal rethink", err)
+		return
+	}
+	c.JSON(http.StatusOK, report)
+}
+
+// assembleRequest is the request body for POST /api/optimal/assemble.
+type assembleRequest struct {
+	Query    string                   `json:"query" binding:"required"`
+	Receiver *optimal.ReceiverProfile `json:"receiver"`
+	Budget   int                      `json:"budget"` // total token budget override
+}
+
+// AssembleContext handles POST /api/optimal/assemble
+// Returns a budget-aware, tiered context package: L0 (always-loaded), L1
+// (query-relevant), and L2 (deep detail for technical/agent receivers).
+// A full retrieval trace is included so callers can inspect why each source
+// was selected.
+func (h *OptimalHandler) AssembleContext(c *gin.Context) {
+	var req assembleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.RespondInvalidRequest(c, slog.Default(), err)
+		return
+	}
+
+	receiver := req.Receiver
+	if receiver == nil {
+		receiver = &optimal.ReceiverProfile{
+			Role:        "agent",
+			TokenBudget: 150000,
+		}
+	}
+	if req.Budget > 0 {
+		receiver.TokenBudget = req.Budget
+	}
+
+	result, err := h.engine.AssembleContext(c.Request.Context(), req.Query, receiver)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: assemble context failed",
+			"query", req.Query, "error", err)
+		utils.RespondInternalError(c, slog.Default(), "assemble context", err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// Reindex handles POST /api/optimal/reindex
+// Rebuilds the entire SQLite search index by walking the nodes/ directory tree
+// and upserting every .md file. Files with S/N < 0.3 are rejected. Every
+// mutation is written to the decision_log table.
+// Returns 200 with a ReindexResult JSON body. Errors in individual files are
+// collected into the result rather than aborting the entire run.
+func (h *OptimalHandler) Reindex(c *gin.Context) {
+	if h.nodesRoot == "" {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "nodesRoot not configured (OPTIMAL_OS_ROOT not set)",
+		})
+		return
+	}
+
+	result, err := optimal.Reindex(h.nodesRoot, h.dbPath)
+	if err != nil {
+		slog.ErrorContext(c.Request.Context(), "optimal: reindex failed",
+			"nodes_root", h.nodesRoot, "error", err)
+		utils.RespondInternalError(c, slog.Default(), "optimal reindex", err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

@@ -560,6 +560,255 @@ function createOptimalStore() {
       }
     },
 
+    /** Save file content — PUT /api/optimal/nodes/:slug/file/*filepath */
+    async saveFile(
+      slug: string,
+      filePath: string,
+      content: string,
+    ): Promise<boolean> {
+      if (!browser) return false;
+
+      try {
+        let cleanPath = filePath;
+        if (cleanPath.startsWith(slug + "/")) {
+          cleanPath = cleanPath.slice(slug.length + 1);
+        }
+        const encoded = cleanPath
+          .split("/")
+          .map((seg) => encodeURIComponent(seg))
+          .join("/");
+
+        const res = await fetch(
+          `${getApiBaseUrl()}/optimal/nodes/${encodeURIComponent(slug)}/file/${encoded}`,
+          {
+            method: "PUT",
+            headers: buildHeaders(true),
+            credentials: "include",
+            signal: AbortSignal.timeout(15000),
+            body: JSON.stringify({ content }),
+          },
+        );
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return true;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to save file";
+        update((s) => ({ ...s, error: message }));
+        return false;
+      }
+    },
+
+    /** Create a new file — POST /api/optimal/nodes/:slug/file */
+    async createFile(
+      slug: string,
+      path: string,
+      content: string,
+    ): Promise<boolean> {
+      if (!browser) return false;
+
+      try {
+        const res = await fetch(
+          `${getApiBaseUrl()}/optimal/nodes/${encodeURIComponent(slug)}/file`,
+          {
+            method: "POST",
+            headers: buildHeaders(true),
+            credentials: "include",
+            signal: AbortSignal.timeout(15000),
+            body: JSON.stringify({ path, content }),
+          },
+        );
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return true;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to create file";
+        update((s) => ({ ...s, error: message }));
+        return false;
+      }
+    },
+
+    /** Load system diagnostic data — GET /api/optimal/diagnose */
+    async loadDiagnose(): Promise<any> {
+      if (!browser) return null;
+
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/optimal/diagnose`, {
+          method: "GET",
+          headers: buildHeaders(),
+          credentials: "include",
+          signal: AbortSignal.timeout(10000),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load diagnose";
+        update((s) => ({ ...s, error: message }));
+        return null;
+      }
+    },
+
+    /** Persist a memory signal — POST /api/optimal/remember */
+    async remember(
+      content: string,
+      category?: string,
+      source?: string,
+    ): Promise<any> {
+      if (!browser) return null;
+
+      try {
+        const body: Record<string, string> = { content };
+        if (category) body.category = category;
+        if (source) body.source = source;
+
+        const res = await fetch(`${getApiBaseUrl()}/optimal/remember`, {
+          method: "POST",
+          headers: buildHeaders(true),
+          credentials: "include",
+          signal: AbortSignal.timeout(15000),
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to remember";
+        update((s) => ({ ...s, error: message }));
+        return null;
+      }
+    },
+
+    /** Trigger a rethink on a topic — POST /api/optimal/rethink */
+    async rethink(topic: string): Promise<any> {
+      if (!browser) return null;
+
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/optimal/rethink`, {
+          method: "POST",
+          headers: buildHeaders(true),
+          credentials: "include",
+          signal: AbortSignal.timeout(30000),
+          body: JSON.stringify({ topic }),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to rethink";
+        update((s) => ({ ...s, error: message }));
+        return null;
+      }
+    },
+
+    /** Load escalations — GET /api/optimal/escalations */
+    async loadEscalations(): Promise<any> {
+      if (!browser) return null;
+
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/optimal/escalations`, {
+          method: "GET",
+          headers: buildHeaders(),
+          credentials: "include",
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load escalations";
+        update((s) => ({ ...s, error: message }));
+        return null;
+      }
+    },
+
+    /** Reweave context for a topic — POST /api/optimal/reweave */
+    async reweave(topic: string, maxDays?: number): Promise<any> {
+      if (!browser) return null;
+
+      try {
+        const body: Record<string, string | number> = { topic };
+        if (maxDays !== undefined) body.max_days = maxDays;
+
+        const res = await fetch(`${getApiBaseUrl()}/optimal/reweave`, {
+          method: "POST",
+          headers: buildHeaders(true),
+          credentials: "include",
+          signal: AbortSignal.timeout(30000),
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to reweave";
+        update((s) => ({ ...s, error: message }));
+        return null;
+      }
+    },
+
+    /** Verify L0 integrity — POST /api/optimal/verify */
+    async verifyL0(sampleSize?: number): Promise<any> {
+      if (!browser) return null;
+
+      try {
+        const body: Record<string, number> = {};
+        if (sampleSize !== undefined) body.sample_size = sampleSize;
+
+        const res = await fetch(`${getApiBaseUrl()}/optimal/verify`, {
+          method: "POST",
+          headers: buildHeaders(true),
+          credentials: "include",
+          signal: AbortSignal.timeout(30000),
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to verify";
+        update((s) => ({ ...s, error: message }));
+        return null;
+      }
+    },
+
+    /** Compose a signal — POST /api/optimal/compose */
+    async compose(
+      content: string,
+      receiver?: string,
+      genre?: string,
+    ): Promise<any> {
+      if (!browser) return null;
+
+      try {
+        const body: Record<string, string> = { content };
+        if (receiver) body.receiver = receiver;
+        if (genre) body.genre = genre;
+
+        const res = await fetch(`${getApiBaseUrl()}/optimal/compose`, {
+          method: "POST",
+          headers: buildHeaders(true),
+          credentials: "include",
+          signal: AbortSignal.timeout(15000),
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to compose";
+        update((s) => ({ ...s, error: message }));
+        return null;
+      }
+    },
+
     /** Clear the currently selected file */
     clearSelectedFile(): void {
       update((s) => ({ ...s, selectedFile: null }));
