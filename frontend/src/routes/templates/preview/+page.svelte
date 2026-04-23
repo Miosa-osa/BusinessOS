@@ -517,9 +517,9 @@
 					<AppRenderer
 						config={appConfig}
 						data={sampleData}
-						onrecordclick={(record) => { if (import.meta.env.DEV) console.log('Clicked:', record); }}
-						onrecordcreate={() => { if (import.meta.env.DEV) console.log('Create new record'); }}
-						onrecordedit={(id, field, value) => { if (import.meta.env.DEV) console.log('Edit:', id, field, value); }}
+						onrecordclick={(_record) => {}}
+						onrecordcreate={() => {}}
+						onrecordedit={(_id, _field, _value) => {}}
 					/>
 				</div>
 			</section>

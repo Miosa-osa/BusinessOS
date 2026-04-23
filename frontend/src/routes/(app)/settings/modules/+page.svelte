@@ -381,7 +381,6 @@
 			const message = err instanceof Error ? err.message : String(err);
 			const is404 = message.includes('404') || message.includes('Not Found');
 			if (is404) {
-				console.warn('[Modules] API not implemented yet, showing empty state');
 				installedModules = [];
 			} else {
 				console.error('[Modules] Failed to load installations:', err);

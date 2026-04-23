@@ -61,7 +61,6 @@
 
     // Check if using mock data (mock workspace IDs start with 'mock-')
     if ($currentWorkspace.id.startsWith('mock-')) {
-      if (import.meta.env.DEV) console.log('[Workspace Settings] Using mock workspace data');
       isMockData = true;
       
       // Use data from stores instead of API

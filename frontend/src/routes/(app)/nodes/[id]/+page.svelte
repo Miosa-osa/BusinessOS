@@ -25,6 +25,11 @@
 	let selectedFile = $state<SelectedFile | null>(null);
 	let fileContentLoading = $state(false);
 
+	// ── File editing state ─────────────────────────────────────────────────────
+	let editMode = $state(false);
+	let editContent = $state('');
+	let saving = $state(false);
+
 	// ── Frontmatter metadata ───────────────────────────────────────────────────
 	interface FrontmatterMeta {
 		type?: string;
@@ -77,6 +82,8 @@
 	async function loadFileContent(slug: string, filePath: string) {
 		fileContentLoading = true;
 		selectedFile = null;
+		editMode = false;
+		editContent = '';
 		try {
 			const res = await fetch(
 				`${getApiBaseUrl()}/optimal/nodes/${encodeURIComponent(slug)}/file/${filePath}`,
@@ -113,6 +120,25 @@
 		} else if (node) {
 			loadFileContent(node.slug, entry.path);
 		}
+	}
+
+	// ── File editing ───────────────────────────────────────────────────────────
+	function enterEditMode() {
+		if (!selectedFile) return;
+		editContent = selectedFile.content;
+		editMode = true;
+	}
+
+	async function handleSave() {
+		if (!selectedFile || !node) return;
+		saving = true;
+		const success = await optimalStore.saveFile(node.slug, selectedFile.path, editContent);
+		if (success) {
+			editMode = false;
+			// Reload the file to confirm saved content
+			await loadFileContent(node.slug, selectedFile.path);
+		}
+		saving = false;
 	}
 
 	// ── Signal expand ──────────────────────────────────────────────────────────
@@ -500,17 +526,54 @@
 							{:else if selectedFile}
 								<div class="nd-file-panel-header">
 									<span class="nd-file-path">{selectedFile.path}</span>
-									<button
-										class="nd-close-btn"
-										onclick={() => { selectedFile = null; }}
-										aria-label="Close file"
-									>
-										<svg class="nd-icon nd-icon--sm" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-											<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-										</svg>
-									</button>
+									<div class="nd-file-panel-actions">
+										{#if !editMode}
+											<button
+												class="nd-edit-btn"
+												onclick={enterEditMode}
+												aria-label="Edit file"
+											>
+												<svg class="nd-icon nd-icon--sm" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+													<path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/>
+												</svg>
+												Edit
+											</button>
+										{/if}
+										<button
+											class="nd-close-btn"
+											onclick={() => { selectedFile = null; editMode = false; editContent = ''; }}
+											aria-label="Close file"
+										>
+											<svg class="nd-icon nd-icon--sm" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+											</svg>
+										</button>
+									</div>
 								</div>
-								<pre class="nd-file-content">{selectedFile.content}</pre>
+								{#if editMode}
+									<div class="nd-edit-actions">
+										<button
+											class="nd-save-btn"
+											disabled={saving}
+											onclick={handleSave}
+										>
+											{saving ? 'Saving...' : 'Save'}
+										</button>
+										<button
+											class="nd-cancel-btn"
+											onclick={() => { editMode = false; }}
+										>
+											Cancel
+										</button>
+									</div>
+									<textarea
+										class="nd-file-editor"
+										bind:value={editContent}
+										aria-label="File content editor"
+									></textarea>
+								{:else}
+									<pre class="nd-file-content">{selectedFile.content}</pre>
+								{/if}
 							{/if}
 						</div>
 					{/if}
@@ -884,6 +947,71 @@
 		transition: color 0.12s;
 	}
 	.nd-close-btn:hover { color: rgba(255,255,255,0.7); }
+	.nd-file-panel-actions {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.nd-edit-btn {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		background: rgba(59,130,246,0.12);
+		color: #60a5fa;
+		border: 1px solid rgba(59,130,246,0.2);
+		border-radius: 5px;
+		padding: 3px 10px;
+		font-size: 12px;
+		cursor: pointer;
+		transition: background 0.12s, color 0.12s;
+	}
+	.nd-edit-btn:hover { background: rgba(59,130,246,0.22); color: #93c5fd; }
+	.nd-edit-actions {
+		display: flex;
+		gap: 8px;
+		padding: 8px 16px;
+		border-bottom: 1px solid rgba(255,255,255,0.06);
+		flex-shrink: 0;
+	}
+	.nd-save-btn {
+		background: #2563eb;
+		color: #fff;
+		border: none;
+		border-radius: 5px;
+		padding: 5px 14px;
+		font-size: 12px;
+		cursor: pointer;
+		transition: background 0.12s;
+	}
+	.nd-save-btn:hover:not(:disabled) { background: #1d4ed8; }
+	.nd-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+	.nd-cancel-btn {
+		background: rgba(255,255,255,0.06);
+		color: rgba(255,255,255,0.6);
+		border: 1px solid rgba(255,255,255,0.1);
+		border-radius: 5px;
+		padding: 5px 14px;
+		font-size: 12px;
+		cursor: pointer;
+		transition: background 0.12s;
+	}
+	.nd-cancel-btn:hover { background: rgba(255,255,255,0.1); }
+	.nd-file-editor {
+		flex: 1;
+		width: 100%;
+		min-height: 400px;
+		padding: 16px;
+		font-size: 12px;
+		font-family: monospace;
+		color: rgba(255,255,255,0.85);
+		background: #0d0d0d;
+		border: none;
+		outline: none;
+		resize: none;
+		line-height: 1.6;
+		box-sizing: border-box;
+	}
+	.nd-file-editor:focus { box-shadow: inset 0 0 0 1px rgba(59,130,246,0.4); }
 	.nd-file-content {
 		flex: 1;
 		overflow: auto;

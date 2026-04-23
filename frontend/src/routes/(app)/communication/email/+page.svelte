@@ -91,7 +91,7 @@
 			} else {
 				error = 'Failed to load emails';
 			}
-			console.error(e);
+			console.error('Failed to load emails:', e);
 		} finally {
 			isLoading = false;
 		}
@@ -149,7 +149,7 @@
 			}
 		} catch (e) {
 			error = 'Failed to request Gmail access';
-			console.error(e);
+			console.error('Failed to request Gmail access:', e);
 		}
 	}
 

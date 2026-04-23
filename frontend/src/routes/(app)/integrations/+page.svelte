@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { fade, slide } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 	import { useSession, clearSession } from '$lib/auth-client';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import * as integrationsApi from '$lib/api/integrations';
 	import type {
@@ -13,13 +12,16 @@
 		PendingDecision,
 		IntegrationCategory
 	} from '$lib/api/integrations';
+	import IntegrationDetailModal from '$lib/components/integrations/IntegrationDetailModal.svelte';
+	import AIModelsConfig from '$lib/components/integrations/AIModelsConfig.svelte';
+	import ConnectedIntegrations from '$lib/components/integrations/ConnectedIntegrations.svelte';
+	import AvailableIntegrations from '$lib/components/integrations/AvailableIntegrations.svelte';
 
 	const session = useSession();
 
 	// State
 	let isLoading = $state(true);
 	let activeTab = $state<'connected' | 'available' | 'ai' | 'decisions'>('available');
-	let hoveredId = $state<string | null>(null);
 	let connectingId = $state<string | null>(null);
 	let selectedProvider = $state<IntegrationProviderInfo | null>(null);
 	let showDetailModal = $state(false);
@@ -114,53 +116,34 @@
 		return result;
 	});
 
-	// Check if provider is connected
-	function isProviderConnected(providerId: string) {
-		return connectedIntegrations.some(
-			(i) => i.provider_id === providerId && i.status === 'connected'
-		);
-	}
-
-	// Get connected integration for a provider
-	function getConnectedIntegration(providerId: string) {
-		return connectedIntegrations.find((i) => i.provider_id === providerId);
-	}
-
 	// Reactive auth check - updates when session changes
 	$effect(() => {
 		const sessionData = $session;
-		// Only update if session is no longer pending
 		if (!sessionData?.isPending) {
 			isAuthenticated = !!sessionData?.data?.user;
 		}
 	});
 
 	onMount(async () => {
-		// Handle OAuth callback: if this page was opened in a popup after OAuth redirect
 		if (browser) {
 			const urlParams = new URLSearchParams(window.location.search);
 			const connectedProvider = urlParams.get('connected');
 			if (connectedProvider && window.opener) {
-				// We're in the OAuth popup — notify parent and close
 				window.opener.postMessage({ type: 'integration-connected', provider: connectedProvider }, window.location.origin);
 				window.close();
 				return;
 			}
 			if (connectedProvider) {
-				// Direct navigation with ?connected= (popup blocked or manual redirect)
 				activeTab = 'connected';
-				// Clean up the URL
 				const url = new URL(window.location.href);
 				url.searchParams.delete('connected');
 				window.history.replaceState({}, '', url.toString());
 			}
 		}
 
-		// Listen for OAuth popup completion messages
 		function handleOAuthMessage(event: MessageEvent) {
 			if (event.origin !== window.location.origin) return;
 			if (event.data?.type === 'integration-connected') {
-				// Popup completed OAuth — refresh data
 				loadData();
 				activeTab = 'connected';
 			}
@@ -168,21 +151,17 @@
 		window.addEventListener('message', handleOAuthMessage);
 		oauthMessageCleanup = () => window.removeEventListener('message', handleOAuthMessage);
 
-		// Always load providers immediately (public endpoint)
 		loadProviders();
 
-		// Wait for session to resolve (give it up to 2 seconds)
 		let attempts = 0;
 		while ($session?.isPending && attempts < 20) {
 			await new Promise((r) => setTimeout(r, 100));
 			attempts++;
 		}
 
-		// Session resolved - check auth and load data
 		const sessionData = $session;
 		isAuthenticated = !sessionData?.isPending && !!sessionData?.data?.user;
 
-		// Only load authenticated data if user is logged in AND we haven't already
 		if (isAuthenticated && !authDataLoaded && !authDataLoading) {
 			await loadAuthenticatedData();
 		}
@@ -199,7 +178,6 @@
 	}
 
 	async function loadAuthenticatedData() {
-		// Guard against duplicate calls
 		if (authDataLoading || authDataLoaded) {
 			return;
 		}
@@ -207,19 +185,16 @@
 
 		let authFailed = false;
 
-		// Fetch connected integrations
 		try {
 			const connected = await integrationsApi.getConnectedIntegrations();
 			connectedIntegrations = connected.integrations || [];
 		} catch (e: unknown) {
 			connectedIntegrations = [];
-			// Check if this is a 401 error (session expired/invalid)
 			if (e instanceof Error && e.message.includes('401')) {
 				authFailed = true;
 			}
 		}
 
-		// If first call got 401, clear session and don't make more authenticated calls
 		if (authFailed) {
 			clearSession();
 			isAuthenticated = false;
@@ -228,7 +203,6 @@
 			return;
 		}
 
-		// Fetch AI preferences
 		try {
 			const prefs = await integrationsApi.getAIModelPreferences();
 			aiPreferences = prefs.preferences;
@@ -236,7 +210,6 @@
 			aiPreferences = null;
 		}
 
-		// Fetch pending decisions
 		try {
 			const decisions = await integrationsApi.getPendingDecisions();
 			pendingDecisions = decisions.decisions || [];
@@ -253,7 +226,6 @@
 
 	async function loadData() {
 		isLoading = true;
-		// Reset guard to allow fresh load
 		authDataLoaded = false;
 		await loadProviders();
 		if (isAuthenticated && !authDataLoading) {
@@ -309,7 +281,6 @@
 			return;
 		}
 
-		// Check if this is a file import provider (AI assistants)
 		if (fileImportProviders.includes(provider.id)) {
 			fileImportProvider = provider;
 			fileImportFile = null;
@@ -319,15 +290,11 @@
 			return;
 		}
 
-		// Use oauth_provider if available (maps provider to OAuth endpoint, e.g., google_calendar -> google)
-		// Fall back to provider.id if not mapped
 		const oauthProvider = provider.oauth_provider || provider.id;
 		if (!oauthProvider) {
 			alert(`OAuth not configured for ${provider.name}. Please try again later.`);
 			return;
 		}
-
-		if (import.meta.env.DEV) console.log(`[handleConnect] Provider: ${provider.id}, OAuth Provider: ${oauthProvider}`);
 
 		connectingId = provider.id;
 
@@ -396,16 +363,6 @@
 		fileImportSuccess = null;
 	}
 
-	function getStatusBadgeClass(status: string) {
-		switch (status) {
-			case 'connected': return 'ih-badge--connected';
-			case 'available': return 'ih-badge--available';
-			case 'coming_soon': return 'ih-badge--coming-soon';
-			case 'error': return 'ih-badge--error';
-			default: return 'ih-badge--default';
-		}
-	}
-
 	function getPriorityBadgeClass(priority: string) {
 		switch (priority) {
 			case 'urgent': return 'ih-priority--urgent';
@@ -414,6 +371,18 @@
 			default: return 'ih-priority--default';
 		}
 	}
+
+	// Derived connected integration lookup for modal
+	let selectedProviderConnected = $derived(
+		selectedProvider
+			? connectedIntegrations.find((i) => i.provider_id === selectedProvider!.id)
+			: undefined
+	);
+	let selectedProviderIsConnected = $derived(
+		selectedProvider
+			? connectedIntegrations.some((i) => i.provider_id === selectedProvider!.id && i.status === 'connected')
+			: false
+	);
 </script>
 
 <svelte:head>
@@ -486,321 +455,36 @@
 				<div class="ih-spinner"></div>
 			</div>
 		{:else if activeTab === 'connected'}
-			<!-- Connected Integrations -->
-			{#if connectedIntegrations.length === 0}
-				<div class="ih-empty">
-					<svg
-						class="ih-empty__icon"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-						/>
-					</svg>
-					<h3 class="ih-empty__title">No integrations connected</h3>
-					<p class="ih-empty__text">Connect your favorite tools to get started.</p>
-					<button
-						onclick={() => (activeTab = 'available')}
-						class="btn-pill btn-pill-primary btn-pill-sm mt-4"
-					>
-						Browse Available Integrations
-					</button>
-				</div>
-			{:else}
-				<div class="ih-grid">
-					{#each connectedIntegrations as integration}
-						<div class="ih-card">
-							<div class="ih-card__header">
-								<div class="ih-card__icon-wrap">
-									{#if integration.icon_url}
-										<img
-											src={integration.icon_url}
-											alt={integration.provider_name}
-											class="w-6 h-6"
-										/>
-									{:else}
-										<span class="ih-card__icon-letter">
-											{integration.provider_name.charAt(0)}
-										</span>
-									{/if}
-								</div>
-								<div class="ih-card__info">
-									<div class="ih-card__name-row">
-										<h3 class="ih-card__name">{integration.provider_name}</h3>
-										<span class="ih-badge {getStatusBadgeClass(integration.status)}">
-											{integration.status}
-										</span>
-									</div>
-									<p class="ih-card__meta">
-										{integration.external_account_name ||
-											integration.external_workspace_name ||
-											'Connected'}
-									</p>
-									{#if integration.last_used_at}
-										<p class="ih-card__sub-meta">
-											Last used {new Date(integration.last_used_at).toLocaleDateString()}
-										</p>
-									{/if}
-								</div>
-							</div>
-							<div class="ih-card__actions">
-								<button
-									onclick={() => handleSyncCard(integration.id)}
-									disabled={syncingId === integration.id}
-									class="ih-card__sync-btn"
-									title="Sync now"
-								>
-									{#if syncingId === integration.id}
-										<svg class="w-4 h-4 ih-spinner--inline" viewBox="0 0 24 24">
-											<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" />
-											<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-										</svg>
-									{:else}
-										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-										</svg>
-									{/if}
-								</button>
-								<a
-									href="/integrations/{integration.id}"
-									class="ih-card__settings-link"
-									title="Configure"
-								>
-									<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-									</svg>
-								</a>
-								<button
-									onclick={() => handleDisconnect(integration.id)}
-									class="btn-pill btn-pill-danger btn-pill-sm ih-card__actions-btn"
-								>
-									Disconnect
-								</button>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
+			<ConnectedIntegrations
+				integrations={connectedIntegrations}
+				{syncingId}
+				onsync={handleSyncCard}
+				ondisconnect={handleDisconnect}
+				onbrowse={() => (activeTab = 'available')}
+			/>
 		{:else if activeTab === 'available'}
-			<!-- Header Text -->
-			<div class="ih-section-intro">
-				<h2 class="ih-section-intro__title">
-					Let's bring all your data into a single place.
-				</h2>
-				<p class="ih-section-intro__text">
-					When you connect your apps, we will process raw data and extract essential information and turn it into nodes.
-				</p>
-			</div>
-
-			<!-- Category Filter -->
-			<div class="ih-category-filter">
-				<div class="ih-search-wrap">
-					<svg class="w-4 h-4 ih-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-					</svg>
-					<input
-						type="text"
-						placeholder="Search integrations..."
-						bind:value={searchQuery}
-						class="ih-search-input"
-					/>
-				</div>
-				<div class="ih-cat-tabs">
-					{#each categories as category}
-						<button
-							onclick={() => (selectedCategory = category.id)}
-							class="ih-cat-tab {selectedCategory === category.id ? 'ih-cat-tab--active' : ''}"
-						>
-							{category.label}
-						</button>
-					{/each}
-				</div>
-			</div>
-
-			<!-- Integrations Grid -->
-			<div class="ih-grid ih-grid--pb">
-				{#each filteredProviders as provider}
-					{@const isConnected = isProviderConnected(provider.id)}
-					{@const isConnecting = connectingId === provider.id}
-					{@const isComingSoon = provider.status === 'coming_soon'}
-					<div class="ih-provider-card {isComingSoon ? 'ih-provider-card--soon' : ''} {isConnecting ? 'ih-provider-card--connecting' : ''}">
-						<!-- Top row: icon + info + toggle -->
-						<div class="ih-provider-card__row">
-							<div class="ih-provider-card__icon">
-								{#if provider.icon_url}
-									<img
-										src={provider.icon_url}
-										alt={provider.name}
-										class="w-5 h-5 object-contain"
-										onerror={(e) => { const target = e.currentTarget as HTMLImageElement; target.style.display = 'none'; target.nextElementSibling?.classList.remove('hidden'); }}
-									/>
-									<span class="hidden ih-card__icon-letter--sm">{provider.name.charAt(0)}</span>
-								{:else}
-									<span class="ih-card__icon-letter--sm">{provider.name.charAt(0)}</span>
-								{/if}
-							</div>
-							<div class="ih-provider-card__info">
-								<span class="ih-provider-card__name">{provider.name}</span>
-								<span class="ih-provider-card__author">By {provider.name}.com</span>
-							</div>
-							{#if isConnecting}
-								<span class="ih-spinner ih-spinner--sm"></span>
-							{:else}
-								<label class="ih-toggle" aria-label="{isConnected ? 'Disconnect' : 'Connect'} {provider.name}">
-									<input
-										type="checkbox"
-										checked={isConnected}
-										onchange={() => isConnected ? handleDisconnect(getConnectedIntegration(provider.id)?.id ?? '') : handleConnect(provider)}
-										disabled={isComingSoon}
-									/>
-									<span class="ih-toggle__slider"></span>
-								</label>
-							{/if}
-						</div>
-
-						<!-- Description -->
-						<p class="ih-provider-card__desc">
-							{provider.description || `Connect your ${provider.name} account`}
-						</p>
-
-						<!-- Footer: tags + view instruction -->
-						<div class="ih-provider-card__footer">
-							<div class="ih-provider-card__tags">
-								<span class="ih-tag">{(provider.category || 'general').toUpperCase().replace('_', ' ')}</span>
-								{#if provider.initial_sync}<span class="ih-tag">{provider.initial_sync}</span>{/if}
-								{#if isComingSoon}<span class="ih-tag ih-tag--soon">SOON</span>{/if}
-							</div>
-							<button onclick={() => openProviderDetail(provider)} class="ih-view-link">View instruction</button>
-						</div>
-					</div>
-				{/each}
-			</div>
+			<AvailableIntegrations
+				providers={filteredProviders}
+				{connectedIntegrations}
+				{categories}
+				{selectedCategory}
+				{searchQuery}
+				{connectingId}
+				onselect={(cat) => (selectedCategory = cat)}
+				onsearch={(q) => (searchQuery = q)}
+				onconnect={handleConnect}
+				ondisconnect={handleDisconnect}
+				onviewdetail={openProviderDetail}
+			/>
 		{:else if activeTab === 'ai'}
-			<!-- AI Model Preferences -->
-			<div class="ih-section">
-				<h2 class="ih-section__title">AI Model Configuration</h2>
-				<p class="ih-section__desc">
-					Configure which AI models to use for different task tiers. The system automatically selects
-					the appropriate tier based on task complexity.
-				</p>
-
-				{#if aiPreferences}
-					<div class="ih-tier-list">
-						<!-- Tier 2 -->
-						<div class="ih-tier">
-							<h3 class="ih-tier__name">Tier 2: Fast Tasks</h3>
-							<p class="ih-tier__desc">
-								Quick, low-complexity operations like formatting and simple lookups.
-							</p>
-							<div class="ih-tier__model">
-								<span>
-									{aiPreferences.tier_2_model.provider}: {aiPreferences.tier_2_model.model_id}
-								</span>
-							</div>
-						</div>
-
-						<!-- Tier 3 -->
-						<div class="ih-tier">
-							<h3 class="ih-tier__name">Tier 3: Standard Tasks</h3>
-							<p class="ih-tier__desc">
-								Medium-complexity tasks requiring analysis and synthesis.
-							</p>
-							<div class="ih-tier__model">
-								<span>
-									{aiPreferences.tier_3_model.provider}: {aiPreferences.tier_3_model.model_id}
-								</span>
-							</div>
-						</div>
-
-						<!-- Tier 4 -->
-						<div class="ih-tier">
-							<h3 class="ih-tier__name">Tier 4: Complex Tasks</h3>
-							<p class="ih-tier__desc">
-								High-complexity tasks requiring deep reasoning and multi-step analysis.
-							</p>
-							<div class="ih-tier__model">
-								<span>
-									{aiPreferences.tier_4_model.provider}: {aiPreferences.tier_4_model.model_id}
-								</span>
-							</div>
-						</div>
-
-						<!-- Settings -->
-						<div class="ih-ai-settings">
-							<h3 class="ih-ai-settings__title">Settings</h3>
-							{#if aiPrefsMessage}
-								<div class="ih-alert ih-alert--success ih-alert--sm">
-									<p>{aiPrefsMessage}</p>
-								</div>
-							{/if}
-							{#if aiPrefsError}
-								<div class="ih-alert ih-alert--error ih-alert--sm">
-									<p>{aiPrefsError}</p>
-								</div>
-							{/if}
-							<div class="ih-ai-settings__list">
-								<label class="ih-checkbox-label">
-									<input
-										type="checkbox"
-										checked={aiPreferences.allow_model_upgrade_on_failure}
-										onchange={(e) => {
-											const target = e.currentTarget as HTMLInputElement;
-											saveAiPreferences({ allow_model_upgrade_on_failure: target.checked });
-										}}
-										disabled={savingAiPrefs}
-										class="ih-checkbox"
-									/>
-									<span>Allow automatic model upgrade on failure</span>
-								</label>
-								<label class="ih-checkbox-label">
-									<input
-										type="checkbox"
-										checked={aiPreferences.prefer_local}
-										onchange={(e) => {
-											const target = e.currentTarget as HTMLInputElement;
-											saveAiPreferences({ prefer_local: target.checked });
-										}}
-										disabled={savingAiPrefs}
-										class="ih-checkbox"
-									/>
-									<span>Prefer local models when available</span>
-								</label>
-								<div class="ih-latency-row">
-									<span>Max latency:</span>
-									<input
-										type="number"
-										value={aiPreferences.max_latency_ms}
-										onchange={(e) => {
-											const target = e.currentTarget as HTMLInputElement;
-											const val = parseInt(target.value, 10);
-											if (!isNaN(val) && val > 0) {
-												saveAiPreferences({ max_latency_ms: val });
-											}
-										}}
-										disabled={savingAiPrefs}
-										class="ih-latency-input"
-										min="100"
-										step="100"
-									/>
-									<span class="ih-latency-unit">ms</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				{:else}
-					<p class="ih-empty__text">
-						AI preferences not configured. Default settings will be used.
-					</p>
-				{/if}
-			</div>
+			<AIModelsConfig
+				{aiPreferences}
+				{savingAiPrefs}
+				{aiPrefsMessage}
+				{aiPrefsError}
+				onsave={saveAiPreferences}
+			/>
 		{:else if activeTab === 'decisions'}
-			<!-- Pending Decisions -->
 			{#if decisionsError}
 				<div class="ih-alert ih-alert--error ih-alert--banner">
 					<p>{decisionsError}</p>
@@ -871,207 +555,15 @@
 
 <!-- Integration Detail Modal -->
 {#if showDetailModal && selectedProvider}
-	<div
-		class="ih-modal-backdrop"
-		onclick={closeDetailModal}
-		transition:fade={{ duration: 200 }}
-	>
-		<div
-			class="ih-modal"
-			onclick={(e) => e.stopPropagation()}
-			transition:slide={{ duration: 200 }}
-		>
-			<!-- Header -->
-			<div class="ih-modal__header">
-				<div class="ih-modal__header-inner">
-					<div class="ih-modal__provider">
-						<div class="ih-modal__provider-icon">
-							{#if selectedProvider.icon_url}
-								<img src={selectedProvider.icon_url} alt={selectedProvider.name} class="ih-modal__provider-img" />
-							{:else}
-								<span class="ih-modal__provider-letter">{selectedProvider.name.charAt(0)}</span>
-							{/if}
-						</div>
-						<div>
-							<h2 class="ih-modal__title">{selectedProvider.name}</h2>
-							<span class="ih-modal__category-badge">
-								{selectedProvider.category}
-							</span>
-						</div>
-					</div>
-					<button
-						onclick={closeDetailModal}
-						class="btn-pill btn-pill-ghost btn-pill-icon"
-					>
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-						</svg>
-					</button>
-				</div>
-			</div>
-
-			<!-- Body -->
-			<div class="ih-modal__body">
-				<!-- Description -->
-				<p class="ih-modal__desc">
-					{selectedProvider.description || `Connect your ${selectedProvider.name} account to sync data and enable powerful automations.`}
-				</p>
-
-				<!-- Category Features -->
-				{#if categoryInfo[selectedProvider.category]}
-					<div class="ih-modal__section">
-						<h3 class="ih-modal__section-title">What you can do</h3>
-						<ul class="ih-feature-list">
-							{#each categoryInfo[selectedProvider.category].features as feature}
-								<li class="ih-feature-item">
-									<svg class="w-4 h-4 ih-feature-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-									</svg>
-									{feature}
-								</li>
-							{/each}
-						</ul>
-					</div>
-				{/if}
-
-				<!-- Sync Info -->
-				<div class="ih-sync-panel">
-					<h3 class="ih-modal__section-title">Sync details</h3>
-					<div class="ih-sync-grid">
-						{#if selectedProvider.auto_live_sync}
-							<div class="ih-sync-item">
-								<div class="ih-sync-icon ih-sync-icon--green">
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-									</svg>
-								</div>
-								<div>
-									<div class="ih-sync-label">Sync type</div>
-									<div class="ih-sync-value">Live sync</div>
-								</div>
-							</div>
-						{:else}
-							<div class="ih-sync-item">
-								<div class="ih-sync-icon ih-sync-icon--blue">
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-									</svg>
-								</div>
-								<div>
-									<div class="ih-sync-label">Sync type</div>
-									<div class="ih-sync-value">Manual/Scheduled</div>
-								</div>
-							</div>
-						{/if}
-
-						{#if selectedProvider.est_nodes}
-							<div class="ih-sync-item">
-								<div class="ih-sync-icon ih-sync-icon--purple">
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-									</svg>
-								</div>
-								<div>
-									<div class="ih-sync-label">Est. nodes</div>
-									<div class="ih-sync-value">{selectedProvider.est_nodes}</div>
-								</div>
-							</div>
-						{/if}
-
-						{#if selectedProvider.initial_sync}
-							<div class="ih-sync-item">
-								<div class="ih-sync-icon ih-sync-icon--amber">
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-									</svg>
-								</div>
-								<div>
-									<div class="ih-sync-label">Initial sync</div>
-									<div class="ih-sync-value">{selectedProvider.initial_sync}</div>
-								</div>
-							</div>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Skills -->
-				{#if selectedProvider.skills && selectedProvider.skills.length > 0}
-					<div class="ih-modal__section">
-						<h3 class="ih-modal__section-title">Available skills</h3>
-						<div class="ih-tag-list">
-							{#each selectedProvider.skills as skill}
-								<span class="ih-skill-tag">{skill}</span>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
-				<!-- Modules -->
-				{#if selectedProvider.modules && selectedProvider.modules.length > 0}
-					<div class="ih-modal__section">
-						<h3 class="ih-modal__section-title">Works with</h3>
-						<div class="ih-tag-list">
-							{#each selectedProvider.modules as module}
-								<span class="ih-module-tag">
-									<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
-									</svg>
-									{module.replace('_', ' ')}
-								</span>
-							{/each}
-						</div>
-					</div>
-				{/if}
-			</div>
-
-			<!-- Footer -->
-			<div class="ih-modal__footer">
-				{#if isProviderConnected(selectedProvider.id)}
-					<div class="ih-modal__connected-row">
-						<div class="ih-modal__connected-status">
-							<span class="ih-status-dot--green"></span>
-							<span class="ih-modal__connected-label">Connected</span>
-							{#if getConnectedIntegration(selectedProvider.id)?.external_account_name}
-								<span class="ih-modal__connected-account">as {getConnectedIntegration(selectedProvider.id)?.external_account_name}</span>
-							{/if}
-						</div>
-						<div class="ih-modal__connected-actions">
-							{#if selectedProvider.auto_live_sync}
-								<label class="ih-toggle-label">
-									<span class="ih-toggle-text">Auto-sync</span>
-									<div class="ih-toggle">
-										<input type="checkbox" class="sr-only peer" checked />
-										<div class="ih-toggle__track"></div>
-										<div class="ih-toggle__thumb"></div>
-									</div>
-								</label>
-							{/if}
-							<a
-								href="/integrations/{getConnectedIntegration(selectedProvider.id)?.id}"
-								class="btn-pill btn-pill-ghost btn-pill-sm"
-							>
-								Settings
-							</a>
-						</div>
-					</div>
-				{:else if selectedProvider.status === 'coming_soon'}
-					<button
-						disabled
-						class="btn-pill btn-pill-soft btn-pill-sm ih-modal__full-btn"
-					>
-						Coming Soon
-					</button>
-				{:else}
-					<button
-						onclick={() => { if (selectedProvider) { closeDetailModal(); handleConnect(selectedProvider); } }}
-						class="btn-pill btn-pill-primary ih-modal__full-btn"
-					>
-						{selectedProvider && fileImportProviders.includes(selectedProvider.id) ? 'Import Data' : 'Connect'}
-					</button>
-				{/if}
-			</div>
-		</div>
-	</div>
+	<IntegrationDetailModal
+		provider={selectedProvider}
+		connectedIntegration={selectedProviderConnected}
+		isConnected={selectedProviderIsConnected}
+		{fileImportProviders}
+		{categoryInfo}
+		onclose={closeDetailModal}
+		onconnect={handleConnect}
+	/>
 {/if}
 
 <!-- File Import Modal -->
@@ -1093,8 +585,8 @@
 			<div class="ih-modal__header">
 				<div class="ih-modal__header-inner">
 					<div class="ih-modal__provider">
-						{#if fileImportProvider.logo_url}
-							<img src={fileImportProvider.logo_url} alt="" class="ih-import-icon" />
+						{#if fileImportProvider.icon_url}
+							<img src={fileImportProvider.icon_url} alt="" class="ih-import-icon" />
 						{/if}
 						<div>
 							<h3 class="ih-modal__title ih-modal__title--sm">Import from {fileImportProvider.name}</h3>
@@ -1145,7 +637,6 @@
 					{/if}
 				</label>
 
-				<!-- Error / Success Messages -->
 				{#if fileImportError}
 					<div class="ih-alert ih-alert--error">
 						<p>{fileImportError}</p>
@@ -1310,15 +801,6 @@
 		border-radius: 50%;
 		animation: ih-spin 0.7s linear infinite;
 	}
-	.ih-spinner--sm {
-		width: 1rem;
-		height: 1rem;
-		border-width: 2px;
-		border-color: var(--dbd);
-		border-top-color: #3b82f6;
-		border-radius: 50%;
-		animation: ih-spin 0.7s linear infinite;
-	}
 	.ih-spinner--inline {
 		animation: ih-spin 0.7s linear infinite;
 	}
@@ -1326,7 +808,7 @@
 		to { transform: rotate(360deg); }
 	}
 
-	/* Empty States */
+	/* Empty States (decisions tab) */
 	.ih-empty {
 		text-align: center;
 		padding: 3rem 0;
@@ -1348,35 +830,12 @@
 		color: var(--dt3);
 	}
 
-	/* Card Grid */
-	.ih-grid {
-		display: grid;
-		grid-template-columns: repeat(1, 1fr);
-		gap: 0.75rem;
+	/* Decisions Tab */
+	.ih-decision-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
 	}
-	@media (min-width: 768px) {
-		.ih-grid { grid-template-columns: repeat(2, 1fr); }
-	}
-	@media (min-width: 1024px) {
-		.ih-grid { grid-template-columns: repeat(4, 1fr); }
-	}
-	@media (min-width: 1440px) {
-		.ih-grid { grid-template-columns: repeat(5, 1fr); }
-	}
-	.ih-grid--pb {
-		display: grid;
-		grid-template-columns: repeat(1, 1fr);
-		gap: 0.625rem;
-		padding-bottom: 2rem;
-	}
-	@media (min-width: 768px) {
-		.ih-grid--pb { grid-template-columns: repeat(2, 1fr); }
-	}
-	@media (min-width: 1024px) {
-		.ih-grid--pb { grid-template-columns: repeat(3, 1fr); }
-	}
-
-	/* Connected Cards */
 	.ih-card {
 		background: var(--dbg2);
 		border: 1px solid var(--dbd);
@@ -1387,510 +846,12 @@
 	.ih-card:hover {
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 	}
-	.ih-card__header {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-	}
-	.ih-card__icon-wrap {
-		width: 2rem;
-		height: 2rem;
-		border-radius: 0.5rem;
-		background: var(--dbg3);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		overflow: hidden;
-		flex-shrink: 0;
-	}
-	.ih-card__icon-wrap img {
-		width: 1.25rem;
-		height: 1.25rem;
-		object-fit: contain;
-	}
-	.ih-card__icon-letter {
-		font-size: 0.875rem;
-		font-weight: 700;
-		color: var(--dt3);
-	}
-	.ih-card__icon-letter--sm {
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: var(--dt3);
-	}
-	.ih-card__info {
-		margin-left: 0.75rem;
-		flex: 1;
-		min-width: 0;
-	}
-	.ih-card__name-row {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
 	.ih-card__name {
 		font-weight: 500;
 		color: var(--dt);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-	}
-	.ih-card__meta {
-		font-size: 0.75rem;
-		color: var(--dt4);
-		margin-top: 0.25rem;
-	}
-	.ih-card__actions {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		margin-left: 0.5rem;
-	}
-	.ih-card__actions-btn {
-		padding: 0.375rem;
-		border-radius: 0.375rem;
-		color: var(--dt4);
-		background: none;
-		border: none;
-		cursor: pointer;
-		transition: color 0.15s, background 0.15s;
-	}
-	.ih-card__actions-btn:hover {
-		color: var(--dt2);
-		background: var(--dbg3);
-	}
-	.ih-card__settings-link {
-		font-size: 0.75rem;
-		color: #3b82f6;
-		text-decoration: none;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		margin-top: 0.5rem;
-	}
-	.ih-card__settings-link:hover {
-		text-decoration: underline;
-	}
-
-	/* Badges */
-	.ih-badge {
-		display: inline-flex;
-		padding: 0.125rem 0.5rem;
-		border-radius: 9999px;
-		font-size: 0.75rem;
-		font-weight: 500;
-		white-space: nowrap;
-	}
-	.ih-badge--connected {
-		background: rgba(34, 197, 94, 0.1);
-		color: #22c55e;
-	}
-	.ih-badge--available {
-		background: rgba(59, 130, 246, 0.1);
-		color: #3b82f6;
-	}
-	.ih-badge--coming-soon {
-		background: rgba(156, 163, 175, 0.1);
-		color: var(--dt4);
-	}
-	.ih-badge--error {
-		background: rgba(239, 68, 68, 0.1);
-		color: #ef4444;
-	}
-	.ih-badge--default {
-		background: rgba(156, 163, 175, 0.1);
-		color: var(--dt3);
-	}
-
-	/* Priority Badges */
-	.ih-priority {
-		display: inline-flex;
-		padding: 0.125rem 0.5rem;
-		border-radius: 9999px;
-		font-size: 0.75rem;
-		font-weight: 500;
-	}
-	.ih-priority--urgent {
-		background: rgba(239, 68, 68, 0.1);
-		color: #ef4444;
-	}
-	.ih-priority--high {
-		background: rgba(249, 115, 22, 0.1);
-		color: #f97316;
-	}
-	.ih-priority--medium {
-		background: rgba(245, 158, 11, 0.1);
-		color: #f59e0b;
-	}
-	.ih-priority--default {
-		background: rgba(156, 163, 175, 0.1);
-		color: var(--dt3);
-	}
-
-	/* Section Intro (Available tab) */
-	.ih-section-intro {
-		margin-bottom: 1.5rem;
-	}
-	.ih-section-intro__title {
-		font-size: 1.125rem;
-		font-weight: 600;
-		color: var(--dt);
-	}
-	.ih-section-intro__text {
-		font-size: 0.875rem;
-		color: var(--dt3);
-		margin-top: 0.25rem;
-	}
-
-	/* Category Filter */
-	.ih-category-filter {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		margin-bottom: 1.5rem;
-	}
-	.ih-cat-tabs {
-		display: flex;
-		gap: 1.5rem;
-		padding-bottom: 0.75rem;
-		border-bottom: 1px solid var(--dbd2);
-		overflow-x: auto;
-	}
-	.ih-cat-tab {
-		font-size: 0.8125rem;
-		font-weight: 500;
-		color: var(--dt3);
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: 0.25rem 0;
-		border-bottom: 2px solid transparent;
-		transition: color 0.15s, border-color 0.15s;
-		white-space: nowrap;
-	}
-	.ih-cat-tab:hover {
-		color: var(--dt);
-	}
-	.ih-cat-tab--active {
-		color: var(--dt);
-		border-bottom-color: var(--dt);
-		font-weight: 600;
-	}
-
-	/* Provider Cards */
-	.ih-provider-card {
-		background: var(--dbg);
-		border: 1px solid var(--dbd2);
-		border-radius: 10px;
-		padding: 0.875rem 1rem;
-		transition: box-shadow 0.15s;
-	}
-	.ih-provider-card:hover {
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-	}
-	.ih-provider-card--soon {
-		opacity: 0.6;
-	}
-	.ih-provider-card--connecting {
-		border-color: rgba(59, 130, 246, 0.3);
-	}
-	.ih-provider-card__row {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-	}
-	.ih-provider-card__icon {
-		width: 2rem;
-		height: 2rem;
-		border-radius: 8px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: var(--dbg2);
-		flex-shrink: 0;
-		overflow: hidden;
-	}
-	.ih-provider-card__icon img {
-		width: 1.25rem;
-		height: 1.25rem;
-		object-fit: contain;
-	}
-	.ih-provider-card__info {
-		flex: 1;
-		min-width: 0;
-	}
-	.ih-provider-card__name {
-		font-weight: 600;
-		font-size: 0.875rem;
-		color: var(--dt);
-		display: block;
-	}
-	.ih-provider-card__author {
-		font-size: 0.75rem;
-		color: var(--dt3);
-	}
-	.ih-provider-card__desc {
-		font-size: 0.75rem;
-		color: var(--dt3);
-		margin: 0.5rem 0;
-		line-height: 1.4;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-	.ih-provider-card__footer {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-top: 0.5rem;
-	}
-	.ih-provider-card__tags {
-		display: flex;
-		gap: 0.375rem;
-		flex-wrap: wrap;
-	}
-	.ih-tag {
-		font-size: 0.625rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		padding: 0.125rem 0.375rem;
-		border-radius: 4px;
-		background: var(--dbg2);
-		color: var(--dt3);
-	}
-	.ih-tag--soon {
-		background: rgba(239, 68, 68, 0.1);
-		color: #ef4444;
-	}
-	.ih-view-link {
-		font-size: 0.75rem;
-		color: var(--dt3);
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: 0;
-		text-decoration: underline;
-		text-underline-offset: 2px;
-	}
-	.ih-view-link:hover {
-		color: var(--dt);
-	}
-	/* Toggle Switch (provider card) */
-	.ih-toggle {
-		position: relative;
-		display: inline-block;
-		width: 36px;
-		height: 20px;
-		flex-shrink: 0;
-	}
-	.ih-toggle input {
-		opacity: 0;
-		width: 0;
-		height: 0;
-	}
-	.ih-toggle__slider {
-		position: absolute;
-		cursor: pointer;
-		inset: 0;
-		background: var(--dbg3);
-		border-radius: 20px;
-		transition: 0.2s;
-	}
-	.ih-toggle__slider::before {
-		content: '';
-		position: absolute;
-		height: 16px;
-		width: 16px;
-		left: 2px;
-		bottom: 2px;
-		background: white;
-		border-radius: 50%;
-		transition: 0.2s;
-	}
-	.ih-toggle input:checked + .ih-toggle__slider {
-		background: #111;
-	}
-	.ih-toggle input:checked + .ih-toggle__slider::before {
-		transform: translateX(16px);
-	}
-	.ih-toggle input:disabled + .ih-toggle__slider {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	/* Status Pills */
-	.ih-status-pill {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
-		font-size: 0.75rem;
-		font-weight: 500;
-		padding: 0.125rem 0.5rem;
-		border-radius: 9999px;
-	}
-	.ih-status-pill--connected {
-		background: rgba(34, 197, 94, 0.1);
-		color: #22c55e;
-	}
-	.ih-status-pill--soon {
-		background: rgba(156, 163, 175, 0.1);
-		color: var(--dt4);
-	}
-	.ih-status-pill--connecting {
-		background: rgba(59, 130, 246, 0.1);
-		color: #3b82f6;
-	}
-	.ih-status-dot--green {
-		width: 0.5rem;
-		height: 0.5rem;
-		border-radius: 50%;
-		background: #22c55e;
-		display: inline-block;
-	}
-
-	/* Auto-sync Badge (legacy, kept for connected cards reference) */
-
-	/* Stat Row */
-	.ih-stat-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		font-size: 0.6875rem;
-	}
-	.ih-stat-row__label {
-		color: var(--dt4);
-	}
-	.ih-stat-row__value {
-		color: var(--dt2);
-		font-weight: 500;
-	}
-
-	/* Learn More Link (replaced by .ih-view-link in new card design) */
-
-	/* Tooltip */
-	.ih-tooltip {
-		position: absolute;
-		bottom: 100%;
-		left: 50%;
-		transform: translateX(-50%);
-		margin-bottom: 0.5rem;
-		padding: 0.375rem 0.75rem;
-		background: var(--dbg3);
-		color: var(--dt2);
-		font-size: 0.75rem;
-		border-radius: 0.375rem;
-		white-space: nowrap;
-		pointer-events: none;
-		z-index: 10;
-	}
-	.ih-tooltip__arrow {
-		position: absolute;
-		top: 100%;
-		left: 50%;
-		transform: translateX(-50%);
-		width: 0;
-		height: 0;
-		border-left: 4px solid transparent;
-		border-right: 4px solid transparent;
-		border-top: 4px solid var(--dbg3);
-	}
-
-	/* AI Models Section */
-	.ih-section {
-		background: var(--dbg2);
-		border: 1px solid var(--dbd);
-		border-radius: 0.75rem;
-		padding: 1.5rem;
-		margin-bottom: 1.5rem;
-	}
-	.ih-section__title {
-		font-size: 1.125rem;
-		font-weight: 600;
-		color: var(--dt);
-		margin-bottom: 0.25rem;
-	}
-	.ih-section__desc {
-		font-size: 0.875rem;
-		color: var(--dt3);
-		margin-bottom: 1rem;
-	}
-	.ih-tier-list {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
-	.ih-tier {
-		background: var(--dbg);
-		border: 1px solid var(--dbd);
-		border-radius: 0.5rem;
-		padding: 1rem;
-	}
-	.ih-tier__name {
-		font-weight: 600;
-		color: var(--dt);
-		text-transform: capitalize;
-		margin-bottom: 0.25rem;
-	}
-	.ih-tier__desc {
-		font-size: 0.875rem;
-		color: var(--dt3);
-		margin-bottom: 0.5rem;
-	}
-	.ih-tier__model {
-		font-size: 0.75rem;
-		font-family: monospace;
-		color: var(--dt4);
-	}
-	.ih-ai-settings {
-		margin-top: 1rem;
-	}
-	.ih-ai-settings__title {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--dt);
-		margin-bottom: 0.75rem;
-	}
-	.ih-ai-settings__list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-	.ih-checkbox-label {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.875rem;
-		color: var(--dt2);
-		cursor: pointer;
-	}
-	.ih-checkbox {
-		width: 1rem;
-		height: 1rem;
-		border-radius: 0.25rem;
-		accent-color: #3b82f6;
-	}
-	.ih-latency-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.75rem 1rem;
-		background: var(--dbg);
-		border: 1px solid var(--dbd);
-		border-radius: 0.5rem;
-	}
-	.ih-latency-row__value {
-		font-family: monospace;
-		font-size: 0.875rem;
-		color: #22c55e;
-	}
-
-	/* Decisions Tab */
-	.ih-decision-list {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
 	}
 	.ih-decision__top {
 		display: flex;
@@ -1919,9 +880,43 @@
 		margin-top: 1rem;
 	}
 
-	/* ═══════════════════════════════════════════
-	   Detail Modal
-	   ═══════════════════════════════════════════ */
+	/* Priority Badges */
+	.ih-priority {
+		display: inline-flex;
+		padding: 0.125rem 0.5rem;
+		border-radius: 9999px;
+		font-size: 0.75rem;
+		font-weight: 500;
+	}
+	.ih-priority--urgent { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+	.ih-priority--high { background: rgba(249, 115, 22, 0.1); color: #f97316; }
+	.ih-priority--medium { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+	.ih-priority--default { background: rgba(156, 163, 175, 0.1); color: var(--dt3); }
+
+	/* Alerts */
+	.ih-alert {
+		margin-top: 0.75rem;
+		padding: 0.75rem;
+		border-radius: 0.5rem;
+		font-size: 0.875rem;
+	}
+	.ih-alert--error {
+		background: rgba(239, 68, 68, 0.08);
+		border: 1px solid rgba(239, 68, 68, 0.2);
+		color: #ef4444;
+	}
+	.ih-alert--success {
+		background: rgba(34, 197, 94, 0.08);
+		border: 1px solid rgba(34, 197, 94, 0.2);
+		color: #22c55e;
+	}
+	.ih-alert--banner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	/* File Import Modal */
 	.ih-modal-backdrop {
 		position: fixed;
 		inset: 0;
@@ -1967,27 +962,6 @@
 		align-items: center;
 		gap: 1rem;
 	}
-	.ih-modal__provider-icon {
-		width: 3.5rem;
-		height: 3.5rem;
-		border-radius: 0.75rem;
-		background: var(--dbg3);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		overflow: hidden;
-		flex-shrink: 0;
-	}
-	.ih-modal__provider-img {
-		width: 2.25rem;
-		height: 2.25rem;
-		object-fit: contain;
-	}
-	.ih-modal__provider-letter {
-		font-size: 1.25rem;
-		font-weight: 700;
-		color: var(--dt3);
-	}
 	.ih-modal__title {
 		font-size: 1.25rem;
 		font-weight: 700;
@@ -2000,41 +974,15 @@
 		font-size: 0.75rem;
 		color: var(--dt4);
 	}
-	.ih-modal__category-badge {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		padding: 0.125rem 0.5rem;
-		margin-top: 0.25rem;
-		font-size: 0.75rem;
-		font-weight: 500;
-		border-radius: 9999px;
-		background: var(--dbg3);
-		color: var(--dt3);
-		text-transform: capitalize;
-	}
 	.ih-modal__body {
 		padding: 1.5rem;
 		overflow-y: auto;
 		flex: 1;
 	}
-	.ih-modal__desc {
-		color: var(--dt3);
-		margin-bottom: 1.5rem;
-	}
 	.ih-modal__help-text {
 		font-size: 0.875rem;
 		color: var(--dt3);
 		margin-bottom: 1rem;
-	}
-	.ih-modal__section {
-		margin-bottom: 1.5rem;
-	}
-	.ih-modal__section-title {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--dt);
-		margin-bottom: 0.75rem;
 	}
 	.ih-modal__footer {
 		padding: 1.5rem;
@@ -2045,163 +993,6 @@
 		justify-content: flex-end;
 		gap: 0.75rem;
 	}
-	.ih-modal__full-btn {
-		width: 100%;
-	}
-	.ih-modal__connected-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		width: 100%;
-	}
-	.ih-modal__connected-status {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: #22c55e;
-	}
-	.ih-modal__connected-label {
-		font-size: 0.875rem;
-		font-weight: 500;
-	}
-	.ih-modal__connected-account {
-		font-size: 0.875rem;
-		color: var(--dt3);
-	}
-	.ih-modal__connected-actions {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	/* Feature List */
-	.ih-feature-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-	.ih-feature-item {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.875rem;
-		color: var(--dt3);
-	}
-	.ih-feature-icon {
-		color: #22c55e;
-		flex-shrink: 0;
-	}
-
-	/* Sync Panel */
-	.ih-sync-panel {
-		background: var(--dbg);
-		border-radius: 0.75rem;
-		padding: 1rem;
-		margin-bottom: 1.5rem;
-	}
-	.ih-sync-grid {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: 1rem;
-	}
-	.ih-sync-item {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-	.ih-sync-icon {
-		width: 2rem;
-		height: 2rem;
-		border-radius: 0.5rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-	}
-	.ih-sync-icon--green {
-		background: rgba(34, 197, 94, 0.1);
-		color: #22c55e;
-	}
-	.ih-sync-icon--blue {
-		background: rgba(59, 130, 246, 0.1);
-		color: #3b82f6;
-	}
-	.ih-sync-icon--purple {
-		background: rgba(168, 85, 247, 0.1);
-		color: #a855f7;
-	}
-	.ih-sync-icon--amber {
-		background: rgba(245, 158, 11, 0.1);
-		color: #f59e0b;
-	}
-	.ih-sync-label {
-		font-size: 0.75rem;
-		color: var(--dt4);
-	}
-	.ih-sync-value {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: var(--dt);
-	}
-
-	/* Tags */
-	.ih-tag-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-	}
-	.ih-skill-tag {
-		padding: 0.25rem 0.5rem;
-		font-size: 0.75rem;
-		font-family: monospace;
-		background: var(--dbg3);
-		color: var(--dt3);
-		border-radius: 0.25rem;
-	}
-	.ih-module-tag {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		padding: 0.25rem 0.5rem;
-		font-size: 0.75rem;
-		background: rgba(59, 130, 246, 0.08);
-		color: #3b82f6;
-		border-radius: 0.25rem;
-		text-transform: capitalize;
-	}
-
-	/* Modal Toggle (auto-sync in detail modal) */
-	.ih-toggle-label {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		cursor: pointer;
-	}
-	.ih-toggle-text {
-		font-size: 0.875rem;
-		color: var(--dt3);
-	}
-	.ih-toggle__track {
-		width: 100%;
-		height: 100%;
-		border-radius: 9999px;
-		background: var(--dbg3);
-		transition: background 0.2s;
-	}
-	.ih-toggle__thumb {
-		position: absolute;
-		left: 0.125rem;
-		top: 0.125rem;
-		width: 1rem;
-		height: 1rem;
-		border-radius: 50%;
-		background: white;
-		transition: transform 0.2s;
-	}
-
-	/* ═══════════════════════════════════════════
-	   File Import
-	   ═══════════════════════════════════════════ */
 	.ih-import-icon {
 		width: 2rem;
 		height: 2rem;
@@ -2254,116 +1045,9 @@
 		color: var(--dt4);
 		margin-top: 0.25rem;
 	}
-
-	/* Alerts */
-	.ih-alert {
-		margin-top: 0.75rem;
-		padding: 0.75rem;
-		border-radius: 0.5rem;
-		font-size: 0.875rem;
-	}
-	.ih-alert--error {
-		background: rgba(239, 68, 68, 0.08);
-		border: 1px solid rgba(239, 68, 68, 0.2);
-		color: #ef4444;
-	}
-	.ih-alert--success {
-		background: rgba(34, 197, 94, 0.08);
-		border: 1px solid rgba(34, 197, 94, 0.2);
-		color: #22c55e;
-	}
 	.ih-import-loading {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-	}
-
-	/* Search Input */
-	.ih-search-wrap {
-		position: relative;
-		flex-shrink: 0;
-	}
-	.ih-search-icon {
-		position: absolute;
-		left: 0.625rem;
-		top: 50%;
-		transform: translateY(-50%);
-		color: var(--dt4);
-		pointer-events: none;
-	}
-	.ih-search-input {
-		padding: 0.375rem 0.75rem 0.375rem 2rem;
-		font-size: 0.8125rem;
-		border-radius: 0.5rem;
-		border: 1px solid var(--dbd);
-		background: var(--dbg);
-		color: var(--dt);
-		outline: none;
-		width: 14rem;
-		transition: border-color 0.15s;
-	}
-	.ih-search-input:focus {
-		border-color: #3b82f6;
-	}
-	.ih-search-input::placeholder {
-		color: var(--dt4);
-	}
-
-	/* Card Sync Button */
-	.ih-card__sync-btn {
-		padding: 0.375rem;
-		border-radius: 0.375rem;
-		color: var(--dt4);
-		background: none;
-		border: 1px solid var(--dbd);
-		cursor: pointer;
-		transition: color 0.15s, background 0.15s;
-		display: inline-flex;
-		align-items: center;
-	}
-	.ih-card__sync-btn:hover:not(:disabled) {
-		color: #3b82f6;
-		background: rgba(59, 130, 246, 0.08);
-		border-color: rgba(59, 130, 246, 0.3);
-	}
-	.ih-card__sync-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	/* Card sub-meta (last used) */
-	.ih-card__sub-meta {
-		font-size: 0.6875rem;
-		color: var(--dt4);
-		margin-top: 0.125rem;
-	}
-
-	/* Latency Input */
-	.ih-latency-input {
-		width: 5rem;
-		padding: 0.25rem 0.5rem;
-		font-family: monospace;
-		font-size: 0.875rem;
-		color: #22c55e;
-		background: var(--dbg2);
-		border: 1px solid var(--dbd);
-		border-radius: 0.375rem;
-		outline: none;
-		text-align: right;
-	}
-	.ih-latency-input:focus {
-		border-color: #3b82f6;
-	}
-	.ih-latency-unit {
-		font-size: 0.75rem;
-		color: var(--dt4);
-	}
-
-	/* Alert small variant */
-	.ih-alert--sm {
-		margin-top: 0.5rem;
-		margin-bottom: 0.5rem;
-		padding: 0.5rem 0.75rem;
-		font-size: 0.8125rem;
 	}
 </style>

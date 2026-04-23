@@ -252,8 +252,7 @@
 						{#if a.app.status === 'generating'}
 							<BuildProgress
 								buildId={a.app.id}
-								onComplete={(result) => {
-									if (import.meta.env.DEV) console.log('Build complete:', result);
+								onComplete={(_result) => {
 									generatedAppsStore.fetchApps();
 								}}
 								onError={(err) => {
