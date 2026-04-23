@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -92,6 +93,48 @@ func getClientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
+// allowedShells is the set of shell binaries permitted for terminal sessions.
+// Prevents arbitrary binary execution via the ?shell= WebSocket parameter.
+var allowedShells = map[string]bool{
+	"zsh":  true,
+	"bash": true,
+	"sh":   true,
+	"fish": true,
+}
+
+// sanitizeShell validates the requested shell against the allowlist.
+// Returns the shell name if allowed, empty string to fall back to auto-detect.
+func sanitizeShell(requested string) string {
+	if requested == "" {
+		return ""
+	}
+	base := filepath.Base(requested)
+	if allowedShells[base] {
+		return base
+	}
+	logging.Security("Terminal shell rejected — not in allowlist: %s", requested)
+	return ""
+}
+
+// sanitizeWorkingDir validates the requested working directory.
+// Returns the path if it is safe, or empty string to fall back to home directory.
+func sanitizeWorkingDir(requested string) string {
+	if requested == "" {
+		return ""
+	}
+	// Reject path traversal
+	if strings.Contains(requested, "..") {
+		logging.Security("Terminal cwd rejected — path traversal detected: %s", requested)
+		return ""
+	}
+	// Must be absolute
+	if !filepath.IsAbs(requested) {
+		logging.Security("Terminal cwd rejected — relative path not allowed: %s", requested)
+		return ""
+	}
+	return requested
+}
+
 // WebSocketHandler handles terminal WebSocket connections
 type WebSocketHandler struct {
 	manager *Manager
@@ -136,9 +179,11 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	query := r.URL.Query()
 	cols := parseIntParam(query.Get("cols"), 80)
 	rows := parseIntParam(query.Get("rows"), 24)
-	shell := query.Get("shell")
-	// Leave shell empty to let getShellPath auto-detect (zsh on macOS, bash on Linux)
-	workingDir := query.Get("cwd")
+	// Validate shell against allowlist — rejects arbitrary binary paths.
+	// Empty result means getShellPath will auto-detect (zsh on macOS, bash on Linux).
+	shell := sanitizeShell(query.Get("shell"))
+	// Validate cwd — reject relative paths and path traversal attempts.
+	workingDir := sanitizeWorkingDir(query.Get("cwd"))
 	environmentMode := query.Get("environment_mode")
 	logging.Debug("[Terminal] Config: cols=%d, rows=%d, shell=%s", cols, rows, shell)
 

@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -176,14 +177,42 @@ func getDefaultWorkingDir() string {
 	return "/"
 }
 
-// buildEnvArray converts environment map to array format
-func buildEnvArray(envMap map[string]string) []string {
-	env := os.Environ()
+// safeEnvVars is the allowlist of environment variables that may be inherited
+// by terminal sessions. Server secrets (DATABASE_URL, API keys, crypto keys)
+// are explicitly excluded to prevent credential leakage via the `env` command.
+var safeEnvVars = map[string]bool{
+	"HOME":            true,
+	"USER":            true,
+	"SHELL":           true,
+	"TERM":            true,
+	"LANG":            true,
+	"LC_ALL":          true,
+	"LC_CTYPE":        true,
+	"COLORTERM":       true,
+	"EDITOR":          true,
+	"VISUAL":          true,
+	"PAGER":           true,
+	"LESS":            true,
+	"PATH":            true,
+	"TMPDIR":          true,
+	"XDG_RUNTIME_DIR": true,
+}
 
-	// Override with custom env vars
+// buildEnvArray converts environment map to array format.
+// Only inherits variables from the safeEnvVars allowlist so that server secrets
+// (DATABASE_URL, API keys, crypto keys) are never visible inside PTY sessions.
+func buildEnvArray(envMap map[string]string) []string {
+	var env []string
+	// Only inherit safe environment variables — never leak server secrets.
+	for _, e := range os.Environ() {
+		key, _, _ := strings.Cut(e, "=")
+		if safeEnvVars[key] {
+			env = append(env, e)
+		}
+	}
+	// Add session-specific overrides.
 	for key, value := range envMap {
 		env = append(env, fmt.Sprintf("%s=%s", key, value))
 	}
-
 	return env
 }

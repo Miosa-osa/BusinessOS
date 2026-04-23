@@ -53,7 +53,10 @@ func (h *CRMHandler) GetPipeline(c *gin.Context) {
 	}
 
 	queries := sqlc.New(h.pool)
-	pipeline, err := queries.GetPipeline(c.Request.Context(), pgtype.UUID{Bytes: id, Valid: true})
+	pipeline, err := queries.GetPipeline(c.Request.Context(), sqlc.GetPipelineParams{
+		ID:     pgtype.UUID{Bytes: id, Valid: true},
+		UserID: user.ID,
+	})
 	if err != nil {
 		utils.RespondNotFound(c, slog.Default(), "Pipeline")
 		return
@@ -139,6 +142,7 @@ func (h *CRMHandler) UpdatePipeline(c *gin.Context) {
 	queries := sqlc.New(h.pool)
 	pipeline, err := queries.UpdatePipeline(c.Request.Context(), sqlc.UpdatePipelineParams{
 		ID:          pgtype.UUID{Bytes: id, Valid: true},
+		UserID:      user.ID,
 		Name:        req.Name,
 		Description: req.Description,
 		Currency:    req.Currency,
@@ -292,6 +296,21 @@ func (h *CRMHandler) UpdatePipelineStage(c *gin.Context) {
 	}
 
 	queries := sqlc.New(h.pool)
+
+	// Verify the stage belongs to a pipeline owned by the current user.
+	existingStage, err := queries.GetPipelineStage(c.Request.Context(), pgtype.UUID{Bytes: stageID, Valid: true})
+	if err != nil {
+		utils.RespondNotFound(c, slog.Default(), "Stage")
+		return
+	}
+	if _, err := queries.GetPipeline(c.Request.Context(), sqlc.GetPipelineParams{
+		ID:     existingStage.PipelineID,
+		UserID: user.ID,
+	}); err != nil {
+		utils.RespondNotFound(c, slog.Default(), "Stage")
+		return
+	}
+
 	stage, err := queries.UpdatePipelineStage(c.Request.Context(), sqlc.UpdatePipelineStageParams{
 		ID:          pgtype.UUID{Bytes: stageID, Valid: true},
 		Name:        req.Name,
@@ -357,6 +376,21 @@ func (h *CRMHandler) DeletePipelineStage(c *gin.Context) {
 	}
 
 	queries := sqlc.New(h.pool)
+
+	// Verify the stage belongs to a pipeline owned by the current user.
+	existingStage, err := queries.GetPipelineStage(c.Request.Context(), pgtype.UUID{Bytes: stageID, Valid: true})
+	if err != nil {
+		utils.RespondNotFound(c, slog.Default(), "Stage")
+		return
+	}
+	if _, err := queries.GetPipeline(c.Request.Context(), sqlc.GetPipelineParams{
+		ID:     existingStage.PipelineID,
+		UserID: user.ID,
+	}); err != nil {
+		utils.RespondNotFound(c, slog.Default(), "Stage")
+		return
+	}
+
 	err = queries.DeletePipelineStage(c.Request.Context(), pgtype.UUID{Bytes: stageID, Valid: true})
 	if err != nil {
 		utils.RespondInternalError(c, slog.Default(), "delete stage", nil)

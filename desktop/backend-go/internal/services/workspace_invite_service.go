@@ -156,13 +156,15 @@ func (s *WorkspaceInviteService) AcceptInvite(ctx context.Context, token string,
 	return nil
 }
 
-// RevokeInvite revokes a pending invitation
-func (s *WorkspaceInviteService) RevokeInvite(ctx context.Context, inviteID uuid.UUID) error {
+// RevokeInvite revokes a pending invitation.
+// SECURITY (CRIT-12): workspaceID is required and scoped in the query to prevent
+// an admin of one workspace from revoking invites belonging to another workspace.
+func (s *WorkspaceInviteService) RevokeInvite(ctx context.Context, inviteID uuid.UUID, workspaceID uuid.UUID) error {
 	result, err := s.pool.Exec(ctx, `
 		UPDATE workspace_invites
 		SET status = 'revoked'
-		WHERE id = $1 AND status = 'pending'
-	`, inviteID)
+		WHERE id = $1 AND workspace_id = $2 AND status = 'pending'
+	`, inviteID, workspaceID)
 
 	if err != nil {
 		return fmt.Errorf("revoke invite: %w", err)

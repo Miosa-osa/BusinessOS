@@ -21,19 +21,19 @@ type WorkspaceService struct {
 }
 
 type Workspace struct {
-	ID          uuid.UUID              `json:"id"`
-	Name        string                 `json:"name"`
-	Slug        string                 `json:"slug"`
-	Description *string                `json:"description,omitempty"`
-	LogoURL     *string                `json:"logo_url,omitempty"`
-	PlanType    string                 `json:"plan_type"`
-	MaxMembers  int                    `json:"max_members"`
-	MaxProjects int                    `json:"max_projects"`
-	MaxStorageGB int                   `json:"max_storage_gb"`
-	Settings    map[string]interface{} `json:"settings"`
-	OwnerID     string                 `json:"owner_id"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	ID           uuid.UUID              `json:"id"`
+	Name         string                 `json:"name"`
+	Slug         string                 `json:"slug"`
+	Description  *string                `json:"description,omitempty"`
+	LogoURL      *string                `json:"logo_url,omitempty"`
+	PlanType     string                 `json:"plan_type"`
+	MaxMembers   int                    `json:"max_members"`
+	MaxProjects  int                    `json:"max_projects"`
+	MaxStorageGB int                    `json:"max_storage_gb"`
+	Settings     map[string]interface{} `json:"settings"`
+	OwnerID      string                 `json:"owner_id"`
+	CreatedAt    time.Time              `json:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at"`
 }
 
 type WorkspaceMember struct {
@@ -117,11 +117,10 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, req CreateWorksp
 		}
 	}
 
-	// Set default plan type
-	planType := req.PlanType
-	if planType == "" {
-		planType = "free"
-	}
+	// SECURITY (HIGH-15): Never trust plan_type from user input — it must be
+	// determined server-side via the billing flow. Always default to "free".
+	// Upgrades are handled exclusively through the billing/subscription service.
+	planType := "free"
 
 	// Set limits based on plan type
 	maxMembers, maxProjects, maxStorageGB := getPlanLimits(planType)

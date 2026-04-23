@@ -3140,6 +3140,113 @@ type OnboardingSession struct {
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
+type OptimalDecisionLog struct {
+	ID                     pgtype.UUID        `json:"id"`
+	WorkspaceID            pgtype.UUID        `json:"workspace_id"`
+	Actor                  string             `json:"actor"`
+	Action                 string             `json:"action"`
+	TargetType             string             `json:"target_type"`
+	TargetID               pgtype.UUID        `json:"target_id"`
+	WhatChanged            string             `json:"what_changed"`
+	Why                    *string            `json:"why"`
+	AlternativesConsidered []byte             `json:"alternatives_considered"`
+	Context                []byte             `json:"context"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+}
+
+type OptimalEdge struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	SourceID    pgtype.UUID        `json:"source_id"`
+	SourceType  string             `json:"source_type"`
+	TargetID    pgtype.UUID        `json:"target_id"`
+	TargetType  string             `json:"target_type"`
+	Relation    string             `json:"relation"`
+	Weight      float32            `json:"weight"`
+	ValidFrom   pgtype.Timestamptz `json:"valid_from"`
+	ValidUntil  pgtype.Timestamptz `json:"valid_until"`
+	Reason      *string            `json:"reason"`
+	Metadata    []byte             `json:"metadata"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type OptimalEntity struct {
+	ID            pgtype.UUID        `json:"id"`
+	WorkspaceID   pgtype.UUID        `json:"workspace_id"`
+	Name          string             `json:"name"`
+	CanonicalName string             `json:"canonical_name"`
+	Type          string             `json:"type"`
+	Properties    []byte             `json:"properties"`
+	MentionCount  int32              `json:"mention_count"`
+	FirstSeen     pgtype.Timestamptz `json:"first_seen"`
+	LastSeen      pgtype.Timestamptz `json:"last_seen"`
+}
+
+type OptimalObservation struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	CreatedBy   string             `json:"created_by"`
+	Category    string             `json:"category"`
+	Content     string             `json:"content"`
+	Confidence  float32            `json:"confidence"`
+	Source      string             `json:"source"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type OptimalSession struct {
+	ID                 pgtype.UUID        `json:"id"`
+	WorkspaceID        pgtype.UUID        `json:"workspace_id"`
+	CreatedBy          string             `json:"created_by"`
+	Status             string             `json:"status"`
+	Summary            string             `json:"summary"`
+	ExtractedSignalIds []byte             `json:"extracted_signal_ids"`
+	MessageCount       int32              `json:"message_count"`
+	StartedAt          pgtype.Timestamptz `json:"started_at"`
+	CommittedAt        pgtype.Timestamptz `json:"committed_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+}
+
+type OptimalSignal struct {
+	ID            pgtype.UUID        `json:"id"`
+	WorkspaceID   pgtype.UUID        `json:"workspace_id"`
+	NodeID        pgtype.UUID        `json:"node_id"`
+	CreatedBy     string             `json:"created_by"`
+	Title         string             `json:"title"`
+	Slug          string             `json:"slug"`
+	Uri           string             `json:"uri"`
+	Path          string             `json:"path"`
+	Content       string             `json:"content"`
+	Mode          string             `json:"mode"`
+	Genre         string             `json:"genre"`
+	SignalType    string             `json:"signal_type"`
+	Format        string             `json:"format"`
+	Structure     string             `json:"structure"`
+	SnRatio       float32            `json:"sn_ratio"`
+	L0Abstract    string             `json:"l0_abstract"`
+	L1Overview    string             `json:"l1_overview"`
+	PrimaryNode   string             `json:"primary_node"`
+	CrossRefNodes []byte             `json:"cross_ref_nodes"`
+	Entities      []byte             `json:"entities"`
+	ValidFrom     pgtype.Timestamptz `json:"valid_from"`
+	ValidUntil    pgtype.Timestamptz `json:"valid_until"`
+	Supersedes    pgtype.UUID        `json:"supersedes"`
+	Metadata      []byte             `json:"metadata"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	IndexedAt     pgtype.Timestamptz `json:"indexed_at"`
+	SearchVector  interface{}        `json:"search_vector"`
+}
+
+type OptimalTopology struct {
+	ID             pgtype.UUID        `json:"id"`
+	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
+	Config         []byte             `json:"config"`
+	GenreSkeletons []byte             `json:"genre_skeletons"`
+	GenreHalfLives []byte             `json:"genre_half_lives"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type OsaBuildEvent struct {
 	ID               pgtype.UUID        `json:"id"`
 	ModuleInstanceID pgtype.UUID        `json:"module_instance_id"`

@@ -41,14 +41,14 @@ RETURNING *;
 
 -- name: UpdateCompany :one
 UPDATE companies
-SET name = $2, legal_name = $3, industry = $4, company_size = $5,
-    website = $6, email = $7, phone = $8,
-    address_line1 = $9, address_line2 = $10, city = $11, state = $12, postal_code = $13, country = $14,
-    annual_revenue = $15, lifecycle_stage = $16,
-    linkedin_url = $17, twitter_handle = $18,
-    logo_url = $19, custom_fields = $20, metadata = $21,
+SET name = $3, legal_name = $4, industry = $5, company_size = $6,
+    website = $7, email = $8, phone = $9,
+    address_line1 = $10, address_line2 = $11, city = $12, state = $13, postal_code = $14, country = $15,
+    annual_revenue = $16, lifecycle_stage = $17,
+    linkedin_url = $18, twitter_handle = $19,
+    logo_url = $20, custom_fields = $21, metadata = $22,
     updated_at = NOW()
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 RETURNING *;
 
 -- name: DeleteCompany :exec
@@ -64,8 +64,8 @@ LIMIT sqlc.arg(limit_val)::int;
 
 -- name: UpdateCompanyScores :exec
 UPDATE companies
-SET health_score = $2, engagement_score = $3, updated_at = NOW()
-WHERE id = $1;
+SET health_score = $3, engagement_score = $4, updated_at = NOW()
+WHERE id = $1 AND user_id = $2;
 
 -- ============================================================================
 -- CONTACT-COMPANY RELATIONS QUERIES
@@ -116,7 +116,7 @@ ORDER BY is_default DESC, name ASC;
 
 -- name: GetPipeline :one
 SELECT * FROM pipelines
-WHERE id = $1;
+WHERE id = $1 AND user_id = $2;
 
 -- name: GetDefaultPipeline :one
 SELECT * FROM pipelines
@@ -130,8 +130,8 @@ RETURNING *;
 
 -- name: UpdatePipeline :one
 UPDATE pipelines
-SET name = $2, description = $3, currency = $4, color = $5, icon = $6, is_active = $7, updated_at = NOW()
-WHERE id = $1
+SET name = $3, description = $4, currency = $5, color = $6, icon = $7, is_active = $8, updated_at = NOW()
+WHERE id = $1 AND user_id = $2
 RETURNING *;
 
 -- name: DeletePipeline :exec
@@ -207,7 +207,7 @@ FROM deals d
 JOIN pipeline_stages ps ON d.stage_id = ps.id
 JOIN pipelines p ON d.pipeline_id = p.id
 LEFT JOIN companies c ON d.company_id = c.id
-WHERE d.id = $1;
+WHERE d.id = $1 AND d.user_id = $2;
 
 -- name: CreateCRMDeal :one
 INSERT INTO deals (
@@ -225,25 +225,25 @@ RETURNING *;
 
 -- name: UpdateCRMDeal :one
 UPDATE deals
-SET name = $2, description = $3, amount = $4, probability = $5,
-    expected_close_date = $6, owner_id = $7, company_id = $8, primary_contact_id = $9,
-    priority = $10, custom_fields = $11, updated_at = NOW()
-WHERE id = $1
+SET name = $3, description = $4, amount = $5, probability = $6,
+    expected_close_date = $7, owner_id = $8, company_id = $9, primary_contact_id = $10,
+    priority = $11, custom_fields = $12, updated_at = NOW()
+WHERE id = $1 AND user_id = $2
 RETURNING *;
 
 -- name: UpdateCRMDealStage :one
 UPDATE deals
-SET stage_id = $2, updated_at = NOW()
-WHERE id = $1
+SET stage_id = $3, updated_at = NOW()
+WHERE id = $1 AND user_id = $2
 RETURNING *;
 
 -- name: UpdateCRMDealStatus :one
 UPDATE deals
-SET status = $2,
-    lost_reason = $3,
-    actual_close_date = CASE WHEN $2 IN ('won', 'lost') THEN NOW() ELSE NULL END,
+SET status = $3,
+    lost_reason = $4,
+    actual_close_date = CASE WHEN $3 IN ('won', 'lost') THEN NOW() ELSE NULL END,
     updated_at = NOW()
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 RETURNING *;
 
 -- name: DeleteCRMDeal :exec
@@ -307,7 +307,7 @@ ORDER BY activity_date DESC;
 
 -- name: GetCRMActivity :one
 SELECT * FROM crm_activities
-WHERE id = $1;
+WHERE id = $1 AND user_id = $2;
 
 -- name: CreateCRMActivity :one
 INSERT INTO crm_activities (
@@ -331,22 +331,22 @@ RETURNING *;
 
 -- name: UpdateCRMActivity :one
 UPDATE crm_activities
-SET subject = $2, description = $3, outcome = $4,
-    activity_date = $5, duration_minutes = $6,
-    is_completed = $7, completed_by = $8, completed_at = $9,
+SET subject = $3, description = $4, outcome = $5,
+    activity_date = $6, duration_minutes = $7,
+    is_completed = $8, completed_by = $9, completed_at = $10,
     updated_at = NOW()
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 RETURNING *;
 
 -- name: CompleteCRMActivity :one
 UPDATE crm_activities
-SET is_completed = TRUE, completed_by = $2, completed_at = NOW(), outcome = $3, updated_at = NOW()
-WHERE id = $1
+SET is_completed = TRUE, completed_by = $3, completed_at = NOW(), outcome = $4, updated_at = NOW()
+WHERE id = $1 AND user_id = $2
 RETURNING *;
 
 -- name: DeleteCRMActivity :exec
 DELETE FROM crm_activities
-WHERE id = $1;
+WHERE id = $1 AND user_id = $2;
 
 -- name: ListPendingActivities :many
 SELECT * FROM crm_activities

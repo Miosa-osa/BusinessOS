@@ -294,7 +294,9 @@ func (h *WorkspaceHandler) RevokeWorkspaceInvite(c *gin.Context) {
 		return
 	}
 
-	err = h.inviteService.RevokeInvite(c.Request.Context(), inviteID)
+	// SECURITY (CRIT-12): Pass workspaceID to scope the revoke query — prevents an
+	// admin of one workspace from revoking invites belonging to a different workspace.
+	err = h.inviteService.RevokeInvite(c.Request.Context(), inviteID, workspaceID)
 	if err != nil {
 		utils.RespondBadRequest(c, slog.Default(), err.Error())
 		return

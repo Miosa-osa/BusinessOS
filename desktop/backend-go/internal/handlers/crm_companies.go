@@ -227,6 +227,7 @@ func (h *CRMHandler) UpdateCompany(c *gin.Context) {
 
 	company, err := queries.UpdateCompany(c.Request.Context(), sqlc.UpdateCompanyParams{
 		ID:             pgtype.UUID{Bytes: id, Valid: true},
+		UserID:         user.ID,
 		Name:           req.Name,
 		LegalName:      req.LegalName,
 		Industry:       req.Industry,

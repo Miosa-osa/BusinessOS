@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -31,6 +32,10 @@ func NewTranscriptionHandler(pool *pgxpool.Pool) *TranscriptionHandler {
 	}
 }
 
+// maxAudioUploadSize is the maximum allowed audio upload size (25 MB).
+// Enforced via http.MaxBytesReader to prevent OOM from oversized files.
+const maxAudioUploadSize = 25 << 20 // 25 MB
+
 // TranscribeAudio handles audio transcription via multipart form
 func (t *TranscriptionHandler) TranscribeAudio(c *gin.Context) {
 	// Check if whisper is available
@@ -39,9 +44,19 @@ func (t *TranscriptionHandler) TranscribeAudio(c *gin.Context) {
 		return
 	}
 
+	// Enforce upload size limit before parsing the multipart body.
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxAudioUploadSize)
+
 	// Get audio file from multipart form
 	file, header, err := c.Request.FormFile("audio")
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+				"error": "Audio file exceeds maximum allowed size of 25 MB",
+			})
+			return
+		}
 		utils.RespondInvalidRequest(c, slog.Default(), err)
 		return
 	}
@@ -50,6 +65,13 @@ func (t *TranscriptionHandler) TranscribeAudio(c *gin.Context) {
 	// Read audio data
 	audioData, err := io.ReadAll(file)
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+				"error": "Audio file exceeds maximum allowed size of 25 MB",
+			})
+			return
+		}
 		utils.RespondInvalidRequest(c, slog.Default(), err)
 		return
 	}

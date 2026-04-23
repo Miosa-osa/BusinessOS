@@ -74,6 +74,30 @@ func (h *CustomModulesHandler) GetModule(c *gin.Context) {
 		return
 	}
 
+	// SECURITY (CRIT-11): Enforce ownership — only allow access to public modules
+	// or modules belonging to a workspace the authenticated user is a member of.
+	if !module.IsPublic {
+		userID, workspaceID, authErr := h.getAuthContext(c)
+		if authErr != nil {
+			h.logger.Error("auth context missing in GetModule", "error", authErr)
+			RespondUnauthorizedErr(c, "Authentication required")
+			return
+		}
+		_ = userID // authContext validates the user; workspace membership is the relevant check
+		if module.WorkspaceID != workspaceID {
+			// Verify the user is a member of the module's workspace via DB
+			var memberExists bool
+			dbErr := h.pool.QueryRow(c.Request.Context(),
+				`SELECT EXISTS(SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_id = $2 AND status = 'active')`,
+				module.WorkspaceID, userID.String(),
+			).Scan(&memberExists)
+			if dbErr != nil || !memberExists {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Module not found"})
+				return
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, module)
 }
 
@@ -394,6 +418,29 @@ func (h *CustomModulesHandler) ExportModule(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Module not found"})
 		return
+	}
+
+	// SECURITY (CRIT-11): Enforce ownership — exports are only allowed for modules
+	// the authenticated user has access to (own workspace or public modules).
+	if !module.IsPublic {
+		userID, workspaceID, authErr := h.getAuthContext(c)
+		if authErr != nil {
+			h.logger.Error("auth context missing in ExportModule", "error", authErr)
+			RespondUnauthorizedErr(c, "Authentication required")
+			return
+		}
+		_ = userID
+		if module.WorkspaceID != workspaceID {
+			var memberExists bool
+			dbErr := h.pool.QueryRow(c.Request.Context(),
+				`SELECT EXISTS(SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_id = $2 AND status = 'active')`,
+				module.WorkspaceID, userID.String(),
+			).Scan(&memberExists)
+			if dbErr != nil || !memberExists {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Module not found"})
+				return
+			}
+		}
 	}
 
 	// Create ZIP file in memory

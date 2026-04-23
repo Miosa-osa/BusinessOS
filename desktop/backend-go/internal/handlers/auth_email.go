@@ -433,12 +433,9 @@ func (h *EmailAuthHandler) SignIn(c *gin.Context) {
 	}
 	// In development, leave domain empty so browser handles it
 
-	// DEBUG: Log cookie configuration
-	slog.Info("[AUTH DEBUG] Setting session cookie",
+	slog.Debug("auth: setting session cookie",
 		"domain", domain,
-		"isProduction", isProduction,
-		"sessionToken", sessionToken[:20]+"...",
-	)
+		"isProduction", isProduction)
 
 	// SECURITY: Always use SameSite=Strict in production for CSRF protection
 	// In development, use Lax for easier testing across localhost ports
@@ -458,9 +455,7 @@ func (h *EmailAuthHandler) SignIn(c *gin.Context) {
 		SameSite: sameSite,
 	}
 
-	slog.Info("[AUTH DEBUG] Cookie object", "cookie", cookie.String())
 	http.SetCookie(c.Writer, cookie)
-	slog.Info("[AUTH DEBUG] SetCookie called successfully")
 
 	c.JSON(http.StatusOK, gin.H{
 		"user": gin.H{

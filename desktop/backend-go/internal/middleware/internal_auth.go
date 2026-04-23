@@ -31,13 +31,13 @@ import (
 const (
 	// InternalAPISecretEnv is the environment variable for the shared secret
 	InternalAPISecretEnv = "INTERNAL_API_SECRET"
-	
+
 	// InternalAllowedIPsEnv is the environment variable for allowed IPs (comma-separated)
 	InternalAllowedIPsEnv = "INTERNAL_ALLOWED_IPS"
-	
+
 	// TimestampValidityWindow is the maximum age of a request timestamp (5 minutes)
 	TimestampValidityWindow = 5 * time.Minute
-	
+
 	// Context key for the validated user ID
 	InternalUserIDKey = "internal_user_id"
 )
@@ -46,11 +46,11 @@ const (
 type InternalAuthConfig struct {
 	// Secret is the shared secret for HMAC signing (required for signature mode)
 	Secret string
-	
+
 	// AllowedIPs is a list of IPs that can bypass signature verification
 	// If empty, signature verification is required
 	AllowedIPs []string
-	
+
 	// SkipAuthInDevelopment disables auth checks when true (only for local dev)
 	SkipAuthInDevelopment bool
 }
@@ -84,7 +84,7 @@ func InternalAuthMiddleware(cfg *InternalAuthConfig) gin.HandlerFunc {
 					slog.Debug("InternalAuthMiddleware: IP allowlisted",
 						"ip", clientIP,
 						"user_id", c.GetHeader("X-User-ID"))
-					
+
 					userID := c.GetHeader("X-User-ID")
 					if userID == "" {
 						c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -117,7 +117,7 @@ func InternalAuthMiddleware(cfg *InternalAuthConfig) gin.HandlerFunc {
 				"ip", c.ClientIP(),
 				"error", err.Error(),
 				"path", c.Request.URL.Path)
-			
+
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": err.Error(),
 				"code":  "INVALID_SIGNATURE",
@@ -164,7 +164,7 @@ func validateInternalSignature(c *gin.Context, secret string) error {
 	// Check timestamp is within valid window (prevent replay attacks)
 	requestTime := time.Unix(timestamp, 0)
 	now := time.Now()
-	
+
 	if now.Sub(requestTime) > TimestampValidityWindow {
 		return ErrTimestampExpired
 	}
@@ -188,8 +188,8 @@ func validateInternalSignature(c *gin.Context, secret string) error {
 	// Compare signatures using constant-time comparison
 	if !hmac.Equal([]byte(signature), []byte(expectedSig)) {
 		slog.Debug("InternalAuthMiddleware: signature mismatch",
-			"expected", expectedSig,
-			"received", signature)
+			"ip", c.ClientIP(),
+			"path", c.Request.URL.Path)
 		return ErrSignatureMismatch
 	}
 
@@ -279,7 +279,7 @@ func ParseAllowedIPs(ipList string) []string {
 	if ipList == "" {
 		return nil
 	}
-	
+
 	ips := strings.Split(ipList, ",")
 	result := make([]string, 0, len(ips))
 	for _, ip := range ips {
@@ -296,7 +296,7 @@ func NewInternalAuthConfigFromEnv() *InternalAuthConfig {
 	secret := os.Getenv(InternalAPISecretEnv)
 	allowedIPs := ParseAllowedIPs(os.Getenv(InternalAllowedIPsEnv))
 	env := os.Getenv("ENVIRONMENT")
-	
+
 	return &InternalAuthConfig{
 		Secret:                secret,
 		AllowedIPs:            allowedIPs,

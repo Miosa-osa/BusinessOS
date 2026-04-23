@@ -27,6 +27,9 @@ func NewOSAVoiceHandler(elevenLabsService *services.ElevenLabsService) *OSAVoice
 	return &OSAVoiceHandler{elevenLabsService: elevenLabsService}
 }
 
+// maxTTSCharacters is the maximum allowed length for TTS text input.
+const maxTTSCharacters = 5000
+
 // HandleOSASpeak converts text to speech using ElevenLabs
 // POST /api/osa/speak
 func (h *OSAVoiceHandler) HandleOSASpeak(c *gin.Context) {
@@ -41,6 +44,13 @@ func (h *OSAVoiceHandler) HandleOSASpeak(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		slog.Warn("[OSA Voice] Invalid request", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if len(req.Text) > maxTTSCharacters {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Text exceeds maximum length of %d characters", maxTTSCharacters),
+		})
 		return
 	}
 
@@ -85,6 +95,13 @@ func (h *OSAVoiceHandler) HandleOSASpeakStream(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		slog.Warn("[OSA Voice] Invalid request", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if len(req.Text) > maxTTSCharacters {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Text exceeds maximum length of %d characters", maxTTSCharacters),
+		})
 		return
 	}
 

@@ -142,8 +142,14 @@ func (h *NotificationHandler) Stream(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
 
-	// Subscribe to events
+	// Subscribe to events; nil is returned when the per-user connection limit is reached.
 	ch := h.svc.SSE().Subscribe(user.ID)
+	if ch == nil {
+		c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+			"error": "Too many SSE connections for this user",
+		})
+		return
+	}
 	defer h.svc.SSE().Unsubscribe(user.ID, ch)
 
 	// Send initial connection event

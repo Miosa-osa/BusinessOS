@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -340,34 +341,35 @@ func CredentialRateLimitMiddleware() gin.HandlerFunc {
 	return RateLimitMiddleware(credLimiter)
 }
 
-// getClientIP extracts the real client IP from the request
-// Handles X-Forwarded-For, X-Real-IP, and other proxy headers
+// getClientIP extracts the real client IP from the request.
+// SECURITY (HIGH-1): Only trusts proxy headers (X-Forwarded-For, X-Real-IP) when
+// the direct connection comes from a trusted proxy address (loopback / local reverse
+// proxy). This prevents rate-limit bypass via IP spoofing from untrusted clients.
+// In production behind a cloud load balancer, expand trustedProxyIPs to include
+// the load balancer's egress CIDR range.
 func getClientIP(r *http.Request) string {
-	// Check X-Forwarded-For header (standard for proxies)
-	xff := r.Header.Get("X-Forwarded-For")
-	if xff != "" {
-		// Take the first IP in the chain (original client)
-		// Format: client, proxy1, proxy2
-		for firstComma := 0; firstComma < len(xff); firstComma++ {
-			if xff[firstComma] == ',' {
-				return xff[:firstComma]
-			}
-		}
-		return xff
-	}
-
-	// Check X-Real-IP header (Nginx)
-	xri := r.Header.Get("X-Real-IP")
-	if xri != "" {
-		return xri
-	}
-
-	// Fall back to RemoteAddr
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	remoteIP, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		remoteIP = r.RemoteAddr
 	}
-	return ip
+
+	// Only honour proxy headers when the TCP connection itself arrives from a
+	// trusted source (loopback = local reverse proxy such as nginx or Caddy).
+	parsedIP := net.ParseIP(remoteIP)
+	if parsedIP != nil && (parsedIP.IsLoopback() || remoteIP == "::1") {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			// X-Forwarded-For: client, proxy1, proxy2 — take the leftmost entry.
+			if idx := strings.Index(xff, ","); idx != -1 {
+				return strings.TrimSpace(xff[:idx])
+			}
+			return strings.TrimSpace(xff)
+		}
+		if xri := r.Header.Get("X-Real-IP"); xri != "" {
+			return strings.TrimSpace(xri)
+		}
+	}
+
+	return remoteIP
 }
 
 // formatLimit formats requests per second as a string

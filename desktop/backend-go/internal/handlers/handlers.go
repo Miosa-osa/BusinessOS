@@ -9,6 +9,7 @@ import (
 	"github.com/rhl/businessos-backend/internal/feedback"
 	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/optimal"
 	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/sorx"
 	"github.com/rhl/businessos-backend/internal/subconscious"
@@ -88,6 +89,8 @@ type Handlers struct {
 	subconsciousObserver *subconscious.Observer      // Subconscious observer for async pattern detection
 	// OptimalOS local data bridge
 	optimalHandler *OptimalHandler // read-only bridge to OptimalOS filesystem + engine
+	// OptimalOS cloud engine (PostgreSQL-backed, multi-tenant)
+	optimalCloudHandler *OptimalCloudHandler
 }
 
 // SetOptimalHandler injects the OptimalOS handler after construction.
@@ -96,6 +99,15 @@ type Handlers struct {
 // disable the SQLite-backed graph/search endpoints gracefully.
 func (h *Handlers) SetOptimalHandler(nodesRoot, osRoot, enginePath, dbPath string) {
 	h.optimalHandler = NewOptimalHandler(nodesRoot, osRoot, enginePath, dbPath)
+}
+
+// GetOptimalEngine returns the engine config from the optimal handler, or nil
+// if the handler is not initialized. Used by bootstrap for Init/topology loading.
+func (h *Handlers) GetOptimalEngine() *optimal.EngineConfig {
+	if h.optimalHandler == nil {
+		return nil
+	}
+	return h.optimalHandler.engine
 }
 
 // Auth returns the appropriate authentication middleware for this handler set.

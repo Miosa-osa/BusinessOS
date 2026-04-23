@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -24,6 +25,58 @@ var syncableTables = map[string]bool{
 	"custom_modules":              true,
 	"custom_module_versions":      true,
 	"custom_module_installations": true,
+}
+
+// allowedSyncColumns defines the permitted column names per table for cloud sync.
+// Only columns present in this map may appear in push payloads. Any key that is
+// not listed here is rejected before any SQL is executed, preventing SQL injection
+// via crafted JSON keys (e.g. `"role = 'admin', name"`).
+var allowedSyncColumns = map[string]map[string]bool{
+	"projects": {
+		"name": true, "description": true, "status": true, "priority": true,
+		"client_id": true, "start_date": true, "end_date": true, "due_date": true,
+		"budget": true, "tags": true, "metadata": true, "updated_at": true,
+	},
+	"tasks": {
+		"title": true, "description": true, "status": true, "priority": true,
+		"due_date": true, "project_id": true, "assignee_id": true, "tags": true,
+		"position": true, "updated_at": true,
+	},
+	"clients": {
+		"name": true, "email": true, "phone": true, "company": true,
+		"status": true, "notes": true, "tags": true, "updated_at": true,
+	},
+	"custom_modules": {
+		"name": true, "description": true, "manifest": true, "config": true,
+		"is_active": true, "updated_at": true,
+	},
+	"custom_module_versions": {
+		"module_id": true, "version": true, "changelog": true, "manifest": true,
+		"is_published": true, "updated_at": true,
+	},
+	"custom_module_installations": {
+		"module_id": true, "version_id": true, "workspace_id": true,
+		"config": true, "is_active": true, "updated_at": true,
+	},
+}
+
+// safeColumnNameRE matches only identifiers that consist of a leading letter or
+// underscore followed by letters, digits, or underscores. This is defense-in-depth:
+// the allowlist is the primary control; the regex catches anything that slips
+// through if the allowlist is extended incorrectly.
+var safeColumnNameRE = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// validateColumnName returns true only when col passes both the character-level
+// regex check and the per-table allowlist check.
+func validateColumnName(table, col string) bool {
+	if !safeColumnNameRE.MatchString(col) {
+		return false
+	}
+	allowed, ok := allowedSyncColumns[table]
+	if !ok {
+		return false
+	}
+	return allowed[col]
 }
 
 // CloudSyncHandler handles cloud-mode synchronisation endpoints between a local
@@ -255,9 +308,28 @@ func (h *CloudSyncHandler) applyCreate(ctx context.Context, deviceID string, ch 
 	}
 
 	// Ensure the authoritative id column matches the record_id in the envelope.
-	cols["id"] = ch.RecordID
+	// "id" is not in the per-table allowlist (it is handled specially here), so
+	// we inject it after column validation to avoid an allowlist bypass.
+	colNames, placeholders, args, err := buildInsertParts(ch.Table, cols)
+	if err != nil {
+		return fmt.Errorf("invalid column in create payload: %w", err)
+	}
 
-	colNames, placeholders, args := buildInsertParts(cols)
+	// Prepend id to the validated column list.
+	if colNames == "" {
+		colNames = "id"
+		placeholders = "$1"
+		args = []any{ch.RecordID}
+	} else {
+		colNames = "id, " + colNames
+		// Shift existing placeholders up by one.
+		shifted := make([]string, 0, len(args))
+		for i := range args {
+			shifted = append(shifted, fmt.Sprintf("$%d", i+2))
+		}
+		placeholders = "$1, " + strings.Join(shifted, ", ")
+		args = append([]any{ch.RecordID}, args...)
+	}
 
 	// Table name is allowlisted — safe to embed in the query string.
 	query := fmt.Sprintf(
@@ -302,7 +374,10 @@ func (h *CloudSyncHandler) applyUpdate(ctx context.Context, deviceID string, ch 
 		return fmt.Errorf("update data contains no columns to update")
 	}
 
-	setClauses, args := buildSetParts(cols)
+	setClauses, args, err := buildSetParts(ch.Table, cols)
+	if err != nil {
+		return fmt.Errorf("invalid column in update payload: %w", err)
+	}
 	// Append record_id as the final bind arg for the WHERE clause.
 	args = append(args, ch.RecordID)
 	idPlaceholder := fmt.Sprintf("$%d", len(args))
@@ -482,32 +557,46 @@ func (h *CloudSyncHandler) querySyncStatus(ctx context.Context, deviceID string)
 // buildInsertParts converts a column map into the components needed for an
 // INSERT statement: "col1, col2, col3", "$1, $2, $3", and the value slice.
 // Column order is deterministic (sorted by name).
-func buildInsertParts(cols map[string]any) (colNames, placeholders string, args []any) {
+//
+// Every key in cols is validated against the per-table allowlist via
+// validateColumnName. An error is returned if any key fails validation so that
+// the caller can reject the request before any SQL is executed.
+func buildInsertParts(table string, cols map[string]any) (colNames, placeholders string, args []any, err error) {
 	keys := sortedKeys(cols)
 	names := make([]string, 0, len(keys))
 	pholds := make([]string, 0, len(keys))
 
 	for i, k := range keys {
+		if !validateColumnName(table, k) {
+			return "", "", nil, fmt.Errorf("column %q is not permitted for table %q", k, table)
+		}
 		names = append(names, k)
 		pholds = append(pholds, fmt.Sprintf("$%d", i+1))
 		args = append(args, cols[k])
 	}
 
-	return strings.Join(names, ", "), strings.Join(pholds, ", "), args
+	return strings.Join(names, ", "), strings.Join(pholds, ", "), args, nil
 }
 
 // buildSetParts converts a column map into the SET clause fragment and bound
 // args for an UPDATE statement. Placeholder numbering starts at $1.
-func buildSetParts(cols map[string]any) (setClauses string, args []any) {
+//
+// Every key in cols is validated against the per-table allowlist via
+// validateColumnName. An error is returned if any key fails validation so that
+// the caller can reject the request before any SQL is executed.
+func buildSetParts(table string, cols map[string]any) (setClauses string, args []any, err error) {
 	keys := sortedKeys(cols)
 	parts := make([]string, 0, len(keys))
 
 	for i, k := range keys {
+		if !validateColumnName(table, k) {
+			return "", nil, fmt.Errorf("column %q is not permitted for table %q", k, table)
+		}
 		parts = append(parts, fmt.Sprintf("%s = $%d", k, i+1))
 		args = append(args, cols[k])
 	}
 
-	return strings.Join(parts, ", "), args
+	return strings.Join(parts, ", "), args, nil
 }
 
 // sortedKeys returns map keys in alphabetical order for stable SQL generation.

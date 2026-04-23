@@ -194,6 +194,7 @@ func (h *CRMHandler) CompleteCRMActivity(c *gin.Context) {
 	queries := sqlc.New(h.pool)
 	activity, err := queries.CompleteCRMActivity(c.Request.Context(), sqlc.CompleteCRMActivityParams{
 		ID:          pgtype.UUID{Bytes: activityID, Valid: true},
+		UserID:      user.ID,
 		CompletedBy: &user.ID,
 		Outcome:     req.Outcome,
 	})
@@ -220,7 +221,10 @@ func (h *CRMHandler) DeleteCRMActivity(c *gin.Context) {
 	}
 
 	queries := sqlc.New(h.pool)
-	err = queries.DeleteCRMActivity(c.Request.Context(), pgtype.UUID{Bytes: activityID, Valid: true})
+	err = queries.DeleteCRMActivity(c.Request.Context(), sqlc.DeleteCRMActivityParams{
+		ID:     pgtype.UUID{Bytes: activityID, Valid: true},
+		UserID: user.ID,
+	})
 	if err != nil {
 		utils.RespondInternalError(c, slog.Default(), "delete activity", nil)
 		return

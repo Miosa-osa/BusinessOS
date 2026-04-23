@@ -13,19 +13,25 @@ import (
 
 const completeCRMActivity = `-- name: CompleteCRMActivity :one
 UPDATE crm_activities
-SET is_completed = TRUE, completed_by = $2, completed_at = NOW(), outcome = $3, updated_at = NOW()
-WHERE id = $1
+SET is_completed = TRUE, completed_by = $3, completed_at = NOW(), outcome = $4, updated_at = NOW()
+WHERE id = $1 AND user_id = $2
 RETURNING id, user_id, activity_type, subject, description, outcome, deal_id, company_id, contact_id, participants, activity_date, duration_minutes, call_direction, call_disposition, call_recording_url, email_direction, email_message_id, meeting_location, meeting_url, owner_id, completed_by, is_completed, completed_at, created_at, updated_at
 `
 
 type CompleteCRMActivityParams struct {
 	ID          pgtype.UUID `json:"id"`
+	UserID      string      `json:"user_id"`
 	CompletedBy *string     `json:"completed_by"`
 	Outcome     *string     `json:"outcome"`
 }
 
 func (q *Queries) CompleteCRMActivity(ctx context.Context, arg CompleteCRMActivityParams) (CrmActivity, error) {
-	row := q.db.QueryRow(ctx, completeCRMActivity, arg.ID, arg.CompletedBy, arg.Outcome)
+	row := q.db.QueryRow(ctx, completeCRMActivity,
+		arg.ID,
+		arg.UserID,
+		arg.CompletedBy,
+		arg.Outcome,
+	)
 	var i CrmActivity
 	err := row.Scan(
 		&i.ID,
@@ -494,11 +500,16 @@ func (q *Queries) CreatePipelineStage(ctx context.Context, arg CreatePipelineSta
 
 const deleteCRMActivity = `-- name: DeleteCRMActivity :exec
 DELETE FROM crm_activities
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 `
 
-func (q *Queries) DeleteCRMActivity(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, deleteCRMActivity, id)
+type DeleteCRMActivityParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID string      `json:"user_id"`
+}
+
+func (q *Queries) DeleteCRMActivity(ctx context.Context, arg DeleteCRMActivityParams) error {
+	_, err := q.db.Exec(ctx, deleteCRMActivity, arg.ID, arg.UserID)
 	return err
 }
 
@@ -592,11 +603,16 @@ func (q *Queries) GetAverageTimeInStage(ctx context.Context, toStageID pgtype.UU
 
 const getCRMActivity = `-- name: GetCRMActivity :one
 SELECT id, user_id, activity_type, subject, description, outcome, deal_id, company_id, contact_id, participants, activity_date, duration_minutes, call_direction, call_disposition, call_recording_url, email_direction, email_message_id, meeting_location, meeting_url, owner_id, completed_by, is_completed, completed_at, created_at, updated_at FROM crm_activities
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 `
 
-func (q *Queries) GetCRMActivity(ctx context.Context, id pgtype.UUID) (CrmActivity, error) {
-	row := q.db.QueryRow(ctx, getCRMActivity, id)
+type GetCRMActivityParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID string      `json:"user_id"`
+}
+
+func (q *Queries) GetCRMActivity(ctx context.Context, arg GetCRMActivityParams) (CrmActivity, error) {
+	row := q.db.QueryRow(ctx, getCRMActivity, arg.ID, arg.UserID)
 	var i CrmActivity
 	err := row.Scan(
 		&i.ID,
@@ -634,8 +650,13 @@ FROM deals d
 JOIN pipeline_stages ps ON d.stage_id = ps.id
 JOIN pipelines p ON d.pipeline_id = p.id
 LEFT JOIN companies c ON d.company_id = c.id
-WHERE d.id = $1
+WHERE d.id = $1 AND d.user_id = $2
 `
+
+type GetCRMDealParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID string      `json:"user_id"`
+}
 
 type GetCRMDealRow struct {
 	ID                pgtype.UUID        `json:"id"`
@@ -667,8 +688,8 @@ type GetCRMDealRow struct {
 	CompanyName       *string            `json:"company_name"`
 }
 
-func (q *Queries) GetCRMDeal(ctx context.Context, id pgtype.UUID) (GetCRMDealRow, error) {
-	row := q.db.QueryRow(ctx, getCRMDeal, id)
+func (q *Queries) GetCRMDeal(ctx context.Context, arg GetCRMDealParams) (GetCRMDealRow, error) {
+	row := q.db.QueryRow(ctx, getCRMDeal, arg.ID, arg.UserID)
 	var i GetCRMDealRow
 	err := row.Scan(
 		&i.ID,
@@ -930,11 +951,16 @@ func (q *Queries) GetDefaultPipeline(ctx context.Context, userID string) (Pipeli
 
 const getPipeline = `-- name: GetPipeline :one
 SELECT id, user_id, name, description, pipeline_type, currency, is_default, is_active, color, icon, created_at, updated_at FROM pipelines
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 `
 
-func (q *Queries) GetPipeline(ctx context.Context, id pgtype.UUID) (Pipeline, error) {
-	row := q.db.QueryRow(ctx, getPipeline, id)
+type GetPipelineParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID string      `json:"user_id"`
+}
+
+func (q *Queries) GetPipeline(ctx context.Context, arg GetPipelineParams) (Pipeline, error) {
+	row := q.db.QueryRow(ctx, getPipeline, arg.ID, arg.UserID)
 	var i Pipeline
 	err := row.Scan(
 		&i.ID,
@@ -2094,16 +2120,17 @@ func (q *Queries) SetPrimaryContact(ctx context.Context, arg SetPrimaryContactPa
 
 const updateCRMActivity = `-- name: UpdateCRMActivity :one
 UPDATE crm_activities
-SET subject = $2, description = $3, outcome = $4,
-    activity_date = $5, duration_minutes = $6,
-    is_completed = $7, completed_by = $8, completed_at = $9,
+SET subject = $3, description = $4, outcome = $5,
+    activity_date = $6, duration_minutes = $7,
+    is_completed = $8, completed_by = $9, completed_at = $10,
     updated_at = NOW()
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 RETURNING id, user_id, activity_type, subject, description, outcome, deal_id, company_id, contact_id, participants, activity_date, duration_minutes, call_direction, call_disposition, call_recording_url, email_direction, email_message_id, meeting_location, meeting_url, owner_id, completed_by, is_completed, completed_at, created_at, updated_at
 `
 
 type UpdateCRMActivityParams struct {
 	ID              pgtype.UUID        `json:"id"`
+	UserID          string             `json:"user_id"`
 	Subject         string             `json:"subject"`
 	Description     *string            `json:"description"`
 	Outcome         *string            `json:"outcome"`
@@ -2117,6 +2144,7 @@ type UpdateCRMActivityParams struct {
 func (q *Queries) UpdateCRMActivity(ctx context.Context, arg UpdateCRMActivityParams) (CrmActivity, error) {
 	row := q.db.QueryRow(ctx, updateCRMActivity,
 		arg.ID,
+		arg.UserID,
 		arg.Subject,
 		arg.Description,
 		arg.Outcome,
@@ -2159,15 +2187,16 @@ func (q *Queries) UpdateCRMActivity(ctx context.Context, arg UpdateCRMActivityPa
 
 const updateCRMDeal = `-- name: UpdateCRMDeal :one
 UPDATE deals
-SET name = $2, description = $3, amount = $4, probability = $5,
-    expected_close_date = $6, owner_id = $7, company_id = $8, primary_contact_id = $9,
-    priority = $10, custom_fields = $11, updated_at = NOW()
-WHERE id = $1
+SET name = $3, description = $4, amount = $5, probability = $6,
+    expected_close_date = $7, owner_id = $8, company_id = $9, primary_contact_id = $10,
+    priority = $11, custom_fields = $12, updated_at = NOW()
+WHERE id = $1 AND user_id = $2
 RETURNING id, user_id, pipeline_id, stage_id, name, description, amount, currency, probability, expected_close_date, actual_close_date, owner_id, company_id, primary_contact_id, status, lost_reason, priority, lead_source, deal_score, custom_fields, client_id, stage_entered_at, created_at, updated_at
 `
 
 type UpdateCRMDealParams struct {
 	ID                pgtype.UUID    `json:"id"`
+	UserID            string         `json:"user_id"`
 	Name              string         `json:"name"`
 	Description       *string        `json:"description"`
 	Amount            pgtype.Numeric `json:"amount"`
@@ -2183,6 +2212,7 @@ type UpdateCRMDealParams struct {
 func (q *Queries) UpdateCRMDeal(ctx context.Context, arg UpdateCRMDealParams) (Deal, error) {
 	row := q.db.QueryRow(ctx, updateCRMDeal,
 		arg.ID,
+		arg.UserID,
 		arg.Name,
 		arg.Description,
 		arg.Amount,
@@ -2226,18 +2256,19 @@ func (q *Queries) UpdateCRMDeal(ctx context.Context, arg UpdateCRMDealParams) (D
 
 const updateCRMDealStage = `-- name: UpdateCRMDealStage :one
 UPDATE deals
-SET stage_id = $2, updated_at = NOW()
-WHERE id = $1
+SET stage_id = $3, updated_at = NOW()
+WHERE id = $1 AND user_id = $2
 RETURNING id, user_id, pipeline_id, stage_id, name, description, amount, currency, probability, expected_close_date, actual_close_date, owner_id, company_id, primary_contact_id, status, lost_reason, priority, lead_source, deal_score, custom_fields, client_id, stage_entered_at, created_at, updated_at
 `
 
 type UpdateCRMDealStageParams struct {
 	ID      pgtype.UUID `json:"id"`
+	UserID  string      `json:"user_id"`
 	StageID pgtype.UUID `json:"stage_id"`
 }
 
 func (q *Queries) UpdateCRMDealStage(ctx context.Context, arg UpdateCRMDealStageParams) (Deal, error) {
-	row := q.db.QueryRow(ctx, updateCRMDealStage, arg.ID, arg.StageID)
+	row := q.db.QueryRow(ctx, updateCRMDealStage, arg.ID, arg.UserID, arg.StageID)
 	var i Deal
 	err := row.Scan(
 		&i.ID,
@@ -2270,22 +2301,28 @@ func (q *Queries) UpdateCRMDealStage(ctx context.Context, arg UpdateCRMDealStage
 
 const updateCRMDealStatus = `-- name: UpdateCRMDealStatus :one
 UPDATE deals
-SET status = $2,
-    lost_reason = $3,
-    actual_close_date = CASE WHEN $2 IN ('won', 'lost') THEN NOW() ELSE NULL END,
+SET status = $3,
+    lost_reason = $4,
+    actual_close_date = CASE WHEN $3 IN ('won', 'lost') THEN NOW() ELSE NULL END,
     updated_at = NOW()
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 RETURNING id, user_id, pipeline_id, stage_id, name, description, amount, currency, probability, expected_close_date, actual_close_date, owner_id, company_id, primary_contact_id, status, lost_reason, priority, lead_source, deal_score, custom_fields, client_id, stage_entered_at, created_at, updated_at
 `
 
 type UpdateCRMDealStatusParams struct {
 	ID         pgtype.UUID `json:"id"`
+	UserID     string      `json:"user_id"`
 	Status     *string     `json:"status"`
 	LostReason *string     `json:"lost_reason"`
 }
 
 func (q *Queries) UpdateCRMDealStatus(ctx context.Context, arg UpdateCRMDealStatusParams) (Deal, error) {
-	row := q.db.QueryRow(ctx, updateCRMDealStatus, arg.ID, arg.Status, arg.LostReason)
+	row := q.db.QueryRow(ctx, updateCRMDealStatus,
+		arg.ID,
+		arg.UserID,
+		arg.Status,
+		arg.LostReason,
+	)
 	var i Deal
 	err := row.Scan(
 		&i.ID,
@@ -2318,19 +2355,20 @@ func (q *Queries) UpdateCRMDealStatus(ctx context.Context, arg UpdateCRMDealStat
 
 const updateCompany = `-- name: UpdateCompany :one
 UPDATE companies
-SET name = $2, legal_name = $3, industry = $4, company_size = $5,
-    website = $6, email = $7, phone = $8,
-    address_line1 = $9, address_line2 = $10, city = $11, state = $12, postal_code = $13, country = $14,
-    annual_revenue = $15, lifecycle_stage = $16,
-    linkedin_url = $17, twitter_handle = $18,
-    logo_url = $19, custom_fields = $20, metadata = $21,
+SET name = $3, legal_name = $4, industry = $5, company_size = $6,
+    website = $7, email = $8, phone = $9,
+    address_line1 = $10, address_line2 = $11, city = $12, state = $13, postal_code = $14, country = $15,
+    annual_revenue = $16, lifecycle_stage = $17,
+    linkedin_url = $18, twitter_handle = $19,
+    logo_url = $20, custom_fields = $21, metadata = $22,
     updated_at = NOW()
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 RETURNING id, user_id, name, legal_name, industry, company_size, website, email, phone, address_line1, address_line2, city, state, postal_code, country, annual_revenue, currency, fiscal_year_end, tax_id, linkedin_url, twitter_handle, owner_id, lifecycle_stage, lead_source, health_score, engagement_score, logo_url, custom_fields, metadata, external_id, external_source, last_synced_at, created_at, updated_at
 `
 
 type UpdateCompanyParams struct {
 	ID             pgtype.UUID    `json:"id"`
+	UserID         string         `json:"user_id"`
 	Name           string         `json:"name"`
 	LegalName      *string        `json:"legal_name"`
 	Industry       *string        `json:"industry"`
@@ -2356,6 +2394,7 @@ type UpdateCompanyParams struct {
 func (q *Queries) UpdateCompany(ctx context.Context, arg UpdateCompanyParams) (Company, error) {
 	row := q.db.QueryRow(ctx, updateCompany,
 		arg.ID,
+		arg.UserID,
 		arg.Name,
 		arg.LegalName,
 		arg.Industry,
@@ -2419,18 +2458,24 @@ func (q *Queries) UpdateCompany(ctx context.Context, arg UpdateCompanyParams) (C
 
 const updateCompanyScores = `-- name: UpdateCompanyScores :exec
 UPDATE companies
-SET health_score = $2, engagement_score = $3, updated_at = NOW()
-WHERE id = $1
+SET health_score = $3, engagement_score = $4, updated_at = NOW()
+WHERE id = $1 AND user_id = $2
 `
 
 type UpdateCompanyScoresParams struct {
 	ID              pgtype.UUID `json:"id"`
+	UserID          string      `json:"user_id"`
 	HealthScore     *int32      `json:"health_score"`
 	EngagementScore *int32      `json:"engagement_score"`
 }
 
 func (q *Queries) UpdateCompanyScores(ctx context.Context, arg UpdateCompanyScoresParams) error {
-	_, err := q.db.Exec(ctx, updateCompanyScores, arg.ID, arg.HealthScore, arg.EngagementScore)
+	_, err := q.db.Exec(ctx, updateCompanyScores,
+		arg.ID,
+		arg.UserID,
+		arg.HealthScore,
+		arg.EngagementScore,
+	)
 	return err
 }
 
@@ -2479,13 +2524,14 @@ func (q *Queries) UpdateContactCompanyRelation(ctx context.Context, arg UpdateCo
 
 const updatePipeline = `-- name: UpdatePipeline :one
 UPDATE pipelines
-SET name = $2, description = $3, currency = $4, color = $5, icon = $6, is_active = $7, updated_at = NOW()
-WHERE id = $1
+SET name = $3, description = $4, currency = $5, color = $6, icon = $7, is_active = $8, updated_at = NOW()
+WHERE id = $1 AND user_id = $2
 RETURNING id, user_id, name, description, pipeline_type, currency, is_default, is_active, color, icon, created_at, updated_at
 `
 
 type UpdatePipelineParams struct {
 	ID          pgtype.UUID `json:"id"`
+	UserID      string      `json:"user_id"`
 	Name        string      `json:"name"`
 	Description *string     `json:"description"`
 	Currency    *string     `json:"currency"`
@@ -2497,6 +2543,7 @@ type UpdatePipelineParams struct {
 func (q *Queries) UpdatePipeline(ctx context.Context, arg UpdatePipelineParams) (Pipeline, error) {
 	row := q.db.QueryRow(ctx, updatePipeline,
 		arg.ID,
+		arg.UserID,
 		arg.Name,
 		arg.Description,
 		arg.Currency,

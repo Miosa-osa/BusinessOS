@@ -77,7 +77,10 @@ func (h *CRMHandler) GetCRMDeal(c *gin.Context) {
 	}
 
 	queries := sqlc.New(h.pool)
-	deal, err := queries.GetCRMDeal(c.Request.Context(), pgtype.UUID{Bytes: id, Valid: true})
+	deal, err := queries.GetCRMDeal(c.Request.Context(), sqlc.GetCRMDealParams{
+		ID:     pgtype.UUID{Bytes: id, Valid: true},
+		UserID: user.ID,
+	})
 	if err != nil {
 		utils.RespondNotFound(c, slog.Default(), "Deal")
 		return
@@ -219,6 +222,7 @@ func (h *CRMHandler) UpdateCRMDeal(c *gin.Context) {
 
 	deal, err := queries.UpdateCRMDeal(c.Request.Context(), sqlc.UpdateCRMDealParams{
 		ID:                pgtype.UUID{Bytes: id, Valid: true},
+		UserID:            user.ID,
 		Name:              req.Name,
 		Description:       req.Description,
 		Amount:            crmToNumeric(req.Amount),
@@ -269,6 +273,7 @@ func (h *CRMHandler) MoveCRMDealStage(c *gin.Context) {
 	queries := sqlc.New(h.pool)
 	deal, err := queries.UpdateCRMDealStage(c.Request.Context(), sqlc.UpdateCRMDealStageParams{
 		ID:      pgtype.UUID{Bytes: id, Valid: true},
+		UserID:  user.ID,
 		StageID: pgtype.UUID{Bytes: stageID, Valid: true},
 	})
 	if err != nil {
@@ -305,6 +310,7 @@ func (h *CRMHandler) UpdateCRMDealStatus(c *gin.Context) {
 	queries := sqlc.New(h.pool)
 	deal, err := queries.UpdateCRMDealStatus(c.Request.Context(), sqlc.UpdateCRMDealStatusParams{
 		ID:         pgtype.UUID{Bytes: id, Valid: true},
+		UserID:     user.ID,
 		Status:     &req.Status,
 		LostReason: req.LostReason,
 	})

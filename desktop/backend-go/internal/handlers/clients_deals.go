@@ -208,6 +208,7 @@ func (h *ClientHandler) UpdateClientDeal(c *gin.Context) {
 	// with the new params struct.
 	deal, err := queries.UpdateCRMDeal(c.Request.Context(), sqlc.UpdateCRMDealParams{
 		ID:                pgtype.UUID{Bytes: dealID, Valid: true},
+		UserID:            user.ID,
 		Name:              req.Name,
 		Description:       req.Notes,
 		Amount:            amount,
@@ -241,6 +242,7 @@ func (h *ClientHandler) UpdateClientDeal(c *gin.Context) {
 
 		movedDeal, mErr := queries.UpdateCRMDealStage(c.Request.Context(), sqlc.UpdateCRMDealStageParams{
 			ID:      pgtype.UUID{Bytes: dealID, Valid: true},
+			UserID:  user.ID,
 			StageID: stageID,
 		})
 		if mErr != nil {

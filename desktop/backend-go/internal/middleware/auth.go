@@ -2,9 +2,13 @@ package middleware
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -28,10 +32,43 @@ const (
 	SessionCookieName = "better-auth.session_token"
 
 	// Session configuration
-	SessionMaxAge         = 7 * 24 * time.Hour // 7 days max session lifetime
-	SessionRefreshWindow  = 24 * time.Hour     // Refresh if less than 24h remaining
+	SessionMaxAge         = 7 * 24 * time.Hour  // 7 days max session lifetime
+	SessionRefreshWindow  = 24 * time.Hour      // Refresh if less than 24h remaining
 	SessionAbsoluteMaxAge = 30 * 24 * time.Hour // 30 days absolute maximum
 )
+
+// verifySessionCookie validates the HMAC signature on a Better Auth session cookie.
+// Format: {token}.{HMAC-SHA256(secret, token)}
+// Returns the raw token if valid, empty string + false if the signature is invalid.
+//
+// Backwards compatibility: if no dot is present the cookie is treated as a raw token
+// and accepted without verification. This allows a zero-downtime migration period.
+// TODO: Make signature mandatory after migration period.
+func verifySessionCookie(sessionCookie string) (string, bool) {
+	idx := strings.LastIndex(sessionCookie, ".")
+	if idx == -1 || idx == len(sessionCookie)-1 {
+		// No signature present — accept raw token for backwards compatibility.
+		return sessionCookie, true
+	}
+
+	token := sessionCookie[:idx]
+	secret := os.Getenv("SECRET_KEY")
+	if secret == "" {
+		// No secret configured — cannot verify, accept raw token.
+		slog.Warn("session HMAC verification skipped: SECRET_KEY not configured")
+		return token, true
+	}
+
+	sig := sessionCookie[idx+1:]
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(token))
+	expectedSig := hex.EncodeToString(mac.Sum(nil))
+
+	if !hmac.Equal([]byte(sig), []byte(expectedSig)) {
+		return "", false
+	}
+	return token, true
+}
 
 // AuthMiddleware validates Better Auth session from cookie
 // Implements sliding window session refresh for better security
@@ -57,11 +94,12 @@ func AuthMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 
 		slog.Debug("AuthMiddleware: cookie decoded successfully")
 
-		// Better Auth signs cookies with HMAC - format is {token}.{signature}
-		// Extract just the token part (before the dot)
-		sessionToken := sessionCookie
-		if idx := strings.Index(sessionCookie, "."); idx != -1 {
-			sessionToken = sessionCookie[:idx]
+		// Verify HMAC signature and extract the raw session token.
+		sessionToken, valid := verifySessionCookie(sessionCookie)
+		if !valid {
+			slog.Debug("AuthMiddleware: invalid session cookie signature")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid session signature"})
+			return
 		}
 
 		slog.Debug("AuthMiddleware: token extracted", "hasSignature", strings.Contains(sessionCookie, "."))
@@ -201,9 +239,11 @@ func OptionalAuthMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		sessionToken := sessionCookie
-		if idx := strings.Index(sessionCookie, "."); idx != -1 {
-			sessionToken = sessionCookie[:idx]
+		sessionToken, valid := verifySessionCookie(sessionCookie)
+		if !valid {
+			slog.Debug("OptionalAuthMiddleware: invalid session cookie signature")
+			c.Next()
+			return
 		}
 
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)

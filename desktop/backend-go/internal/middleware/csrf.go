@@ -308,13 +308,10 @@ func CSRFTokenEndpoint(config ...CSRFConfig) gin.HandlerFunc {
 		// First, try to get token from cookie (existing token)
 		token, err := c.Cookie(cfg.CookieName)
 
-		// DEBUG: Log what we found
-		slog.Info("csrf_token_endpoint_called",
+		// Log token retrieval status (never log token values or cookies)
+		slog.Debug("csrf_token_endpoint_called",
 			"cookie_name", cfg.CookieName,
-			"token_found", token != "",
-			"token_length", len(token),
-			"error", err,
-			"all_cookies", c.Request.Cookies())
+			"token_found", token != "")
 
 		// If no token in cookie, generate a new one
 		if err != nil || token == "" {
@@ -322,7 +319,7 @@ func CSRFTokenEndpoint(config ...CSRFConfig) gin.HandlerFunc {
 			setCSRFCookie(c, token, cfg)
 			slog.Debug("csrf_token_endpoint_new_token_generated")
 		} else {
-			slog.Debug("csrf_token_endpoint_existing_token_returned", "token", token)
+			slog.Debug("csrf_token_endpoint_existing_token_returned")
 		}
 
 		c.JSON(http.StatusOK, gin.H{

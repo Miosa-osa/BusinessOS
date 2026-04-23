@@ -12,7 +12,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -270,9 +269,11 @@ func CachedAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.HandlerFu
 
 		slog.Debug("cached_auth: decoded session cookie", "masked_token", maskToken(sessionCookie))
 
-		sessionToken := sessionCookie
-		if idx := strings.Index(sessionCookie, "."); idx != -1 {
-			sessionToken = sessionCookie[:idx]
+		sessionToken, valid := verifySessionCookie(sessionCookie)
+		if !valid {
+			slog.Debug("cached_auth: invalid session cookie signature")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid session signature"})
+			return
 		}
 
 		slog.Debug("cached_auth: extracted session token", "masked_token", maskToken(sessionToken))
@@ -362,9 +363,11 @@ func CachedOptionalAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.H
 			return
 		}
 
-		sessionToken := sessionCookie
-		if idx := strings.Index(sessionCookie, "."); idx != -1 {
-			sessionToken = sessionCookie[:idx]
+		sessionToken, valid := verifySessionCookie(sessionCookie)
+		if !valid {
+			slog.Debug("CachedOptionalAuthMiddleware: invalid session cookie signature")
+			c.Next()
+			return
 		}
 
 		ctx := c.Request.Context()
@@ -433,9 +436,10 @@ func InvalidateSessionMiddleware(cache *SessionCache) gin.HandlerFunc {
 			sessionCookie, err := c.Cookie(SessionCookieName)
 			if err == nil && sessionCookie != "" {
 				sessionCookie, _ = url.QueryUnescape(sessionCookie)
-				sessionToken := sessionCookie
-				if idx := strings.Index(sessionCookie, "."); idx != -1 {
-					sessionToken = sessionCookie[:idx]
+				sessionToken, valid := verifySessionCookie(sessionCookie)
+				if !valid {
+					slog.Debug("InvalidateSessionMiddleware: invalid session cookie signature, skipping invalidation")
+					return
 				}
 
 				if cache != nil {

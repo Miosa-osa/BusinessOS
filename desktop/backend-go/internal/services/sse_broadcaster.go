@@ -65,15 +65,26 @@ func NewSSEBroadcasterWithConfig(sendTimeout time.Duration, maxFailedSends int, 
 	return b
 }
 
-// Subscribe creates a channel for a user
+// maxSSEConnectionsPerUser is the maximum number of concurrent SSE connections
+// allowed per user. Connections beyond this limit are rejected to prevent
+// resource exhaustion from runaway clients or connection storms.
+const maxSSEConnectionsPerUser = 10
+
+// Subscribe creates a channel for a user.
+// Returns nil if the per-user connection limit has been reached.
 func (b *SSEBroadcaster) Subscribe(userID string) chan SSEEvent {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	ch := make(chan SSEEvent, 16)
 	if b.clients[userID] == nil {
 		b.clients[userID] = make(map[chan SSEEvent]*clientState)
 	}
+
+	if len(b.clients[userID]) >= maxSSEConnectionsPerUser {
+		return nil
+	}
+
+	ch := make(chan SSEEvent, 16)
 	b.clients[userID][ch] = &clientState{
 		ch:           ch,
 		lastActivity: time.Now(),
