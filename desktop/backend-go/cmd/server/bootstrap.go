@@ -25,6 +25,7 @@ import (
 	"github.com/rhl/businessos-backend/internal/handlers"
 	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/optimal/architecture"
 	redisClient "github.com/rhl/businessos-backend/internal/redis"
 	"github.com/rhl/businessos-backend/internal/security"
 	"github.com/rhl/businessos-backend/internal/services"
@@ -358,6 +359,19 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 		tieredContextService = services.NewTieredContextService(app.pool, embeddingService, summarizer)
 		slog.Info("Embedding service initialized", "model", "nomic-embed-text", "dimensions", 768)
 		slog.Info("Tiered context service enabled (scoped RAG, Level 1/2/3 context)")
+
+		// Replace the architecture-layer text_embedder stub (Wave 8) with a real
+		// processor backed by EmbeddingService. After this swap, every
+		// architecture-driven ingest path (text_signal.body, code_commit.message,
+		// audio_transcript.transcript, etc.) emits real 768d vectors instead of
+		// EmitNoop. Failure here is non-fatal — the stub stays in place and
+		// classic ingest still works.
+		if err := architecture.SwapProcessor("text_embedder",
+			services.NewTextEmbedderProcessor(embeddingService)); err != nil {
+			slog.Warn("architecture: text_embedder swap failed (stub remains)", "error", err)
+		} else {
+			slog.Info("architecture: text_embedder wired to EmbeddingService (real 768d vectors)")
+		}
 	} else {
 		slog.Warn("Embedding service unavailable (Ollama not running or nomic-embed-text model not pulled)")
 		slog.Warn("RAG features will be disabled. Run: ollama pull nomic-embed-text")
