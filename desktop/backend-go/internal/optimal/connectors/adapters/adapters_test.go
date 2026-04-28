@@ -7,14 +7,25 @@ import (
 	"github.com/rhl/businessos-backend/internal/optimal/connectors"
 )
 
-// All five adapters must register themselves on package import. Exercising
+// All 14 adapters must register themselves on package import. Exercising
 // Lookup guarantees that side-effect registration is wired correctly — a
 // missed init() would make a kind silently disappear at runtime.
 func TestAdaptersRegistered(t *testing.T) {
-	for _, kind := range []string{"slack", "gmail", "notion", "github", "linear"} {
+	want := []string{
+		// Wave 2 priority five
+		"slack", "gmail", "notion", "github", "linear",
+		// Wave 7 — remaining nine
+		"confluence", "drive", "dropbox", "hubspot", "jira",
+		"onedrive", "salesforce", "teams", "zoom",
+	}
+	for _, kind := range want {
 		if _, err := connectors.Lookup(kind); err != nil {
 			t.Errorf("adapter %s not registered: %v", kind, err)
 		}
+	}
+	got := connectors.Kinds()
+	if len(got) < len(want) {
+		t.Fatalf("registry shorter than expected: got %d want >= %d (%v)", len(got), len(want), got)
 	}
 }
 
