@@ -91,6 +91,18 @@ type Handlers struct {
 	optimalHandler *OptimalHandler // read-only bridge to OptimalOS filesystem + engine
 	// OptimalOS cloud engine (PostgreSQL-backed, multi-tenant)
 	optimalCloudHandler *OptimalCloudHandler
+
+	// OptimalEngine Phase 3-8 — lazily constructed in their register* methods
+	// so dev / single-instance deployments without the optimal schemas pay no
+	// startup cost.
+	wikiHandler       *WikiHandler       // /api/wiki/* — Pages-backed wiki facade
+	dsarHandler       *DSARHandler       // /api/compliance/dsar/* — GDPR Art.15 export
+	erasureHandler    *ErasureHandler    // /api/compliance/erasure/* — GDPR Art.17 erase
+	legalHoldHandler  *LegalHoldHandler  // /api/compliance/holds/* — litigation hold
+	retentionHandler  *RetentionHandler  // /api/compliance/retention/* — TTL sweeps
+	auditQueryHandler *AuditQueryHandler // /api/audit/* — read-only audit log
+	principalHandler  *PrincipalHandler  // /api/identity/principals/* — agents + services
+	aclHandler        *ACLHandler        // /api/identity/acls/* — resource ACLs
 }
 
 // SetOptimalHandler injects the OptimalOS handler after construction.

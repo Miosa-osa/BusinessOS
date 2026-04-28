@@ -150,6 +150,9 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 		if err := database.EnsureAuthTables(initCtx, app.pool); err != nil {
 			slog.Warn("auth table initialization failed", "error", err)
 		}
+
+		// ===== OPTIMAL ENGINE SCHEMAS (Phase 3-8: tenancy, audit, compliance, wiki, identity) =====
+		bootstrapOptimalSchemas(ctx, app.sqlDB)
 	}
 
 	// ===== TEMPLATE SYNC =====

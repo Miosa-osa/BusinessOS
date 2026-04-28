@@ -37,4 +37,10 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	h.registerOSARoutes(api, auth)
 	h.registerOptimalRoutes(api)
 	h.registerOptimalCloudRoutes(api, auth)
+
+	// OptimalEngine Phase 3-8 endpoints (wiki, compliance, audit, identity).
+	h.registerWikiRoutes(api, auth)
+	h.registerComplianceRoutes(api, auth)
+	h.registerAuditRoutes(api, auth)
+	h.registerIdentityRoutes(api, auth)
 }
