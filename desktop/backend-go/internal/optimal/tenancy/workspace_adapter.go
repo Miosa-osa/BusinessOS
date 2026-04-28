@@ -22,18 +22,19 @@ type WorkspaceAdapter struct {
 // BusinessOS. Call EnsureDefault once at startup.
 func NewWorkspaceAdapter(db *sql.DB) *WorkspaceAdapter { return &WorkspaceAdapter{DB: db} }
 
-// EnsureDefault inserts the reserved "default" tenant row if missing. The
-// row is keyed by slug (the only UNIQUE column on workspaces) so this is
-// idempotent across restarts.
-func (a *WorkspaceAdapter) EnsureDefault(ctx context.Context) error {
-	const upsert = `
-		INSERT INTO workspaces (id, name, slug, plan_type, owner_id, settings)
-		VALUES ('00000000-0000-0000-0000-000000000000', 'Default', $1, 'system', 'system', '{"system":true}'::jsonb)
-		ON CONFLICT (slug) DO NOTHING
-	`
-	if _, err := a.DB.ExecContext(ctx, upsert, DefaultID); err != nil {
-		return fmt.Errorf("tenancy: ensure default: %w", err)
-	}
+// EnsureDefault is a no-op on the BusinessOS schema by design.
+//
+// The "default" tenant is a string convention used by audit_events and the
+// other Phase 3-8 tables — not an actual workspaces row.  workspaces.owner_id
+// has a NOT-NULL FK to "user".id, so we cannot synthesize a placeholder row
+// without inventing a fake user.  Real workspaces are created by the
+// BusinessOS workspace flow with a real owner; until that happens, audit /
+// wiki / compliance rows simply carry tenant_id = 'default'.
+//
+// Kept as a method so the Store interface stays uniform with MemoryStore
+// (which DOES materialize the default for tests).  Always returns nil; any
+// caller treating "ensure default" as load-bearing should use Get instead.
+func (a *WorkspaceAdapter) EnsureDefault(_ context.Context) error {
 	return nil
 }
 
