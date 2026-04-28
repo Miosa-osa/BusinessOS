@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/optimal/connectors/adapters"
 	"github.com/rhl/businessos-backend/internal/services"
 )
 
@@ -19,6 +20,16 @@ func (h *Handlers) registerIntegrationRoutes(api *gin.RouterGroup, auth gin.Hand
 	// Initialize the IntegrationRouter which manages all integration providers
 	// (Google, Slack, Notion) with their OAuth flows, data sync, and API handlers.
 	integrationRouter := NewIntegrationRouter(h.pool)
+	h.integrationRouter = integrationRouter
+
+	// Wire the OptimalEngine gmail connector adapter to the live Gmail service.
+	// Once set, gmailAdapter.Sync pulls real messages instead of returning
+	// ErrNotImplemented. Must run BEFORE registerConnectorRoutes so the first
+	// sync request finds a wired fetcher.
+	if gmailSvc := integrationRouter.GetGoogleGmailService(); gmailSvc != nil {
+		adapters.SetGmailFetcher(services.NewGmailConnectorFetcher(gmailSvc))
+		slog.Info("connectors: gmail fetcher wired to live OAuth service")
+	}
 
 	// Register provider-based integration routes - /api/integrations/{provider}/*
 	integrationsGroup := api.Group("/integrations")

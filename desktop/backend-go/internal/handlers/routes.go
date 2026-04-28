@@ -43,4 +43,5 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	h.registerComplianceRoutes(api, auth)
 	h.registerAuditRoutes(api, auth)
 	h.registerIdentityRoutes(api, auth)
+	h.registerConnectorsRoutes(api, auth)
 }

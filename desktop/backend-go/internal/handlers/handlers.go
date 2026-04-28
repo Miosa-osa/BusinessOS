@@ -103,6 +103,10 @@ type Handlers struct {
 	auditQueryHandler *AuditQueryHandler // /api/audit/* — read-only audit log
 	principalHandler  *PrincipalHandler  // /api/identity/principals/* — agents + services
 	aclHandler        *ACLHandler        // /api/identity/acls/* — resource ACLs
+
+	// Phase 9 — connector sync orchestration
+	integrationRouter *IntegrationRouter // referenced by connectors_sync to access GmailService etc.
+	connectorsHandler *ConnectorsHandler // /api/connectors/:kind/sync
 }
 
 // SetOptimalHandler injects the OptimalOS handler after construction.

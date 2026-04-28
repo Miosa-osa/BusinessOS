@@ -7,6 +7,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import {
+		activeDocument,
 		activeDocumentStore,
 		openAndFetchDocument,
 		createDocument,
@@ -14,6 +15,7 @@
 		QuickSearch,
 		DocumentEditor
 	} from '$lib/modules/knowledge-base';
+	import WikiPanel from '$lib/components/pages/WikiPanel.svelte';
 
 	// Get document ID from URL
 	let documentId = $derived($page.params.id);
@@ -95,6 +97,10 @@
 			/>
 		{/if}
 	</main>
+
+	{#if $activeDocument}
+		<WikiPanel doc={$activeDocument} />
+	{/if}
 
 	<QuickSearch
 		bind:open={showQuickSearch}
