@@ -3,10 +3,10 @@ package handlers
 import (
 	"log/slog"
 
+	"github.com/Miosa-osa/OptimalEngine-go/connectors/adapters"
 	"github.com/gin-gonic/gin"
+	"github.com/rhl/businessos-backend/internal/connectorbridges"
 	"github.com/rhl/businessos-backend/internal/middleware"
-	"github.com/rhl/businessos-backend/internal/optimal/connectors/adapters"
-	"github.com/rhl/businessos-backend/internal/optimal/connectors/bridges"
 	"github.com/rhl/businessos-backend/internal/services"
 )
 
@@ -29,23 +29,23 @@ func (h *Handlers) registerIntegrationRoutes(api *gin.RouterGroup, auth gin.Hand
 	// registerConnectorRoutes so the first sync request finds a wired
 	// fetcher.
 	if gmailSvc := integrationRouter.GetGoogleGmailService(); gmailSvc != nil {
-		adapters.SetGmailFetcher(bridges.NewGmailFetcher(gmailSvc))
+		adapters.SetGmailFetcher(connectorbridges.NewGmailFetcher(gmailSvc))
 		slog.Info("connectors: gmail fetcher wired to live OAuth service")
 	}
 	if slackProv := integrationRouter.GetSlackProvider(); slackProv != nil {
-		adapters.SetSlackFetcher(bridges.NewSlackFetcher(slackProv))
+		adapters.SetSlackFetcher(connectorbridges.NewSlackFetcher(slackProv))
 		slog.Info("connectors: slack fetcher wired to live OAuth service")
 	}
 	if notionProv := integrationRouter.GetNotionProvider(); notionProv != nil {
-		adapters.SetNotionFetcher(bridges.NewNotionFetcher(notionProv))
+		adapters.SetNotionFetcher(connectorbridges.NewNotionFetcher(notionProv))
 		slog.Info("connectors: notion fetcher wired to live OAuth service")
 	}
 	if linearProv := integrationRouter.GetLinearProvider(); linearProv != nil {
-		adapters.SetLinearFetcher(bridges.NewLinearFetcher(linearProv))
+		adapters.SetLinearFetcher(connectorbridges.NewLinearFetcher(linearProv))
 		slog.Info("connectors: linear fetcher wired to live OAuth service")
 	}
 	if hubspotProv := integrationRouter.GetHubSpotProvider(); hubspotProv != nil {
-		adapters.SetHubspotFetcher(bridges.NewHubspotFetcher(hubspotProv))
+		adapters.SetHubspotFetcher(connectorbridges.NewHubspotFetcher(hubspotProv))
 		slog.Info("connectors: hubspot fetcher wired to live OAuth service")
 	}
 

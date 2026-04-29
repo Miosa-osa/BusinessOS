@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rhl/businessos-backend/internal/optimal/architecture"
+	"github.com/Miosa-osa/OptimalEngine-go/architecture"
 )
 
 // TextEmbedderProcessor wraps EmbeddingService.GenerateEmbedding so it

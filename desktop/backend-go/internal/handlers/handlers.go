@@ -9,7 +9,7 @@ import (
 	"github.com/rhl/businessos-backend/internal/feedback"
 	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
-	"github.com/rhl/businessos-backend/internal/optimal"
+	"github.com/Miosa-osa/OptimalEngine-go"
 	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/sorx"
 	"github.com/rhl/businessos-backend/internal/subconscious"

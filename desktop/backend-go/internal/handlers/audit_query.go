@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/rhl/businessos-backend/internal/middleware"
-	"github.com/rhl/businessos-backend/internal/optimal/audit"
+	"github.com/Miosa-osa/OptimalEngine-go/audit"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 

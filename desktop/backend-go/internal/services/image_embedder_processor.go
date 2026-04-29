@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rhl/businessos-backend/internal/optimal/architecture"
+	"github.com/Miosa-osa/OptimalEngine-go/architecture"
 )
 
 // ImageEmbedderProcessor implements architecture.Processor on top of the

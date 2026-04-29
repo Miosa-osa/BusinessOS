@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rhl/businessos-backend/internal/optimal"
+	"github.com/Miosa-osa/OptimalEngine-go"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rhl/businessos-backend/internal/optimal"
+	"github.com/Miosa-osa/OptimalEngine-go"
 )
 
 // Each command has a single function so the dispatch table can do a clean

@@ -6,7 +6,7 @@
 //
 // The connector adapter doesn't import this package directly; bootstrap
 // wires the fetcher in via adapters.SetGmailFetcher.
-package bridges
+package connectorbridges
 
 import (
 	"context"

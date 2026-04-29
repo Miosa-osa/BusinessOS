@@ -2,7 +2,7 @@
 //
 // Linear is GraphQL-only. We issue a single query for the user's recent
 // issues, ordered by updatedAt. The cursor is Linear's pageInfo.endCursor.
-package bridges
+package connectorbridges
 
 import (
 	"bytes"

@@ -9,8 +9,10 @@
 UPDATE "user"
 SET    platform_role = 'superadmin'
 WHERE  email IN (
+    'roberto@businessos.dev',
     'roberto@optimalos.dev',
     'roberto@miosa.ai',
+    'roberto@lunivate.com',
     'rhl@miosa.ai'
 )
 AND platform_role != 'superadmin';

@@ -8,9 +8,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/rhl/businessos-backend/internal/middleware"
-	"github.com/rhl/businessos-backend/internal/optimal/audit"
-	"github.com/rhl/businessos-backend/internal/optimal/compliance"
-	"github.com/rhl/businessos-backend/internal/optimal/tenancy"
+	"github.com/Miosa-osa/OptimalEngine-go/audit"
+	"github.com/Miosa-osa/OptimalEngine-go/compliance"
+	"github.com/Miosa-osa/OptimalEngine-go/tenancy"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 

@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/rhl/businessos-backend/internal/optimal/architecture"
+	"github.com/Miosa-osa/OptimalEngine-go/architecture"
 )
 
 // TSFeatureExtractorProcessor implements architecture.Processor for fixed-

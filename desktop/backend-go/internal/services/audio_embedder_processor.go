@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/rhl/businessos-backend/internal/optimal/architecture"
+	"github.com/Miosa-osa/OptimalEngine-go/architecture"
 )
 
 // AudioEmbedderProcessor turns audio bytes into a transcript via Whisper.

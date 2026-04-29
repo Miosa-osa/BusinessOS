@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rhl/businessos-backend/internal/optimal"
+	"github.com/Miosa-osa/OptimalEngine-go"
 )
 
 // OptimalCloudService bridges the OptimalOS engine pipeline with PostgreSQL.

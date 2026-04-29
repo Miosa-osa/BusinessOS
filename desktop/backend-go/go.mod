@@ -1,6 +1,6 @@
 module github.com/rhl/businessos-backend
 
-go 1.25.0
+go 1.26.2
 
 require (
 	github.com/Miosa-osa/sdk-go v0.0.0-20260226144618-73c7a2577f84
@@ -30,18 +30,20 @@ require (
 	github.com/stripe/stripe-go/v82 v82.5.1
 	golang.org/x/crypto v0.48.0
 	golang.org/x/oauth2 v0.34.0
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.20.0
 	golang.org/x/time v0.14.0
 	google.golang.org/api v0.257.0
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.48.2
 )
+
+require modernc.org/sqlite v1.50.0 // indirect
 
 require (
 	cloud.google.com/go/auth v0.17.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/Miosa-osa/OptimalEngine-go v0.1.0
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -123,7 +125,7 @@ require (
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
-	modernc.org/libc v1.70.0 // indirect
+	modernc.org/libc v1.72.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
@@ -131,3 +133,5 @@ require (
 replace github.com/docker/docker => github.com/docker/docker v27.4.1+incompatible
 
 replace github.com/Miosa-osa/sdk-go => ./stub/miosa-sdk-go
+
+replace github.com/Miosa-osa/OptimalEngine-go => ../../../OptimalEngine-go

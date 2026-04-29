@@ -4,7 +4,7 @@
 // same shape (the adapter's Transform routes by `attributes.type`) and
 // can be fanned out by the fetcher in a follow-up — keeping the wire
 // narrow for now means the contract is easy to reason about.
-package bridges
+package connectorbridges
 
 import (
 	"context"

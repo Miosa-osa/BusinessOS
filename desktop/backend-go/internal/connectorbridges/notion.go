@@ -1,5 +1,5 @@
 // notion_connector.go — Notion fetcher for the OptimalEngine connector layer.
-package bridges
+package connectorbridges
 
 import (
 	"bytes"

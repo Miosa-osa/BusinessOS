@@ -7,12 +7,12 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/rhl/businessos-backend/internal/optimal/architecture"
-	"github.com/rhl/businessos-backend/internal/optimal/audit"
-	"github.com/rhl/businessos-backend/internal/optimal/compliance"
-	"github.com/rhl/businessos-backend/internal/optimal/identity"
-	"github.com/rhl/businessos-backend/internal/optimal/tenancy"
-	"github.com/rhl/businessos-backend/internal/optimal/wiki"
+	"github.com/Miosa-osa/OptimalEngine-go/architecture"
+	"github.com/Miosa-osa/OptimalEngine-go/audit"
+	"github.com/Miosa-osa/OptimalEngine-go/compliance"
+	"github.com/Miosa-osa/OptimalEngine-go/identity"
+	"github.com/Miosa-osa/OptimalEngine-go/tenancy"
+	"github.com/Miosa-osa/OptimalEngine-go/wiki"
 )
 
 // bootstrapOptimalSchemas creates every Phase 3-8 OptimalEngine table that

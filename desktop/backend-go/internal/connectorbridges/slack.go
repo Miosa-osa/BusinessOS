@@ -5,7 +5,7 @@
 // HTTP API directly rather than going through MessageService because that
 // service writes to BusinessOS-specific tables; the connector pipeline
 // just needs the raw conversations.history payload to feed Transform.
-package bridges
+package connectorbridges
 
 import (
 	"context"
