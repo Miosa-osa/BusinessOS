@@ -32,7 +32,7 @@
 		}
 	});
 
-	function handleConnect() {
+	async function handleConnect() {
 		if (isLoading) return;
 
 		isLoading = true;

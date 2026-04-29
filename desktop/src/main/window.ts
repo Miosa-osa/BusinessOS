@@ -46,7 +46,7 @@ export async function createMainWindow(): Promise<BrowserWindow> {
   // Load the app
   if (isDev) {
     // In development, load from the Vite dev server (port 5173)
-    const devUrl = "http://localhost:5173";
+    const devUrl = process.env.BUSINESSOS_DEV_URL || "http://localhost:5173";
     console.log(`Loading from ${devUrl}`);
     try {
       await mainWindow.loadURL(devUrl);
@@ -81,7 +81,9 @@ export async function createMainWindow(): Promise<BrowserWindow> {
 
   // Prevent navigation away from the app
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    const appUrl = isDev ? "http://localhost:5173" : `file://${__dirname}`;
+    const appUrl = isDev
+      ? process.env.BUSINESSOS_DEV_URL || "http://localhost:5173"
+      : `file://${__dirname}`;
     if (!url.startsWith(appUrl) && !url.startsWith("file://")) {
       event.preventDefault();
       shell.openExternal(url);

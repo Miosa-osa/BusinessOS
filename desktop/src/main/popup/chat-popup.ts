@@ -1,7 +1,18 @@
-import { BrowserWindow, globalShortcut, screen, app, ipcMain, Tray, Menu, nativeImage, systemPreferences, dialog } from 'electron';
-import path from 'path';
-import { getMainWindow } from '../window';
-import Store from 'electron-store';
+import {
+  BrowserWindow,
+  globalShortcut,
+  screen,
+  app,
+  ipcMain,
+  Tray,
+  Menu,
+  nativeImage,
+  systemPreferences,
+  dialog,
+} from "electron";
+import path from "path";
+import { getMainWindow } from "../window";
+import Store from "electron-store";
 
 // Popup window instance
 let popupWindow: BrowserWindow | null = null;
@@ -9,15 +20,15 @@ let tray: Tray | null = null;
 
 // Settings store for shortcuts
 const store = new Store({
-  name: 'shortcuts',
+  name: "shortcuts",
   defaults: {
     shortcuts: {
-      quickChat: 'CommandOrControl+Shift+Space',
-      spotlight: 'CommandOrControl+Space',
-      voiceInput: 'CommandOrControl+D',
+      quickChat: "CommandOrControl+Shift+Space",
+      spotlight: "CommandOrControl+Space",
+      voiceInput: "CommandOrControl+D",
     },
     accessibilityPrompted: false,
-  }
+  },
 });
 
 // Popup window settings
@@ -29,11 +40,11 @@ const POPUP_SIZES = {
 };
 
 type PopupSize = keyof typeof POPUP_SIZES;
-let currentSize: PopupSize = 'small';
+let currentSize: PopupSize = "small";
 
 // Get shortcuts from store
 function getShortcuts() {
-  return store.get('shortcuts') as {
+  return store.get("shortcuts") as {
     quickChat: string;
     spotlight: string;
     voiceInput: string;
@@ -52,7 +63,9 @@ export function createPopupWindow(): BrowserWindow {
 
   const size = POPUP_SIZES[currentSize];
   // Position in center-top of the current display
-  const x = Math.round(display.bounds.x + (display.bounds.width - size.width) / 2);
+  const x = Math.round(
+    display.bounds.x + (display.bounds.width - size.width) / 2,
+  );
   const y = display.bounds.y + 80; // 80px from top
 
   popupWindow = new BrowserWindow({
@@ -73,33 +86,34 @@ export function createPopupWindow(): BrowserWindow {
     alwaysOnTop: true,
     skipTaskbar: true,
     hasShadow: true,
-    vibrancy: process.platform === 'darwin' ? 'popover' : undefined,
-    visualEffectState: 'active',
+    vibrancy: process.platform === "darwin" ? "popover" : undefined,
+    visualEffectState: "active",
     roundedCorners: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, "../preload/index.js"),
     },
   });
 
   // Load the popup chat page
   if (isDev) {
-    popupWindow.loadURL('http://localhost:5173/popup-chat');
+    const devUrl = process.env.BUSINESSOS_DEV_URL || "http://localhost:5173";
+    popupWindow.loadURL(`${devUrl}/popup-chat`);
   } else {
-    const indexPath = path.join(__dirname, '../renderer/popup-chat.html');
+    const indexPath = path.join(__dirname, "../renderer/popup-chat.html");
     popupWindow.loadFile(indexPath);
   }
 
   // Hide instead of close
-  popupWindow.on('close', (event) => {
+  popupWindow.on("close", (event) => {
     event.preventDefault();
     popupWindow?.hide();
   });
 
   // Hide on blur (click outside)
-  popupWindow.on('blur', () => {
+  popupWindow.on("blur", () => {
     // Small delay to allow for click events
     setTimeout(() => {
       if (popupWindow && !popupWindow.isFocused()) {
@@ -108,7 +122,7 @@ export function createPopupWindow(): BrowserWindow {
     }, 100);
   });
 
-  popupWindow.on('closed', () => {
+  popupWindow.on("closed", () => {
     popupWindow = null;
   });
 
@@ -130,7 +144,9 @@ export function togglePopup(): void {
     const cursorPoint = screen.getCursorScreenPoint();
     const display = screen.getDisplayNearestPoint(cursorPoint);
     const size = POPUP_SIZES[currentSize];
-    const x = Math.round(display.bounds.x + (display.bounds.width - size.width) / 2);
+    const x = Math.round(
+      display.bounds.x + (display.bounds.width - size.width) / 2,
+    );
     const y = display.bounds.y + 80;
 
     popupWindow?.setPosition(x, y);
@@ -138,7 +154,7 @@ export function togglePopup(): void {
     popupWindow?.focus();
 
     // Tell the popup to focus the input
-    popupWindow?.webContents.send('popup:focus-input');
+    popupWindow?.webContents.send("popup:focus-input");
   }
 }
 
@@ -155,18 +171,24 @@ export function setPopupSize(size: PopupSize): void {
     const cursorPoint = screen.getCursorScreenPoint();
     const display = screen.getDisplayNearestPoint(cursorPoint);
 
-    const newX = Math.round(display.bounds.x + (display.bounds.width - dimensions.width) / 2);
-    const newY = size === 'full' ? display.bounds.y + 40 : display.bounds.y + 80;
+    const newX = Math.round(
+      display.bounds.x + (display.bounds.width - dimensions.width) / 2,
+    );
+    const newY =
+      size === "full" ? display.bounds.y + 40 : display.bounds.y + 80;
 
-    popupWindow.setBounds({
-      x: newX,
-      y: newY,
-      width: dimensions.width,
-      height: dimensions.height,
-    }, true); // animate
+    popupWindow.setBounds(
+      {
+        x: newX,
+        y: newY,
+        width: dimensions.width,
+        height: dimensions.height,
+      },
+      true,
+    ); // animate
 
     // Notify renderer of size change
-    popupWindow.webContents.send('popup:size-changed', size);
+    popupWindow.webContents.send("popup:size-changed", size);
   }
 }
 
@@ -201,27 +223,29 @@ export function hidePopup(): void {
  * Check and request accessibility permissions (macOS)
  */
 export async function checkAccessibilityPermissions(): Promise<boolean> {
-  if (process.platform !== 'darwin') {
+  if (process.platform !== "darwin") {
     return true; // Not needed on Windows/Linux
   }
 
   const isTrusted = systemPreferences.isTrustedAccessibilityClient(false);
 
   if (!isTrusted) {
-    const hasPrompted = store.get('accessibilityPrompted') as boolean;
+    const hasPrompted = store.get("accessibilityPrompted") as boolean;
 
     if (!hasPrompted) {
       const result = await dialog.showMessageBox({
-        type: 'info',
-        title: 'Accessibility Permission Required',
-        message: 'BusinessOS needs accessibility permissions to use global keyboard shortcuts.',
-        detail: 'This allows you to trigger Quick Chat (⌘+Shift+Space) and other shortcuts from anywhere on your Mac.\n\nClick "Open Settings" to grant permission in System Preferences → Privacy & Security → Accessibility.',
-        buttons: ['Open Settings', 'Later'],
+        type: "info",
+        title: "Accessibility Permission Required",
+        message:
+          "BusinessOS needs accessibility permissions to use global keyboard shortcuts.",
+        detail:
+          'This allows you to trigger Quick Chat (⌘+Shift+Space) and other shortcuts from anywhere on your Mac.\n\nClick "Open Settings" to grant permission in System Preferences → Privacy & Security → Accessibility.',
+        buttons: ["Open Settings", "Later"],
         defaultId: 0,
         cancelId: 1,
       });
 
-      store.set('accessibilityPrompted', true);
+      store.set("accessibilityPrompted", true);
 
       if (result.response === 0) {
         // Open System Preferences to Accessibility
@@ -242,8 +266,10 @@ export async function registerGlobalShortcuts(): Promise<void> {
   // Check accessibility permissions first (macOS)
   const hasPermission = await checkAccessibilityPermissions();
 
-  if (!hasPermission && process.platform === 'darwin') {
-    console.warn('Accessibility permission not granted. Global shortcuts may not work.');
+  if (!hasPermission && process.platform === "darwin") {
+    console.warn(
+      "Accessibility permission not granted. Global shortcuts may not work.",
+    );
     // Still try to register - they'll work once permission is granted
   }
 
@@ -255,56 +281,68 @@ export async function registerGlobalShortcuts(): Promise<void> {
   // Main popup toggle shortcut (Cmd+Shift+Space by default)
   if (shortcuts.quickChat) {
     const registered = globalShortcut.register(shortcuts.quickChat, () => {
-      console.log('Quick Chat shortcut triggered:', shortcuts.quickChat);
+      console.log("Quick Chat shortcut triggered:", shortcuts.quickChat);
       togglePopup();
     });
 
     if (registered) {
       console.log(`Quick Chat shortcut registered: ${shortcuts.quickChat}`);
     } else {
-      console.error(`Failed to register Quick Chat shortcut: ${shortcuts.quickChat}`);
+      console.error(
+        `Failed to register Quick Chat shortcut: ${shortcuts.quickChat}`,
+      );
     }
   }
 
   // Spotlight-style shortcut (Cmd+Space by default)
   // Note: This may conflict with macOS Spotlight if not disabled in System Preferences
   if (shortcuts.spotlight && shortcuts.spotlight !== shortcuts.quickChat) {
-    const spotlightRegistered = globalShortcut.register(shortcuts.spotlight, () => {
-      console.log('Spotlight shortcut triggered:', shortcuts.spotlight);
-      togglePopup();
-    });
+    const spotlightRegistered = globalShortcut.register(
+      shortcuts.spotlight,
+      () => {
+        console.log("Spotlight shortcut triggered:", shortcuts.spotlight);
+        togglePopup();
+      },
+    );
 
     if (spotlightRegistered) {
       console.log(`Spotlight shortcut registered: ${shortcuts.spotlight}`);
     } else {
-      console.warn(`Could not register ${shortcuts.spotlight} - may be in use by system Spotlight.`);
+      console.warn(
+        `Could not register ${shortcuts.spotlight} - may be in use by system Spotlight.`,
+      );
     }
   }
 
   // Voice input shortcut (Cmd+D by default) - triggers recording in popup
   if (shortcuts.voiceInput) {
-    const voiceRegistered = globalShortcut.register(shortcuts.voiceInput, () => {
-      console.log('Voice shortcut triggered:', shortcuts.voiceInput);
-      // Show popup and start recording
-      if (!popupWindow?.isVisible()) {
-        togglePopup();
-      }
-      // Tell popup to start voice recording
-      setTimeout(() => {
-        popupWindow?.webContents.send('popup:start-voice-recording');
-      }, 200);
-    });
+    const voiceRegistered = globalShortcut.register(
+      shortcuts.voiceInput,
+      () => {
+        console.log("Voice shortcut triggered:", shortcuts.voiceInput);
+        // Show popup and start recording
+        if (!popupWindow?.isVisible()) {
+          togglePopup();
+        }
+        // Tell popup to start voice recording
+        setTimeout(() => {
+          popupWindow?.webContents.send("popup:start-voice-recording");
+        }, 200);
+      },
+    );
 
     if (voiceRegistered) {
       console.log(`Voice shortcut registered: ${shortcuts.voiceInput}`);
     } else {
-      console.warn(`Could not register voice shortcut: ${shortcuts.voiceInput}`);
+      console.warn(
+        `Could not register voice shortcut: ${shortcuts.voiceInput}`,
+      );
     }
   }
 
   // Alternative shortcut (Option+Space on macOS) - always register this
-  if (process.platform === 'darwin') {
-    globalShortcut.register('Alt+Space', () => {
+  if (process.platform === "darwin") {
+    globalShortcut.register("Alt+Space", () => {
       togglePopup();
     });
   }
@@ -315,7 +353,7 @@ export async function registerGlobalShortcuts(): Promise<void> {
  */
 export function unregisterGlobalShortcuts(): void {
   globalShortcut.unregisterAll();
-  console.log('Global shortcuts unregistered');
+  console.log("Global shortcuts unregistered");
 }
 
 /**
@@ -323,15 +361,16 @@ export function unregisterGlobalShortcuts(): void {
  */
 export function createTray(): Tray {
   // Create a simple tray icon (you can replace with actual icon)
-  const iconPath = process.platform === 'darwin'
-    ? path.join(__dirname, '../../resources/icons/tray-icon.png')
-    : path.join(__dirname, '../../resources/icons/tray-icon.png');
+  const iconPath =
+    process.platform === "darwin"
+      ? path.join(__dirname, "../../resources/icons/tray-icon.png")
+      : path.join(__dirname, "../../resources/icons/tray-icon.png");
 
   // Create a template image for macOS (16x16 or 22x22)
   let icon: nativeImage;
   try {
     icon = nativeImage.createFromPath(iconPath);
-    if (process.platform === 'darwin') {
+    if (process.platform === "darwin") {
       icon = icon.resize({ width: 18, height: 18 });
       icon.setTemplateImage(true);
     }
@@ -341,28 +380,28 @@ export function createTray(): Tray {
   }
 
   tray = new Tray(icon);
-  tray.setToolTip('BusinessOS');
+  tray.setToolTip("BusinessOS");
 
   const shortcuts = getShortcuts();
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Quick Chat',
+      label: "Quick Chat",
       accelerator: shortcuts.quickChat,
       click: () => togglePopup(),
     },
     {
-      label: 'Start Meeting Recording',
+      label: "Start Meeting Recording",
       click: () => {
         // Send to popup to start recording
         showPopup();
         setTimeout(() => {
-          popupWindow?.webContents.send('popup:start-meeting-recording');
+          popupWindow?.webContents.send("popup:start-meeting-recording");
         }, 300);
       },
     },
-    { type: 'separator' },
+    { type: "separator" },
     {
-      label: 'Open BusinessOS',
+      label: "Open BusinessOS",
       click: () => {
         const mainWindow = getMainWindow();
         if (mainWindow) {
@@ -371,10 +410,10 @@ export function createTray(): Tray {
         }
       },
     },
-    { type: 'separator' },
+    { type: "separator" },
     {
-      label: 'Quit',
-      accelerator: 'CommandOrControl+Q',
+      label: "Quit",
+      accelerator: "CommandOrControl+Q",
       click: () => {
         app.quit();
       },
@@ -384,11 +423,11 @@ export function createTray(): Tray {
   tray.setContextMenu(contextMenu);
 
   // Click on tray icon toggles popup
-  tray.on('click', () => {
+  tray.on("click", () => {
     togglePopup();
   });
 
-  console.log('System tray created');
+  console.log("System tray created");
   return tray;
 }
 
@@ -397,22 +436,22 @@ export function createTray(): Tray {
  */
 export function setupPopupIPC(): void {
   // Hide popup
-  ipcMain.on('popup:hide', () => {
+  ipcMain.on("popup:hide", () => {
     hidePopup();
   });
 
   // Send message to main chat
-  ipcMain.on('popup:send-to-main', (_event, message: string) => {
+  ipcMain.on("popup:send-to-main", (_event, message: string) => {
     const mainWindow = getMainWindow();
     if (mainWindow) {
-      mainWindow.webContents.send('chat:message', message);
+      mainWindow.webContents.send("chat:message", message);
       mainWindow.show();
       mainWindow.focus();
     }
   });
 
   // Open main window
-  ipcMain.on('popup:open-main', () => {
+  ipcMain.on("popup:open-main", () => {
     const mainWindow = getMainWindow();
     if (mainWindow) {
       mainWindow.show();
@@ -422,17 +461,20 @@ export function setupPopupIPC(): void {
   });
 
   // Set popup size
-  ipcMain.on('popup:set-size', (_event, size: 'small' | 'medium' | 'large' | 'full') => {
-    setPopupSize(size);
-  });
+  ipcMain.on(
+    "popup:set-size",
+    (_event, size: "small" | "medium" | "large" | "full") => {
+      setPopupSize(size);
+    },
+  );
 
   // Get current popup size
-  ipcMain.handle('popup:get-size', () => {
+  ipcMain.handle("popup:get-size", () => {
     return getPopupSize();
   });
 
   // Expand popup and open main app (after sending message)
-  ipcMain.on('popup:expand-to-full', () => {
+  ipcMain.on("popup:expand-to-full", () => {
     const mainWindow = getMainWindow();
     if (mainWindow) {
       mainWindow.show();
@@ -442,28 +484,31 @@ export function setupPopupIPC(): void {
   });
 
   // Get all shortcuts
-  ipcMain.handle('shortcuts:get', () => {
+  ipcMain.handle("shortcuts:get", () => {
     return getShortcuts();
   });
 
   // Update a single shortcut
-  ipcMain.handle('shortcuts:set', async (_event, key: string, accelerator: string) => {
-    const shortcuts = getShortcuts();
-    (shortcuts as any)[key] = accelerator;
-    store.set('shortcuts', shortcuts);
+  ipcMain.handle(
+    "shortcuts:set",
+    async (_event, key: string, accelerator: string) => {
+      const shortcuts = getShortcuts();
+      (shortcuts as any)[key] = accelerator;
+      store.set("shortcuts", shortcuts);
 
-    // Re-register all shortcuts with new configuration
-    await registerGlobalShortcuts();
+      // Re-register all shortcuts with new configuration
+      await registerGlobalShortcuts();
 
-    return { success: true, shortcuts };
-  });
+      return { success: true, shortcuts };
+    },
+  );
 
   // Reset shortcuts to defaults
-  ipcMain.handle('shortcuts:reset', async () => {
-    store.set('shortcuts', {
-      quickChat: 'CommandOrControl+Shift+Space',
-      spotlight: 'CommandOrControl+Space',
-      voiceInput: 'CommandOrControl+D',
+  ipcMain.handle("shortcuts:reset", async () => {
+    store.set("shortcuts", {
+      quickChat: "CommandOrControl+Shift+Space",
+      spotlight: "CommandOrControl+Space",
+      voiceInput: "CommandOrControl+D",
     });
 
     await registerGlobalShortcuts();
@@ -472,8 +517,8 @@ export function setupPopupIPC(): void {
   });
 
   // Check accessibility permissions
-  ipcMain.handle('shortcuts:check-accessibility', async () => {
-    if (process.platform !== 'darwin') {
+  ipcMain.handle("shortcuts:check-accessibility", async () => {
+    if (process.platform !== "darwin") {
       return { granted: true };
     }
     const isTrusted = systemPreferences.isTrustedAccessibilityClient(false);
@@ -481,8 +526,8 @@ export function setupPopupIPC(): void {
   });
 
   // Request accessibility permissions (opens system dialog)
-  ipcMain.handle('shortcuts:request-accessibility', async () => {
-    if (process.platform !== 'darwin') {
+  ipcMain.handle("shortcuts:request-accessibility", async () => {
+    if (process.platform !== "darwin") {
       return { granted: true };
     }
     // This will open the system preferences dialog
@@ -490,7 +535,7 @@ export function setupPopupIPC(): void {
     return { requested: true };
   });
 
-  console.log('Popup IPC handlers registered');
+  console.log("Popup IPC handlers registered");
 }
 
 /**
@@ -508,7 +553,7 @@ export function initializePopupSystem(): void {
   registerGlobalShortcuts();
   createTray();
   setupPopupIPC();
-  console.log('Popup system initialized');
+  console.log("Popup system initialized");
 }
 
 /**
@@ -524,5 +569,5 @@ export function cleanupPopupSystem(): void {
     popupWindow.destroy();
     popupWindow = null;
   }
-  console.log('Popup system cleaned up');
+  console.log("Popup system cleaned up");
 }

@@ -10,7 +10,10 @@ const isDev =
     window.location.hostname === "127.0.0.1");
 
 // Backend URLs
-const LOCAL_BACKEND_URL = "http://localhost:8001";
+const LOCAL_BACKEND_URL =
+  (typeof import.meta !== "undefined" &&
+    import.meta.env?.VITE_LOCAL_BACKEND_URL) ||
+  "http://localhost:8001";
 const PRODUCTION_BACKEND_URL =
   (typeof window !== "undefined" && import.meta.env.VITE_BACKEND_URL) ||
   "https://api.businessos.dev";

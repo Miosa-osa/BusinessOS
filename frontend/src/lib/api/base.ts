@@ -1,5 +1,6 @@
 // Backend URLs (centralized — import these from here, don't hardcode elsewhere)
-export const LOCAL_BACKEND_URL = "http://localhost:8001";
+export const LOCAL_BACKEND_URL =
+  import.meta.env.VITE_LOCAL_BACKEND_URL || "http://localhost:8001";
 export const LOCAL_OSA_URL = "http://localhost:18080";
 export const PRODUCTION_BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "https://api.businessos.dev";
