@@ -20,6 +20,7 @@ import (
 
 // ProjectHandler handles project CRUD operations and member management.
 type ProjectHandler struct {
+	EngineSyncHook
 	pool                 *pgxpool.Pool
 	queryCache           *cache.QueryCache
 	notificationTriggers *services.NotificationTriggers
@@ -269,6 +270,18 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		cachePattern := fmt.Sprintf("projects:%s:*", user.ID)
 		go h.invalidateProjectsCachePattern(c.Request.Context(), cachePattern)
 	}
+
+	// Mirror into the OptimalEngine knowledge graph so the project
+	// surfaces in the Pages graph view alongside other modules' content.
+	h.enqueue(c.Request.Context(), services.Signal{
+		Module:     services.ModuleProjects,
+		ID:         uuidString(project.ID.Bytes),
+		AuthorID:   user.ID,
+		Title:      project.Name,
+		Body:       optString(project.Description),
+		Genre:      "project",
+		ModifiedAt: pgPlainTimestampToTime(project.UpdatedAt),
+	})
 
 	c.JSON(http.StatusCreated, project)
 }

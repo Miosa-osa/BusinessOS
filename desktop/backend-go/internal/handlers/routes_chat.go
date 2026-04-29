@@ -30,10 +30,12 @@ func (h *Handlers) registerChatRoutes(api *gin.RouterGroup, auth gin.HandlerFunc
 	RegisterArtifactRoutes(api, NewArtifactHandler(h.pool), auth)
 
 	// Contexts routes - /api/contexts
-	RegisterContextRoutes(api, NewContextHandler(h.pool, h.queryCache), auth)
+	RegisterContextRoutes(api, NewContextHandler(h.pool, h.queryCache, h.engineSync), auth)
 
 	// Daily log routes - /api/daily-logs
-	RegisterDailyLogRoutes(api, NewDailyLogHandler(h.pool), auth)
+	dailyLogHandler := NewDailyLogHandler(h.pool)
+	dailyLogHandler.SetEngineSync(h.engineSync)
+	RegisterDailyLogRoutes(api, dailyLogHandler, auth)
 
 	// Thinking/COT + Reasoning templates routes - /api/thinking, /api/reasoning
 	RegisterThinkingRoutes(api, NewThinkingHandler(h.pool), auth)

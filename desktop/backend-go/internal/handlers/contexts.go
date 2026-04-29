@@ -22,19 +22,20 @@ type ContextHandler struct {
 	pool       *pgxpool.Pool
 	queryCache *cache.QueryCache
 	// engineSync mirrors every Page save/update/delete into the
-	// OptimalEngine knowledge graph by writing an MD file under
-	// OPTIMAL_NODES_ROOT and triggering reindex. nil-safe — when
-	// OPTIMAL_NODES_ROOT/OPTIMAL_DB_PATH aren't configured, every method
-	// is a silent no-op so Page CRUD still works without the engine.
-	engineSync *services.PagesEngineSync
+	// OptimalEngine knowledge graph by enqueuing a Signal, which a
+	// debounced background worker materializes as a markdown file under
+	// OPTIMAL_NODES_ROOT. nil-safe — when paths aren't configured,
+	// every method is a silent no-op so Page CRUD still works without
+	// the engine wired.
+	engineSync *services.EngineSync
 }
 
 // NewContextHandler creates a new ContextHandler
-func NewContextHandler(pool *pgxpool.Pool, queryCache *cache.QueryCache) *ContextHandler {
+func NewContextHandler(pool *pgxpool.Pool, queryCache *cache.QueryCache, engineSync *services.EngineSync) *ContextHandler {
 	return &ContextHandler{
 		pool:       pool,
 		queryCache: queryCache,
-		engineSync: services.NewPagesEngineSync(),
+		engineSync: engineSync,
 	}
 }
 
@@ -102,12 +103,11 @@ func generateShareID() string {
 	return hex.EncodeToString(bytes)
 }
 
-// pageFromContext maps a sqlc Context row onto the small Page struct that
-// PagesEngineSync renders to markdown. We deliberately keep the Page type
-// in services/ small (no sqlc dependency) so the sync service can be
-// reused by other call sites — the mapping lives here, where both the
-// handler and the sqlc generated types are already in scope.
-func pageFromContext(ctx sqlc.Context) services.Page {
+// signalFromContext maps a sqlc Context row onto the universal Signal
+// struct EngineSync ingests. We keep the conversion here (where both the
+// handler and the sqlc generated types are in scope) so engine_sync.go
+// stays free of sqlc dependencies.
+func signalFromContext(ctx sqlc.Context) services.Signal {
 	id := ""
 	if ctx.ID.Valid {
 		id = uuidString(ctx.ID.Bytes)
@@ -124,13 +124,14 @@ func pageFromContext(ctx sqlc.Context) services.Page {
 	if ctx.UpdatedAt.Valid {
 		updated = ctx.UpdatedAt.Time
 	}
-	return services.Page{
-		ID:        id,
-		UserID:    ctx.UserID,
-		Title:     ctx.Name,
-		Body:      body,
-		Genre:     genre,
-		UpdatedAt: updated,
+	return services.Signal{
+		Module:     services.ModulePages,
+		ID:         id,
+		AuthorID:   ctx.UserID,
+		Title:      ctx.Name,
+		Body:       body,
+		Genre:      genre,
+		ModifiedAt: updated,
 	}
 }
 

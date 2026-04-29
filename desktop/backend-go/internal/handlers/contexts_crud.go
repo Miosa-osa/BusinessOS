@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 
@@ -128,7 +129,7 @@ func (h *ContextHandler) CreateContext(c *gin.Context) {
 	// shows up alongside seed data in the Pages graph view. No-op when
 	// OPTIMAL_NODES_ROOT/OPTIMAL_DB_PATH aren't configured.
 	if h.engineSync != nil {
-		h.engineSync.SyncPage(c.Request.Context(), pageFromContext(ctx))
+		h.engineSync.Enqueue(c.Request.Context(), signalFromContext(ctx))
 	}
 
 	c.JSON(http.StatusCreated, TransformContext(ctx))
@@ -290,7 +291,7 @@ func (h *ContextHandler) UpdateContext(c *gin.Context) {
 
 	// Re-sync to the engine so edits propagate to the Pages graph view.
 	if h.engineSync != nil {
-		h.engineSync.SyncPage(c.Request.Context(), pageFromContext(ctx))
+		h.engineSync.Enqueue(c.Request.Context(), signalFromContext(ctx))
 	}
 
 	c.JSON(http.StatusOK, TransformContext(ctx))
@@ -343,7 +344,7 @@ func (h *ContextHandler) UpdateContextBlocks(c *gin.Context) {
 
 	// Re-sync to the engine when block content changes.
 	if h.engineSync != nil {
-		h.engineSync.SyncPage(c.Request.Context(), pageFromContext(ctx))
+		h.engineSync.Enqueue(c.Request.Context(), signalFromContext(ctx))
 	}
 
 	c.JSON(http.StatusOK, TransformContext(ctx))
@@ -380,7 +381,7 @@ func (h *ContextHandler) DeleteContext(c *gin.Context) {
 
 	// Remove the corresponding markdown from the engine's nodes root + reindex.
 	if h.engineSync != nil {
-		h.engineSync.DeletePage(c.Request.Context(), id.String())
+		h.engineSync.EnqueueDelete(c.Request.Context(), services.ModulePages, id.String())
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Context deleted"})

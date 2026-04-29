@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/Miosa-osa/OptimalEngine-go"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/cache"
@@ -9,7 +10,6 @@ import (
 	"github.com/rhl/businessos-backend/internal/feedback"
 	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
-	"github.com/Miosa-osa/OptimalEngine-go"
 	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/sorx"
 	"github.com/rhl/businessos-backend/internal/subconscious"
@@ -107,7 +107,16 @@ type Handlers struct {
 	// Phase 9 — connector sync orchestration
 	integrationRouter *IntegrationRouter // referenced by connectors_sync to access GmailService etc.
 	connectorsHandler *ConnectorsHandler // /api/connectors/:kind/sync
+
+	// Phase 11 — single sync service every BO module pushes writes into.
+	// Modules call h.engineSync.Enqueue(Signal) on save; a debounced
+	// worker reindexes the SQLite the Elixir engine reads from.
+	engineSync *services.EngineSync
 }
+
+// EngineSync exposes the shared sync service so registration helpers
+// outside this package (or test code) can wire it into module handlers.
+func (h *Handlers) EngineSync() *services.EngineSync { return h.engineSync }
 
 // SetOptimalHandler injects the OptimalOS handler after construction.
 // Call this from main/server setup when the OptimalOS paths are available.
@@ -158,5 +167,10 @@ func NewHandlers(pool *pgxpool.Pool, cfg *config.Config, containerMgr *container
 		notificationTriggers: notifTriggers,
 		osaClient:            osaClient,
 		osaSyncService:       osaSyncService,
+		// Constructed once per server. The worker starts immediately if
+		// OPTIMAL_NODES_ROOT + OPTIMAL_DB_PATH are set; otherwise every
+		// Enqueue is a silent no-op so module CRUD still works without
+		// an engine wired.
+		engineSync: services.NewEngineSync(),
 	}
 }

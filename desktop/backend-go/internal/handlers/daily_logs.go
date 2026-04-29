@@ -13,11 +13,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 
 // DailyLogHandler handles daily log HTTP requests.
 type DailyLogHandler struct {
+	EngineSyncHook
 	pool *pgxpool.Pool
 }
 
@@ -233,6 +235,21 @@ func (h *DailyLogHandler) CreateDailyLog(c *gin.Context) {
 		utils.RespondInternalError(c, slog.Default(), "create daily log", err)
 		return
 	}
+
+	// Mirror into the OptimalEngine knowledge graph so the daily log
+	// surfaces in the Pages graph view alongside other modules' content.
+	h.enqueue(c.Request.Context(), services.Signal{
+		Module:     services.ModuleDailyLog,
+		ID:         uuidString(log.ID.Bytes),
+		AuthorID:   user.ID,
+		Title:      "Daily log " + logDate.Format("2006-01-02"),
+		Body:       log.Content,
+		Genre:      "log_entry",
+		ModifiedAt: pgPlainTimestampToTime(log.UpdatedAt),
+		Metadata: map[string]string{
+			"date": logDate.Format("2006-01-02"),
+		},
+	})
 
 	c.JSON(http.StatusCreated, log)
 }

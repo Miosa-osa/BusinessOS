@@ -12,11 +12,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 
 // CRMHandler handles CRM operations (companies, pipelines, deals, activities)
 type CRMHandler struct {
+	EngineSyncHook
 	pool *pgxpool.Pool
 }
 
@@ -171,6 +173,30 @@ func (h *CRMHandler) CreateCompany(c *gin.Context) {
 		utils.RespondInternalError(c, slog.Default(), "create company", err)
 		return
 	}
+
+	// Mirror into the OptimalEngine knowledge graph so CRM records show
+	// up in the Pages graph view alongside everything else the user owns.
+	companyBody := req.Name
+	if req.Industry != nil {
+		companyBody += " — " + *req.Industry
+	}
+	if req.LegalName != nil {
+		companyBody += " (" + *req.LegalName + ")"
+	}
+	companyMeta := map[string]string{"crm_kind": "company"}
+	if req.LifecycleStage != nil {
+		companyMeta["lifecycle_stage"] = *req.LifecycleStage
+	}
+	h.enqueue(c.Request.Context(), services.Signal{
+		Module:     services.ModuleCRM,
+		ID:         "company-" + uuidString(company.ID.Bytes),
+		AuthorID:   user.ID,
+		Title:      req.Name,
+		Body:       companyBody,
+		Genre:      "company",
+		ModifiedAt: pgTimestampToTime(company.UpdatedAt),
+		Metadata:   companyMeta,
+	})
 
 	c.JSON(http.StatusCreated, transformCompany(company))
 }

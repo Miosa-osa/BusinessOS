@@ -6,7 +6,9 @@ import "github.com/gin-gonic/gin"
 // /api/projects, /api/nodes.
 func (h *Handlers) registerProjectRoutes(api *gin.RouterGroup, auth gin.HandlerFunc) {
 	// Projects routes - /api/projects (extracted handler)
-	RegisterProjectRoutes(api, NewProjectHandler(h.pool, h.queryCache, h.notificationTriggers, h.projectAccessService), auth)
+	projectHandler := NewProjectHandler(h.pool, h.queryCache, h.notificationTriggers, h.projectAccessService)
+	projectHandler.SetEngineSync(h.engineSync)
+	RegisterProjectRoutes(api, projectHandler, auth)
 
 	// Nodes routes - /api/nodes
 	RegisterNodeRoutes(api, NewNodeHandler(h.pool), auth)

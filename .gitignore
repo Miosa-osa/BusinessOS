@@ -144,3 +144,13 @@ desktop/backend-go/.env
 # Engine build artifacts
 engine/_build/
 engine/deps/
+optimal-engine/_build/
+optimal-engine/deps/
+
+# Engine indexer-generated sidecars (regenerated on every reindex)
+optimal-engine/sample-workspace/**/*.abstract.md
+optimal-engine/sample-workspace/**/*.overview.md
+optimal-engine/sample-workspace/.system/
+
+# Local run state (PIDs, ports)
+.run/

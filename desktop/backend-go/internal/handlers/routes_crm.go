@@ -9,7 +9,9 @@ func (h *Handlers) registerCRMRoutes(api *gin.RouterGroup, auth gin.HandlerFunc)
 	RegisterClientRoutes(api, NewClientHandler(h.pool), auth)
 
 	// CRM routes - /api/crm
-	RegisterCRMRoutes(api, NewCRMHandler(h.pool), auth)
+	crmHandler := NewCRMHandler(h.pool)
+	crmHandler.SetEngineSync(h.engineSync)
+	RegisterCRMRoutes(api, crmHandler, auth)
 
 	// Table routes - /api/tables
 	RegisterTableRoutes(api, NewTableHandler(h.pool), auth)
