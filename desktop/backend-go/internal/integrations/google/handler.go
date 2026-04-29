@@ -1,6 +1,7 @@
 package google
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -10,11 +11,17 @@ import (
 	integrations "github.com/rhl/businessos-backend/internal/integrations"
 )
 
+// EventCreatedHook is called after a calendar event is created via the
+// Google integration. The BO server uses this to mirror events into
+// the OptimalEngine knowledge graph. nil = no-op.
+type EventCreatedHook func(ctx context.Context, event *CalendarEvent, userID string)
+
 // Handler provides HTTP handlers for Google integration routes.
 type Handler struct {
-	provider *Provider
-	calendar *CalendarService
-	gmail    *GmailService
+	provider       *Provider
+	calendar       *CalendarService
+	gmail          *GmailService
+	OnEventCreated EventCreatedHook
 }
 
 // NewHandler creates a new Google integration handler.
@@ -229,6 +236,10 @@ func (h *Handler) CreateCalendarEvent(c *gin.Context) {
 		slog.Info("Failed to create event", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create event"})
 		return
+	}
+
+	if h.OnEventCreated != nil && created != nil {
+		h.OnEventCreated(c.Request.Context(), created, userID)
 	}
 
 	c.JSON(http.StatusCreated, created)

@@ -16,10 +16,11 @@ import (
 
 // ToolHandler provides HTTP handlers for a specific Google tool.
 type ToolHandler struct {
-	pool     *pgxpool.Pool
-	provider *ToolProvider
-	calendar *CalendarService
-	gmail    *GmailService
+	pool           *pgxpool.Pool
+	provider       *ToolProvider
+	calendar       *CalendarService
+	gmail          *GmailService
+	OnEventCreated EventCreatedHook
 }
 
 // NewToolHandler creates a new handler for a specific Google tool.
@@ -273,6 +274,10 @@ func (h *ToolHandler) CreateCalendarEvent(c *gin.Context) {
 		slog.Info("Failed to create event", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create event"})
 		return
+	}
+
+	if h.OnEventCreated != nil && created != nil {
+		h.OnEventCreated(c.Request.Context(), created, userID)
 	}
 
 	c.JSON(http.StatusCreated, created)

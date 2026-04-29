@@ -501,3 +501,19 @@ func (r *IntegrationRouter) GetClickUpProvider() *clickup.Provider {
 func (r *IntegrationRouter) GetAirtableProvider() *airtable.Provider {
 	return r.airtableProvider
 }
+
+// GetGoogleHandler returns the Google integration handler so callers can
+// attach hooks (e.g. OnEventCreated to mirror events into EngineSync).
+func (r *IntegrationRouter) GetGoogleHandler() *google.Handler {
+	return r.googleHandler
+}
+
+// GetMicrosoftHandler returns the Microsoft integration handler.
+func (r *IntegrationRouter) GetMicrosoftHandler() *microsoft.Handler {
+	return r.microsoftHandler
+}
+
+// GetGoogleCalendarToolHandler returns the calendar-scoped tool handler.
+func (r *IntegrationRouter) GetGoogleCalendarToolHandler() *google.ToolHandler {
+	return r.googleCalendarHandler
+}

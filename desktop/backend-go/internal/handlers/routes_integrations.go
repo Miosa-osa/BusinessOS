@@ -60,6 +60,19 @@ func (h *Handlers) registerIntegrationRoutes(api *gin.RouterGroup, auth gin.Hand
 		slog.Info("connectors: onedrive + teams fetchers wired to live OAuth service")
 	}
 
+	// Wire calendar event creation into EngineSync so events appear in
+	// the Pages graph view alongside everything else. Each integration
+	// handler exposes an OnEventCreated callback we attach a closure to.
+	if gh := integrationRouter.GetGoogleHandler(); gh != nil {
+		gh.OnEventCreated = newGoogleCalendarEngineHook(h.engineSync)
+	}
+	if gth := integrationRouter.GetGoogleCalendarToolHandler(); gth != nil {
+		gth.OnEventCreated = newGoogleCalendarEngineHook(h.engineSync)
+	}
+	if mh := integrationRouter.GetMicrosoftHandler(); mh != nil {
+		mh.OnEventCreated = newMicrosoftCalendarEngineHook(h.engineSync)
+	}
+
 	// Register provider-based integration routes - /api/integrations/{provider}/*
 	integrationsGroup := api.Group("/integrations")
 	integrationRouter.RegisterRoutes(integrationsGroup, auth)
