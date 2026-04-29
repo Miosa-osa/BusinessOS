@@ -210,7 +210,7 @@ defmodule OptimalEngine.Bridge.Knowledge do
       {:ok, rows} ->
         triples =
           Enum.map(rows, fn [source, relation, target] ->
-            [source, relation, target]
+            {source, relation, target}
           end)
 
         OptimalEngine.Knowledge.assert_many(store, triples)

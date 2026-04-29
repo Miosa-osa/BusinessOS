@@ -156,6 +156,43 @@ defmodule OptimalEngine.API.Router do
     json(conn, snap)
   end
 
+  # POST /api/reindex — trigger a full re-walk of OPTIMAL_ENGINE_ROOT/nodes,
+  # or index a single file when {"path": "…"} is supplied.
+  #
+  # BusinessOS hits this after writing user-content markdown files (Pages,
+  # Tasks, Projects, etc.) so the engine picks them up without a process
+  # restart. Returns 202 + {"status":"already_running"} when the indexer is
+  # mid-run — that's not an error, just "another reindex is already in
+  # flight; the new files will land on the next pass."
+  post "/api/reindex" do
+    body = conn.body_params || %{}
+
+    result =
+      case Map.get(body, "path") do
+        path when is_binary(path) and path != "" ->
+          OptimalEngine.Pipeline.Indexer.index_file(path)
+
+        _ ->
+          OptimalEngine.Pipeline.Indexer.full_index()
+      end
+
+    case result do
+      {:ok, payload} when is_map(payload) ->
+        json(conn, Map.merge(%{status: "ok"}, payload))
+
+      {:ok, _} ->
+        json(conn, %{status: "ok"})
+
+      {:error, :already_running} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(202, Jason.encode!(%{status: "already_running"}))
+
+      {:error, reason} ->
+        send_resp(conn, 500, Jason.encode!(%{status: "error", reason: inspect(reason)}))
+    end
+  end
+
   # POST /api/rag — end-to-end retrieval for LLM consumption.
   # Body: {"query": "…", "format": "markdown", "audience": "default", "bandwidth": "medium"}
   post "/api/rag" do
@@ -639,27 +676,33 @@ defmodule OptimalEngine.API.Router do
     ORDER BY n.slug
     """
 
-    case Store.raw_query(sql, []) do
-      {:ok, rows} ->
-        Enum.map(rows, fn [slug, name, type, count] ->
-          %{slug: slug, name: name || slug, type: type, signal_count: count}
-        end)
+    rows_from_nodes =
+      case Store.raw_query(sql, []) do
+        {:ok, rows} -> rows
+        _ -> []
+      end
 
-      _ ->
-        # Fallback for tenants that haven't populated the nodes table yet —
-        # derive distinct nodes straight from contexts.
-        case Store.raw_query(
-               "SELECT node, COUNT(*) FROM contexts WHERE node IS NOT NULL GROUP BY node",
-               []
-             ) do
-          {:ok, rows} ->
-            Enum.map(rows, fn [slug, count] ->
-              %{slug: slug, name: slug, type: "node", signal_count: count}
-            end)
+    if rows_from_nodes == [] do
+      # Fallback for tenants that haven't populated the nodes table yet —
+      # or where the nodes table is empty after a fresh index. Derive
+      # distinct nodes straight from contexts so the graph view still
+      # shows what was indexed.
+      case Store.raw_query(
+             "SELECT node, COUNT(*) FROM contexts WHERE node IS NOT NULL GROUP BY node ORDER BY node",
+             []
+           ) do
+        {:ok, rows} ->
+          Enum.map(rows, fn [slug, count] ->
+            %{slug: slug, name: slug, type: "node", signal_count: count}
+          end)
 
-          _ ->
-            []
-        end
+        _ ->
+          []
+      end
+    else
+      Enum.map(rows_from_nodes, fn [slug, name, type, count] ->
+        %{slug: slug, name: name || slug, type: type, signal_count: count}
+      end)
     end
   end
 
