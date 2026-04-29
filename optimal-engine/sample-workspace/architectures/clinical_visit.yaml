@@ -1,0 +1,94 @@
+# Example user-defined DataArchitecture.
+#
+# Registers a "clinical visit" data-point schema extending the
+# built-in structured_record. Demonstrates every field-modality hook
+# + processor binding. Register with:
+#
+#     mix optimal.architectures register sample-workspace/architectures/clinical_visit.yaml
+#
+# Once registered, ingesting a clinical visit is:
+#
+#     OptimalEngine.Architecture.apply(
+#       OptimalEngine.Architecture.fetch!("clinical_visit"),
+#       %{ ... data point ... },
+#       context_id: "visit:123"
+#     )
+#
+# The Apply orchestrator validates the shape, dispatches each field
+# to its declared processor, and records the run in `processor_runs`.
+
+id: "clinical_visit.v1"
+name: "clinical_visit"
+version: 1
+description: "Single clinical encounter — patient, provider, note, vitals, imaging."
+modality_primary: structured
+granularity: [visit, field]
+retention: default
+
+fields:
+  - name: visit_id
+    modality: structured
+    required: true
+    description: "Stable id from the EHR."
+
+  - name: patient_ref
+    modality: structured
+    required: true
+    description: "Pseudonymized patient identifier (never PHI in plaintext)."
+
+  - name: provider_ref
+    modality: structured
+    required: true
+    description: "Provider principal id."
+
+  - name: started_at
+    modality: structured
+    required: true
+    description: "ISO-8601 visit start timestamp."
+
+  - name: note
+    modality: text
+    required: false
+    processor: text_embedder
+    description: "Provider free-text note (SOAP / chief complaint / plan)."
+
+  - name: transcript
+    modality: text
+    required: false
+    processor: text_embedder
+    description: "Whisper-transcribed audio of the encounter, if captured."
+
+  - name: audio
+    modality: audio
+    required: false
+    processor: audio_embedder
+    description: "Raw audio of the encounter (for word-level alignment)."
+
+  - name: images
+    modality: image
+    required: false
+    dims: [any, any, 3]
+    processor: image_embedder
+    description: "Attached imaging (scans, photos) — each image embedded separately."
+
+  - name: vitals
+    modality: time_series
+    required: false
+    dims: [any]
+    processor: ts_feature_extractor
+    description: "Vitals stream captured during the visit (HR, SpO2, BP)."
+
+  - name: diagnoses
+    modality: structured
+    required: false
+    description: "ICD-10 codes + confidence."
+
+  - name: medications
+    modality: structured
+    required: false
+    description: "Prescribed / adjusted / discontinued medications."
+
+metadata:
+  phi: true                 # retention policies treat this as PHI
+  audit_level: strict       # every access writes an event row
+  export_format: fhir       # hint for future export adapter

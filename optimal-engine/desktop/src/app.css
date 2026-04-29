@@ -1,0 +1,62 @@
+/**
+ * Global CSS variables. Light + dark themes switched by `data-theme`
+ * on the <html> element — see $lib/theme.ts.
+ *
+ * Components reference these via `var(--name)` so the palette swap is
+ * instant and system-wide.
+ */
+
+:root,
+[data-theme='dark'] {
+  --bg: #0b0d10;
+  --bg-elevated: #0e1116;
+  --bg-elevated-2: #141820;
+  --border: #1a1e25;
+  --border-soft: #111418;
+  --text: #e6e6e6;
+  --text-muted: #9aa0a8;
+  --text-subtle: #5a6068;
+  --accent: #7ea8ff;
+  --accent-soft: rgba(126, 168, 255, 0.18);
+  --good: #6f8;
+  --good-bg: #143;
+  --warn: #fc6;
+  --warn-bg: #432;
+  --bad: #f88;
+  --bad-bg: #421;
+  --link: #8af;
+  --link-hover: #cdf;
+  --canvas-bg: #0b0d10;
+  --canvas-fog: 0x0b0d10;
+}
+
+[data-theme='light'] {
+  --bg: #fbfbfc;
+  --bg-elevated: #ffffff;
+  --bg-elevated-2: #f4f5f8;
+  --border: #e4e6ec;
+  --border-soft: #eef0f4;
+  --text: #1a1d22;
+  --text-muted: #5a6068;
+  --text-subtle: #8a9099;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.12);
+  --good: #067a3a;
+  --good-bg: #d4f7e2;
+  --warn: #b4580a;
+  --warn-bg: #faeccf;
+  --bad: #b4241c;
+  --bad-bg: #fad9d4;
+  --link: #2563eb;
+  --link-hover: #1e40af;
+  --canvas-bg: #f8f8fa;
+  --canvas-fog: 0xf8f8fa;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
