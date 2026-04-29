@@ -32,6 +32,63 @@ dev: ## Start all services (build if needed), follow logs
 	@docker compose up -d --build
 	@docker compose logs -f
 
+# =============================================================================
+# Local dev (no Docker) — backend + frontend + Electron on host
+# Ports come from frontend/.env.development.local (BACKEND_PORT, FRONTEND_PORT).
+# =============================================================================
+
+.PHONY: dev-local
+dev-local: ## Start backend + frontend + Electron locally (no Docker)
+	@bash scripts/dev-local.sh start
+
+# =============================================================================
+# OptimalEngine (Elixir) — the live engine BusinessOS proxies to
+# =============================================================================
+# Starts the canonical Elixir OptimalEngine with the bundled sample-workspace
+# as its data root. Listens on http://localhost:4200 — match the URL set in
+# desktop/backend-go/.env (OPTIMAL_ENGINE_URL).
+#
+# First run installs Elixir deps (mix deps.get) which can take a minute.
+# Subsequent runs are instant.
+
+.PHONY: optimal-engine
+optimal-engine: ## Start the Elixir OptimalEngine on http://localhost:4200
+	@cd optimal-engine && \
+		(test -d deps || mix deps.get) && \
+		OPTIMAL_ENGINE_ROOT=$$(pwd)/sample-workspace \
+		OPTIMAL_ENGINE_DB=$$(pwd)/sample-workspace/.system/index.db \
+		OPTIMAL_API_ENABLED=true \
+		mix run --no-halt
+
+.PHONY: optimal-reindex
+optimal-reindex: ## Reindex the Elixir engine's nodes after manual MD edits
+	@cd optimal-engine && \
+		OPTIMAL_ENGINE_ROOT=$$(pwd)/sample-workspace \
+		OPTIMAL_ENGINE_DB=$$(pwd)/sample-workspace/.system/index.db \
+		mix optimal.index
+
+.PHONY: optimal-engine-stop
+optimal-engine-stop: ## Stop any Elixir engine listening on :4200
+	@PID=$$(lsof -ti :4200); \
+		if [ -n "$$PID" ]; then echo "stopping $$PID"; kill $$PID; \
+		else echo "no engine on :4200"; fi
+
+.PHONY: dev-local-stop
+dev-local-stop: ## Stop the local dev stack
+	@bash scripts/dev-local.sh stop
+
+.PHONY: dev-local-restart
+dev-local-restart: ## Restart the local dev stack
+	@bash scripts/dev-local.sh restart
+
+.PHONY: dev-local-status
+dev-local-status: ## Show local dev stack status
+	@bash scripts/dev-local.sh status
+
+.PHONY: dev-local-logs
+dev-local-logs: ## Tail logs from local dev stack (Ctrl-C to exit)
+	@bash scripts/dev-local.sh logs
+
 .PHONY: up
 up: ## Start all services in the background
 	@docker compose up -d
