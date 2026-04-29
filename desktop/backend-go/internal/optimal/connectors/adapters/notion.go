@@ -2,14 +2,34 @@ package adapters
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"strings"
+	"sync"
 
 	"github.com/rhl/businessos-backend/internal/optimal/connectors"
 )
 
-type notionAdapter struct{}
+// NotionFetcher is the seam between the notion adapter and Notion's API.
+type NotionFetcher interface {
+	ListPages(ctx context.Context, userID, cursor string, max int) (pages []map[string]any, next string, err error)
+}
 
-func init() { connectors.Register(&notionAdapter{}) }
+type notionAdapter struct {
+	mu      sync.RWMutex
+	fetcher NotionFetcher
+}
+
+var globalNotionAdapter = &notionAdapter{}
+
+func init() { connectors.Register(globalNotionAdapter) }
+
+// SetNotionFetcher wires a real Notion fetcher to the registered adapter.
+func SetNotionFetcher(f NotionFetcher) {
+	globalNotionAdapter.mu.Lock()
+	defer globalNotionAdapter.mu.Unlock()
+	globalNotionAdapter.fetcher = f
+}
 
 func (n *notionAdapter) Kind() string                      { return "notion" }
 func (n *notionAdapter) DisplayName() string               { return "Notion" }
@@ -17,18 +37,42 @@ func (n *notionAdapter) AuthScheme() connectors.AuthScheme { return connectors.A
 func (n *notionAdapter) RequiredConfigKeys() []string      { return []string{} }
 
 type notionState struct {
-	accessToken string
+	userID string
 }
 
 func (n *notionAdapter) Init(_ context.Context, cfg connectors.Config) (connectors.State, error) {
-	if err := connectors.RequireCredentials(cfg, []string{"access_token"}); err != nil {
+	if err := connectors.RequireKeys(cfg, []string{"user_email"}); err != nil {
 		return nil, err
 	}
-	return &notionState{accessToken: connectors.CredentialField(cfg, "access_token")}, nil
+	return &notionState{userID: connectors.StringField(cfg, "user_email")}, nil
 }
 
-func (n *notionAdapter) Sync(_ context.Context, _ connectors.State, _ connectors.Cursor) (connectors.SyncResult, error) {
-	return connectors.SyncResult{}, connectors.NewSyncError(connectors.ErrNotImplemented, nil)
+func (n *notionAdapter) Sync(ctx context.Context, state connectors.State, cursor connectors.Cursor) (connectors.SyncResult, error) {
+	n.mu.RLock()
+	fetcher := n.fetcher
+	n.mu.RUnlock()
+	if fetcher == nil {
+		return connectors.SyncResult{}, connectors.NewSyncError(connectors.ErrNotImplemented, nil)
+	}
+	st, ok := state.(*notionState)
+	if !ok {
+		return connectors.SyncResult{}, connectors.NewSyncError(connectors.ErrFatal,
+			errors.New("notion: invalid state type"))
+	}
+	pages, next, err := fetcher.ListPages(ctx, st.userID, string(cursor), 50)
+	if err != nil {
+		return connectors.SyncResult{}, connectors.NewSyncError(connectors.ErrTransient, err)
+	}
+	signals := make([]connectors.Signal, 0, len(pages))
+	for _, p := range pages {
+		sig, err := n.Transform(p)
+		if err != nil {
+			slog.WarnContext(ctx, "notion: transform failed", "user_id", st.userID, "error", err)
+			continue
+		}
+		signals = append(signals, sig)
+	}
+	return connectors.SyncResult{Signals: signals, Next: connectors.Cursor(next)}, nil
 }
 
 // Transform maps a Notion page (with optional `blocks`) onto a Signal.

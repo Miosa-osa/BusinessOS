@@ -177,26 +177,18 @@ func (h *ConnectorsHandler) Sync(c *gin.Context) {
 	})
 }
 
-// defaultConfigResolver builds a Config for the given kind. Phase 1 only
-// implements gmail (real fetcher). Other kinds return an explanatory error
-// the handler turns into a 400.
+// defaultConfigResolver builds a Config for the given kind. Each kind that
+// has a wired Fetcher (gmail, slack, notion, linear, hubspot) gets a
+// uniform "user_email = better-auth user.id" config; the per-kind fetcher
+// pulls live OAuth tokens directly from the provider's token store.
 //
-// Gmail config shape:
-//
-//	user_email     — set to the better-auth user.id (the GmailFetcher
-//	                 uses GetTokenSource which keys on this)
-//	credentials    — { access_token: "oauth-managed" } sentinel; the live
-//	                 fetcher reads from google_oauth_tokens directly, but
-//	                 the adapter's Init still validates a non-empty value.
+// Kinds without a Fetcher fall through to the catch-all error which the
+// handler maps to 400 — preferable to a generic 500 because the message
+// names the missing wiring explicitly.
 func defaultConfigResolver(_ *gin.Context, kind, userID string) (connectors.Config, error) {
 	switch kind {
-	case "gmail":
-		return connectors.Config{
-			"user_email": userID,
-			"credentials": map[string]any{
-				"access_token": "oauth-managed", // sentinel; fetcher reads live tokens
-			},
-		}, nil
+	case "gmail", "slack", "notion", "linear", "hubspot":
+		return connectors.Config{"user_email": userID}, nil
 	default:
 		return nil, fmt.Errorf("connector %q has no Sync wiring yet", kind)
 	}

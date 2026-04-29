@@ -6,7 +6,7 @@
 //
 // The connector adapter doesn't import this package directly; bootstrap
 // wires the fetcher in via adapters.SetGmailFetcher.
-package services
+package bridges
 
 import (
 	"context"
@@ -18,21 +18,21 @@ import (
 	"google.golang.org/api/option"
 )
 
-// GmailConnectorFetcher implements adapters.GmailFetcher on top of the existing
+// GmailFetcher implements adapters.GmailFetcher on top of the existing
 // google.GmailService. The ID supplied to ListIDs / Get is the BusinessOS
 // user.id — the same key google.Provider.GetTokenSource reads from
 // google_oauth_tokens. We deliberately do not look up the actual email
 // address here; the Gmail API accepts the literal "me" user-id when
 // authenticated via OAuth, and that's what we use.
-type GmailConnectorFetcher struct {
+type GmailFetcher struct {
 	svc *google.GmailService
 }
 
-// NewGmailConnectorFetcher returns a fetcher backed by the given service.
+// NewGmailFetcher returns a fetcher backed by the given service.
 // Callers (bootstrap) build the service from a Provider already wired to
 // the OAuth config.
-func NewGmailConnectorFetcher(svc *google.GmailService) *GmailConnectorFetcher {
-	return &GmailConnectorFetcher{svc: svc}
+func NewGmailFetcher(svc *google.GmailService) *GmailFetcher {
+	return &GmailFetcher{svc: svc}
 }
 
 // ListIDs returns up to `max` message ids in the user's inbox+sent label
@@ -41,7 +41,7 @@ func NewGmailConnectorFetcher(svc *google.GmailService) *GmailConnectorFetcher {
 //
 // Filters: `in:inbox OR in:sent` matches the existing SyncEmails query so
 // the two paths surface the same superset of messages.
-func (f *GmailConnectorFetcher) ListIDs(ctx context.Context, userID, cursor string, max int) ([]string, string, error) {
+func (f *GmailFetcher) ListIDs(ctx context.Context, userID, cursor string, max int) ([]string, string, error) {
 	api, err := f.api(ctx, userID)
 	if err != nil {
 		return nil, "", err
@@ -66,7 +66,7 @@ func (f *GmailConnectorFetcher) ListIDs(ctx context.Context, userID, cursor stri
 // client's JSON tags happen to match the field names Transform reads
 // (id, payload.headers[].name/value, snippet, internalDate) — saves a
 // hand-written mapper that would have to track every Gmail schema change.
-func (f *GmailConnectorFetcher) Get(ctx context.Context, userID, msgID string) (map[string]any, error) {
+func (f *GmailFetcher) Get(ctx context.Context, userID, msgID string) (map[string]any, error) {
 	api, err := f.api(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -89,14 +89,14 @@ func (f *GmailConnectorFetcher) Get(ctx context.Context, userID, msgID string) (
 // api builds a Gmail API client from the user's OAuth token source. We
 // don't go through GmailService.GetGmailAPI to avoid a circular service
 // dependency at construction time — we rely on the same TokenSource.
-func (f *GmailConnectorFetcher) api(ctx context.Context, userID string) (*gmailapi.Service, error) {
+func (f *GmailFetcher) api(ctx context.Context, userID string) (*gmailapi.Service, error) {
 	if f.svc == nil {
 		return nil, fmt.Errorf("gmail fetcher: service not wired")
 	}
 	return f.svc.GetGmailAPI(ctx, userID)
 }
 
-// Compile-time assertion that GmailConnectorFetcher matches the adapter's
+// Compile-time assertion that GmailFetcher matches the adapter's
 // expected method set. We can't import adapters.GmailFetcher here without
 // pulling the adapter package into services (which is fine, no cycle), so
 // the assertion lives in the bootstrap call site instead. Keeping a clean

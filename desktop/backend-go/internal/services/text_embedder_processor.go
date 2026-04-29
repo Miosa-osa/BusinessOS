@@ -125,3 +125,63 @@ func stringFromValue(v any) (string, error) {
 // architecture.Processor's signature ever drifts, this line breaks the
 // build before we hit production with a runtime mismatch.
 var _ architecture.Processor = (*TextEmbedderProcessor)(nil)
+
+// CodeEmbedderProcessor reuses EmbeddingService — nomic-embed-text handles
+// code reasonably well at our retrieval scale. When a code-specific model
+// (e.g. CodeBERT, jina-embeddings-v2-base-code) lands, swap this struct's
+// underlying call without changing the architecture/registry plumbing.
+type CodeEmbedderProcessor struct {
+	embed *EmbeddingService
+}
+
+// NewCodeEmbedderProcessor returns a processor wired to the given service.
+func NewCodeEmbedderProcessor(svc *EmbeddingService) *CodeEmbedderProcessor {
+	return &CodeEmbedderProcessor{embed: svc}
+}
+
+func (p *CodeEmbedderProcessor) ID() string                      { return "code_embedder" }
+func (p *CodeEmbedderProcessor) Modality() architecture.Modality { return architecture.ModalityCode }
+func (p *CodeEmbedderProcessor) Emits() []architecture.EmitKind {
+	return []architecture.EmitKind{architecture.EmitEmbedding}
+}
+func (p *CodeEmbedderProcessor) Init(_ context.Context, _ map[string]any) (architecture.State, error) {
+	return nil, nil
+}
+
+// Process generates an embedding for the code field. We deliberately don't
+// strip syntax / normalize — nomic-embed-text learns enough surface
+// features that comments, identifiers, and structure all contribute.
+func (p *CodeEmbedderProcessor) Process(ctx context.Context, field *architecture.Field, value any, _ architecture.State) (*architecture.Output, error) {
+	if p.embed == nil {
+		return nil, errors.New("code_embedder: embedding service not wired")
+	}
+	if field == nil {
+		return nil, errors.New("code_embedder: nil field")
+	}
+	src, err := stringFromValue(value)
+	if err != nil {
+		return nil, fmt.Errorf("code_embedder: field %q: %w", field.Name, err)
+	}
+	if strings.TrimSpace(src) == "" {
+		return &architecture.Output{
+			Kind:     architecture.EmitNoop,
+			Metadata: map[string]any{"reason": "empty input", "field": field.Name},
+		}, nil
+	}
+	vec, err := p.embed.GenerateEmbedding(ctx, src)
+	if err != nil {
+		return nil, fmt.Errorf("code_embedder: generate %q: %w", field.Name, err)
+	}
+	return &architecture.Output{
+		Kind:  architecture.EmitEmbedding,
+		Value: vec,
+		Metadata: map[string]any{
+			"field":      field.Name,
+			"model":      "nomic-embed-text",
+			"dimensions": len(vec),
+			"input_kind": "code",
+		},
+	}, nil
+}
+
+var _ architecture.Processor = (*CodeEmbedderProcessor)(nil)

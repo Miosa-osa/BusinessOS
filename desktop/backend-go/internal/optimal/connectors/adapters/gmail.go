@@ -47,24 +47,19 @@ func (g *gmailAdapter) DisplayName() string               { return "Gmail" }
 func (g *gmailAdapter) AuthScheme() connectors.AuthScheme { return connectors.AuthOAuth2 }
 func (g *gmailAdapter) RequiredConfigKeys() []string      { return []string{"user_email"} }
 
+// gmailState carries the better-auth user.id through Sync. Tokens live
+// inside the fetcher implementation (which calls GetTokenSource on the
+// google provider) — the adapter never touches them. user_email is a
+// historical field name; semantically it's the user.id.
 type gmailState struct {
-	userEmail    string
-	accessToken  string
-	refreshToken string
+	userEmail string
 }
 
 func (g *gmailAdapter) Init(_ context.Context, cfg connectors.Config) (connectors.State, error) {
 	if err := connectors.RequireKeys(cfg, g.RequiredConfigKeys()); err != nil {
 		return nil, err
 	}
-	if err := connectors.RequireCredentials(cfg, []string{"access_token"}); err != nil {
-		return nil, err
-	}
-	return &gmailState{
-		userEmail:    connectors.StringField(cfg, "user_email"),
-		accessToken:  connectors.CredentialField(cfg, "access_token"),
-		refreshToken: connectors.CredentialField(cfg, "refresh_token"),
-	}, nil
+	return &gmailState{userEmail: connectors.StringField(cfg, "user_email")}, nil
 }
 
 // gmailBatchSize bounds how many message ids ListIDs returns per call.

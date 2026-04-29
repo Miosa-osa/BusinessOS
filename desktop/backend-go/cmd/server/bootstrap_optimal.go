@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/rhl/businessos-backend/internal/optimal/architecture"
 	"github.com/rhl/businessos-backend/internal/optimal/audit"
 	"github.com/rhl/businessos-backend/internal/optimal/compliance"
 	"github.com/rhl/businessos-backend/internal/optimal/identity"
@@ -63,4 +64,16 @@ func bootstrapOptimalSchemas(ctx context.Context, db *sql.DB) {
 		return
 	}
 	slog.Warn(fmt.Sprintf("optimal schemas: %d/%d steps failed (continuing)", failed, len(steps)))
+}
+
+// swapArchProcessor centralizes architecture.SwapProcessor calls so each
+// embedder-wiring site stays a one-liner. Failure logs a warning but never
+// halts the server — the stub processor remains in place and Phase-1
+// ingest continues to work without that modality.
+func swapArchProcessor(id string, p architecture.Processor) {
+	if err := architecture.SwapProcessor(id, p); err != nil {
+		slog.Warn("architecture: processor swap failed (stub remains)", "id", id, "error", err)
+		return
+	}
+	slog.Info("architecture: processor wired", "id", id)
 }

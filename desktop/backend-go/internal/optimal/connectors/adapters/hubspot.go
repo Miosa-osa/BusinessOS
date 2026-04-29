@@ -2,14 +2,36 @@ package adapters
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
+	"sync"
 
 	"github.com/rhl/businessos-backend/internal/optimal/connectors"
 )
 
-type hubspotAdapter struct{}
+// HubspotFetcher is the seam between the hubspot adapter and HubSpot's API.
+// Records may be contacts, companies, or deals — the fetcher picks the
+// active sObjects and the adapter's Transform maps them uniformly.
+type HubspotFetcher interface {
+	ListRecords(ctx context.Context, userID, cursor string, max int) (records []map[string]any, next string, err error)
+}
 
-func init() { connectors.Register(&hubspotAdapter{}) }
+type hubspotAdapter struct {
+	mu      sync.RWMutex
+	fetcher HubspotFetcher
+}
+
+var globalHubspotAdapter = &hubspotAdapter{}
+
+func init() { connectors.Register(globalHubspotAdapter) }
+
+// SetHubspotFetcher wires a real HubSpot fetcher to the registered adapter.
+func SetHubspotFetcher(f HubspotFetcher) {
+	globalHubspotAdapter.mu.Lock()
+	defer globalHubspotAdapter.mu.Unlock()
+	globalHubspotAdapter.fetcher = f
+}
 
 func (h *hubspotAdapter) Kind() string                      { return "hubspot" }
 func (h *hubspotAdapter) DisplayName() string               { return "HubSpot" }
@@ -17,35 +39,44 @@ func (h *hubspotAdapter) AuthScheme() connectors.AuthScheme { return connectors.
 func (h *hubspotAdapter) RequiredConfigKeys() []string      { return []string{} }
 
 type hubspotState struct {
-	accessToken  string
-	clientID     string
-	clientSecret string
-	refreshToken string
+	userID string
 }
 
-// Init accepts either a static access_token OR an OAuth refresh triple
-// (client_id + client_secret + refresh_token). Matches the Elixir
-// require_hubspot_auth/1 branching.
+// Init only needs the better-auth user.id; OAuth state is owned by the
+// HubSpot Provider in BusinessOS, not this adapter.
 func (h *hubspotAdapter) Init(_ context.Context, cfg connectors.Config) (connectors.State, error) {
-	tok := connectors.CredentialField(cfg, "access_token")
-	cID := connectors.CredentialField(cfg, "client_id")
-	cSec := connectors.CredentialField(cfg, "client_secret")
-	rTok := connectors.CredentialField(cfg, "refresh_token")
-
-	hasOAuth := cID != "" && cSec != "" && rTok != ""
-	if tok == "" && !hasOAuth {
-		return nil, fmt.Errorf("hubspot: missing credentials — supply access_token OR (client_id+client_secret+refresh_token)")
+	if err := connectors.RequireKeys(cfg, []string{"user_email"}); err != nil {
+		return nil, err
 	}
-	return &hubspotState{
-		accessToken:  tok,
-		clientID:     cID,
-		clientSecret: cSec,
-		refreshToken: rTok,
-	}, nil
+	return &hubspotState{userID: connectors.StringField(cfg, "user_email")}, nil
 }
 
-func (h *hubspotAdapter) Sync(_ context.Context, _ connectors.State, _ connectors.Cursor) (connectors.SyncResult, error) {
-	return connectors.SyncResult{}, connectors.NewSyncError(connectors.ErrNotImplemented, nil)
+func (h *hubspotAdapter) Sync(ctx context.Context, state connectors.State, cursor connectors.Cursor) (connectors.SyncResult, error) {
+	h.mu.RLock()
+	fetcher := h.fetcher
+	h.mu.RUnlock()
+	if fetcher == nil {
+		return connectors.SyncResult{}, connectors.NewSyncError(connectors.ErrNotImplemented, nil)
+	}
+	st, ok := state.(*hubspotState)
+	if !ok {
+		return connectors.SyncResult{}, connectors.NewSyncError(connectors.ErrFatal,
+			errors.New("hubspot: invalid state type"))
+	}
+	records, next, err := fetcher.ListRecords(ctx, st.userID, string(cursor), 50)
+	if err != nil {
+		return connectors.SyncResult{}, connectors.NewSyncError(connectors.ErrTransient, err)
+	}
+	signals := make([]connectors.Signal, 0, len(records))
+	for _, r := range records {
+		sig, err := h.Transform(r)
+		if err != nil {
+			slog.WarnContext(ctx, "hubspot: transform failed", "user_id", st.userID, "error", err)
+			continue
+		}
+		signals = append(signals, sig)
+	}
+	return connectors.SyncResult{Signals: signals, Next: connectors.Cursor(next)}, nil
 }
 
 // Transform handles deals, contacts, companies, tickets — anything from

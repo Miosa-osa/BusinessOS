@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	"github.com/rhl/businessos-backend/internal/optimal/connectors/adapters"
+	"github.com/rhl/businessos-backend/internal/optimal/connectors/bridges"
 	"github.com/rhl/businessos-backend/internal/services"
 )
 
@@ -22,13 +23,30 @@ func (h *Handlers) registerIntegrationRoutes(api *gin.RouterGroup, auth gin.Hand
 	integrationRouter := NewIntegrationRouter(h.pool)
 	h.integrationRouter = integrationRouter
 
-	// Wire the OptimalEngine gmail connector adapter to the live Gmail service.
-	// Once set, gmailAdapter.Sync pulls real messages instead of returning
-	// ErrNotImplemented. Must run BEFORE registerConnectorRoutes so the first
-	// sync request finds a wired fetcher.
+	// Wire OptimalEngine connector adapters to their live OAuth providers.
+	// Each setter is idempotent; missing providers leave the adapter in
+	// stub mode (Sync returns ErrNotImplemented). Must run BEFORE
+	// registerConnectorRoutes so the first sync request finds a wired
+	// fetcher.
 	if gmailSvc := integrationRouter.GetGoogleGmailService(); gmailSvc != nil {
-		adapters.SetGmailFetcher(services.NewGmailConnectorFetcher(gmailSvc))
+		adapters.SetGmailFetcher(bridges.NewGmailFetcher(gmailSvc))
 		slog.Info("connectors: gmail fetcher wired to live OAuth service")
+	}
+	if slackProv := integrationRouter.GetSlackProvider(); slackProv != nil {
+		adapters.SetSlackFetcher(bridges.NewSlackFetcher(slackProv))
+		slog.Info("connectors: slack fetcher wired to live OAuth service")
+	}
+	if notionProv := integrationRouter.GetNotionProvider(); notionProv != nil {
+		adapters.SetNotionFetcher(bridges.NewNotionFetcher(notionProv))
+		slog.Info("connectors: notion fetcher wired to live OAuth service")
+	}
+	if linearProv := integrationRouter.GetLinearProvider(); linearProv != nil {
+		adapters.SetLinearFetcher(bridges.NewLinearFetcher(linearProv))
+		slog.Info("connectors: linear fetcher wired to live OAuth service")
+	}
+	if hubspotProv := integrationRouter.GetHubSpotProvider(); hubspotProv != nil {
+		adapters.SetHubspotFetcher(bridges.NewHubspotFetcher(hubspotProv))
+		slog.Info("connectors: hubspot fetcher wired to live OAuth service")
 	}
 
 	// Register provider-based integration routes - /api/integrations/{provider}/*

@@ -25,7 +25,6 @@ import (
 	"github.com/rhl/businessos-backend/internal/handlers"
 	"github.com/rhl/businessos-backend/internal/integrations/osa"
 	"github.com/rhl/businessos-backend/internal/middleware"
-	"github.com/rhl/businessos-backend/internal/optimal/architecture"
 	redisClient "github.com/rhl/businessos-backend/internal/redis"
 	"github.com/rhl/businessos-backend/internal/security"
 	"github.com/rhl/businessos-backend/internal/services"
@@ -360,18 +359,13 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 		slog.Info("Embedding service initialized", "model", "nomic-embed-text", "dimensions", 768)
 		slog.Info("Tiered context service enabled (scoped RAG, Level 1/2/3 context)")
 
-		// Replace the architecture-layer text_embedder stub (Wave 8) with a real
-		// processor backed by EmbeddingService. After this swap, every
-		// architecture-driven ingest path (text_signal.body, code_commit.message,
-		// audio_transcript.transcript, etc.) emits real 768d vectors instead of
-		// EmitNoop. Failure here is non-fatal — the stub stays in place and
-		// classic ingest still works.
-		if err := architecture.SwapProcessor("text_embedder",
-			services.NewTextEmbedderProcessor(embeddingService)); err != nil {
-			slog.Warn("architecture: text_embedder swap failed (stub remains)", "error", err)
-		} else {
-			slog.Info("architecture: text_embedder wired to EmbeddingService (real 768d vectors)")
-		}
+		// Replace architecture-layer text + code embedder stubs (Wave 8) with
+		// real processors backed by EmbeddingService. After these swaps,
+		// text_signal.body and code_commit.{message,diff} produce real 768d
+		// vectors instead of EmitNoop. Failure is non-fatal — stubs remain
+		// in place and classic ingest keeps working.
+		swapArchProcessor("text_embedder", services.NewTextEmbedderProcessor(embeddingService))
+		swapArchProcessor("code_embedder", services.NewCodeEmbedderProcessor(embeddingService))
 	} else {
 		slog.Warn("Embedding service unavailable (Ollama not running or nomic-embed-text model not pulled)")
 		slog.Warn("RAG features will be disabled. Run: ollama pull nomic-embed-text")
@@ -519,6 +513,11 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 			imageEmbeddingService.SetEmbeddingCache(embeddingCacheAdapter)
 			slog.Info("Image embedding service cache enabled (48h TTL)")
 		}
+
+		// Wire the architecture-layer image_embedder stub to the live CLIP
+		// service. After this, image_asset.image / multimodal_media.image_refs
+		// produce real 512d vectors instead of EmitNoop.
+		swapArchProcessor("image_embedder", services.NewImageEmbedderProcessor(imageEmbeddingService))
 
 		if hybridSearchService != nil && rerankerService != nil && embeddingService != nil {
 			multiModalSearchService = services.NewMultiModalSearchService(
@@ -738,9 +737,17 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 	h.SetVoiceServices(whisperService, elevenLabsService)
 	if whisperService.IsAvailable() {
 		slog.Info("Whisper service initialized (local speech-to-text)")
+		// Wire architecture-layer audio_embedder stub to Whisper. Audio
+		// fields (audio_transcript.transcript) now emit real EmitTranscription
+		// instead of EmitNoop.
+		swapArchProcessor("audio_embedder", services.NewAudioEmbedderProcessor(whisperService))
 	} else {
 		slog.Warn("Whisper service not fully configured (model/binary not found)")
 	}
+
+	// ts_feature_extractor needs no external service — pure-Go feature
+	// extraction (mean / stdev / slope / last-z-score). Always swap.
+	swapArchProcessor("ts_feature_extractor", services.NewTSFeatureExtractorProcessor())
 	if elevenLabsService.IsConfigured() {
 		slog.Info("ElevenLabs service initialized (OSA voice enabled)")
 	} else {
