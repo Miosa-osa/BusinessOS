@@ -6,7 +6,9 @@ import "github.com/gin-gonic/gin"
 // /api/clients, /api/crm, /api/tables.
 func (h *Handlers) registerCRMRoutes(api *gin.RouterGroup, auth gin.HandlerFunc) {
 	// Client routes - /api/clients
-	RegisterClientRoutes(api, NewClientHandler(h.pool), auth)
+	clientHandler := NewClientHandler(h.pool)
+	clientHandler.SetEngineSync(h.engineSync)
+	RegisterClientRoutes(api, clientHandler, auth)
 
 	// CRM routes - /api/crm
 	crmHandler := NewCRMHandler(h.pool)

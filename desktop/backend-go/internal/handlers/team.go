@@ -15,11 +15,13 @@ import (
 	"github.com/rhl/businessos-backend/internal/cache"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 
 // TeamHandler handles all team member HTTP requests.
 type TeamHandler struct {
+	EngineSyncHook
 	pool       *pgxpool.Pool
 	queryCache *cache.QueryCache
 }
@@ -178,6 +180,18 @@ func (h *TeamHandler) CreateTeamMember(c *gin.Context) {
 			}
 		}()
 	}
+
+	memberMeta := map[string]string{"role": req.Role, "email": req.Email}
+	h.enqueue(c.Request.Context(), services.Signal{
+		Module:     services.ModuleTeam,
+		ID:         "member-" + uuidString(member.ID.Bytes),
+		AuthorID:   user.ID,
+		Title:      req.Name,
+		Body:       fmt.Sprintf("%s — %s", req.Name, req.Role),
+		Genre:      "team-member",
+		ModifiedAt: pgPlainTimestampToTime(member.UpdatedAt),
+		Metadata:   memberMeta,
+	})
 
 	c.JSON(http.StatusCreated, member)
 }

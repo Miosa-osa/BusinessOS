@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 
@@ -169,6 +170,28 @@ func (h *CRMHandler) CreateCRMDeal(c *gin.Context) {
 		utils.RespondInternalError(c, slog.Default(), "create deal", err)
 		return
 	}
+
+	dealMeta := map[string]string{"crm_kind": "deal"}
+	if req.Status != nil {
+		dealMeta["status"] = *req.Status
+	}
+	if req.Priority != nil {
+		dealMeta["priority"] = *req.Priority
+	}
+	dealBody := req.Name
+	if req.Description != nil {
+		dealBody += "\n\n" + *req.Description
+	}
+	h.enqueue(c.Request.Context(), services.Signal{
+		Module:     services.ModuleCRM,
+		ID:         "deal-" + uuidString(deal.ID.Bytes),
+		AuthorID:   user.ID,
+		Title:      req.Name,
+		Body:       dealBody,
+		Genre:      "deal",
+		ModifiedAt: pgTimestampToTime(deal.UpdatedAt),
+		Metadata:   dealMeta,
+	})
 
 	c.JSON(http.StatusCreated, transformCRMDealBasic(deal))
 }

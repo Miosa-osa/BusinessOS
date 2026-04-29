@@ -20,6 +20,7 @@ import (
 
 // ChatHandler handles all chat-domain HTTP requests.
 type ChatHandler struct {
+	EngineSyncHook
 	pool                 *pgxpool.Pool
 	cfg                  *config.Config
 	tieredContextService *services.TieredContextService
@@ -229,6 +230,20 @@ func (h *ChatHandler) CreateConversation(c *gin.Context) {
 		utils.RespondInternalError(c, slog.Default(), "create conversation", err)
 		return
 	}
+
+	// Mirror conversation start into the OptimalEngine knowledge graph
+	// so chat threads surface in the Pages graph view alongside Pages,
+	// Tasks, etc. Individual messages stream through the model and aren't
+	// re-mirrored — only the conversation envelope.
+	h.enqueue(c.Request.Context(), services.Signal{
+		Module:     services.ModuleChat,
+		ID:         "conversation-" + uuidString(conversation.ID.Bytes),
+		AuthorID:   user.ID,
+		Title:      req.Title,
+		Body:       req.Title,
+		Genre:      "conversation",
+		ModifiedAt: pgPlainTimestampToTime(conversation.UpdatedAt),
+	})
 
 	c.JSON(http.StatusCreated, TransformConversation(conversation))
 }

@@ -7,7 +7,7 @@ import "github.com/gin-gonic/gin"
 // /api/thinking, /api/focus.
 func (h *Handlers) registerChatRoutes(api *gin.RouterGroup, auth gin.HandlerFunc) {
 	// Chat routes - /api/chat (extracted handler)
-	RegisterChatRoutes(api, NewChatHandler(
+	chatHandler := NewChatHandler(
 		h.pool,
 		h.cfg,
 		h.tieredContextService,
@@ -24,7 +24,9 @@ func (h *Handlers) registerChatRoutes(api *gin.RouterGroup, auth gin.HandlerFunc
 		h.osaClient,
 		h.signalHints,
 		h.subconsciousObserver,
-	), auth)
+	)
+	chatHandler.SetEngineSync(h.engineSync)
+	RegisterChatRoutes(api, chatHandler, auth)
 
 	// Artifacts routes - /api/artifacts
 	RegisterArtifactRoutes(api, NewArtifactHandler(h.pool), auth)

@@ -11,11 +11,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 
 // ClientHandler handles client management operations
 type ClientHandler struct {
+	EngineSyncHook
 	pool *pgxpool.Pool
 }
 
@@ -163,6 +165,31 @@ func (h *ClientHandler) CreateClient(c *gin.Context) {
 		utils.RespondInternalError(c, slog.Default(), "create client", nil)
 		return
 	}
+
+	clientMeta := map[string]string{}
+	if req.Type != nil {
+		clientMeta["type"] = *req.Type
+	}
+	if req.Status != nil {
+		clientMeta["status"] = *req.Status
+	}
+	if req.Industry != nil {
+		clientMeta["industry"] = *req.Industry
+	}
+	clientBody := req.Name
+	if req.Notes != nil {
+		clientBody += "\n\n" + *req.Notes
+	}
+	h.enqueue(c.Request.Context(), services.Signal{
+		Module:     services.ModuleClients,
+		ID:         "client-" + uuidString(client.ID.Bytes),
+		AuthorID:   user.ID,
+		Title:      req.Name,
+		Body:       clientBody,
+		Genre:      "client",
+		ModifiedAt: pgTimestampToTime(client.UpdatedAt),
+		Metadata:   clientMeta,
+	})
 
 	c.JSON(http.StatusCreated, TransformClient(client))
 }

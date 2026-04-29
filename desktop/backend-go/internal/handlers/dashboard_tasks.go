@@ -139,6 +139,32 @@ func (h *DashboardItemHandler) CreateTask(c *gin.Context) {
 	// Invalidate dashboard caches when task is created
 	h.invalidateDashboardCache(c, user.ID)
 
+	// Mirror into the OptimalEngine knowledge graph so tasks appear in
+	// the Pages graph view alongside everything else.
+	taskMeta := map[string]string{}
+	if req.Status != nil {
+		taskMeta["status"] = *req.Status
+	}
+	if req.Priority != nil {
+		taskMeta["priority"] = *req.Priority
+	}
+	if req.ProjectID != nil {
+		taskMeta["project_id"] = *req.ProjectID
+	}
+	if req.AssigneeID != nil {
+		taskMeta["assignee_id"] = *req.AssigneeID
+	}
+	h.enqueue(c.Request.Context(), services.Signal{
+		Module:     services.ModuleTasks,
+		ID:         "task-" + uuidString(task.ID.Bytes),
+		AuthorID:   user.ID,
+		Title:      req.Title,
+		Body:       optString(req.Description),
+		Genre:      "task",
+		ModifiedAt: pgPlainTimestampToTime(task.UpdatedAt),
+		Metadata:   taskMeta,
+	})
+
 	// Trigger notification if task was assigned to someone else
 	if h.notificationTriggers != nil && req.AssigneeID != nil && *req.AssigneeID != user.ID {
 		taskID := uuid.UUID(task.ID.Bytes)

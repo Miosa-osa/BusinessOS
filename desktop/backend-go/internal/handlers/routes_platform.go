@@ -14,10 +14,14 @@ import (
 // and the Pedro-owned task routes (documents, learning, app-profiler, intelligence).
 func (h *Handlers) registerPlatformRoutes(api *gin.RouterGroup, auth gin.HandlerFunc) {
 	// Dashboard routes - /api/dashboard (aggregate dashboard items)
-	RegisterDashboardItemRoutes(api, NewDashboardItemHandler(h.pool, h.queryCache, h.notificationTriggers), auth)
+	dashboardHandler := NewDashboardItemHandler(h.pool, h.queryCache, h.notificationTriggers)
+	dashboardHandler.SetEngineSync(h.engineSync)
+	RegisterDashboardItemRoutes(api, dashboardHandler, auth)
 
 	// Team routes - /api/team
-	RegisterTeamRoutes(api, NewTeamHandler(h.pool, h.queryCache), auth)
+	teamHandler := NewTeamHandler(h.pool, h.queryCache)
+	teamHandler.SetEngineSync(h.engineSync)
+	RegisterTeamRoutes(api, teamHandler, auth)
 
 	// Settings routes - /api/settings
 	RegisterSettingsRoutes(api, NewSettingsHandler(h.pool, h.cfg), auth)

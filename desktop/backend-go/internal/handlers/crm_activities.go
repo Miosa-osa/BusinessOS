@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 
@@ -168,6 +169,25 @@ func (h *CRMHandler) CreateCRMActivity(c *gin.Context) {
 		utils.RespondInternalError(c, slog.Default(), "create activity", err)
 		return
 	}
+
+	actBody := req.Subject
+	if req.Description != nil {
+		actBody += "\n\n" + *req.Description
+	}
+	actMeta := map[string]string{"crm_kind": "activity", "activity_type": req.ActivityType}
+	if req.Outcome != nil {
+		actMeta["outcome"] = *req.Outcome
+	}
+	h.enqueue(c.Request.Context(), services.Signal{
+		Module:     services.ModuleCRM,
+		ID:         "activity-" + uuidString(activity.ID.Bytes),
+		AuthorID:   user.ID,
+		Title:      req.Subject,
+		Body:       actBody,
+		Genre:      req.ActivityType,
+		ModifiedAt: pgTimestampToTime(activity.UpdatedAt),
+		Metadata:   actMeta,
+	})
 
 	c.JSON(http.StatusCreated, transformCRMActivity(activity))
 }

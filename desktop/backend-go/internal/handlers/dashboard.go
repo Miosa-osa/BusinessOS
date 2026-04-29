@@ -35,6 +35,7 @@ type DashboardSummary struct {
 
 // DashboardItemHandler handles dashboard focus items and tasks
 type DashboardItemHandler struct {
+	EngineSyncHook
 	pool                 *pgxpool.Pool
 	queryCache           *cache.QueryCache
 	notificationTriggers *services.NotificationTriggers
