@@ -124,6 +124,13 @@ func (h *ContextHandler) CreateContext(c *gin.Context) {
 		go h.invalidateContextsCachePattern(c.Request.Context(), user.ID)
 	}
 
+	// Mirror the new Page into the OptimalEngine knowledge graph so it
+	// shows up alongside seed data in the Pages graph view. No-op when
+	// OPTIMAL_NODES_ROOT/OPTIMAL_DB_PATH aren't configured.
+	if h.engineSync != nil {
+		h.engineSync.SyncPage(c.Request.Context(), pageFromContext(ctx))
+	}
+
 	c.JSON(http.StatusCreated, TransformContext(ctx))
 }
 
@@ -281,6 +288,11 @@ func (h *ContextHandler) UpdateContext(c *gin.Context) {
 		go h.invalidateContextsCachePattern(c.Request.Context(), user.ID)
 	}
 
+	// Re-sync to the engine so edits propagate to the Pages graph view.
+	if h.engineSync != nil {
+		h.engineSync.SyncPage(c.Request.Context(), pageFromContext(ctx))
+	}
+
 	c.JSON(http.StatusOK, TransformContext(ctx))
 }
 
@@ -329,6 +341,11 @@ func (h *ContextHandler) UpdateContextBlocks(c *gin.Context) {
 		return
 	}
 
+	// Re-sync to the engine when block content changes.
+	if h.engineSync != nil {
+		h.engineSync.SyncPage(c.Request.Context(), pageFromContext(ctx))
+	}
+
 	c.JSON(http.StatusOK, TransformContext(ctx))
 }
 
@@ -359,6 +376,11 @@ func (h *ContextHandler) DeleteContext(c *gin.Context) {
 	// Invalidate cache for this user's contexts list
 	if h.queryCache != nil {
 		go h.invalidateContextsCachePattern(c.Request.Context(), user.ID)
+	}
+
+	// Remove the corresponding markdown from the engine's nodes root + reindex.
+	if h.engineSync != nil {
+		h.engineSync.DeletePage(c.Request.Context(), id.String())
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Context deleted"})
