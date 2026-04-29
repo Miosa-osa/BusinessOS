@@ -48,6 +48,17 @@ func (h *Handlers) registerIntegrationRoutes(api *gin.RouterGroup, auth gin.Hand
 		adapters.SetHubspotFetcher(connectorbridges.NewHubspotFetcher(hubspotProv))
 		slog.Info("connectors: hubspot fetcher wired to live OAuth service")
 	}
+	// Drive shares the Google provider (just needs drive.readonly scope).
+	if googleProv := integrationRouter.GetGoogleProvider(); googleProv != nil {
+		adapters.SetDriveFetcher(connectorbridges.NewDriveFetcher(googleProv))
+		slog.Info("connectors: drive fetcher wired to live OAuth service")
+	}
+	// OneDrive + Teams share the Microsoft provider.
+	if msProv := integrationRouter.GetMicrosoftProvider(); msProv != nil {
+		adapters.SetOnedriveFetcher(connectorbridges.NewOnedriveFetcher(msProv))
+		adapters.SetTeamsFetcher(connectorbridges.NewTeamsFetcher(msProv))
+		slog.Info("connectors: onedrive + teams fetchers wired to live OAuth service")
+	}
 
 	// Register provider-based integration routes - /api/integrations/{provider}/*
 	integrationsGroup := api.Group("/integrations")

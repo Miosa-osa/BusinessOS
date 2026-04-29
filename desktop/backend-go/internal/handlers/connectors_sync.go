@@ -7,12 +7,12 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/Miosa-osa/OptimalEngine-go/audit"
+	"github.com/Miosa-osa/OptimalEngine-go/connectors"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/rhl/businessos-backend/internal/middleware"
-	"github.com/Miosa-osa/OptimalEngine-go/audit"
-	"github.com/Miosa-osa/OptimalEngine-go/connectors"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
 
@@ -187,7 +187,7 @@ func (h *ConnectorsHandler) Sync(c *gin.Context) {
 // names the missing wiring explicitly.
 func defaultConfigResolver(_ *gin.Context, kind, userID string) (connectors.Config, error) {
 	switch kind {
-	case "gmail", "slack", "notion", "linear", "hubspot":
+	case "gmail", "slack", "notion", "linear", "hubspot", "drive", "onedrive", "teams":
 		return connectors.Config{"user_email": userID}, nil
 	default:
 		return nil, fmt.Errorf("connector %q has no Sync wiring yet", kind)
