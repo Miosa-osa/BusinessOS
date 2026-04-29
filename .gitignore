@@ -1,0 +1,27 @@
+# Build artifacts
+/_build/
+/cover/
+/deps/
+/doc/
+/.fetch
+erl_crash.dump
+*.ez
+*.beam
+
+# Test scratch + local runtime data
+/tmp/
+/.optimal/
+
+# Generated on crash by the VM
+erl_crash.dump
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
+
+# Environment
+.env
+.env.local
