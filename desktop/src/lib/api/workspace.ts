@@ -127,8 +127,13 @@ async function j<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function listWorkspace(): Promise<WorkspaceNode[]> {
-  const { nodes } = await j<{ nodes: WorkspaceNode[] }>("/api/workspace");
+export async function listWorkspace(
+  workspace?: string | null,
+): Promise<WorkspaceNode[]> {
+  const qs = workspace
+    ? "?" + new URLSearchParams({ workspace }).toString()
+    : "";
+  const { nodes } = await j<{ nodes: WorkspaceNode[] }>(`/api/workspace${qs}`);
   return nodes;
 }
 
@@ -137,11 +142,12 @@ export async function getSignal(id: string): Promise<SignalDetail> {
 }
 
 export async function getActivity(
-  opts: { limit?: number; kind?: string } = {},
+  opts: { limit?: number; kind?: string; workspace?: string | null } = {},
 ): Promise<ActivityEvent[]> {
   const params = new URLSearchParams();
   if (opts.limit) params.set("limit", String(opts.limit));
   if (opts.kind) params.set("kind", opts.kind);
+  if (opts.workspace) params.set("workspace", opts.workspace);
   const qs = params.toString();
   const { events } = await j<{ events: ActivityEvent[] }>(
     `/api/activity${qs ? "?" + qs : ""}`,
@@ -182,9 +188,7 @@ export function toTree(
 }
 
 /** Signals for one node — uses /api/optimal/nodes/:slug/files. */
-export async function getNodeFiles(
-  slug: string,
-): Promise<
+export async function getNodeFiles(slug: string): Promise<
   {
     name: string;
     path: string;

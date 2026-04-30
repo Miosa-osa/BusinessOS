@@ -10,14 +10,16 @@ defmodule Mix.Tasks.Optimal.Ingest do
       mix optimal.ingest --file path/to/file.md
       mix optimal.ingest --file docs/notes.md --genre transcript --title "Team Sync"
       mix optimal.ingest --file notes.md --node ai-masters
+      mix optimal.ingest --file notes.md --workspace acme-q1
 
   Options:
-    --file    Read input from file instead of argument
-    --genre   Override auto-detected genre (transcript, brief, spec, plan, note,
-              decision-log, standup, review, report, pitch)
-    --title   Explicit title
-    --node    Override primary node routing (ai-masters, roberto, money-revenue, etc.)
-    --type    Force context type: signal, resource, memory, skill (default: auto-detect)
+    --file       Read input from file instead of argument
+    --genre      Override auto-detected genre (transcript, brief, spec, plan, note,
+                 decision-log, standup, review, report, pitch)
+    --title      Explicit title
+    --node       Override primary node routing (ai-masters, roberto, money-revenue, etc.)
+    --type       Force context type: signal, resource, memory, skill (default: auto-detect)
+    --workspace  Target workspace ID (default: "default")
   """
 
   use Mix.Task
@@ -33,9 +35,10 @@ defmodule Mix.Tasks.Optimal.Ingest do
           genre: :string,
           title: :string,
           node: :string,
-          type: :string
+          type: :string,
+          workspace: :string
         ],
-        aliases: [f: :file, g: :genre, t: :title, n: :node]
+        aliases: [f: :file, g: :genre, t: :title, n: :node, w: :workspace]
       )
 
     text = resolve_text(opts, positional)
@@ -70,6 +73,7 @@ defmodule Mix.Tasks.Optimal.Ingest do
     |> maybe_put(:genre, Keyword.get(opts, :genre))
     |> maybe_put(:title, Keyword.get(opts, :title))
     |> maybe_put(:node, Keyword.get(opts, :node))
+    |> maybe_put(:workspace_id, Keyword.get(opts, :workspace))
     |> maybe_put_type(Keyword.get(opts, :type))
   end
 

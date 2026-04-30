@@ -8,6 +8,7 @@
     type WorkspaceNode,
     type SignalDetail
   } from '$lib/api/workspace';
+  import { activeWorkspaceId } from '$lib/stores/workspace';
 
   type TreeNode = WorkspaceNode & { children: TreeNode[] };
   type FileEntry = { name: string; path: string; genre: string | null; modified_at: string | null };
@@ -20,13 +21,25 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
 
-  onMount(async () => {
+  async function loadTree(workspace: string | null) {
     try {
-      const nodes = await listWorkspace();
+      error = null;
+      selectedNode = null;
+      nodeFiles = [];
+      selectedSignal = null;
+      expanded = new Set();
+      const nodes = await listWorkspace(workspace);
       tree = toTree(nodes) as TreeNode[];
     } catch (e) {
       error = (e as Error).message;
     }
+  }
+
+  onMount(() => loadTree($activeWorkspaceId));
+
+  // Re-fetch tree when workspace switches
+  $effect(() => {
+    void loadTree($activeWorkspaceId);
   });
 
   function toggle(id: string) {

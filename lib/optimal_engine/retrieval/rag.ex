@@ -83,10 +83,17 @@ defmodule OptimalEngine.Retrieval.RAG do
     * `:skip_wiki` — bypass Tier 3 entirely (testing / debugging)
     * `:skip_intent` — bypass intent expansion (testing)
     * `:tenant_id` — override tenant scope
+    * `:workspace_id` — scope retrieval to a workspace (default `"default"`)
+    * `:on_event` — `(event_atom, payload_map -> any)` — called at each pipeline
+      stage boundary for streaming consumers. Existing callers that omit this
+      opt see no behaviour change. The function is called synchronously in the
+      ask process; keep it non-blocking (e.g. `send/2` to a listener PID).
+      Events fired (in order): `:intent`, `:wiki_hit`, `:chunks`, `:composing`
   """
   @spec ask(String.t(), keyword()) :: {:ok, ask_result()}
   def ask(query, opts \\ []) when is_binary(query) do
     started = System.monotonic_time(:millisecond)
+    on_event = Keyword.get(opts, :on_event, fn _event, _payload -> :ok end)
 
     receiver =
       case Keyword.get(opts, :receiver) do
@@ -104,20 +111,43 @@ defmodule OptimalEngine.Retrieval.RAG do
         end
       end
 
+    on_event.(:intent, %{
+      intent_type: intent[:intent_type],
+      expanded_query: intent[:expanded_query],
+      key_entities: intent[:key_entities] || [],
+      node_hints: intent[:node_hints] || []
+    })
+
+    workspace_id = Keyword.get(opts, :workspace_id, "default")
+
     wiki_result =
       if Keyword.get(opts, :skip_wiki, false) do
         :miss
       else
-        WikiFirst.lookup(query, receiver.audience, tenant_id: receiver.tenant_id)
+        WikiFirst.lookup(query, receiver.audience,
+          tenant_id: receiver.tenant_id,
+          workspace_id: workspace_id
+        )
       end
 
     {source, envelope, counts} =
       case wiki_result do
         {:hit, page, _reason} ->
+          on_event.(:wiki_hit, %{
+            slug: page.slug,
+            audience: page.audience,
+            version: page.version
+          })
+
+          on_event.(:composing, %{format: receiver.format, bandwidth: receiver.bandwidth})
           {:wiki, deliver_wiki(page, receiver), %{candidates: 1, delivered: 1, truncated?: false}}
 
         :miss ->
-          hybrid_deliver(query, intent, receiver, opts)
+          hybrid_deliver(query, intent, receiver,
+            Keyword.merge(Keyword.put(opts, :workspace_id, workspace_id),
+              on_event: on_event
+            )
+          )
       end
 
     elapsed = System.monotonic_time(:millisecond) - started
@@ -144,11 +174,13 @@ defmodule OptimalEngine.Retrieval.RAG do
   end
 
   defp hybrid_deliver(query, intent, receiver, opts) do
+    on_event = Keyword.get(opts, :on_event, fn _event, _payload -> :ok end)
     limit = Keyword.get(opts, :hybrid_limit, @default_hybrid_limit)
+    workspace_id = Keyword.get(opts, :workspace_id, "default")
     expanded = Map.get(intent, :expanded_query, query)
 
     search_opts =
-      [limit: limit]
+      [limit: limit, workspace_id: workspace_id]
       |> maybe_put(:principal, receiver.id)
 
     candidates = safe_search(expanded, search_opts)
@@ -163,7 +195,13 @@ defmodule OptimalEngine.Retrieval.RAG do
         }
       end)
 
+    on_event.(:chunks, Enum.map(items, fn item ->
+      %{slug: item.uri, score: item.score, scale: "chunk"}
+    end))
+
     plan = BandwidthPlanner.plan(items, receiver.token_budget)
+
+    on_event.(:composing, %{format: receiver.format, bandwidth: receiver.bandwidth})
 
     envelope =
       case plan.kept do

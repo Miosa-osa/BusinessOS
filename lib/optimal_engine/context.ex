@@ -62,6 +62,8 @@ defmodule OptimalEngine.Context do
           supersedes: String.t() | nil,
           # Routing
           routed_to: [String.t()],
+          # Workspace scoping (soft scope within a tenant)
+          workspace_id: String.t(),
           # Extra
           metadata: map(),
           # Search score (transient — not persisted)
@@ -88,6 +90,7 @@ defmodule OptimalEngine.Context do
     sn_ratio: 0.5,
     entities: [],
     routed_to: [],
+    workspace_id: "default",
     metadata: %{}
   ]
 
@@ -123,7 +126,8 @@ defmodule OptimalEngine.Context do
       content: ctx.content || "",
       node: ctx.node || "inbox",
       sn_ratio: ctx.sn_ratio || 0.5,
-      entities: Jason.encode!(ctx.entities || [])
+      entities: Jason.encode!(ctx.entities || []),
+      workspace_id: ctx.workspace_id || "default"
     }
   end
 
@@ -183,7 +187,8 @@ defmodule OptimalEngine.Context do
       valid_until,
       supersedes,
       routed_to_json,
-      metadata_json
+      metadata_json,
+      workspace_id
     ] = row
 
     ctx_type = parse_context_type(type)
@@ -233,6 +238,7 @@ defmodule OptimalEngine.Context do
       valid_until: parsed.valid_until,
       supersedes: supersedes,
       routed_to: parsed.routed_to,
+      workspace_id: workspace_id || "default",
       metadata: parse_json_map(metadata_json),
       score: nil
     }

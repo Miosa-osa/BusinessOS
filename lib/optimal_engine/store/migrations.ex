@@ -70,7 +70,12 @@ defmodule OptimalEngine.Store.Migrations do
       migration_022_backfill_nodes_from_contexts(),
       migration_023_chunk_embeddings(),
       migration_024_compliance_columns(),
-      migration_025_data_architectures()
+      migration_025_data_architectures(),
+      migration_026_workspaces(),
+      migration_027_surfacing(),
+      migration_028_memories(),
+      migration_029_memory_content_hash(),
+      migration_030_api_keys()
     ]
   end
 
@@ -725,6 +730,189 @@ defmodule OptimalEngine.Store.Migrations do
      ]}
   end
 
+  # Phase 1.5 — workspaces. A workspace is a knowledge base inside an
+  # organization (tenant). One tenant can hold many workspaces. Every
+  # signal-bearing row gets a workspace_id; existing rows backfill to
+  # `<tenant>:default`. Unlike tenant_id (the absolute isolation boundary),
+  # workspace_id is a soft scope: a principal can belong to multiple
+  # workspaces within their tenant via workspace_members.
+  defp migration_026_workspaces do
+    {26, "workspaces — multiple knowledge bases per organization (Phase 1.5)",
+     [
+       {"workspaces",
+        """
+        CREATE TABLE IF NOT EXISTS workspaces (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+          slug TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT,
+          status TEXT NOT NULL DEFAULT 'active',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          archived_at TEXT,
+          metadata TEXT NOT NULL DEFAULT '{}',
+          UNIQUE(tenant_id, slug)
+        )
+        """},
+       {"idx_workspaces_tenant_status",
+        "CREATE INDEX IF NOT EXISTS idx_workspaces_tenant_status ON workspaces(tenant_id, status)"},
+
+       # Membership: principal × workspace × role. A principal in a tenant
+       # can be granted access to N workspaces. Role values: owner / member /
+       # viewer. Time-bounded via started_at / ended_at.
+       {"workspace_members",
+        """
+        CREATE TABLE IF NOT EXISTS workspace_members (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tenant_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+          principal_id TEXT NOT NULL REFERENCES principals(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'member',
+          started_at TEXT NOT NULL DEFAULT (datetime('now')),
+          ended_at TEXT,
+          UNIQUE(workspace_id, principal_id)
+        )
+        """},
+       {"idx_workspace_members_tenant_workspace",
+        "CREATE INDEX IF NOT EXISTS idx_workspace_members_tenant_workspace ON workspace_members(tenant_id, workspace_id)"},
+       {"idx_workspace_members_principal",
+        "CREATE INDEX IF NOT EXISTS idx_workspace_members_principal ON workspace_members(principal_id)"},
+
+       # Add workspace_id to every signal-bearing table. Defaults to
+       # 'default' so existing rows continue resolving without rewrite.
+       {"contexts.workspace_id",
+        "ALTER TABLE contexts ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"chunks.workspace_id",
+        "ALTER TABLE chunks ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"classifications.workspace_id",
+        "ALTER TABLE classifications ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"intents.workspace_id",
+        "ALTER TABLE intents ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"entities.workspace_id",
+        "ALTER TABLE entities ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"edges.workspace_id",
+        "ALTER TABLE edges ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"vectors.workspace_id",
+        "ALTER TABLE vectors ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"chunk_embeddings.workspace_id",
+        "ALTER TABLE chunk_embeddings ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"clusters.workspace_id",
+        "ALTER TABLE clusters ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"cluster_members.workspace_id",
+        "ALTER TABLE cluster_members ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"assets.workspace_id",
+        "ALTER TABLE assets ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"wiki_pages.workspace_id",
+        "ALTER TABLE wiki_pages ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"citations.workspace_id",
+        "ALTER TABLE citations ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"events.workspace_id",
+        "ALTER TABLE events ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"nodes.workspace_id",
+        "ALTER TABLE nodes ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"node_members.workspace_id",
+        "ALTER TABLE node_members ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"skills.workspace_id",
+        "ALTER TABLE skills ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"principal_skills.workspace_id",
+        "ALTER TABLE principal_skills ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"decisions.workspace_id",
+        "ALTER TABLE decisions ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"sessions.workspace_id",
+        "ALTER TABLE sessions ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"observations.workspace_id",
+        "ALTER TABLE observations ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"architectures.workspace_id",
+        "ALTER TABLE architectures ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+       {"processor_runs.workspace_id",
+        "ALTER TABLE processor_runs ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'"},
+
+       # Workspace-first indexes on the highest-traffic tables.
+       {"idx_contexts_ws_node",
+        "CREATE INDEX IF NOT EXISTS idx_contexts_ws_node ON contexts(workspace_id, node)"},
+       {"idx_chunks_ws_signal",
+        "CREATE INDEX IF NOT EXISTS idx_chunks_ws_signal ON chunks(workspace_id, signal_id)"},
+       {"idx_chunks_ws_scale",
+        "CREATE INDEX IF NOT EXISTS idx_chunks_ws_scale ON chunks(workspace_id, scale)"},
+       {"idx_wiki_pages_ws_slug",
+        "CREATE INDEX IF NOT EXISTS idx_wiki_pages_ws_slug ON wiki_pages(workspace_id, slug)"},
+       {"idx_events_ws_ts",
+        "CREATE INDEX IF NOT EXISTS idx_events_ws_ts ON events(workspace_id, ts)"},
+       {"idx_nodes_ws_kind",
+        "CREATE INDEX IF NOT EXISTS idx_nodes_ws_kind ON nodes(workspace_id, kind)"},
+       {"idx_chunk_embeddings_ws_modality",
+        "CREATE INDEX IF NOT EXISTS idx_chunk_embeddings_ws_modality ON chunk_embeddings(workspace_id, modality)"},
+
+       # Seed: a singleton `default` workspace under the default tenant so the
+       # soft backfill (`workspace_id = 'default'`) resolves to a real row.
+       # Future tenants create their own workspaces at tenant-creation time —
+       # this migration is only responsible for the existing default tenant.
+       {"seed_default_workspace",
+        """
+        INSERT OR IGNORE INTO workspaces (id, tenant_id, slug, name, description, status)
+        VALUES (
+          'default', 'default', 'default', 'Default workspace',
+          'Auto-created so existing rows have a workspace.', 'active'
+        )
+        """}
+     ]}
+  end
+
+  # Phase 15 — proactive surfacing. Subscriptions describe what an agent
+  # wants pushed to them; events log what got pushed. Categories follow
+  # Engramme's "Questions in the Wild" taxonomy (Mar 2026), reframed for
+  # enterprise: recent_actions, contacts, schedules, ownership, file_loc,
+  # procedures, professional_knowledge, factual, etc. Stored as JSON
+  # array in `categories` so the taxonomy can evolve without migration.
+  defp migration_027_surfacing do
+    {27, "surfacing — subscriptions + event log for proactive recall (Phase 15)",
+     [
+       {"surfacing_subscriptions",
+        """
+        CREATE TABLE IF NOT EXISTS surfacing_subscriptions (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          principal_id TEXT,
+          scope TEXT NOT NULL DEFAULT 'workspace',
+          scope_value TEXT,
+          categories TEXT NOT NULL DEFAULT '[]',
+          activity TEXT,
+          status TEXT NOT NULL DEFAULT 'active',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          paused_at TEXT,
+          metadata TEXT NOT NULL DEFAULT '{}'
+        )
+        """},
+       {"idx_surfacing_subs_workspace_status",
+        "CREATE INDEX IF NOT EXISTS idx_surfacing_subs_workspace_status ON surfacing_subscriptions(workspace_id, status)"},
+       {"idx_surfacing_subs_principal",
+        "CREATE INDEX IF NOT EXISTS idx_surfacing_subs_principal ON surfacing_subscriptions(principal_id)"},
+       {"surfacing_events",
+        """
+        CREATE TABLE IF NOT EXISTS surfacing_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tenant_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          subscription_id TEXT NOT NULL,
+          trigger TEXT NOT NULL,
+          envelope_slug TEXT,
+          envelope_kind TEXT,
+          category TEXT,
+          score REAL,
+          pushed_at TEXT NOT NULL DEFAULT (datetime('now')),
+          metadata TEXT NOT NULL DEFAULT '{}'
+        )
+        """},
+       {"idx_surfacing_events_workspace_pushed_at",
+        "CREATE INDEX IF NOT EXISTS idx_surfacing_events_workspace_pushed_at ON surfacing_events(workspace_id, pushed_at)"},
+       {"idx_surfacing_events_subscription",
+        "CREATE INDEX IF NOT EXISTS idx_surfacing_events_subscription ON surfacing_events(subscription_id, pushed_at)"},
+       {"idx_surfacing_events_dedup",
+        "CREATE INDEX IF NOT EXISTS idx_surfacing_events_dedup ON surfacing_events(subscription_id, envelope_slug, pushed_at)"}
+     ]}
+  end
+
   defp migration_023_chunk_embeddings do
     {23, "chunk_embeddings — aligned 768-dim per-chunk vectors (Phase 5)",
      [
@@ -771,6 +959,130 @@ defmodule OptimalEngine.Store.Migrations do
           COALESCE(c.created_at, datetime('now'))
         FROM contexts c
         """}
+     ]}
+  end
+
+  # Phase 16 — first-class versioned memory with relations and soft forgetting.
+  # Memories are workspace-scoped, versioned, audience-aware, and can reference
+  # each other via typed relations (updates, extends, derives, contradicts, cites).
+  # Soft forgetting sets is_forgotten=1 without touching the row; hard delete
+  # cascades to memory_relations via ON DELETE CASCADE.
+  defp migration_028_memories do
+    {28, "memories — versioned memory primitive with relations (Phase 16)",
+     [
+       {"memories",
+        """
+        CREATE TABLE IF NOT EXISTS memories (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL DEFAULT 'default',
+          workspace_id TEXT NOT NULL DEFAULT 'default',
+          content TEXT NOT NULL,
+          is_static INTEGER NOT NULL DEFAULT 0,
+          is_forgotten INTEGER NOT NULL DEFAULT 0,
+          forget_after TEXT,
+          forget_reason TEXT,
+          version INTEGER NOT NULL DEFAULT 1,
+          parent_memory_id TEXT REFERENCES memories(id),
+          root_memory_id TEXT,
+          is_latest INTEGER NOT NULL DEFAULT 1,
+          citation_uri TEXT,
+          source_chunk_id TEXT,
+          audience TEXT NOT NULL DEFAULT 'default',
+          metadata TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        """},
+       {"memory_relations",
+        """
+        CREATE TABLE IF NOT EXISTS memory_relations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tenant_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          source_memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+          target_memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+          relation TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE(source_memory_id, target_memory_id, relation)
+        )
+        """},
+       {"idx_memories_ws_latest_forgotten",
+        "CREATE INDEX IF NOT EXISTS idx_memories_ws_latest_forgotten ON memories(workspace_id, is_latest, is_forgotten)"},
+       {"idx_memories_ws_audience",
+        "CREATE INDEX IF NOT EXISTS idx_memories_ws_audience ON memories(workspace_id, audience)"},
+       {"idx_memories_ws_root_version",
+        "CREATE INDEX IF NOT EXISTS idx_memories_ws_root_version ON memories(workspace_id, root_memory_id, version)"},
+       {"idx_memory_relations_source",
+        "CREATE INDEX IF NOT EXISTS idx_memory_relations_source ON memory_relations(source_memory_id)"},
+       {"idx_memory_relations_target",
+        "CREATE INDEX IF NOT EXISTS idx_memory_relations_target ON memory_relations(target_memory_id)"}
+     ]}
+  end
+
+  # Phase 17 — content-hash deduplication for memories.
+  # Adds `content_hash TEXT` (SHA-256 of trimmed+downcased content) so that
+  # `Memory.Versioned.create/1` can detect duplicate writes within the same
+  # workspace/audience scope. A partial unique index covering only live
+  # (is_forgotten=0, is_latest=1) rows prevents stale or forgotten memories
+  # from blocking fresh inserts. SQLite partial indexes use WHERE clauses.
+  defp migration_029_memory_content_hash do
+    {29, "memories — content_hash column + dedup partial unique index",
+     [
+       # Step 1: add nullable column so existing rows are not broken.
+       {"memories.content_hash", "ALTER TABLE memories ADD COLUMN content_hash TEXT"},
+
+       # Step 2: backfill existing rows.
+       # SQLite has no SHA-256 built-in, so we mark rows with a placeholder
+       # that is distinct per-row (rowid-based) to preserve uniqueness.
+       # Application code will compute real hashes on new writes; old rows
+       # are effectively invisible to the dedup check because the SELECT in
+       # create/1 filters on content_hash = computed_hash.
+       {"backfill_memories_content_hash",
+        """
+        UPDATE memories
+        SET content_hash = 'legacy:' || id
+        WHERE content_hash IS NULL
+        """},
+
+       # Step 3: partial unique index — only enforced on live memories.
+       # SQLite supports partial (filtered) unique indexes via WHERE.
+       {"idx_memories_dedup_key",
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_dedup_key
+        ON memories (workspace_id, audience, content_hash)
+        WHERE is_forgotten = 0 AND is_latest = 1
+        """}
+     ]}
+  end
+
+  # Phase 18 — API key authentication (tenant-scoped, workspace-scopeable).
+  # Keys are hashed with bcrypt; only the prefix (first 8 chars of the raw secret)
+  # is stored in plaintext for UX display. The `oe_<id>_<secret>` token format
+  # is parsed and verified at request time by OptimalEngine.Auth.ApiKey.verify/1.
+  defp migration_030_api_keys do
+    {30, "api_keys — tenant-scoped API key authentication (Phase 18)",
+     [
+       {"api_keys",
+        """
+        CREATE TABLE IF NOT EXISTS api_keys (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+          principal_id TEXT REFERENCES principals(id) ON DELETE SET NULL,
+          hashed_secret TEXT NOT NULL,
+          prefix TEXT NOT NULL,
+          name TEXT NOT NULL,
+          scopes TEXT NOT NULL DEFAULT '["*"]',
+          workspace_scope TEXT NOT NULL DEFAULT '["*"]',
+          expires_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          last_used_at TEXT,
+          revoked_at TEXT,
+          metadata TEXT NOT NULL DEFAULT '{}'
+        )
+        """},
+       {"idx_api_keys_tenant_revoked",
+        "CREATE INDEX IF NOT EXISTS idx_api_keys_tenant_revoked ON api_keys(tenant_id, revoked_at)"},
+       {"idx_api_keys_prefix", "CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(prefix)"}
      ]}
   end
 

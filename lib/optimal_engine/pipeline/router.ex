@@ -15,7 +15,7 @@ defmodule OptimalEngine.Pipeline.Router do
   use GenServer
   require Logger
 
-  alias OptimalEngine.{Signal, Topology}
+  alias OptimalEngine.{Signal, Routing}
 
   @financial_genres ~w[
     invoice profit-loss balance-sheet budget
@@ -179,7 +179,7 @@ defmodule OptimalEngine.Pipeline.Router do
 
   defp load_state do
     topology =
-      case Topology.load() do
+      case Routing.load() do
         {:ok, t} -> t
         {:error, _} -> %{routing_rules: []}
       end

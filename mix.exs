@@ -78,6 +78,9 @@ defmodule OptimalEngine.MixProject do
       # Observability
       {:telemetry, "~> 1.2"},
 
+      # Auth
+      {:bcrypt_elixir, "~> 3.1"},
+
       # Dev / test
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false}

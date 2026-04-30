@@ -1026,9 +1026,9 @@ defmodule OptimalEngine.Store do
     sql = """
     INSERT OR REPLACE INTO chunks
       (id, tenant_id, signal_id, parent_id, scale, offset_bytes, length_bytes,
-       text, modality, asset_ref, classification_level, created_at)
+       text, modality, asset_ref, classification_level, created_at, workspace_id)
     VALUES
-      (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, COALESCE(?12, datetime('now')))
+      (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, COALESCE(?12, datetime('now')), ?13)
     """
 
     params = [
@@ -1043,7 +1043,8 @@ defmodule OptimalEngine.Store do
       chunk_field(chunk, :modality) |> to_string(),
       chunk_field(chunk, :asset_ref),
       chunk_field(chunk, :classification_level) || "internal",
-      chunk_field(chunk, :created_at)
+      chunk_field(chunk, :created_at),
+      chunk_field(chunk, :workspace_id) || "default"
     ]
 
     with {:ok, stmt} <- Exqlite.Sqlite3.prepare(db, sql),
@@ -1098,8 +1099,8 @@ defmodule OptimalEngine.Store do
     sql = """
     INSERT INTO classifications
       (tenant_id, chunk_id, mode, genre, signal_type, format, structure,
-       sn_ratio, confidence)
-    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+       sn_ratio, confidence, workspace_id)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
     ON CONFLICT(chunk_id) DO UPDATE SET
       mode        = excluded.mode,
       genre       = excluded.genre,
@@ -1107,7 +1108,8 @@ defmodule OptimalEngine.Store do
       format      = excluded.format,
       structure   = excluded.structure,
       sn_ratio    = excluded.sn_ratio,
-      confidence  = excluded.confidence
+      confidence  = excluded.confidence,
+      workspace_id = excluded.workspace_id
     """
 
     params = [
@@ -1119,7 +1121,8 @@ defmodule OptimalEngine.Store do
       atom_or_nil(chunk_field(row, :format)),
       atom_or_nil(chunk_field(row, :structure)),
       chunk_field(row, :sn_ratio),
-      chunk_field(row, :confidence)
+      chunk_field(row, :confidence),
+      chunk_field(row, :workspace_id) || "default"
     ]
 
     exec_stmt(db, sql, params)
@@ -1159,12 +1162,13 @@ defmodule OptimalEngine.Store do
 
   defp do_insert_intent(db, row) do
     sql = """
-    INSERT INTO intents (tenant_id, chunk_id, intent, confidence, evidence)
-    VALUES (?1, ?2, ?3, ?4, ?5)
+    INSERT INTO intents (tenant_id, chunk_id, intent, confidence, evidence, workspace_id)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6)
     ON CONFLICT(chunk_id) DO UPDATE SET
       intent     = excluded.intent,
       confidence = excluded.confidence,
-      evidence   = excluded.evidence
+      evidence   = excluded.evidence,
+      workspace_id = excluded.workspace_id
     """
 
     params = [
@@ -1172,7 +1176,8 @@ defmodule OptimalEngine.Store do
       chunk_field(row, :chunk_id),
       atom_or_nil(chunk_field(row, :intent)) || "record_fact",
       chunk_field(row, :confidence),
-      chunk_field(row, :evidence)
+      chunk_field(row, :evidence),
+      chunk_field(row, :workspace_id) || "default"
     ]
 
     exec_stmt(db, sql, params)
@@ -1398,14 +1403,14 @@ defmodule OptimalEngine.Store do
       mode, genre, signal_type, format, structure,
       node, sn_ratio, entities,
       created_at, modified_at, valid_from, valid_until, supersedes,
-      routed_to, metadata
+      routed_to, metadata, workspace_id
     ) VALUES (
       ?1, ?2, ?3, ?4, ?5,
       ?6, ?7, ?8,
       ?9, ?10, ?11, ?12, ?13,
       ?14, ?15, ?16,
       ?17, ?18, ?19, ?20, ?21,
-      ?22, ?23
+      ?22, ?23, ?24
     )
     """
 
@@ -1432,7 +1437,8 @@ defmodule OptimalEngine.Store do
       row.valid_until,
       row.supersedes,
       row.routed_to,
-      row.metadata
+      row.metadata,
+      row.workspace_id
     ]
 
     result =
@@ -1507,7 +1513,7 @@ defmodule OptimalEngine.Store do
     mode, genre, signal_type, format, structure,
     node, sn_ratio, entities,
     created_at, modified_at, valid_from, valid_until, supersedes,
-    routed_to, metadata
+    routed_to, metadata, workspace_id
     """
     |> String.replace("\n", " ")
     |> String.trim()

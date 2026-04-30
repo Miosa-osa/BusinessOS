@@ -1,5 +1,6 @@
 <script lang="ts">
   import { ask, type RagResult } from '$lib/api';
+  import { activeWorkspaceId } from '$lib/stores/workspace';
 
   let query = $state('');
   let audience = $state('default');
@@ -7,253 +8,256 @@
   let result = $state<RagResult | null>(null);
   let error = $state<string | null>(null);
 
-  async function submit(e: Event) {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const seeds: { label: string; query: string }[] = [
+    { label: 'Pricing decision',     query: 'healthtech pricing decision' },
+    { label: 'Platform architecture', query: 'core platform architecture' },
+    { label: 'Renewal pipeline',     query: 'renewal pipeline status' },
+    { label: 'MicroVM spec',         query: 'microvm provisioning spec' }
+  ];
+
+  async function run(q: string) {
+    query = q;
     loading = true;
     error = null;
     result = null;
-
     try {
-      result = await ask(query, { audience, format: 'markdown' });
+      result = await ask(q, { audience, format: 'markdown', workspace: $activeWorkspaceId });
     } catch (e) {
       error = (e as Error).message;
     } finally {
       loading = false;
     }
   }
+
+  async function submit(e: Event) {
+    e.preventDefault();
+    if (!query.trim()) return;
+    await run(query);
+  }
+
+  // Clear result when the workspace switches so stale data is never shown
+  $effect(() => {
+    $activeWorkspaceId;
+    result = null;
+    error = null;
+  });
+
+  function sourceChip(s: string): string {
+    if (s === 'wiki') return 'good';
+    if (s === 'chunks') return 'accent';
+    return 'warn';
+  }
 </script>
 
-<section class="ask">
-  <header class="ask__header">
+<div class="page">
+  <div class="page-header">
     <h1>Ask the engine</h1>
-    <p>Wiki-first retrieval · falls through to hybrid search · scoped to ACLs · packed to receiver bandwidth.</p>
-  </header>
+    <p>Curated wiki first. Hybrid search second. ACL-scoped · audience-shaped · bandwidth-matched.</p>
+  </div>
 
-  <form onsubmit={submit} class="ask__form">
-    <div class="ask__row">
+  <form onsubmit={submit} class="ask-form card">
+    <div class="ask-form__row">
       <input
         type="text"
         bind:value={query}
         placeholder="e.g. healthtech pricing"
         disabled={loading}
-        class="ask__input"
+        class="ask-form__input"
       />
-      <select bind:value={audience} disabled={loading} class="ask__select">
+      <select bind:value={audience} disabled={loading} class="ask-form__select">
         <option value="default">default</option>
         <option value="sales">sales</option>
         <option value="legal">legal</option>
         <option value="exec">exec</option>
+        <option value="engineering">engineering</option>
       </select>
-      <button type="submit" disabled={loading || !query.trim()} class="ask__submit">
+      <button type="submit" disabled={loading || !query.trim()} class="btn btn--primary">
         {loading ? 'Thinking…' : 'Ask'}
       </button>
+    </div>
+
+    <div class="ask-form__seeds">
+      <span class="eyebrow">Try</span>
+      {#each seeds as seed}
+        <button type="button" class="seed-chip" onclick={() => run(seed.query)} disabled={loading}>
+          {seed.label}
+        </button>
+      {/each}
     </div>
   </form>
 
   {#if error}
-    <pre class="ask__error">{error}</pre>
+    <pre class="error" style="margin-top: 1rem;">{error}</pre>
   {/if}
 
   {#if result}
-    <div class="ask__trace">
-      <span class="ask__chip ask__chip--{result.source}">
-        {result.source}
-      </span>
-      <span class="ask__stat">
-        <small>candidates</small>{result.trace.n_candidates}
-      </span>
-      <span class="ask__stat">
-        <small>delivered</small>{result.trace.n_delivered}
-      </span>
-      <span class="ask__stat">
-        <small>elapsed</small>{result.trace.elapsed_ms} ms
-      </span>
-      {#if result.trace['wiki_hit?']}
-        <span class="ask__chip ask__chip--hit">wiki hit</span>
+    <section class="ask-result">
+      <div class="ask-trace">
+        <span class="chip chip--{sourceChip(result.source)}">{result.source}</span>
+        {#if result.trace['wiki_hit?']}
+          <span class="chip chip--good">wiki hit</span>
+        {/if}
+        <span class="ask-stat"><small>candidates</small>{result.trace.n_candidates}</span>
+        <span class="ask-stat"><small>delivered</small>{result.trace.n_delivered}</span>
+        <span class="ask-stat"><small>elapsed</small>{result.trace.elapsed_ms} ms</span>
+        {#if result.trace['truncated?']}
+          <span class="chip chip--warn">truncated</span>
+        {/if}
+      </div>
+
+      <article class="ask-envelope card">
+        <header class="ask-envelope__head">
+          <span class="eyebrow">Envelope · {result.envelope.format}</span>
+        </header>
+        <pre class="ask-envelope__body">{result.envelope.body}</pre>
+      </article>
+
+      {#if result.envelope.sources.length > 0}
+        <section class="ask-sources card">
+          <header class="ask-sources__head">
+            <span class="eyebrow">Sources</span>
+            <span class="chip">{result.envelope.sources.length}</span>
+          </header>
+          <ul>
+            {#each result.envelope.sources as uri}
+              <li><code>{uri}</code></li>
+            {/each}
+          </ul>
+        </section>
       {/if}
-    </div>
 
-    <article class="ask__envelope">
-      <pre>{result.envelope.body}</pre>
-    </article>
-
-    {#if result.envelope.sources.length > 0}
-      <section class="ask__sources">
-        <h3>Sources</h3>
-        <ul>
-          {#each result.envelope.sources as uri}
-            <li><code>{uri}</code></li>
-          {/each}
-        </ul>
-      </section>
-    {/if}
+      {#if result.envelope.warnings.length > 0}
+        <section class="card" style="margin-top: 0.75rem;">
+          <span class="eyebrow">Warnings</span>
+          <ul style="margin: 0.4rem 0 0; padding-left: 1.2rem; color: var(--warn);">
+            {#each result.envelope.warnings as w}
+              <li style="font-size: 0.85rem;">{w}</li>
+            {/each}
+          </ul>
+        </section>
+      {/if}
+    </section>
   {/if}
-</section>
+</div>
 
 <style>
-  .ask {
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
+  .ask-form {
+    padding: 1.1rem 1.2rem 0.85rem;
   }
-
-  .ask__header h1 {
-    margin: 0 0 0.35rem;
-    font-size: 1.15rem;
-    color: #eee;
-  }
-
-  .ask__header p {
-    margin: 0 0 1.5rem;
-    color: #888;
-    font-size: 0.85rem;
-  }
-
-  .ask__form {
-    margin-bottom: 1rem;
-  }
-
-  .ask__row {
+  .ask-form__row {
     display: flex;
     gap: 0.5rem;
   }
-
-  .ask__input {
-    flex: 1;
-    background: #0e1116;
-    color: #eee;
-    border: 1px solid #1e232c;
-    border-radius: 6px;
-    padding: 0.6rem 0.85rem;
-    font-size: 0.92rem;
+  .ask-form__input,
+  .ask-form__select {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 0.55rem 0.8rem;
+    font: inherit;
+    font-size: 0.9rem;
   }
-  .ask__input:focus {
+  .ask-form__input { flex: 1; }
+  .ask-form__input:focus,
+  .ask-form__select:focus {
     outline: none;
-    border-color: #375;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
 
-  .ask__select,
-  .ask__submit {
-    background: #0e1116;
-    color: #eee;
-    border: 1px solid #1e232c;
-    border-radius: 6px;
-    padding: 0.6rem 0.85rem;
-    font-size: 0.88rem;
+  .ask-form__seeds {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.85rem;
   }
-
-  .ask__submit {
-    background: #1b3429;
-    border-color: #265e45;
-    color: #6f8;
-    font-weight: 600;
+  .seed-chip {
+    background: var(--bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    font: inherit;
+    font-size: 0.78rem;
     cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
   }
-  .ask__submit:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .seed-chip:hover:not(:disabled) {
+    background: var(--bg-elevated-2);
+    border-color: var(--accent);
+    color: var(--text);
   }
+  .seed-chip:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  .ask__error {
-    color: #f88;
-    background: #311;
-    border-radius: 6px;
-    padding: 0.75rem;
-    margin: 1rem 0;
-  }
-
-  .ask__trace {
+  .ask-result { margin-top: 1.2rem; }
+  .ask-trace {
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    padding: 0.5rem 0.75rem;
-    background: #0e1116;
-    border: 1px solid #1a1e25;
-    border-radius: 6px;
-    margin-bottom: 0.75rem;
-    font-size: 0.78rem;
     flex-wrap: wrap;
+    padding: 0.55rem 0.85rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    margin-bottom: 0.75rem;
   }
-
-  .ask__chip {
-    padding: 2px 10px;
-    border-radius: 999px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .ask__chip--wiki {
-    background: #143;
-    color: #6f8;
-  }
-  .ask__chip--chunks {
-    background: #223;
-    color: #8af;
-  }
-  .ask__chip--empty {
-    background: #332;
-    color: #fc6;
-  }
-  .ask__chip--hit {
-    background: #1c2a3a;
-    color: #8af;
-  }
-
-  .ask__stat {
+  .ask-stat {
     display: inline-flex;
     align-items: baseline;
     gap: 0.35rem;
-    color: #ddd;
+    color: var(--text);
+    font-size: 0.8rem;
   }
-  .ask__stat small {
-    color: #666;
+  .ask-stat small {
+    color: var(--text-subtle);
     font-size: 0.65rem;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.08em;
+    font-weight: 600;
   }
 
-  .ask__envelope {
-    background: #0e1116;
-    border: 1px solid #1a1e25;
-    border-radius: 6px;
-    padding: 1rem 1.25rem;
+  .ask-envelope {
+    padding: 0;
+    overflow: hidden;
   }
-  .ask__envelope pre {
+  .ask-envelope__head {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg);
+  }
+  .ask-envelope__body {
     margin: 0;
+    padding: 1.1rem 1.3rem;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    line-height: 1.65;
     white-space: pre-wrap;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 0.93rem;
-    line-height: 1.55;
-    color: #ddd;
   }
 
-  .ask__sources {
-    margin-top: 1rem;
-    padding: 1rem 1.25rem;
-    background: #0e1116;
-    border: 1px solid #1a1e25;
-    border-radius: 6px;
+  .ask-sources { margin-top: 0.75rem; padding: 0; }
+  .ask-sources__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 1rem;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg);
   }
-  .ask__sources h3 {
-    margin: 0 0 0.5rem;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #888;
-  }
-  .ask__sources ul {
+  .ask-sources ul {
     list-style: none;
     margin: 0;
-    padding: 0;
+    padding: 0.5rem 1rem 0.7rem;
   }
-  .ask__sources li {
+  .ask-sources li {
     padding: 0.2rem 0;
   }
-  .ask__sources code {
-    color: #8af;
-    font-size: 0.82rem;
-    font-family: 'SF Mono', Menlo, monospace;
+  .ask-sources code {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    word-break: break-all;
   }
 </style>

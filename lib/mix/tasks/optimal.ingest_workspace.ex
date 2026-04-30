@@ -30,6 +30,7 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
 
       mix optimal.ingest_workspace sample-workspace/
       mix optimal.ingest_workspace ~/Desktop/my-engine --tenant acme
+      mix optimal.ingest_workspace sample-workspace/ --workspace acme-q1
       mix optimal.ingest_workspace sample-workspace/ --reset
   """
 
@@ -44,20 +45,26 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
     Mix.Task.run("app.start")
 
     {parsed, rest, _} =
-      OptionParser.parse(args, strict: [tenant: :string, reset: :boolean])
+      OptionParser.parse(args,
+        strict: [tenant: :string, workspace: :string, reset: :boolean]
+      )
 
     root =
       case rest do
         [r | _] -> Path.expand(r)
-        [] -> Mix.raise("Usage: mix optimal.ingest_workspace <path> [--tenant id] [--reset]")
+        [] ->
+          Mix.raise(
+            "Usage: mix optimal.ingest_workspace <path> [--tenant id] [--workspace id] [--reset]"
+          )
       end
 
     unless File.dir?(root), do: Mix.raise("Not a directory: #{root}")
 
     tenant = Keyword.get(parsed, :tenant, "default")
+    workspace_id = Keyword.get(parsed, :workspace, "default")
     reset? = Keyword.get(parsed, :reset, false)
 
-    if reset?, do: wipe_workspace_rows(tenant)
+    if reset?, do: wipe_workspace_rows(tenant, workspace_id)
 
     stats = %{
       nodes: 0,
@@ -69,8 +76,8 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
 
     stats =
       stats
-      |> ingest_nodes(root, tenant)
-      |> ingest_signals(root, tenant)
+      |> ingest_nodes(root, tenant, workspace_id)
+      |> ingest_signals(root, tenant, workspace_id)
       |> ingest_wiki(root, tenant)
 
     IO.puts("""
@@ -78,6 +85,7 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
     Workspace ingested.
       root:        #{root}
       tenant:      #{tenant}
+      workspace:   #{workspace_id}
       nodes:       #{stats.nodes}
       signals:     #{stats.signals}
       entities:    #{stats.entities}
@@ -93,7 +101,7 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
 
   # ─── nodes ──────────────────────────────────────────────────────────────
 
-  defp ingest_nodes(stats, root, tenant) do
+  defp ingest_nodes(stats, root, tenant, workspace_id) do
     nodes_dir = Path.join(root, "nodes")
     if not File.dir?(nodes_dir), do: Map.update!(stats, :skipped, &(&1 + 1))
 
@@ -122,15 +130,16 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
 
       Store.raw_query(
         """
-        INSERT INTO nodes (id, tenant_id, slug, name, kind, parent_id, path, style, metadata)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?3, ?7, '{"tag":"workspace-ingest"}')
+        INSERT INTO nodes (id, tenant_id, slug, name, kind, parent_id, path, style, workspace_id, metadata)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?3, ?7, ?8, '{"tag":"workspace-ingest"}')
         ON CONFLICT(tenant_id, slug) DO UPDATE SET
           name = excluded.name,
           kind = excluded.kind,
           parent_id = excluded.parent_id,
-          style = excluded.style
+          style = excluded.style,
+          workspace_id = excluded.workspace_id
         """,
-        [id, tenant, slug, name, kind, parent_id, style]
+        [id, tenant, slug, name, kind, parent_id, style, workspace_id]
       )
 
       Map.update!(acc, :nodes, &(&1 + 1))
@@ -139,7 +148,7 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
 
   # ─── signals ────────────────────────────────────────────────────────────
 
-  defp ingest_signals(stats, root, tenant) do
+  defp ingest_signals(stats, root, tenant, workspace_id) do
     signal_files =
       Path.wildcard(Path.join([root, "nodes", "*", "signals", "*.md"]))
 
@@ -171,15 +180,16 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
                  INSERT INTO contexts (
                    id, tenant_id, uri, type, path, title, l0_abstract, l1_overview,
                    content, genre, mode, signal_type, format, structure, node,
-                   sn_ratio, entities, created_at, modified_at, metadata
+                   sn_ratio, entities, created_at, modified_at, workspace_id, metadata
                  )
                  VALUES (?1, ?2, ?3, 'signal', ?4, ?5, ?6, ?7, ?8, ?9, ?10,
                          'inform', 'markdown', 'prose', ?11, ?12, '[]',
-                         COALESCE(?13, datetime('now')), datetime('now'),
+                         COALESCE(?13, datetime('now')), datetime('now'), ?14,
                          '{"tag":"workspace-ingest"}')
                  ON CONFLICT(id) DO UPDATE SET
                    content = excluded.content,
                    title = excluded.title,
+                   workspace_id = excluded.workspace_id,
                    modified_at = datetime('now')
                  """,
                  [
@@ -195,7 +205,8 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
                    fm["mode"] || "linguistic",
                    node_slug,
                    to_float(fm["sn_ratio"]) || 0.6,
-                   fm["authored_at"]
+                   fm["authored_at"],
+                   workspace_id
                  ]
                ) do
             {:ok, _} ->
@@ -205,11 +216,11 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
               # Audit event
               Store.raw_query(
                 """
-                INSERT INTO events (tenant_id, principal, kind, target_uri, metadata)
-                VALUES (?1, 'system:workspace-ingest', 'ingest', ?2,
+                INSERT INTO events (tenant_id, principal, kind, target_uri, workspace_id, metadata)
+                VALUES (?1, 'system:workspace-ingest', 'ingest', ?2, ?3,
                         '{"source":"workspace"}')
                 """,
-                [tenant, uri]
+                [tenant, uri, workspace_id]
               )
 
               acc
@@ -349,10 +360,10 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
     end
   end
 
-  defp wipe_workspace_rows(tenant) do
+  defp wipe_workspace_rows(tenant, workspace_id) do
     Store.raw_query(
-      "DELETE FROM contexts WHERE tenant_id = ?1 AND id LIKE 'ws:%'",
-      [tenant]
+      "DELETE FROM contexts WHERE tenant_id = ?1 AND workspace_id = ?2 AND id LIKE 'ws:%'",
+      [tenant, workspace_id]
     )
 
     Store.raw_query(
@@ -361,13 +372,13 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
     )
 
     Store.raw_query(
-      "DELETE FROM nodes WHERE tenant_id = ?1 AND json_extract(metadata, '$.tag') = 'workspace-ingest'",
-      [tenant]
+      "DELETE FROM nodes WHERE tenant_id = ?1 AND workspace_id = ?2 AND json_extract(metadata, '$.tag') = 'workspace-ingest'",
+      [tenant, workspace_id]
     )
 
     Store.raw_query(
-      "DELETE FROM events WHERE tenant_id = ?1 AND principal = 'system:workspace-ingest'",
-      [tenant]
+      "DELETE FROM events WHERE tenant_id = ?1 AND workspace_id = ?2 AND principal = 'system:workspace-ingest'",
+      [tenant, workspace_id]
     )
   end
 end

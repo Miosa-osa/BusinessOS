@@ -60,10 +60,14 @@ defmodule OptimalEngine.Application do
       {DynamicSupervisor, name: OptimalEngine.Memory.SessionSupervisor, strategy: :one_for_one},
       OptimalEngine.Memory.Cortex,
       OptimalEngine.Memory.Learning,
+      OptimalEngine.Memory.Surfacer,
 
       # ── Signal subsystem (pub/sub broker + journal for causality tracking) ─
       {OptimalEngine.Signal.PubSub, name: OptimalEngine.Signal.PubSub},
-      {OptimalEngine.Signal.Journal, name: OptimalEngine.Signal.Journal}
+      {OptimalEngine.Signal.Journal, name: OptimalEngine.Signal.Journal},
+
+      # ── HTTP API rate limiter (owns the ETS bucket table) ────────────────
+      OptimalEngine.API.RateLimiter
     ]
   end
 

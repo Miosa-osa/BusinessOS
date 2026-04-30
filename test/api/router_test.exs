@@ -66,6 +66,59 @@ defmodule OptimalEngine.API.RouterTest do
     end
   end
 
+  describe "GET /api/grep" do
+    test "returns 400 when q is missing" do
+      conn = request(:get, "/api/grep")
+      assert conn.status == 400
+      {:ok, body} = Jason.decode(conn.resp_body)
+      assert body["error"] =~ "q is required"
+    end
+
+    test "returns JSON with query, workspace_id, and results array" do
+      conn = request(:get, "/api/grep?q=test&workspace=default&limit=5")
+      assert conn.status == 200
+      {:ok, body} = Jason.decode(conn.resp_body)
+      assert Map.has_key?(body, "query")
+      assert Map.has_key?(body, "workspace_id")
+      assert Map.has_key?(body, "results")
+      assert is_list(body["results"])
+    end
+
+    test "each result has the full signal trace keys" do
+      conn = request(:get, "/api/grep?q=test&limit=3")
+      assert conn.status == 200
+      {:ok, body} = Jason.decode(conn.resp_body)
+
+      Enum.each(body["results"], fn r ->
+        assert Map.has_key?(r, "slug")
+        assert Map.has_key?(r, "scale")
+        assert Map.has_key?(r, "intent")
+        assert Map.has_key?(r, "sn_ratio")
+        assert Map.has_key?(r, "modality")
+        assert Map.has_key?(r, "snippet")
+        assert Map.has_key?(r, "score")
+      end)
+    end
+
+    test "literal=true still returns well-formed response" do
+      conn = request(:get, "/api/grep?q=test&literal=true&limit=3")
+      assert conn.status == 200
+      {:ok, body} = Jason.decode(conn.resp_body)
+      assert is_list(body["results"])
+    end
+
+    test "intent and scale params are accepted without error" do
+      conn = request(:get, "/api/grep?q=pricing&intent=record_fact&scale=section&limit=5")
+      assert conn.status == 200
+    end
+
+    test "unknown intent is gracefully tolerated" do
+      conn = request(:get, "/api/grep?q=test&intent=totally_bogus&limit=3")
+      # Should not crash — engine ignores invalid intent
+      assert conn.status == 200
+    end
+  end
+
   describe "GET /api/wiki" do
     test "returns a list of wiki pages" do
       conn = request(:get, "/api/wiki?tenant=default")

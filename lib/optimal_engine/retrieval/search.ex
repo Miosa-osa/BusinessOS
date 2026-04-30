@@ -37,7 +37,7 @@ defmodule OptimalEngine.Retrieval.Search do
   alias OptimalEngine.Retrieval.IntentAnalyzer, as: IntentAnalyzer
   alias OptimalEngine.Embed.Ollama, as: Ollama
   alias OptimalEngine.Store
-  alias OptimalEngine.Topology
+  alias OptimalEngine.Routing
   alias OptimalEngine.Store.Vectors, as: VectorStore
   alias OptimalEngine.Bridge.Knowledge, as: BridgeKnowledge
   alias OptimalEngine.Bridge.Memory, as: BridgeMemory
@@ -93,7 +93,7 @@ defmodule OptimalEngine.Retrieval.Search do
   @impl true
   def init(_opts) do
     topology =
-      case Topology.load() do
+      case Routing.load() do
         {:ok, t} -> t
         {:error, _} -> %{half_lives: %{"default" => @default_half_life}}
       end
@@ -333,7 +333,7 @@ defmodule OptimalEngine.Retrieval.Search do
       mode, genre, signal_type, format, structure,
       node, sn_ratio, entities,
       created_at, modified_at, valid_from, valid_until, supersedes,
-      routed_to, metadata
+      routed_to, metadata, workspace_id
     FROM contexts WHERE id = ?1
     """
 
@@ -379,6 +379,7 @@ defmodule OptimalEngine.Retrieval.Search do
     genre_filter = Keyword.get(opts, :genre)
     uri_prefix = Keyword.get(opts, :uri)
     min_score = Keyword.get(opts, :min_score, 0.0)
+    workspace_id = Keyword.get(opts, :workspace_id, "default")
 
     # Resolve URI prefix to node filter if given
     {node_filter, type_filter} = apply_uri_filter(uri_prefix, node_filter, type_filter)
@@ -386,7 +387,7 @@ defmodule OptimalEngine.Retrieval.Search do
     fts_query = sanitize_fts_query(query)
 
     {sql, params} =
-      build_fts_sql(fts_query, type_filter, node_filter, genre_filter, limit * 3, offset)
+      build_fts_sql(fts_query, type_filter, node_filter, genre_filter, workspace_id, limit * 3, offset)
 
     with {:ok, rows} <- Store.raw_query(sql, params) do
       now = DateTime.utc_now()
@@ -431,7 +432,8 @@ defmodule OptimalEngine.Retrieval.Search do
 
   # Build the FTS SQL with dynamic WHERE clauses.
   # We query contexts_fts (which has a `type` column) not `signals_fts`.
-  defp build_fts_sql(fts_query, type_filter, node_filter, genre_filter, limit, offset) do
+  # workspace_id is always applied (defaults to "default").
+  defp build_fts_sql(fts_query, type_filter, node_filter, genre_filter, workspace_id, limit, offset) do
     base_sql = """
     SELECT
       c.id, c.uri, c.type, c.path, c.title,
@@ -439,16 +441,18 @@ defmodule OptimalEngine.Retrieval.Search do
       c.mode, c.genre, c.signal_type, c.format, c.structure,
       c.node, c.sn_ratio, c.entities,
       c.created_at, c.modified_at, c.valid_from, c.valid_until, c.supersedes,
-      c.routed_to, c.metadata,
+      c.routed_to, c.metadata, c.workspace_id,
       -bm25(contexts_fts) as bm25_rank
     FROM contexts_fts
     JOIN contexts c ON c.id = contexts_fts.id
     WHERE contexts_fts MATCH ?1
     """
 
+    # workspace_id is always filtered; remaining filters are optional.
     # Build dynamic WHERE clauses with positional params ?2, ?3, ...
     filters =
       [
+        {"c.workspace_id = ?", workspace_id},
         type_filter && {"c.type = ?", to_string(type_filter)},
         node_filter && {"c.node = ?", node_filter},
         genre_filter && {"c.genre = ?", genre_filter}
@@ -477,8 +481,8 @@ defmodule OptimalEngine.Retrieval.Search do
   end
 
   defp build_result(row, now, topology) do
-    # Last element is bm25_rank; rest is context columns (23 columns)
-    {ctx_row, [bm25_rank]} = Enum.split(row, 23)
+    # Last element is bm25_rank; rest is context columns (24 columns including workspace_id)
+    {ctx_row, [bm25_rank]} = Enum.split(row, 24)
 
     ctx = Context.from_row(ctx_row)
 
@@ -510,7 +514,7 @@ defmodule OptimalEngine.Retrieval.Search do
 
   defp compute_decay(modified_at, genre, now, topology) do
     hours_old = DateTime.diff(now, modified_at, :second) / 3600.0
-    half_life = Topology.half_life_for(topology, genre)
+    half_life = Routing.half_life_for(topology, genre)
     decay_constant = :math.log(2) / half_life
     :math.exp(-decay_constant * hours_old)
   end

@@ -9,12 +9,14 @@ defmodule Mix.Tasks.Optimal.Intake do
       mix optimal.intake --genre transcript --title "Q4 Pricing Call"
       mix optimal.intake --node ai-masters --title "Ed Call"
       echo "Customer called about pricing" | mix optimal.intake --genre note
+      mix optimal.intake --workspace acme-q1 --genre note
 
   Options:
-    --genre   Override auto-detected genre (transcript, brief, spec, plan, note,
-              decision-log, standup, review, report, pitch)
-    --title   Explicit title
-    --node    Override primary node routing (ai-masters, roberto, money-revenue, etc.)
+    --genre      Override auto-detected genre (transcript, brief, spec, plan, note,
+                 decision-log, standup, review, report, pitch)
+    --title      Explicit title
+    --node       Override primary node routing (ai-masters, roberto, money-revenue, etc.)
+    --workspace  Target workspace ID (default: "default")
 
   Examples:
       $ mix optimal.intake --genre transcript --title "Q4 Pricing Call"
@@ -39,9 +41,10 @@ defmodule Mix.Tasks.Optimal.Intake do
         switches: [
           genre: :string,
           title: :string,
-          node: :string
+          node: :string,
+          workspace: :string
         ],
-        aliases: [g: :genre, t: :title, n: :node]
+        aliases: [g: :genre, t: :title, n: :node, w: :workspace]
       )
 
     text = read_stdin(opts)
@@ -81,6 +84,7 @@ defmodule Mix.Tasks.Optimal.Intake do
     |> maybe_put(:genre, Keyword.get(opts, :genre))
     |> maybe_put(:title, Keyword.get(opts, :title))
     |> maybe_put(:node, Keyword.get(opts, :node))
+    |> maybe_put(:workspace_id, Keyword.get(opts, :workspace))
   end
 
   defp maybe_put(acc, _key, nil), do: acc
