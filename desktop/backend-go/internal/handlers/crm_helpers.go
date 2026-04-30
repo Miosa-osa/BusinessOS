@@ -22,6 +22,34 @@ func crmToNullString(s string) *string {
 	return &s
 }
 
+// crmJSONBytes converts an arbitrary value to JSON bytes for a JSONB column.
+// Returns nil (SQL NULL) for empty/nil inputs so pgx doesn't send the bytes
+// typed as bytea — which Postgres can't implicitly cast to jsonb and rejects
+// with "invalid input syntax for type json".
+func crmJSONBytes(v interface{}) []byte {
+	switch x := v.(type) {
+	case nil:
+		return nil
+	case map[string]interface{}:
+		if len(x) == 0 {
+			return nil
+		}
+	case []interface{}:
+		if len(x) == 0 {
+			return nil
+		}
+	case []string:
+		if len(x) == 0 {
+			return nil
+		}
+	}
+	b, err := json.Marshal(v)
+	if err != nil || string(b) == "null" {
+		return nil
+	}
+	return b
+}
+
 func crmToNullUUID(s string) pgtype.UUID {
 	if s == "" {
 		return pgtype.UUID{}

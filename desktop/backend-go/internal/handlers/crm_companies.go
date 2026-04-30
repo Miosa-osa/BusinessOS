@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -139,8 +138,8 @@ func (h *CRMHandler) CreateCompany(c *gin.Context) {
 	queries := sqlc.New(h.pool)
 
 	// Convert custom fields and metadata to JSON
-	customFields, _ := json.Marshal(req.CustomFields)
-	metadata, _ := json.Marshal(req.Metadata)
+	customFields := crmJSONBytes(req.CustomFields)
+	metadata := crmJSONBytes(req.Metadata)
 
 	company, err := queries.CreateCompany(c.Request.Context(), sqlc.CreateCompanyParams{
 		UserID:         user.ID,
@@ -248,8 +247,8 @@ func (h *CRMHandler) UpdateCompany(c *gin.Context) {
 	queries := sqlc.New(h.pool)
 
 	// Convert custom fields and metadata to JSON
-	customFields, _ := json.Marshal(req.CustomFields)
-	metadata, _ := json.Marshal(req.Metadata)
+	customFields := crmJSONBytes(req.CustomFields)
+	metadata := crmJSONBytes(req.Metadata)
 
 	company, err := queries.UpdateCompany(c.Request.Context(), sqlc.UpdateCompanyParams{
 		ID:             pgtype.UUID{Bytes: id, Valid: true},

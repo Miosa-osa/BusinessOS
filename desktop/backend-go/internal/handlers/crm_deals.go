@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -138,7 +137,7 @@ func (h *CRMHandler) CreateCRMDeal(c *gin.Context) {
 	queries := sqlc.New(h.pool)
 
 	// Convert custom fields to JSON
-	customFields, _ := json.Marshal(req.CustomFields)
+	customFields := crmJSONBytes(req.CustomFields)
 
 	// Parse expected close date
 	var expectedCloseDate pgtype.Date
@@ -233,7 +232,7 @@ func (h *CRMHandler) UpdateCRMDeal(c *gin.Context) {
 	queries := sqlc.New(h.pool)
 
 	// Convert custom fields to JSON
-	customFields, _ := json.Marshal(req.CustomFields)
+	customFields := crmJSONBytes(req.CustomFields)
 
 	// Parse expected close date
 	var expectedCloseDate pgtype.Date

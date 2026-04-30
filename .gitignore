@@ -108,10 +108,22 @@ SESSION_*.md
 MERGE_*.txt
 MERGE_*.md
 
-# Temporary test scripts (backend root)
+# Temporary test scripts and ad-hoc test outputs (backend root)
 desktop/backend-go/test_*.go
 desktop/backend-go/test_*.sh
+desktop/backend-go/test_*.ps1
+desktop/backend-go/test_*.json
+desktop/backend-go/test_*.txt
+desktop/backend-go/test-summary.txt
 desktop/backend-go/check_*.go
+
+# Frontend test outputs
+frontend/test-results.json
+frontend/test-results/
+frontend/playwright-report/
+
+# Erlang/Elixir crash dumps
+erl_crash.dump
 
 # Frontend temporary docs
 frontend/src/lib/components/chat/ThinkingPanel.*.md
@@ -142,8 +154,6 @@ desktop/backend-go/.env
 *.sqlite3
 
 # Engine build artifacts
-engine/_build/
-engine/deps/
 optimal-engine/_build/
 optimal-engine/deps/
 
@@ -161,6 +171,8 @@ optimal-engine/sample-workspace/nodes/12-projects/
 optimal-engine/sample-workspace/nodes/13-daily-log/
 optimal-engine/sample-workspace/nodes/14-crm/
 optimal-engine/sample-workspace/nodes/15-chat/
+optimal-engine/sample-workspace/nodes/17-team/
+optimal-engine/sample-workspace/nodes/18-clients/
 optimal-engine/sample-workspace/nodes/19-integration-test/
 
 # Local run state (PIDs, ports)

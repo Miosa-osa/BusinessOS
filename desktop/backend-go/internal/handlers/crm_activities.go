@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -141,7 +140,7 @@ func (h *CRMHandler) CreateCRMActivity(c *gin.Context) {
 	}
 
 	// Convert participants to JSON
-	participants, _ := json.Marshal(req.Participants)
+	participants := crmJSONBytes(req.Participants)
 
 	activity, err := queries.CreateCRMActivity(c.Request.Context(), sqlc.CreateCRMActivityParams{
 		UserID:           user.ID,
