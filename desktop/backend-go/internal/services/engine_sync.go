@@ -33,6 +33,7 @@ import (
 	"time"
 
 	optimal "github.com/Miosa-osa/OptimalEngine-go"
+	"github.com/rhl/businessos-backend/internal/optimalengine"
 )
 
 // Signal is the universal shape every BusinessOS module produces. Modules
@@ -139,6 +140,14 @@ type EngineSync struct {
 	nodesRoot string
 	dbPath    string
 
+	// engine is the typed HTTP client for the running Elixir engine.
+	// Used to also POST every signal to /api/memory so the engine
+	// gets a first-class memory record (with versions, dedup, lineage)
+	// alongside the indexed-from-disk MD file. nil when
+	// OPTIMAL_ENGINE_URL isn't set — memory writes are silent no-ops
+	// and the MD-file path still works.
+	engine *optimalengine.Client
+
 	// pending is the set of module folders dirtied since the last
 	// reindex. We don't actually need to track which signal changed —
 	// optimal.Reindex walks the full tree — but we use the set to
@@ -160,6 +169,7 @@ func NewEngineSync() *EngineSync {
 	s := &EngineSync{
 		nodesRoot: os.Getenv("OPTIMAL_NODES_ROOT"),
 		dbPath:    os.Getenv("OPTIMAL_DB_PATH"),
+		engine:    optimalengine.NewClient(os.Getenv("OPTIMAL_ENGINE_URL")),
 		pending:   map[string]struct{}{},
 		dirty:     make(chan struct{}, 1),
 		stop:      make(chan struct{}),
@@ -170,6 +180,17 @@ func NewEngineSync() *EngineSync {
 	}
 	go s.run()
 	return s
+}
+
+// Engine returns the typed HTTP client for the running engine, or nil
+// when no OPTIMAL_ENGINE_URL was configured. Other services (Chat for
+// /api/rag, slash-command handlers for /api/recall/*) reuse this single
+// client so all engine traffic shares the same connection pool.
+func (s *EngineSync) Engine() *optimalengine.Client {
+	if s == nil {
+		return nil
+	}
+	return s.engine
 }
 
 // Stop halts the background worker. Idempotent. Pending writes are
@@ -196,7 +217,67 @@ func (s *EngineSync) Enqueue(ctx context.Context, sig Signal) {
 			"module", string(sig.Module), "id", sig.ID, "error", err)
 		return
 	}
+	// Also create a first-class memory record in the engine. The MD
+	// file still gets indexed via reindex (giving us a git-readable
+	// audit trail), and /api/memory gives us versioning + dedup +
+	// lineage primitives the indexer alone doesn't provide.
+	//
+	// Fire-and-forget on a detached context: the calling handler's
+	// ctx may be cancelled the moment its HTTP response writes, but
+	// we still want the memory POST to complete. 10s is more than
+	// enough for a local Elixir round-trip; on failure we log and
+	// keep going — the MD file path is the source of truth.
+	go s.writeMemory(sig)
 	s.markDirty(string(sig.Module))
+}
+
+// writeMemory POSTs the signal to /api/memory so the engine gets a
+// first-class memory record alongside the on-disk MD file. Idempotent —
+// the engine dedups by content hash, so re-saving the same content
+// returns the existing memory with was_existing=true.
+func (s *EngineSync) writeMemory(sig Signal) {
+	if s == nil || !s.engine.Enabled() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	content := sig.Body
+	if content == "" {
+		content = sig.Title
+	}
+	if content == "" {
+		return
+	}
+
+	meta := map[string]interface{}{
+		"businessos_module": string(sig.Module),
+		"businessos_id":     sig.ID,
+	}
+	if sig.AuthorID != "" {
+		meta["author_id"] = sig.AuthorID
+	}
+	if sig.Genre != "" {
+		meta["genre"] = sig.Genre
+	}
+	if sig.Title != "" {
+		meta["title"] = sig.Title
+	}
+	for k, v := range sig.Metadata {
+		meta[k] = v
+	}
+
+	citation := "businessos://" + string(sig.Module) + "/" + sig.ID
+
+	if _, err := s.engine.CreateMemory(ctx, optimalengine.CreateMemoryRequest{
+		Content:     content,
+		Workspace:   string(sig.Module),
+		CitationURI: citation,
+		Metadata:    meta,
+	}); err != nil {
+		slog.Warn("engine_sync: memory POST failed",
+			"module", string(sig.Module), "id", sig.ID, "error", err)
+	}
 }
 
 // EnqueueDelete removes the on-disk MD for the entity then triggers a
