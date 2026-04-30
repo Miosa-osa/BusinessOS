@@ -73,6 +73,22 @@ optimal-engine-stop: ## Stop any Elixir engine listening on :4200
 		if [ -n "$$PID" ]; then echo "stopping $$PID"; kill $$PID; \
 		else echo "no engine on :4200"; fi
 
+# --- OptimalEngine source sync (git subtree) ----------------------------------
+# The optimal-engine/ directory is a git subtree of Miosa-osa/OptimalEngine.
+# Use these targets to keep it in sync with the standalone Elixir repo when
+# you work on it in ~/code/OptimalEngine.
+.PHONY: optimal-engine-pull
+optimal-engine-pull: ## Pull upstream Elixir engine changes into optimal-engine/
+	@echo "→ fetching optimal-engine-elixir/main…"
+	@git fetch optimal-engine-elixir main
+	@echo "→ merging into optimal-engine/ (squashed)…"
+	@git subtree pull --prefix=optimal-engine optimal-engine-elixir main --squash
+
+.PHONY: optimal-engine-push
+optimal-engine-push: ## Push optimal-engine/ fixes back upstream to Miosa-osa/OptimalEngine
+	@echo "→ pushing optimal-engine/ → optimal-engine-elixir/main"
+	@git subtree push --prefix=optimal-engine optimal-engine-elixir main
+
 .PHONY: dev-local-stop
 dev-local-stop: ## Stop the local dev stack
 	@bash scripts/dev-local.sh stop
