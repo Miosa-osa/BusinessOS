@@ -11,6 +11,13 @@ config :optimal_engine,
   topology_full_path:
     System.get_env("OPTIMAL_ENGINE_TOPOLOGY_FULL", Path.join(File.cwd!(), "topology.yaml"))
 
+# API key authentication.
+# Set auth_required: true in production (or via OPTIMAL_AUTH_REQUIRED env var in runtime.exs).
+# In dev and test, auth_required defaults to false so the API is open without a key.
+config :optimal_engine, :auth,
+  auth_required: false,
+  bcrypt_cost: 12
+
 config :optimal_engine, :ollama,
   host: System.get_env("OLLAMA_HOST", "http://localhost:11434"),
   embed_model: "nomic-embed-text",

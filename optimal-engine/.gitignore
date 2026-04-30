@@ -25,3 +25,12 @@ erl_crash.dump
 # Environment
 .env
 .env.local
+
+# Per-workspace runtime data dirs created by Workspace.create
+/engineering/
+/sales/
+/research/
+/nodes/
+
+# Test artifacts
+/.optimal/index*.db*

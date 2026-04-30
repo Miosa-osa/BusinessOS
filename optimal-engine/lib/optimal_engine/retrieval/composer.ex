@@ -19,7 +19,7 @@ defmodule OptimalEngine.Retrieval.Composer do
   testable without starting the full supervision tree.
   """
 
-  alias OptimalEngine.{Signal, Topology}
+  alias OptimalEngine.{Signal, Routing}
 
   @doc """
   Renders a Signal for a specific receiver.
@@ -27,11 +27,11 @@ defmodule OptimalEngine.Retrieval.Composer do
   Returns `{:ok, rendered_string}` in the receiver's preferred genre,
   or `{:error, :unknown_receiver}` if the receiver is not in the topology.
   """
-  @spec render_for(Signal.t(), String.t(), Topology.t()) ::
+  @spec render_for(Signal.t(), String.t(), Routing.t()) ::
           {:ok, String.t()} | {:error, term()}
   def render_for(%Signal{} = signal, receiver_id, topology) when is_binary(receiver_id) do
     target_genre =
-      case Topology.primary_genre_for(topology, receiver_id) do
+      case Routing.primary_genre_for(topology, receiver_id) do
         nil -> "note"
         genre -> genre
       end
@@ -46,9 +46,9 @@ defmodule OptimalEngine.Retrieval.Composer do
   If the signal is already in a genre the receiver can decode, returns the original.
   Otherwise returns the receiver's primary genre competence.
   """
-  @spec optimal_genre(Signal.t(), String.t(), Topology.t()) :: String.t()
+  @spec optimal_genre(Signal.t(), String.t(), Routing.t()) :: String.t()
   def optimal_genre(%Signal{genre: signal_genre}, receiver_id, topology) do
-    case Topology.endpoint_for(topology, receiver_id) do
+    case Routing.endpoint_for(topology, receiver_id) do
       %{genre_competence: competencies} ->
         if signal_genre in competencies do
           signal_genre

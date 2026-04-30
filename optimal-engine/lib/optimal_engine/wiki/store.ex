@@ -21,19 +21,24 @@ defmodule OptimalEngine.Wiki.Store do
 
     # `last_curated` is NOT NULL in the schema, but callers may pass nil for
     # a brand-new page. COALESCE to `datetime('now')` so the DEFAULT still
-    # applies when the caller doesn't set one explicitly.
+    # applies when the caller doesn't set one explicitly. Also writes
+    # `workspace_id` so Phase 1.6 isolation queries find this page.
     sql = """
-    INSERT INTO wiki_pages (tenant_id, slug, audience, version, frontmatter, body, last_curated, curated_by)
-    VALUES (?1, ?2, ?3, ?4, ?5, ?6, COALESCE(?7, datetime('now')), ?8)
+    INSERT INTO wiki_pages (tenant_id, workspace_id, slug, audience, version, frontmatter, body, last_curated, curated_by)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, COALESCE(?8, datetime('now')), ?9)
     ON CONFLICT(tenant_id, slug, audience, version) DO UPDATE SET
+      workspace_id = excluded.workspace_id,
       frontmatter  = excluded.frontmatter,
       body         = excluded.body,
       last_curated = COALESCE(excluded.last_curated, datetime('now')),
       curated_by   = excluded.curated_by
     """
 
+    workspace_id = Map.get(page, :workspace_id) || "default"
+
     params = [
       page.tenant_id,
+      workspace_id,
       page.slug,
       page.audience,
       page.version,
@@ -44,52 +49,144 @@ defmodule OptimalEngine.Wiki.Store do
     ]
 
     case Store.raw_query(sql, params) do
-      {:ok, _} -> :ok
-      other -> other
+      {:ok, _} ->
+        notify_surfacer(page)
+        :ok
+
+      other ->
+        other
     end
   end
 
+  # Phase 15 hook — every successful wiki write fans out to the Surfacer
+  # so any matching subscription gets a proactive push. Workspace_id will
+  # come off the Page struct once the wiki tier is workspace-aware; for
+  # now every write is attributed to the default workspace.
+  defp notify_surfacer(%Page{} = page) do
+    workspace_id = Map.get(page, :workspace_id) || OptimalEngine.Workspace.default_id()
+    body_preview = page.body |> to_string() |> String.slice(0, 500)
+
+    OptimalEngine.Memory.Surfacer.notify_wiki_updated(
+      workspace_id,
+      page.slug,
+      audience: page.audience || "default",
+      body_preview: body_preview,
+      entities: extract_entities(page.frontmatter)
+    )
+
+    maybe_extract_memories(page, workspace_id)
+  rescue
+    # Never let a Surfacer failure block a curator write — curation is
+    # the load-bearing path; surfacing is opportunistic.
+    e ->
+      require Logger
+      Logger.warning("[Wiki.Store] Surfacer notify failed: #{inspect(e)}")
+  end
+
+  # Phase 17.1/7 bridge — if `memory.extract_from_wiki: true` in workspace
+  # config, fire WikiBridge.extract_from_wiki_page/2 in a detached task so
+  # it cannot block the wiki write path.
+  defp maybe_extract_memories(%Page{} = page, workspace_id) do
+    require Logger
+    alias OptimalEngine.Workspace.Config
+
+    # Resolve the workspace slug for config lookup.  `workspace_id` here is
+    # the raw value from the Page struct which may be an id or a slug; Config
+    # accepts either form via get_section/2.
+    mem_cfg = Config.get_section(workspace_id, :memory, %{extract_from_wiki: false})
+
+    if Map.get(mem_cfg, :extract_from_wiki, false) do
+      Task.start(fn ->
+        opts = [
+          workspace_id: workspace_id,
+          tenant_id: page.tenant_id || "default"
+        ]
+
+        case OptimalEngine.Memory.WikiBridge.extract_from_wiki_page(page, opts) do
+          {:ok, ids} when ids != [] ->
+            Logger.info(
+              "[Wiki.Store] WikiBridge extracted #{length(ids)} memories from #{page.slug}"
+            )
+
+          {:ok, _} ->
+            :ok
+
+          {:error, reason} ->
+            Logger.warning(
+              "[Wiki.Store] WikiBridge.extract_from_wiki_page failed: #{inspect(reason)}"
+            )
+        end
+      end)
+    end
+
+    :ok
+  rescue
+    e ->
+      require Logger
+      Logger.warning("[Wiki.Store] maybe_extract_memories error: #{inspect(e)}")
+      :ok
+  end
+
+  defp extract_entities(%{entities: ents}) when is_list(ents) do
+    Enum.map(ents, fn
+      %{name: n} -> n
+      n when is_binary(n) -> n
+      _ -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp extract_entities(_), do: []
+
   @doc """
   Fetch the latest version of a page by `(tenant_id, slug, audience)`.
+
+  Optional `workspace_id` (defaults to `"default"`) scopes the lookup
+  to a single workspace's wiki — Phase 1.6 isolation.
   """
-  @spec latest(String.t(), String.t(), String.t()) ::
+  @spec latest(String.t(), String.t(), String.t(), String.t()) ::
           {:ok, Page.t()} | {:error, :not_found}
-  def latest(tenant_id, slug, audience \\ "default") do
+  def latest(tenant_id, slug, audience \\ "default", workspace_id \\ "default") do
     sql = """
-    SELECT tenant_id, slug, audience, version, frontmatter, body, last_curated, curated_by
+    SELECT tenant_id, workspace_id, slug, audience, version, frontmatter, body, last_curated, curated_by
     FROM wiki_pages
-    WHERE tenant_id = ?1 AND slug = ?2 AND audience = ?3
+    WHERE tenant_id = ?1 AND workspace_id = ?2 AND slug = ?3 AND audience = ?4
     ORDER BY version DESC
     LIMIT 1
     """
 
-    case Store.raw_query(sql, [tenant_id, slug, audience]) do
+    case Store.raw_query(sql, [tenant_id, workspace_id, slug, audience]) do
       {:ok, [row]} -> {:ok, row_to_page(row)}
       {:ok, []} -> {:error, :not_found}
       other -> other
     end
   end
 
-  @doc "List every page for a tenant (latest version of each (slug, audience) pair)."
-  @spec list(String.t()) :: {:ok, [Page.t()]}
-  def list(tenant_id) do
+  @doc """
+  List every page for a tenant + workspace (latest version of each
+  (slug, audience) pair). Defaults to the `default` workspace for
+  backwards compat with pre-Phase-1.6 callers.
+  """
+  @spec list(String.t(), String.t()) :: {:ok, [Page.t()]}
+  def list(tenant_id, workspace_id \\ "default") do
     sql = """
-    SELECT w.tenant_id, w.slug, w.audience, w.version, w.frontmatter, w.body, w.last_curated, w.curated_by
+    SELECT w.tenant_id, w.workspace_id, w.slug, w.audience, w.version, w.frontmatter, w.body, w.last_curated, w.curated_by
     FROM wiki_pages w
     INNER JOIN (
-      SELECT tenant_id, slug, audience, MAX(version) AS max_version
+      SELECT tenant_id, workspace_id, slug, audience, MAX(version) AS max_version
       FROM wiki_pages
-      WHERE tenant_id = ?1
-      GROUP BY tenant_id, slug, audience
+      WHERE tenant_id = ?1 AND workspace_id = ?2
+      GROUP BY tenant_id, workspace_id, slug, audience
     ) latest
-      ON w.tenant_id = latest.tenant_id
-     AND w.slug      = latest.slug
-     AND w.audience  = latest.audience
-     AND w.version   = latest.max_version
+      ON w.tenant_id    = latest.tenant_id
+     AND w.workspace_id = latest.workspace_id
+     AND w.slug         = latest.slug
+     AND w.audience     = latest.audience
+     AND w.version      = latest.max_version
     ORDER BY w.slug, w.audience
     """
 
-    case Store.raw_query(sql, [tenant_id]) do
+    case Store.raw_query(sql, [tenant_id, workspace_id]) do
       {:ok, rows} -> {:ok, Enum.map(rows, &row_to_page/1)}
       other -> other
     end
@@ -130,7 +227,17 @@ defmodule OptimalEngine.Wiki.Store do
     :ok
   end
 
-  defp row_to_page([tenant_id, slug, audience, version, fm_json, body, last_curated, curated_by]) do
+  defp row_to_page([
+         tenant_id,
+         workspace_id,
+         slug,
+         audience,
+         version,
+         fm_json,
+         body,
+         last_curated,
+         curated_by
+       ]) do
     frontmatter =
       case Jason.decode(fm_json || "{}") do
         {:ok, m} -> m
@@ -139,6 +246,7 @@ defmodule OptimalEngine.Wiki.Store do
 
     %Page{
       tenant_id: tenant_id,
+      workspace_id: workspace_id,
       slug: slug,
       audience: audience,
       version: version,

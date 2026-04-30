@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { getActivity, type ActivityEvent } from '$lib/api/workspace';
+  import { activeWorkspaceId } from '$lib/stores/workspace';
 
   let events = $state<ActivityEvent[]>([]);
   let kind = $state('');
@@ -10,7 +11,11 @@
 
   async function load() {
     try {
-      events = await getActivity({ limit: 200, kind: kind || undefined });
+      events = await getActivity({
+        limit: 200,
+        kind: kind || undefined,
+        workspace: $activeWorkspaceId,
+      });
     } catch (e) {
       error = (e as Error).message;
     }
@@ -25,8 +30,10 @@
     if (intervalId) clearInterval(intervalId);
   });
 
+  // Re-fetch when kind filter or active workspace changes
   $effect(() => {
     kind;
+    $activeWorkspaceId;
     load();
   });
 

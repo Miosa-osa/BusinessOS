@@ -69,7 +69,7 @@ defmodule OptimalEngine.Pipeline.Intake do
   alias OptimalEngine.Pipeline.SemanticProcessor, as: SemanticProcessor
   alias OptimalEngine.Signal
   alias OptimalEngine.Store
-  alias OptimalEngine.Topology
+  alias OptimalEngine.Routing
   alias OptimalEngine.URI
 
   alias OptimalEngine.Bridge.Memory, as: BridgeMemory
@@ -101,6 +101,9 @@ defmodule OptimalEngine.Pipeline.Intake do
   classify → route → write files → index.
 
   Returns `{:ok, result}` or `{:error, reason}`.
+
+  Options include all classification overrides plus:
+  - `:workspace_id` — target workspace (default: "default")
   """
   @spec process(String.t(), keyword()) :: {:ok, result()} | {:error, term()}
   def process(raw_text, opts \\ []) when is_binary(raw_text) do
@@ -133,7 +136,7 @@ defmodule OptimalEngine.Pipeline.Intake do
          {:ok, signal, routed_to} <- route_step(signal, opts),
          {:ok, primary_path} <- write_step(signal, opts),
          {:ok, cross_paths} <- cross_ref_step(signal, routed_to),
-         {:ok, context} <- index_step(signal, primary_path) do
+         {:ok, context} <- index_step(signal, primary_path, opts) do
       uri = URI.from_path(primary_path)
       primary_relative = relative(primary_path)
       cross_relatives = Enum.map(cross_paths, &relative/1)
@@ -363,9 +366,10 @@ defmodule OptimalEngine.Pipeline.Intake do
   end
 
   # Step 5: Index — write the primary file to SQLite via Indexer
-  defp index_step(%Signal{} = signal, primary_path) do
+  defp index_step(%Signal{} = signal, primary_path, opts) do
     # Build a complete context for storage
     uri = URI.from_path(primary_path)
+    workspace_id = Keyword.get(opts, :workspace_id, "default")
 
     context = %Context{
       id: signal.id,
@@ -383,6 +387,7 @@ defmodule OptimalEngine.Pipeline.Intake do
       created_at: signal.created_at,
       modified_at: signal.modified_at,
       routed_to: signal.routed_to || [],
+      workspace_id: workspace_id,
       metadata: %{}
     }
 
@@ -475,7 +480,7 @@ defmodule OptimalEngine.Pipeline.Intake do
   end
 
   defp load_topology do
-    case Topology.load() do
+    case Routing.load() do
       {:ok, t} -> t
       {:error, _} -> %{endpoints: %{}, root_path: nil}
     end

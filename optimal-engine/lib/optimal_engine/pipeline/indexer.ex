@@ -37,7 +37,7 @@ defmodule OptimalEngine.Pipeline.Indexer do
   alias OptimalEngine.Pipeline.SemanticProcessor, as: SemanticProcessor
   alias OptimalEngine.Signal
   alias OptimalEngine.Store
-  alias OptimalEngine.Topology
+  alias OptimalEngine.Routing
   alias OptimalEngine.URI
   alias OptimalEngine.Bridge.Knowledge, as: BridgeKnowledge
   alias OptimalEngine.Bridge.Memory, as: BridgeMemory
@@ -96,7 +96,7 @@ defmodule OptimalEngine.Pipeline.Indexer do
   @impl true
   def init(_opts) do
     topology =
-      case Topology.load() do
+      case Routing.load() do
         {:ok, t} ->
           t
 

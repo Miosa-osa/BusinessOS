@@ -5,7 +5,7 @@ defmodule OptimalEngineTest do
   alias OptimalEngine.Retrieval.Composer, as: Composer
   alias OptimalEngine.Context
   alias OptimalEngine.Signal
-  alias OptimalEngine.Topology
+  alias OptimalEngine.Routing
   alias OptimalEngine.URI
 
   # ─────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ defmodule OptimalEngineTest do
       assert row.mode == nil
       assert row.genre == nil
 
-      # Reconstruct from row list (23 columns matching context_columns/0)
+      # Reconstruct from row list (24 columns matching context_columns/0)
       row_list = [
         row.id,
         row.uri,
@@ -135,7 +135,8 @@ defmodule OptimalEngineTest do
         row.valid_until,
         row.supersedes,
         row.routed_to,
-        row.metadata
+        row.metadata,
+        row.workspace_id
       ]
 
       reconstructed = Context.from_row(row_list)
@@ -630,20 +631,20 @@ defmodule OptimalEngineTest do
   # Topology
   # ─────────────────────────────────────────────────────────────
 
-  describe "Topology.half_life_for/2" do
+  describe "Routing.half_life_for/2" do
     test "returns genre-specific half-life" do
       topology = %{half_lives: %{"spec" => 4320, "message" => 168, "default" => 720}}
-      assert Topology.half_life_for(topology, "spec") == 4320
-      assert Topology.half_life_for(topology, "message") == 168
+      assert Routing.half_life_for(topology, "spec") == 4320
+      assert Routing.half_life_for(topology, "message") == 168
     end
 
     test "returns default when genre not found" do
       topology = %{half_lives: %{"default" => 720}}
-      assert Topology.half_life_for(topology, "unknown-genre") == 720
+      assert Routing.half_life_for(topology, "unknown-genre") == 720
     end
   end
 
-  describe "Topology.primary_genre_for/2" do
+  describe "Routing.primary_genre_for/2" do
     test "returns first genre competence for known receiver" do
       topology = %{
         endpoints: %{
@@ -657,12 +658,12 @@ defmodule OptimalEngineTest do
         }
       }
 
-      assert Topology.primary_genre_for(topology, "pedro") == "spec"
+      assert Routing.primary_genre_for(topology, "pedro") == "spec"
     end
 
     test "returns note for unknown receiver" do
       topology = %{endpoints: %{}}
-      assert Topology.primary_genre_for(topology, "nobody") == "note"
+      assert Routing.primary_genre_for(topology, "nobody") == "note"
     end
   end
 

@@ -24,8 +24,14 @@ defmodule OptimalEngine.Wiki do
   defdelegate to_markdown(page), to: Page
 
   defdelegate put(page), to: Store
+
+  @doc "Latest version of a page, optionally scoped by workspace_id."
   defdelegate latest(tenant_id, slug, audience), to: Store
+  defdelegate latest(tenant_id, slug, audience, workspace_id), to: Store
+
+  @doc "List wiki pages for a tenant, optionally scoped to a workspace."
   defdelegate list(tenant_id), to: Store
+  defdelegate list(tenant_id, workspace_id), to: Store
 
   @doc "Render a page's body, resolving every directive via the supplied resolver."
   @spec render(Page.t(), Directives.resolver(), keyword()) :: {String.t(), [String.t()]}

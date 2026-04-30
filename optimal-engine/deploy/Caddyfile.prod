@@ -1,0 +1,40 @@
+# Production Caddy reverse proxy — auto TLS via Let's Encrypt
+# Used by docker-compose.prod.yml
+# Environment variables (set in .env.prod):
+#   DOMAIN              — your registered domain, e.g. optimal.example.com
+#   LETSENCRYPT_EMAIL   — contact email for ACME cert registration
+
+{env.DOMAIN} {
+    tls {env.LETSENCRYPT_EMAIL}
+
+    # Route /api/* to the engine
+    handle /api/* {
+        reverse_proxy engine:4200
+    }
+
+    # Serve the desktop app at the root
+    handle {
+        reverse_proxy desktop:80
+    }
+
+    encode gzip
+
+    log {
+        output stdout
+        format json
+    }
+}
+
+# Marketing site on a subdomain
+www.{env.DOMAIN} {
+    tls {env.LETSENCRYPT_EMAIL}
+    reverse_proxy site:80
+    encode gzip
+}
+
+# Docs site on a subdomain
+docs.{env.DOMAIN} {
+    tls {env.LETSENCRYPT_EMAIL}
+    reverse_proxy docs:80
+    encode gzip
+}

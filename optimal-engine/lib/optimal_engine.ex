@@ -53,7 +53,7 @@ defmodule OptimalEngine do
   alias OptimalEngine.Session
   alias OptimalEngine.Signal
   alias OptimalEngine.Store
-  alias OptimalEngine.Topology
+  alias OptimalEngine.Routing
   alias OptimalEngine.URI
   alias OptimalEngine.Pipeline.Classifier
   alias OptimalEngine.Pipeline.Indexer
@@ -287,7 +287,7 @@ defmodule OptimalEngine do
   # ---------------------------------------------------------------------------
 
   defp load_topology do
-    case Topology.load() do
+    case Routing.load() do
       {:ok, t} -> t
       {:error, _} -> %{endpoints: %{}}
     end

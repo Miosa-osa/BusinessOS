@@ -21,7 +21,7 @@ defmodule OptimalEngine.Insight.MemoryExtractor do
   """
 
   alias OptimalEngine.Embed.Ollama, as: Ollama
-  alias OptimalEngine.Topology
+  alias OptimalEngine.Routing
   require Logger
 
   @confidence_threshold 0.7
@@ -342,7 +342,7 @@ defmodule OptimalEngine.Insight.MemoryExtractor do
   end
 
   defp known_people do
-    case Topology.load() do
+    case Routing.load() do
       {:ok, topology} ->
         topology.endpoints
         |> Map.values()

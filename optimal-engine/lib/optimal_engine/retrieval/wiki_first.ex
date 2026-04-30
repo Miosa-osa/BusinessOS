@@ -38,15 +38,17 @@ defmodule OptimalEngine.Retrieval.WikiFirst do
 
   Options:
     * `:tenant_id` — defaults to `Tenancy.Tenant.default_id/0`
+    * `:workspace_id` — scope to a workspace (default `"default"`)
     * `:fallback_audience` — audience to try on miss (default `"default"`)
   """
   @spec lookup(String.t(), String.t(), keyword()) :: lookup_result()
   def lookup(query, audience \\ "default", opts \\ []) when is_binary(query) do
     tenant_id = Keyword.get(opts, :tenant_id, Tenant.default_id())
+    workspace_id = Keyword.get(opts, :workspace_id, "default")
     fallback = Keyword.get(opts, :fallback_audience, "default")
     normalized = slugify(query)
 
-    with {:ok, pages} <- Wiki.list(tenant_id) do
+    with {:ok, pages} <- Wiki.list(tenant_id, workspace_id) do
       case match(Enum.filter(pages, &(&1.audience == audience)), query, normalized) do
         :miss when audience != fallback ->
           match(Enum.filter(pages, &(&1.audience == fallback)), query, normalized)
@@ -66,11 +68,12 @@ defmodule OptimalEngine.Retrieval.WikiFirst do
   @spec lookup_many(String.t(), String.t(), keyword()) :: [Page.t()]
   def lookup_many(query, audience \\ "default", opts \\ []) when is_binary(query) do
     tenant_id = Keyword.get(opts, :tenant_id, Tenant.default_id())
+    workspace_id = Keyword.get(opts, :workspace_id, "default")
     fallback = Keyword.get(opts, :fallback_audience, "default")
     limit = Keyword.get(opts, :limit, 5)
     normalized = slugify(query)
 
-    case Wiki.list(tenant_id) do
+    case Wiki.list(tenant_id, workspace_id) do
       {:ok, pages} ->
         primary = score_and_rank(pages, audience, query, normalized)
 

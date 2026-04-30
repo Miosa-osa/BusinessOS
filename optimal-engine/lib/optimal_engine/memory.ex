@@ -1,16 +1,163 @@
 defmodule OptimalEngine.Memory do
   @moduledoc """
-  Main API for the OptimalEngine.Memory agent memory system.
+  Unified memory API for OptimalEngine.
 
-  Provides persistence, context management, and memory injection
-  following the MemoryOS pattern.
+  This module provides two complementary memory APIs:
 
-  ## Usage
+  ## 1. Versioned memory (primary — SQL-backed)
 
-      OptimalEngine.Memory.store("decisions", "arch-001", %{title: "Use ETS", reason: "Fast local access"})
-      {:ok, entry} = OptimalEngine.Memory.recall("decisions", "arch-001")
-      {:ok, matches} = OptimalEngine.Memory.search("decisions", "ETS")
+  First-class, workspace-scoped, versioned memory with typed relations and
+  soft forgetting. Backed by the `memories` and `memory_relations` tables
+  (migration 028). Delegates to `OptimalEngine.Memory.Versioned`.
+
+  Key operations: `create/1`, `get/1`, `list/1`, `update/2`, `extend/2`,
+  `derive/2`, `forget/2`, `versions/1`, `relations/1`, `delete/1`.
+
+  ## 2. Key-value memory (legacy — ETS-backed)
+
+  Simple collection/key/value store used by the agent memory system,
+  episodic memory, and session management. Backed by ETS via
+  `OptimalEngine.Memory.Store.ETS`.
+
+  Key operations: `store/4`, `recall/2`, `search/2`, `forget/3`,
+  `collections/0`, `export/2`, `import_collection/2`.
+
+  The two APIs coexist without conflict. `forget/2` dispatches based on
+  argument types: `forget(id, keyword_opts)` → versioned; the legacy
+  path uses the explicit `forget_key/2` alias.
   """
+
+  alias OptimalEngine.Memory.Versioned
+
+  require Logger
+
+  # ===========================================================================
+  # Versioned memory API (primary)
+  # ===========================================================================
+
+  @type versioned :: OptimalEngine.Memory.Versioned.t()
+
+  @doc """
+  Creates a new versioned memory (v1, is_latest=true).
+
+  Required: `:content` (non-empty string)
+  Optional: `:workspace_id`, `:tenant_id`, `:is_static`, `:audience`,
+            `:citation_uri`, `:source_chunk_id`, `:metadata`
+
+  When `is_static: true` and the workspace config has
+  `memory.auto_promote_to_wiki: true`, the memory is asynchronously
+  promoted to a wiki page (fire-and-forget via `Task.start`).
+  """
+  @spec create(map()) :: {:ok, versioned()} | {:error, term()}
+  def create(attrs) do
+    case Versioned.create(attrs) do
+      {:ok, mem} = ok ->
+        maybe_promote_to_wiki(mem)
+        ok
+
+      other ->
+        other
+    end
+  end
+
+  @doc "Fetches a versioned memory by id."
+  @spec get(String.t()) :: {:ok, versioned()} | {:error, :not_found}
+  defdelegate get(id), to: Versioned
+
+  @doc """
+  Lists versioned memories.
+
+  Returns a plain list (not `{:ok, list}`) for ergonomic router use.
+
+  Options:
+    - `:workspace_id` — defaults to "default"
+    - `:audience` — string filter
+    - `:include_forgotten` — default false
+    - `:include_old_versions` — default false
+    - `:limit` — default 50
+  """
+  @spec list(keyword()) :: [versioned()]
+  def list(opts \\ []) do
+    case Versioned.list(opts) do
+      {:ok, mems} -> mems
+      _ -> []
+    end
+  end
+
+  @doc """
+  Creates a new version of a memory (bumps version, demotes old to
+  is_latest=false, adds `:updates` relation).
+  """
+  @spec update(String.t(), map()) :: {:ok, versioned()} | {:error, term()}
+  defdelegate update(id, attrs), to: Versioned
+
+  @doc """
+  Creates a child memory with `:extends` relation. Source keeps is_latest.
+  """
+  @spec extend(String.t(), map()) :: {:ok, versioned()} | {:error, term()}
+  defdelegate extend(id, attrs), to: Versioned
+
+  @doc """
+  Creates a derived memory with `:derives` relation. Source keeps is_latest.
+  """
+  @spec derive(String.t(), map()) :: {:ok, versioned()} | {:error, term()}
+  defdelegate derive(id, attrs), to: Versioned
+
+  @doc """
+  Soft-forgets a versioned memory (sets is_forgotten=1).
+
+  Options:
+    - `:reason` — stored in `forget_reason`
+    - `:forget_after` — ISO8601 timestamp
+
+  Dispatches on the second argument type:
+    - `forget(id, keyword_list)` — versioned memory soft-forget
+    - `forget(id, binary)` — alias for legacy `forget_key/2`
+  """
+  @spec forget(String.t(), keyword() | String.t()) :: :ok | {:error, term()}
+  def forget(id, opts \\ [])
+
+  # Versioned soft-forget: forget(memory_id, keyword_opts)
+  def forget(id, opts) when is_binary(id) and is_list(opts) do
+    Versioned.forget(id, opts)
+  end
+
+  # Legacy ETS delete: forget(collection, key) — both strings
+  def forget(collection, key) when is_binary(collection) and is_binary(key) do
+    backend().delete(collection, key)
+  end
+
+  @doc "Returns the full version chain ordered v1 → ... → latest."
+  @spec versions(String.t()) :: {:ok, [versioned()]} | {:error, term()}
+  defdelegate versions(id), to: Versioned
+
+  @doc """
+  Returns all typed relations touching `memory_id` (inbound + outbound).
+
+  Each relation map includes:
+    - `:id`, `:source_memory_id`, `:target_memory_id`, `:target_id` (alias),
+      `:relation`, `:direction`, `:created_at`
+  """
+  @spec relations(String.t()) :: {:ok, [map()]} | {:error, term()}
+  def relations(id) when is_binary(id) do
+    case Versioned.relations(id) do
+      {:ok, rels} ->
+        # Add :target_id alias so the router's `r.target_id` resolves correctly.
+        enriched = Enum.map(rels, &Map.put(&1, :target_id, &1.target_memory_id))
+        {:ok, enriched}
+
+      other ->
+        other
+    end
+  end
+
+  @doc "Hard deletes a versioned memory (cascades relations)."
+  @spec delete(String.t()) :: :ok | {:error, term()}
+  defdelegate delete(id), to: Versioned
+
+  # ===========================================================================
+  # Legacy key-value memory API (ETS-backed)
+  # ===========================================================================
 
   @type collection :: String.t()
   @type key :: String.t()
@@ -26,11 +173,6 @@ defmodule OptimalEngine.Memory do
 
   ## Options
     - `:tags` - list of string tags for search (default: `[]`)
-
-  ## Examples
-
-      iex> OptimalEngine.Memory.store("test_store", "key1", "value1")
-      :ok
   """
   @spec store(collection(), key(), value(), keyword()) :: :ok | {:error, term()}
   def store(collection, key, value, opts \\ []) do
@@ -43,13 +185,6 @@ defmodule OptimalEngine.Memory do
   Recall a memory entry by collection and key.
 
   Returns `{:ok, entry}` or `{:error, :not_found}`.
-
-  ## Examples
-
-      iex> OptimalEngine.Memory.store("test_recall", "k", "v")
-      iex> {:ok, entry} = OptimalEngine.Memory.recall("test_recall", "k")
-      iex> entry.value
-      "v"
   """
   @spec recall(collection(), key()) ::
           {:ok, OptimalEngine.Memory.Store.entry()} | {:error, :not_found}
@@ -58,16 +193,10 @@ defmodule OptimalEngine.Memory do
   end
 
   @doc """
-  Search memories in all collections by query string (keyword match).
+  Search memories in a collection by query string (keyword match).
 
-  Returns `{:ok, matches}` with entries whose key, value, or tags match any query term.
-
-  ## Examples
-
-      iex> OptimalEngine.Memory.store("test_search", "elixir-tip", "Use pattern matching", tags: ["elixir"])
-      iex> {:ok, matches} = OptimalEngine.Memory.search("test_search", "elixir")
-      iex> length(matches) > 0
-      true
+  Returns `{:ok, matches}` with entries whose key, value, or tags match
+  any query term.
   """
   @spec search(collection(), String.t()) :: {:ok, [OptimalEngine.Memory.Store.entry()]}
   def search(collection, query) do
@@ -75,30 +204,18 @@ defmodule OptimalEngine.Memory do
   end
 
   @doc """
-  Delete a memory entry.
+  Delete a legacy key-value memory entry.
 
-  ## Examples
-
-      iex> OptimalEngine.Memory.store("test_forget", "tmp", "data")
-      iex> OptimalEngine.Memory.forget("test_forget", "tmp")
-      :ok
-      iex> OptimalEngine.Memory.recall("test_forget", "tmp")
-      {:error, :not_found}
+  Two-arg form: `forget(collection, key)` — legacy ETS delete.
+  Single-arg / keyword form: `forget(id)` / `forget(id, opts)` — versioned.
   """
-  @spec forget(collection(), key()) :: :ok
-  def forget(collection, key) do
+  @spec forget_key(collection(), key()) :: :ok
+  def forget_key(collection, key) do
     backend().delete(collection, key)
   end
 
   @doc """
   List all memory collections.
-
-  ## Examples
-
-      iex> OptimalEngine.Memory.store("test_collections_list", "k", "v")
-      iex> {:ok, cols} = OptimalEngine.Memory.collections()
-      iex> "test_collections_list" in cols
-      true
   """
   @spec collections() :: {:ok, [collection()]}
   def collections do
@@ -106,9 +223,27 @@ defmodule OptimalEngine.Memory do
   end
 
   @doc """
-  Export a collection to a JSON file at the given path.
+  Recalls all long-term memories as a single concatenated string.
+  Used by the Bridge and Cortex for synthesis.
+  """
+  @spec recall() :: String.t()
+  def recall do
+    OptimalEngine.Memory.Store.recall()
+  end
 
-  Returns `:ok` on success.
+  @doc """
+  Stores an insight into the default "memory" collection.
+  Convenience wrapper over `store/4`.
+  """
+  @spec remember(String.t(), keyword()) :: :ok | {:error, term()}
+  def remember(insight, opts \\ []) when is_binary(insight) do
+    tags = Keyword.get(opts, :tags, [])
+    key = Keyword.get(opts, :key, "insight_#{:erlang.unique_integer([:positive])}")
+    store("memory", key, insight, tags: tags)
+  end
+
+  @doc """
+  Export a collection to a JSON file at the given path.
   """
   @spec export(collection(), String.t()) :: :ok | {:error, term()}
   def export(collection, path) do
@@ -129,7 +264,6 @@ defmodule OptimalEngine.Memory do
 
   @doc """
   Import a collection from a JSON file at the given path.
-
   Entries are merged into the specified collection.
   """
   @spec import_collection(collection(), String.t()) :: :ok | {:error, term()}
@@ -162,4 +296,46 @@ defmodule OptimalEngine.Memory do
   defp parse_dt(%DateTime{} = dt), do: dt
 
   defp backend, do: OptimalEngine.Memory.Store.backend()
+
+  # ---------------------------------------------------------------------------
+  # WikiBridge auto-promotion (Phase 17.1/7 bridge)
+  # ---------------------------------------------------------------------------
+
+  # Fire-and-forget: if the memory is static and the workspace config enables
+  # auto_promote_to_wiki, promote it to the "memory-promotions" wiki page.
+  # Any failure is logged and swallowed — memory create must never be blocked.
+  defp maybe_promote_to_wiki(%Versioned{is_static: true} = mem) do
+    alias OptimalEngine.Workspace.Config
+    mem_cfg = Config.get_section(mem.workspace_id, :memory, %{auto_promote_to_wiki: false})
+
+    if Map.get(mem_cfg, :auto_promote_to_wiki, false) do
+      Task.start(fn ->
+        opts = [
+          workspace_id: mem.workspace_id,
+          tenant_id: mem.tenant_id,
+          audience: mem.audience
+        ]
+
+        slug = "memory-promotions"
+
+        case OptimalEngine.Memory.WikiBridge.promote_memory_to_wiki(mem.id, slug, opts) do
+          {:ok, _page} ->
+            Logger.info("[Memory] auto-promoted #{mem.id} to wiki/#{slug}")
+
+          {:error, reason} ->
+            Logger.warning(
+              "[Memory] WikiBridge.promote_memory_to_wiki failed for #{mem.id}: #{inspect(reason)}"
+            )
+        end
+      end)
+    end
+
+    :ok
+  rescue
+    e ->
+      Logger.warning("[Memory] maybe_promote_to_wiki error: #{inspect(e)}")
+      :ok
+  end
+
+  defp maybe_promote_to_wiki(_mem), do: :ok
 end
