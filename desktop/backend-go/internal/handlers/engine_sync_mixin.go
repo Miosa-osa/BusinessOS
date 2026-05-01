@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 
+	"github.com/rhl/businessos-backend/internal/optimalengine"
 	"github.com/rhl/businessos-backend/internal/services"
 )
 
@@ -46,4 +47,16 @@ func (h *EngineSyncHook) enqueueDelete(ctx context.Context, mod services.Module,
 		return
 	}
 	h.engineSync.EnqueueDelete(ctx, mod, id)
+}
+
+// engineClient exposes the typed OptimalEngine HTTP client from the
+// shared sync service. nil-safe — handlers can call this without checking
+// whether engineSync was wired and without nil-checking the result; the
+// returned *optimalengine.Client also no-ops every method when not
+// enabled (no OPTIMAL_ENGINE_URL).
+func (h *EngineSyncHook) engineClient() *optimalengine.Client {
+	if h == nil || h.engineSync == nil {
+		return nil
+	}
+	return h.engineSync.Engine()
 }

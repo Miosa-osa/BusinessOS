@@ -43,3 +43,19 @@ func (h *Handlers) registerOptimalRoutes(api *gin.RouterGroup) {
 	RegisterOptimalRoutes(api, h.optimalHandler)
 	slog.Info("OptimalOS routes served by in-process Go port (set OPTIMAL_ENGINE_URL to switch to live Elixir engine)")
 }
+
+// registerOptimalEngineRoutes mounts /api/optimal/{ask,recall/*,memory/*}
+// and /api/brief/{morning,evening}. Distinct from registerOptimalRoutes
+// (which is the catch-all reverse proxy) — these are typed BO endpoints
+// that call the engine's HTTP API via the shared optimalengine.Client
+// and inject BusinessOS user context (auth, default workspace, etc.).
+func (h *Handlers) registerOptimalEngineRoutes(api *gin.RouterGroup, auth gin.HandlerFunc) {
+	handler := h.buildOptimalEngineHandler()
+	RegisterOptimalEngineRoutes(api, handler, auth)
+	if handler != nil && handler.engine != nil && handler.engine.Enabled() {
+		slog.Info("Engine-backed routes registered",
+			"routes", "/api/engine/{ask,recall/*,memory}, /api/brief/{morning,evening}")
+	} else {
+		slog.Info("Engine-backed routes registered (will return 503 — OPTIMAL_ENGINE_URL not set)")
+	}
+}

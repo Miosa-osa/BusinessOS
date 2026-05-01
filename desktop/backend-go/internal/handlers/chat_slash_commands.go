@@ -22,6 +22,15 @@ import (
 
 // handleSlashCommandStreaming processes slash commands via the streaming SSE architecture.
 func (h *ChatHandler) handleSlashCommandStreaming(c *gin.Context, user *middleware.BetterAuthUser, req SendMessageRequest) {
+	// Engine-backed commands skip the LLM entirely — they ask the engine
+	// for a typed answer (RAG envelope or recall result) and stream it
+	// back as a single chunk + done event. Cheaper than going through
+	// Ollama, and the answer is grounded in the workspace's memory + wiki
+	// rather than the model's prior.
+	if h.engineSlashHandled(c, user, req) {
+		return
+	}
+
 	// Pre-stream provider health check: fail fast for ollama_local
 	if h.cfg.GetActiveProvider() == "ollama_local" {
 		if !isOllamaReachable(h.cfg.OllamaLocalURL) {
