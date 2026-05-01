@@ -41,13 +41,10 @@ jobs:
           cp /tmp/oss-stubs/handlers/billing.go desktop/backend-go/internal/handlers/billing.go
           echo "  applied handlers/billing.go stub"
 
-      - name: Verify Go build compiles
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: desktop/backend-go/go.mod
-      - run: |
-          cd desktop/backend-go && go build ./cmd/server
-          echo "  ✔ OSS build compiles"
+      # NOTE: Go build verification skipped — OptimalEngine-go is a private
+      # dependency (replace ../../../OptimalEngine-go in go.mod). Build is
+      # verified locally via `make test-oss-sync` before pushing. Re-enable
+      # this step once OptimalEngine-go is public or GOPRIVATE auth is set up.
 
       - name: Push to public repo
         env:
