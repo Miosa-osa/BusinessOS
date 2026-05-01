@@ -19,6 +19,9 @@ jobs:
 
       - name: Strip private files and apply OSS stubs
         run: |
+          echo "--- Copying stubs to temp (before strip deletes .oss-stubs/) ---"
+          cp -r .oss-stubs /tmp/oss-stubs
+
           echo "--- Removing private files ---"
           while IFS= read -r path; do
             [[ -z "$path" || "$path" == \#* ]] && continue
@@ -35,7 +38,7 @@ jobs:
           done < .oss-exclude
 
           echo "--- Applying OSS stubs ---"
-          cp .oss-stubs/handlers/billing.go desktop/backend-go/internal/handlers/billing.go
+          cp /tmp/oss-stubs/handlers/billing.go desktop/backend-go/internal/handlers/billing.go
           echo "  applied handlers/billing.go stub"
 
       - name: Verify Go build compiles
