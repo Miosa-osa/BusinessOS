@@ -1,4 +1,5 @@
 import type { LayoutLoad } from "./$types";
+import { getBackendUrl } from "$lib/config/runtime";
 
 // Client-side auth check for the (app) group
 // Replaces the deleted +layout.server.ts (which broke static/Cloudflare builds)
@@ -20,12 +21,7 @@ export const load: LayoutLoad = async ({ fetch, url }) => {
 
   // Validate session with backend
   try {
-    const backendUrl =
-      typeof window !== "undefined" && import.meta.env.VITE_BACKEND_URL
-        ? import.meta.env.VITE_BACKEND_URL
-        : "https://api.businessos.dev";
-
-    const response = await fetch(`${backendUrl}/api/auth/session`, {
+    const response = await fetch(`${getBackendUrl()}/api/auth/session`, {
       method: "GET",
       credentials: "include",
     });

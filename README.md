@@ -220,6 +220,18 @@ Run BusinessOS self-hosted, or deploy many instances at scale on [MIOSA Platform
 
 Self-hosted works out of the box. The platform is for when you need to orchestrate across multiple systems.
 
+### OptimalEngine — The Second Brain of Your Business
+
+[OptimalEngine](https://github.com/Miosa-osa/OptimalEngine) is the knowledge substrate that powers BusinessOS. It's a model-agnostic, signal-classified data store — your company's second brain. Every document, conversation, decision, and workflow artifact is classified, indexed, and retrievable by your agents in real time.
+
+- **Signal-classified storage** — every piece of knowledge tagged with Mode, Genre, DocType, Weight, Confidence
+- **Multi-modal embeddings** — text, code, images, audio — all searchable via RAG
+- **14 enterprise connectors** — Google, Slack, Notion, HubSpot, Linear, and more
+- **Wiki/knowledge base** — structured, LLM-curated documentation your agents update autonomously
+- **Permission-aware RAG** — workspace-scoped retrieval respects org boundaries
+
+The canonical implementation is [Elixir/OTP](https://github.com/Miosa-osa/OptimalEngine) (in `optimal-engine/`). BusinessOS uses the [Go port](https://github.com/Miosa-osa/OptimalEngine-go) at runtime. Both are open-source.
+
 ### OSA — The Optimal System Agent
 
 [OSA](osa/) lives inside every Optimal System. It's agent-agnostic — it orchestrates whatever agents you bring:
@@ -263,6 +275,13 @@ Self-hosted works out of the box. The platform is for when you need to orchestra
  │  + pgvector      │ │ cache + │ │ Claude · Groq      │
  │  (RAG / search)  │ │ pub/sub │ │ Ollama (local)     │
  └──────────────────┘ └─────────┘ └────────────────────┘
+                                          │
+                              ┌───────────▼────────────┐
+                              │   OptimalEngine        │
+                              │ Signal-classified      │
+                              │ knowledge substrate    │
+                              │ (Elixir ref / Go port) │
+                              └────────────────────────┘
 ```
 
 ### Backend Flow
@@ -365,6 +384,10 @@ BusinessOS/
 │       ├── streaming/               # SSE event streaming
 │       ├── terminal/                # PTY terminal + WebSocket
 │       └── workers/                 # Background job workers
+│
+├── optimal-engine/                  # OptimalEngine (Elixir reference)
+│                                    #   Canonical signal-classified knowledge engine
+│                                    #   Go port: github.com/Miosa-osa/OptimalEngine-go
 │
 ├── osa/                             # Optimal System Agent (Elixir/OTP + Rust)
 │

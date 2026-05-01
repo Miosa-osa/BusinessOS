@@ -1,4 +1,10 @@
 import { writable, get } from "svelte/store";
+import { getCSRFToken } from "$lib/api/base";
+import {
+  LOCAL_BACKEND_URL,
+  getDefaultCloudBackendUrl,
+} from "$lib/config/runtime";
+import { openExternal } from "$lib/utils/platform";
 
 // Check if running in Electron
 const isElectron = typeof window !== "undefined" && "electron" in window;
@@ -8,15 +14,6 @@ const isDev =
   typeof window !== "undefined" &&
   (window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1");
-
-// Backend URLs
-const LOCAL_BACKEND_URL =
-  (typeof import.meta !== "undefined" &&
-    import.meta.env?.VITE_LOCAL_BACKEND_URL) ||
-  "http://localhost:8001";
-const PRODUCTION_BACKEND_URL =
-  (typeof window !== "undefined" && import.meta.env.VITE_BACKEND_URL) ||
-  "https://api.businessos.dev";
 
 // App mode store - 'cloud' or 'local'
 export const appMode = writable<"cloud" | "local" | null>(null);
@@ -31,7 +28,7 @@ if (typeof window !== "undefined") {
 
   // Always use the correct backend URL for the current environment
   // Never trust stale localStorage values from old deployments
-  const correctUrl = isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
+  const correctUrl = getDefaultCloudBackendUrl();
   let savedUrl = correctUrl;
   localStorage.setItem("businessos_cloud_url", correctUrl);
 
@@ -66,30 +63,6 @@ function getAuthBase(serverUrl?: string): string {
   return get(cloudServerUrl);
 }
 
-// Helper function to get CSRF token from cookie
-function getCSRFToken(): string | null {
-  if (typeof document === "undefined") return null;
-
-  const cookies = document.cookie.split(";");
-  let foundToken: string | null = null;
-  for (const cookie of cookies) {
-    const trimmed = cookie.trim();
-    // Split only on first '=' to preserve '=' in the token value
-    const equalsIndex = trimmed.indexOf("=");
-    if (equalsIndex === -1) continue;
-
-    const name = trimmed.substring(0, equalsIndex);
-    const value = trimmed.substring(equalsIndex + 1);
-
-    if (name === "csrf_token") {
-      foundToken = value;
-      // Don't break - log all csrf_token cookies if there are multiple
-    }
-  }
-
-  return foundToken;
-}
-
 // Helper function to add CSRF token to headers
 function addCSRFHeaders(headers: HeadersInit = {}): HeadersInit {
   const csrfToken = getCSRFToken();
@@ -118,9 +91,9 @@ export function initiateGoogleOAuth(serverUrl?: string): boolean {
   );
   const authUrl = `${baseUrl}/api/auth/google?redirect=${redirectUrl}`;
 
-  if (isElectron && window.electron?.openExternal) {
+  if (isElectron) {
     // Use Electron's shell to open in system browser
-    window.electron.openExternal(authUrl);
+    void openExternal(authUrl);
   } else {
     // Standard web redirect
     window.location.href = authUrl;

@@ -1,0 +1,61 @@
+name: Sync to open-source mirror
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Strip private files and apply OSS stubs
+        run: |
+          echo "--- Removing private files ---"
+          while IFS= read -r path; do
+            [[ -z "$path" || "$path" == \#* ]] && continue
+            path="${path%%#*}"
+            path="${path%% }"
+            [ -z "$path" ] && continue
+            if [ -d "$path" ]; then
+              rm -rf "$path"
+              echo "  removed dir:  $path"
+            elif [ -f "$path" ]; then
+              rm -f "$path"
+              echo "  removed file: $path"
+            fi
+          done < .oss-exclude
+
+          echo "--- Applying OSS stubs ---"
+          cp .oss-stubs/handlers/billing.go desktop/backend-go/internal/handlers/billing.go
+          echo "  applied handlers/billing.go stub"
+
+      - name: Verify Go build compiles
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: desktop/backend-go/go.mod
+      - run: |
+          cd desktop/backend-go && go build ./cmd/server
+          echo "  ✔ OSS build compiles"
+
+      - name: Push to public repo
+        env:
+          OSS_TOKEN: ${{ secrets.OSS_PUSH_TOKEN }}
+        run: |
+          git config user.name "BusinessOS Bot"
+          git config user.email "bot@businessos.dev"
+
+          git add -A
+          git commit -m "sync: mirror from private repo ($(date -u +%Y-%m-%d))" --allow-empty
+
+          git remote add oss "https://x-access-token:${OSS_TOKEN}@github.com/Miosa-osa/BusinessOS.git" 2>/dev/null || \
+            git remote set-url oss "https://x-access-token:${OSS_TOKEN}@github.com/Miosa-osa/BusinessOS.git"
+          git push oss main --force

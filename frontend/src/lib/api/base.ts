@@ -1,54 +1,21 @@
-// Backend URLs (centralized — import these from here, don't hardcode elsewhere)
-export const LOCAL_BACKEND_URL =
-  import.meta.env.VITE_LOCAL_BACKEND_URL || "http://localhost:8001";
-export const LOCAL_OSA_URL = "http://localhost:18080";
-export const PRODUCTION_BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL || "https://api.businessos.dev";
+import {
+  API_VERSION,
+  LOCAL_BACKEND_URL,
+  LOCAL_OSA_URL,
+  PRODUCTION_BACKEND_URL,
+  getApiBaseUrl as resolveApiBaseUrl,
+  getBackendUrl as resolveBackendUrl,
+} from "$lib/config/runtime";
 
-// API Version (centralized configuration)
-export const API_VERSION = "v1";
+export {
+  API_VERSION,
+  LOCAL_BACKEND_URL,
+  LOCAL_OSA_URL,
+  PRODUCTION_BACKEND_URL,
+};
 
-// Shared fetch logic copied from the original ApiClient.request implementation
-function getApiBase(): string {
-  if (typeof window === "undefined") {
-    const result = import.meta.env.VITE_API_URL || `/api/${API_VERSION}`;
-    return result;
-  }
-
-  const isElectron = "electron" in window;
-  const isDev =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1";
-
-  if (isElectron) {
-    const mode = localStorage.getItem("businessos_mode");
-    // Always use correct URL for current environment
-    const cloudUrl = isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
-
-    if (mode === "cloud" && cloudUrl) {
-      const result = `${cloudUrl}/api/${API_VERSION}`;
-      return result;
-    } else if (mode === "local") {
-      return `${LOCAL_OSA_URL}/api/${API_VERSION}`;
-    }
-    const result = `${cloudUrl}/api/${API_VERSION}`;
-    return result;
-  }
-
-  // Web app: use env var, or auto-detect based on environment
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  // In development, use relative URLs through Vite proxy to ensure CSRF cookies work
-  // (same origin for cookie set and API calls)
-  const result = isDev
-    ? `/api/${API_VERSION}`
-    : `${PRODUCTION_BACKEND_URL}/api/${API_VERSION}`;
-  return result;
-}
-
-export const getApiBaseUrl = () => getApiBase();
-export const API_BASE = getApiBase();
+export const getApiBaseUrl = () => resolveApiBaseUrl(API_VERSION);
+export const API_BASE = getApiBaseUrl();
 
 // Get CSRF token from cookie
 export function getCSRFToken(): string | null {
@@ -118,38 +85,7 @@ function addCSRFToken(
  * Get the backend server base URL (without /api suffix)
  * Use this for image URLs and other non-API resources
  */
-export function getBackendUrl(): string {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  const isElectron = "electron" in window;
-  const isDev =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1";
-
-  if (isElectron) {
-    const mode = localStorage.getItem("businessos_mode");
-    let cloudUrl = localStorage.getItem("businessos_cloud_url");
-
-    if (!cloudUrl) {
-      cloudUrl = isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
-    }
-
-    if (mode === "cloud" && cloudUrl) {
-      return cloudUrl;
-    } else if (mode === "local") {
-      return LOCAL_OSA_URL;
-    }
-    return cloudUrl;
-  }
-
-  // Web app: use env var base, or auto-detect based on environment
-  if (import.meta.env.VITE_BACKEND_URL) {
-    return import.meta.env.VITE_BACKEND_URL;
-  }
-  return isDev ? LOCAL_BACKEND_URL : PRODUCTION_BACKEND_URL;
-}
+export const getBackendUrl = () => resolveBackendUrl();
 
 export interface RequestOptions {
   method?: string;

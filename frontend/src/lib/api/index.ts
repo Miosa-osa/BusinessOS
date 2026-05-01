@@ -101,6 +101,9 @@ export const api = {
   updateProject: projectsApi.updateProject,
   deleteProject: projectsApi.deleteProject,
   addProjectNote: projectsApi.addProjectNote,
+  uploadProjectFile: projectsApi.uploadProjectFile,
+  addProjectFileLink: projectsApi.addProjectFileLink,
+  removeProjectFileLink: projectsApi.removeProjectFileLink,
 
   // Conversations
   getConversations: conversationsApi.getConversations,

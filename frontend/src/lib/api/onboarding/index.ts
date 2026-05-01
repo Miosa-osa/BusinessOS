@@ -2,7 +2,7 @@
  * Onboarding API Client
  * Handles communication with onboarding backend endpoints
  */
-import { LOCAL_BACKEND_URL, LOCAL_OSA_URL } from "$lib/api/base";
+import { getLegacyApiBaseUrl } from "$lib/config/runtime";
 
 export interface OnboardingSession {
   id: string;
@@ -75,25 +75,7 @@ export interface FallbackFormData {
 }
 
 function getApiBase(): string {
-  if (typeof window === "undefined") {
-    return import.meta.env.VITE_API_URL || "/api";
-  }
-
-  const isElectron = "electron" in window;
-
-  if (isElectron) {
-    const mode = localStorage.getItem("businessos_mode");
-    const cloudUrl = localStorage.getItem("businessos_cloud_url");
-
-    if (mode === "cloud" && cloudUrl) {
-      return `${cloudUrl}/api`;
-    } else if (mode === "local") {
-      return `${LOCAL_OSA_URL}/api`;
-    }
-    return `${LOCAL_BACKEND_URL}/api`;
-  }
-
-  return import.meta.env.VITE_API_URL || "/api";
+  return getLegacyApiBaseUrl();
 }
 
 class OnboardingApiClient {

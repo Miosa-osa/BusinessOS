@@ -13,6 +13,9 @@ export const api = {
   updateProject: projectsApi.updateProject,
   deleteProject: projectsApi.deleteProject,
   addProjectNote: projectsApi.addProjectNote,
+  uploadProjectFile: projectsApi.uploadProjectFile,
+  addProjectFileLink: projectsApi.addProjectFileLink,
+  removeProjectFileLink: projectsApi.removeProjectFileLink,
   // Project members
   listProjectMembers: membersApi.listProjectMembers,
   addProjectMember: membersApi.addProjectMember,

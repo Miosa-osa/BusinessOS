@@ -1,0 +1,21 @@
+# Files excluded from the open-source mirror (Miosa-osa/BusinessOS).
+# Used by .github/workflows/sync-oss.yml — one path per line.
+# Paths are relative to repo root. Directories must end with /.
+
+# Platform admin (superadmin user management, role changes, audit)
+desktop/backend-go/internal/handlers/platform_admin.go
+
+# Billing / Stripe plans + pricing (replaced with community-edition stub)
+desktop/backend-go/internal/handlers/billing.go
+desktop/backend-go/internal/handlers/stripe_webhook.go
+
+# Superadmin seed migration (contains admin email list)
+desktop/backend-go/internal/database/migrations/104_seed_superadmin.sql
+
+# Admin panel UI
+frontend/src/routes/(app)/admin/
+
+# Sync workflow + exclude manifest (no need to publish the mechanism)
+.github/workflows/sync-oss.yml
+.oss-exclude
+.oss-stubs/

@@ -1,5 +1,10 @@
-import { request } from '../base';
-import type { Project, CreateProjectData, ProjectNote } from './types';
+import { getBackendUrl, request } from "../base";
+import type {
+  Project,
+  CreateProjectData,
+  ProjectFileLink,
+  ProjectNote,
+} from "./types";
 
 export async function getProjects(status?: string): Promise<Project[]> {
   const params = status ? `?status_filter=${status}` : '';
@@ -33,4 +38,59 @@ export async function deleteProject(id: string): Promise<void> {
 
 export async function addProjectNote(projectId: string, content: string): Promise<ProjectNote> {
   return request<ProjectNote>(`/projects/${projectId}/notes`, { method: 'POST', body: { content } });
+}
+
+export async function uploadProjectFile(
+  projectId: string,
+  file: File,
+): Promise<ProjectFileLink> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${getBackendUrl()}/projects/${projectId}/files`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ error: "File upload failed" }));
+    throw new Error(error.error || error.detail || "File upload failed");
+  }
+
+  const data = (await response.json()) as Partial<ProjectFileLink>;
+  return {
+    name: data.name || file.name,
+    size: data.size || `${(file.size / 1024 / 1024).toFixed(1)} MB`,
+    url: data.url,
+  };
+}
+
+export async function addProjectFileLink(
+  project: Project,
+  file: File,
+  existingLinks: ProjectFileLink[] = [],
+): Promise<Project> {
+  const uploaded = await uploadProjectFile(project.id, file);
+  return updateProject(project.id, {
+    project_metadata: {
+      ...(project.project_metadata ?? {}),
+      quick_links: [...existingLinks, uploaded],
+    },
+  });
+}
+
+export async function removeProjectFileLink(
+  project: Project,
+  fileIndex: number,
+  existingLinks: ProjectFileLink[] = [],
+): Promise<Project> {
+  return updateProject(project.id, {
+    project_metadata: {
+      ...(project.project_metadata ?? {}),
+      quick_links: existingLinks.filter((_, index) => index !== fileIndex),
+    },
+  });
 }

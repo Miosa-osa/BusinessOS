@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { api, type Project, type Task, type ClientListResponse, type TeamMemberListResponse } from '$lib/api';
+	import { api, type Project, type ProjectFileLink, type Task, type ClientListResponse, type TeamMemberListResponse } from '$lib/api';
 	import { onMount } from 'svelte';
 	import { Dialog, Popover } from 'bits-ui';
 	import {
@@ -15,7 +15,6 @@
 	import { currentWorkspace } from '$lib/stores/workspaces';
 	import { useSession } from '$lib/auth-client';
 	import { getPriorityColor, getTypeLabel, formatDate } from '$lib/utils/project';
-	import { getBackendUrl } from '$lib/api/base';
 	import {
 		ChevronRight, MapPin, Zap, Clock, CalendarDays, Paperclip,
 		FileText, Archive, Users, Plus, CheckCircle2, PauseCircle,
@@ -29,7 +28,7 @@
 		out_of_scope?: string[];
 		expected_outcomes?: string[];
 		key_features?: { p0?: string[]; p1?: string[]; p2?: string[] };
-		quick_links?: { name: string; size: string; url?: string }[];
+		quick_links?: ProjectFileLink[];
 		estimate?: string;
 		location?: string;
 		sprint?: string;
@@ -174,25 +173,7 @@
 		if (!file || !project) return;
 		uploadingFile = true;
 		try {
-			const formData = new FormData();
-			formData.append('file', file);
-			const res = await fetch(`${getBackendUrl()}/projects/${project.id}/files`, {
-				method: 'POST',
-				credentials: 'include',
-				body: formData
-			});
-			if (!res.ok) throw new Error('Upload failed');
-			const { url } = await res.json() as { url: string };
-			const existingLinks = meta.quick_links ?? [];
-			const sizeMB = (file.size / 1024 / 1024).toFixed(1);
-			const updated: ProjectMetadata['quick_links'] = [
-				...existingLinks,
-				{ name: file.name, size: `${sizeMB} MB`, url }
-			];
-			await api.updateProject(project.id, {
-				project_metadata: { ...(project.project_metadata as object), quick_links: updated }
-			});
-			await loadProject();
+			project = await api.addProjectFileLink(project, file, meta.quick_links ?? []);
 		} catch (err) {
 			console.error('File upload error:', err);
 		} finally {
@@ -203,12 +184,7 @@
 
 	async function removeFile(index: number) {
 		if (!project) return;
-		const existing = meta.quick_links ?? [];
-		const updated = existing.filter((_, i) => i !== index);
-		await api.updateProject(project.id, {
-			project_metadata: { ...(project.project_metadata as object), quick_links: updated }
-		});
-		await loadProject();
+		project = await api.removeProjectFileLink(project, index, meta.quick_links ?? []);
 	}
 
 	// ── Utilities ─────────────────────────────────────────────────

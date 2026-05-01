@@ -5,6 +5,39 @@ All notable changes to BusinessOS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] — 2026-04-29
+
+### Added
+- **OptimalEngine integration** — vendored canonical Elixir reference (`optimal-engine/`) via git subtree from [Miosa-osa/OptimalEngine](https://github.com/Miosa-osa/OptimalEngine). Go port ([OptimalEngine-go](https://github.com/Miosa-osa/OptimalEngine-go)) used at runtime. Signal-classified knowledge substrate with multi-modal embeddings, 14 enterprise connectors, permission-aware RAG
+- **Engine bridge** — Go backend proxies to live Elixir engine via `OPTIMAL_ENGINE_URL`; chat slash commands (`/engine search`, `/engine brief`, `/engine wiki`) and SSE streaming from engine responses
+- **EngineSync** — bidirectional sync: BusinessOS data (tasks, projects, CRM, daily logs, team, clients, calendar events) pushed to OptimalEngine as wiki nodes; engine signals routed back into chat
+- **`make dev-local`** — single command boots backend (`:8801`), frontend (`:5273`), OptimalEngine (`:4200`), and Electron. Port config from single `.env.dev`. Auto-builds Go binary, detects stale deps, installs Electron binary on fresh checkout
+- **OSS sync workflow** — GitHub Actions auto-mirrors this repo to [Miosa-osa/BusinessOS](https://github.com/Miosa-osa/BusinessOS) on every push to `main`, stripping admin panel, billing, and seed migrations. Verified via worktree Go build
+- **Platform admin panel** — superadmin user management, role changes, platform audit log
+- **Billing module** — Stripe subscription plans (Pro/Growth/Business), credit purchase, webhook handling
+- **Computer module** — MIOSA-backed VM provisioning, terminal sessions, desktop streaming, runtime management
+- **Comprehensive `.env.production.example`** — 287-line template covering all 100+ env vars the backend reads, organized into 16 categories
+
+### Changed
+- **Port configuration** — moved from hardcoded `localhost:8001`/`:5173` to env-driven via `.env.dev` (single source of truth), auto-synced to downstream env files
+- **`vite.config.ts`** — refactored 30+ duplicate proxy entries into `loadEnv()` + single `proxy()` helper
+- **Frontend API layer** — `LOCAL_BACKEND_URL` and auth client now read from `import.meta.env.VITE_LOCAL_BACKEND_URL` with fallback
+- **Electron dev URLs** — `window.ts` and `chat-popup.ts` read `BUSINESSOS_DEV_URL` from env
+- **`.gitignore`** — hardened with patterns for test artifacts, crash dumps, runtime workspace nodes
+
+### Fixed
+- `onboarding/gmail/+page.svelte` — `handleConnect` used `await` without `async`
+- Electron `npm install --ignore-scripts` skipped binary download; `dev-local.sh` now auto-detects and runs install
+- `electron-forge` stdin EOF causing immediate exit — fixed with `tail -f /dev/null` stdin pipe
+
+### Removed
+- `engine/` directory (8.9MB stale Elixir scaffold, superseded by `optimal-engine/`)
+- Stale root scripts (`install_ecosystem.sh`, `update-repo-urls.sh`)
+- Ad-hoc test artifacts from backend root
+- `stripe_webhook.go` (consolidated into `billing.go`)
+
+---
+
 ## [Unreleased] — Signal Theory 7-Layer Optimal System (d33a890, feat/sprint-3b-4-osa-modules)
 
 ### Added

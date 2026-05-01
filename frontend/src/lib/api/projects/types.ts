@@ -9,6 +9,7 @@ export interface Project {
   client_name: string | null;
   project_type: string;
   project_metadata: Record<string, unknown> | null;
+  due_date?: string | null;
   created_at: string;
   updated_at: string;
   notes: ProjectNote[];
@@ -20,6 +21,12 @@ export interface ProjectNote {
   created_at: string;
 }
 
+export interface ProjectFileLink {
+  name: string;
+  size: string;
+  url?: string;
+}
+
 export interface CreateProjectData {
   name: string;
   description?: string;
@@ -28,6 +35,7 @@ export interface CreateProjectData {
   client_name?: string;
   project_type?: string;
   project_metadata?: Record<string, unknown>;
+  due_date?: string | null;
 }
 
 // Project Member Types
