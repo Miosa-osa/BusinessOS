@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Block, BlockType } from '../../entities/types';
+	import type { Block, BlockType, DividerStyle } from '../../entities/types';
 	import { createBlock } from '../../services/documents.service';
 	import SlashMenu from './SlashMenu.svelte';
 	import FormatToolbar from './FormatToolbar.svelte';
@@ -13,6 +13,36 @@
 		type ContenteditableSyncState
 	} from './contenteditable-sync';
 	import { detectMarkdownShortcut } from './markdown-shortcuts';
+	import {
+		allowBlockDrop,
+		clearBlockDragOver,
+		clearBlockDragState,
+		createBlockDragState,
+		getBlockDragOverPosition,
+		getBlockDropMove,
+		readBlockDragIndex,
+		setBlockDragOver,
+		startBlockDrag,
+		writeBlockDragData
+	} from './block-drag';
+	import {
+		applySelectionFormat,
+		getHiddenSelectionToolbarState,
+		getSelectionToolbarState,
+		type SelectionFormat
+	} from './selection-formatting';
+	import {
+		closeSlashMenu,
+		createSlashMenuState,
+		getSlashMenuStateForContentInput,
+		selectSlashMenuItem
+	} from './slash-menu-state';
+	import {
+		closeDividerPickerState,
+		createDividerStyleBlock,
+		isDividerPickerOutsideTarget,
+		toggleDividerPickerState
+	} from './divider-picker';
 
 	interface Props {
 		block: Block;
@@ -66,24 +96,20 @@
 	let isHovered = $state(false);
 
 	// Slash menu state
-	let showSlashMenu = $state(false);
-	let slashMenuPosition = $state({ x: 0, y: 0 });
-	let slashFilter = $state('');
+	let slashMenuState = $state(createSlashMenuState());
 	let slashMenuRef: { handleKeydown: (e: KeyboardEvent) => void } | undefined;
 	let blockElementRef: HTMLElement | null = $state(null);
 
 	// Format toolbar state
 	let showFormatToolbar = $state(false);
 	let formatToolbarPosition = $state({ x: 0, y: 0 });
-	let currentSelection: { start: number; end: number; text: string } | null = $state(null);
+	let currentSelection = $state<ReturnType<typeof getSelectionToolbarState>['selection']>(null);
 
 	// Divider style picker state
 	let showDividerPicker = $state(false);
 
 	// Drag and drop state
-	let isDragging = $state(false);
-	let isDragOver = $state(false);
-	let dragOverPosition: 'before' | 'after' | null = $state(null);
+	let blockDragState = $state(createBlockDragState());
 
 	// Track block ID to detect external changes (document switch)
 	let contenteditableSyncState = $state<ContenteditableSyncState>(createContenteditableSyncState());
@@ -142,28 +168,12 @@
 
 		contenteditableSyncState.lastContent = newContent;
 
-		const slashMatch = newContent.match(/^\/(\S*)$/);
-		if (slashMatch) {
-			const selection = window.getSelection();
-			if (selection && selection.rangeCount > 0) {
-				const range = selection.getRangeAt(0);
-				const rect = range.getBoundingClientRect();
-				slashMenuPosition = { x: rect.left, y: rect.bottom + 4 };
-			} else if (target) {
-				const rect = target.getBoundingClientRect();
-				slashMenuPosition = { x: rect.left, y: rect.bottom + 4 };
-			}
-			slashFilter = slashMatch[1] || '';
-			showSlashMenu = true;
-		} else if (showSlashMenu) {
-			const lastSlashIndex = newContent.lastIndexOf('/');
-			if (lastSlashIndex >= 0) {
-				slashFilter = newContent.slice(lastSlashIndex + 1);
-			} else {
-				showSlashMenu = false;
-				slashFilter = '';
-			}
-		}
+		slashMenuState = getSlashMenuStateForContentInput({
+			content: newContent,
+			state: slashMenuState,
+			selection: window.getSelection(),
+			targetRect: target.getBoundingClientRect()
+		});
 
 		onBlockChange?.({ ...block, content: parseHTMLToRichText(target.innerHTML, newContent) });
 	}
@@ -182,7 +192,7 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (showSlashMenu) {
+		if (slashMenuState.show) {
 			if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Escape') {
 				e.preventDefault();
 				slashMenuRef?.handleKeydown(e);
@@ -202,45 +212,30 @@
 			switch (e.key.toLowerCase()) {
 				case 'b':
 					e.preventDefault();
-					document.execCommand('bold', false);
-					updateBlockFromDOM();
+					applySelectionKeyboardFormat('bold');
 					return;
 				case 'i':
 					e.preventDefault();
-					document.execCommand('italic', false);
-					updateBlockFromDOM();
+					applySelectionKeyboardFormat('italic');
 					return;
 				case 'u':
 					e.preventDefault();
-					document.execCommand('underline', false);
-					updateBlockFromDOM();
+					applySelectionKeyboardFormat('underline');
 					return;
 				case 'e':
 					e.preventDefault();
-					const selectionE = window.getSelection();
-					if (selectionE && selectionE.rangeCount > 0 && !selectionE.isCollapsed) {
-						const range = selectionE.getRangeAt(0);
-						const codeElement = document.createElement('code');
-						codeElement.className = 'inline-code';
-						range.surroundContents(codeElement);
-						updateBlockFromDOM();
-					}
+					applySelectionKeyboardFormat('code');
 					return;
 				case 'k':
 					e.preventDefault();
-					const url = prompt('Enter URL:');
-					if (url) {
-						document.execCommand('createLink', false, url);
-						updateBlockFromDOM();
-					}
+					applySelectionKeyboardFormat('link');
 					return;
 			}
 		}
 
 		if (modifier && e.shiftKey && e.key.toLowerCase() === 's') {
 			e.preventDefault();
-			document.execCommand('strikeThrough', false);
-			updateBlockFromDOM();
+			applySelectionKeyboardFormat('strikethrough');
 			return;
 		}
 
@@ -254,8 +249,7 @@
 		}
 
 		if (e.key === 'Escape' && showFormatToolbar) {
-			showFormatToolbar = false;
-			currentSelection = null;
+			hideFormatToolbar();
 			return;
 		}
 
@@ -276,28 +270,25 @@
 		}
 		onBlockChange?.({ ...block, content: plainTextToRichText('') });
 		onBlockAdd?.(newBlock);
-		showSlashMenu = false;
-		slashFilter = '';
+		slashMenuState = selectSlashMenuItem(slashMenuState);
 	}
 
 	function handleSlashMenuClose() {
-		showSlashMenu = false;
-		slashFilter = '';
+		slashMenuState = closeSlashMenu(slashMenuState);
 	}
 
 	function showDividerStylePicker() {
-		showDividerPicker = !showDividerPicker;
+		showDividerPicker = toggleDividerPickerState(showDividerPicker);
 	}
 
 	function closeDividerPicker() {
-		showDividerPicker = false;
+		showDividerPicker = closeDividerPickerState();
 	}
 
 	$effect(() => {
 		if (showDividerPicker) {
 			const handleClickOutside = (e: MouseEvent) => {
-				const target = e.target as HTMLElement;
-				if (!target.closest('.divider-wrapper')) {
+				if (isDividerPickerOutsideTarget(e.target)) {
 					closeDividerPicker();
 				}
 			};
@@ -307,95 +298,46 @@
 	});
 
 	function selectDividerStyle(style: string) {
-		const updatedBlock: Block = {
-			...block,
-			properties: {
-				...block.properties,
-				divider_style: style as 'solid' | 'dashed' | 'dotted' | 'thick' | 'double' | 'gradient'
-			}
-		};
-		onBlockChange?.(updatedBlock);
-		showDividerPicker = false;
+		onBlockChange?.(createDividerStyleBlock(block, style as DividerStyle));
+		showDividerPicker = closeDividerPickerState();
 	}
 
 	function handleSelectionChange() {
-		if (readOnly) return;
+		const toolbarState = getSelectionToolbarState({ readOnly, blockElement: blockElementRef });
+		showFormatToolbar = toolbarState.show;
+		formatToolbarPosition = toolbarState.position;
+		currentSelection = toolbarState.selection;
+	}
 
+	function hideFormatToolbar() {
+		const toolbarState = getHiddenSelectionToolbarState();
+		showFormatToolbar = toolbarState.show;
+		formatToolbarPosition = toolbarState.position;
+		currentSelection = toolbarState.selection;
+	}
+
+	function applySelectionKeyboardFormat(format: SelectionFormat) {
 		const selection = window.getSelection();
-		if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
-			showFormatToolbar = false;
-			currentSelection = null;
-			return;
-		}
-
-		const range = selection.getRangeAt(0);
-		if (!blockElementRef || !blockElementRef.contains(range.commonAncestorContainer)) {
-			showFormatToolbar = false;
-			currentSelection = null;
-			return;
-		}
+		if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
 
 		const selectedText = selection.toString();
-		if (selectedText.length === 0) {
-			showFormatToolbar = false;
-			currentSelection = null;
-			return;
-		}
-
-		const rect = range.getBoundingClientRect();
-		formatToolbarPosition = {
-			x: rect.left + rect.width / 2,
-			y: rect.top
-		};
-
-		const fullText = blockElementRef.textContent || '';
-		const startOffset = fullText.indexOf(selectedText);
-
-		currentSelection = {
-			start: startOffset >= 0 ? startOffset : 0,
-			end: startOffset >= 0 ? startOffset + selectedText.length : selectedText.length,
+		const formatSelection = currentSelection ?? {
+			start: 0,
+			end: selectedText.length,
 			text: selectedText
 		};
 
-		showFormatToolbar = true;
+		if (applySelectionFormat(format, { currentSelection: formatSelection, blockElement: blockElementRef })) {
+			updateBlockFromDOM();
+			hideFormatToolbar();
+		}
 	}
 
-	function handleFormat(format: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'code' | 'link') {
-		if (!currentSelection || !blockElementRef) return;
-
-		switch (format) {
-			case 'bold':
-				document.execCommand('bold', false);
-				break;
-			case 'italic':
-				document.execCommand('italic', false);
-				break;
-			case 'underline':
-				document.execCommand('underline', false);
-				break;
-			case 'strikethrough':
-				document.execCommand('strikeThrough', false);
-				break;
-			case 'code':
-				const selectionC = window.getSelection();
-				if (selectionC && selectionC.rangeCount > 0) {
-					const range = selectionC.getRangeAt(0);
-					const codeElement = document.createElement('code');
-					codeElement.className = 'inline-code';
-					range.surroundContents(codeElement);
-				}
-				break;
-			case 'link':
-				const url = prompt('Enter URL:');
-				if (url) {
-					document.execCommand('createLink', false, url);
-				}
-				break;
+	function handleFormat(format: SelectionFormat) {
+		if (applySelectionFormat(format, { currentSelection, blockElement: blockElementRef })) {
+			updateBlockFromDOM();
 		}
-
-		updateBlockFromDOM();
-		showFormatToolbar = false;
-		currentSelection = null;
+		hideFormatToolbar();
 	}
 
 	function updateBlockFromDOM() {
@@ -416,18 +358,14 @@
 	function handleDragStart(e: DragEvent) {
 		if (readOnly) return;
 
-		isDragging = true;
 		if (e.dataTransfer) {
-			e.dataTransfer.effectAllowed = 'move';
-			e.dataTransfer.setData('text/plain', index.toString());
-			e.dataTransfer.setData('application/x-block-id', block.id);
+			writeBlockDragData(e.dataTransfer, { index, blockId: block.id });
 		}
+		blockDragState = startBlockDrag(blockDragState);
 	}
 
 	function handleDragEnd() {
-		isDragging = false;
-		isDragOver = false;
-		dragOverPosition = null;
+		blockDragState = clearBlockDragState(blockDragState);
 	}
 
 	function handleDragOver(e: DragEvent) {
@@ -435,49 +373,31 @@
 
 		e.preventDefault();
 		if (e.dataTransfer) {
-			e.dataTransfer.dropEffect = 'move';
+			allowBlockDrop(e.dataTransfer);
 		}
 
 		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-		const midpoint = rect.top + rect.height / 2;
-		const position = e.clientY < midpoint ? 'before' : 'after';
-
-		isDragOver = true;
-		dragOverPosition = position;
+		blockDragState = setBlockDragOver(blockDragState, getBlockDragOverPosition(e.clientY, rect));
 	}
 
 	function handleDragLeave() {
-		isDragOver = false;
-		dragOverPosition = null;
+		blockDragState = clearBlockDragOver(blockDragState);
 	}
 
 	function handleDrop(e: DragEvent) {
 		e.preventDefault();
-		isDragOver = false;
-		dragOverPosition = null;
+		const position = blockDragState.dragOverPosition;
+		blockDragState = clearBlockDragOver(blockDragState);
 
-		if (readOnly || !e.dataTransfer) return;
+		if (readOnly || !e.dataTransfer || !position) return;
 
-		const fromIndexStr = e.dataTransfer.getData('text/plain');
-		const fromIndex = parseInt(fromIndexStr, 10);
+		const fromIndex = readBlockDragIndex(e.dataTransfer);
+		if (fromIndex === null) return;
 
-		if (isNaN(fromIndex)) return;
-
-		let toIndex = index;
-		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-		const midpoint = rect.top + rect.height / 2;
-
-		if (e.clientY > midpoint) {
-			toIndex = index + 1;
+		const move = getBlockDropMove({ fromIndex, targetIndex: index, position });
+		if (move) {
+			onBlockMove?.(move.fromIndex, move.toIndex);
 		}
-
-		if (fromIndex === toIndex || fromIndex + 1 === toIndex) return;
-
-		if (fromIndex < toIndex) {
-			toIndex -= 1;
-		}
-
-		onBlockMove?.(fromIndex, toIndex);
 	}
 
 	function handleCheckboxChange(e: Event) {
@@ -504,10 +424,10 @@
 <div
 	class="block-wrapper"
 	class:block-wrapper--hovered={isHovered}
-	class:block-wrapper--dragging={isDragging}
-	class:block-wrapper--drag-over={isDragOver}
-	class:block-wrapper--drag-before={dragOverPosition === 'before'}
-	class:block-wrapper--drag-after={dragOverPosition === 'after'}
+	class:block-wrapper--dragging={blockDragState.isDragging}
+	class:block-wrapper--drag-over={blockDragState.isDragOver}
+	class:block-wrapper--drag-before={blockDragState.dragOverPosition === 'before'}
+	class:block-wrapper--drag-after={blockDragState.dragOverPosition === 'after'}
 	onmouseenter={() => (isHovered = true)}
 	onmouseleave={() => (isHovered = false)}
 	ondragover={handleDragOver}
@@ -542,9 +462,9 @@
 
 	<!-- Slash command menu -->
 	<SlashMenu
-		visible={showSlashMenu}
-		position={slashMenuPosition}
-		filter={slashFilter}
+		visible={slashMenuState.show}
+		position={slashMenuState.position}
+		filter={slashMenuState.filter}
 		onSelect={handleSlashMenuSelect}
 		onClose={handleSlashMenuClose}
 		bind:this={slashMenuRef}
