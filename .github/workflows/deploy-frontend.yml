@@ -55,6 +55,7 @@ jobs:
       - name: Build application
         working-directory: frontend
         env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
           PUBLIC_API_URL: ${{ secrets.PUBLIC_API_URL }}
           PUBLIC_ENVIRONMENT: production
         run: |
