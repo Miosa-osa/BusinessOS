@@ -22,8 +22,8 @@
 	} from '$lib/modules/knowledge-base';
 	import type { DocumentMeta } from '$lib/modules/knowledge-base';
 	import NodeDrillDown from '$lib/components/knowledge/NodeDrillDown.svelte';
-	import { OptimalGraphView } from '$lib/modules/knowledge-base';
 	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
+	import { browser } from '$app/environment';
 
 	// State
 	let isLoading = $state(true);
@@ -207,15 +207,15 @@
 				>Retry</button>
 			</div>
 		{:else if currentView === 'graph' || currentView === 'knowledge-graph'}
-			<div class="kg-split">
-				<OptimalGraphView
-					onSelectEntity={(entityName: string) => {
-						// If the node id looks like a document path, open it in the editor
-						if (entityName.endsWith('.md') || entityName.includes('/')) {
-							openAndFetchDocument(entityName).catch(() => {});
-						}
-					}}
-				/>
+			<div class="kg-engine-frame">
+				{#if browser}
+					<iframe
+						src="http://localhost:4201/graph"
+						title="OptimalEngine Knowledge Graph"
+						class="kg-engine-iframe"
+						allow="clipboard-read; clipboard-write"
+					></iframe>
+				{/if}
 			</div>
 		{:else if currentDocumentId}
 			<DocumentEditor
@@ -702,6 +702,20 @@
 	/* Knowledge Graph floating panel */
 	.kg-split {
 		overflow: hidden;
+	}
+
+	.kg-engine-frame {
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+		background: #0d0d0d;
+	}
+
+	.kg-engine-iframe {
+		width: 100%;
+		height: 100%;
+		border: none;
+		background: #0d0d0d;
 	}
 
 	.kg-panel {

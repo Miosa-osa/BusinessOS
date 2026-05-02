@@ -648,8 +648,11 @@
 <style>
 	/* ─── Settings Page Shell ─── */
 	.ih-settings-page {
-		min-height: 100vh;
-		overflow-y: auto;
+		height: 100%;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
 		background: var(--dbg);
 	}
 
@@ -657,6 +660,7 @@
 	.ih-settings-header {
 		background: var(--dbg2);
 		border-bottom: 1px solid var(--dbd);
+		flex-shrink: 0;
 	}
 	.ih-settings-header__inner {
 		max-width: 64rem;
@@ -729,12 +733,17 @@
 
 	/* ─── Content ─── */
 	.ih-settings-content {
+		flex: 1;
+		min-height: 0;
+		width: 100%;
 		max-width: 64rem;
 		margin: 0 auto;
 		padding: 1.5rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
+		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 
 	/* ─── Shared Card ─── */

@@ -686,15 +686,17 @@
 
 	/* Page Layout */
 	.ih-page {
-		min-height: 100vh;
-		overflow-y: auto;
+		height: 100%;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
 		background: var(--dbg);
 	}
 	.ih-header {
 		background: var(--dbg2);
 		border-bottom: 1px solid var(--dbd);
-		position: sticky;
-		top: 0;
+		flex-shrink: 0;
 		z-index: 10;
 	}
 	.ih-header__inner {
@@ -743,6 +745,7 @@
 		border-bottom: 1px solid var(--dbd);
 		margin: 0 -2rem;
 		padding: 0 2rem;
+		overflow-x: auto;
 	}
 	.ih-tab {
 		padding: 0.75rem 1rem;
@@ -783,9 +786,14 @@
 
 	/* Content Area */
 	.ih-content {
+		flex: 1;
+		min-height: 0;
+		width: 100%;
 		max-width: 80rem;
 		margin: 0 auto;
 		padding: 1.5rem 2rem;
+		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 	.ih-spinner-wrap {
 		display: flex;
