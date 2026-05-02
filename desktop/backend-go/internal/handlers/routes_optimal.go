@@ -23,25 +23,32 @@ import (
 // scenario; in cloud deployments tighten via the parent api group's auth
 // middleware.
 func (h *Handlers) registerOptimalRoutes(api *gin.RouterGroup) {
+	// Always register the Go handler for frontend-facing routes (/nodes,
+	// /dashboard, /rhythm, /team, /projects, /revenue). These read from
+	// the local filesystem (OPTIMAL_NODES_ROOT) and are what the SvelteKit
+	// frontend expects.
+	if h.optimalHandler != nil {
+		RegisterOptimalRoutes(api, h.optimalHandler)
+		slog.Info("OptimalOS Go handler registered (nodes, dashboard, rhythm)")
+	} else {
+		slog.Warn("OptimalOS Go handler skipped: optimalHandler not initialized")
+	}
+
+	// If the Elixir engine is running, mount engine-native routes that the
+	// Go handler doesn't cover (graph analysis, wiki, RAG, grep, health,
+	// reindex). These go under /optimal-engine/* to avoid conflicts with
+	// the Go handler's /optimal/* routes.
 	if engineURL := os.Getenv("OPTIMAL_ENGINE_URL"); engineURL != "" {
 		proxy, err := NewOptimalProxy(engineURL)
 		if err != nil {
-			slog.Error("OptimalOS proxy: invalid OPTIMAL_ENGINE_URL — falling back to in-process Go port",
+			slog.Error("OptimalOS proxy: invalid OPTIMAL_ENGINE_URL",
 				"engine_url", engineURL, "error", err)
 		} else {
-			RegisterOptimalProxyRoutes(api, proxy)
-			slog.Info("OptimalOS routes proxied to live Elixir engine",
+			api.Any("/optimal-engine/*path", proxy.Forward)
+			slog.Info("OptimalOS Elixir engine proxied at /optimal-engine/*",
 				"engine_url", engineURL)
-			return
 		}
 	}
-
-	if h.optimalHandler == nil {
-		slog.Warn("OptimalOS routes skipped: optimalHandler not initialized and OPTIMAL_ENGINE_URL unset")
-		return
-	}
-	RegisterOptimalRoutes(api, h.optimalHandler)
-	slog.Info("OptimalOS routes served by in-process Go port (set OPTIMAL_ENGINE_URL to switch to live Elixir engine)")
 }
 
 // registerOptimalEngineRoutes mounts /api/optimal/{ask,recall/*,memory/*}
