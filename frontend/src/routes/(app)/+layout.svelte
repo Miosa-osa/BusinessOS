@@ -18,6 +18,41 @@
 	import { windowStore } from '$lib/stores/windowStore';
 	import { currentWorkspace } from '$lib/stores/workspaces';
 	import { ChevronsLeft, Monitor, ChevronRight, ChevronDown } from 'lucide-svelte';
+	import { SearchPalette } from '@miosa/optimal-engine';
+	import '@miosa/optimal-engine/styles/notion.css';
+	import { getEngine } from '$lib/optimal-engine/context';
+
+	// ---------------------------------------------------------------------------
+	// Engine Search Palette state
+	// ---------------------------------------------------------------------------
+
+	let engineSearchOpen = $state(false);
+
+	function handleEngineSearchSelect(payload: { type: 'memory' | 'wiki' | 'signal'; id?: string; slug?: string }) {
+		if (payload.type === 'wiki' && payload.slug) {
+			goto(`/pages?view=knowledge-graph`);
+		} else if (payload.type === 'memory' && payload.id) {
+			goto(`/pages/${payload.id}`);
+		} else if (payload.type === 'signal' && payload.id) {
+			goto(`/nodes/${payload.id}`);
+		}
+	}
+
+	function handleGlobalKeydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+			// Don't steal focus from active inputs/textareas unless it's the palette itself
+			const active = document.activeElement;
+			if (
+				active &&
+				(active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') &&
+				!engineSearchOpen
+			) {
+				return;
+			}
+			e.preventDefault();
+			engineSearchOpen = !engineSearchOpen;
+		}
+	}
 
 	// Projects state for dropdown
 	let projects = $state<Array<{id: string, name: string, status: string}>>([]);
@@ -519,7 +554,19 @@
 
 	</div>
 	{/if}
+
+	<!-- Engine Search Palette — Cmd+K / Ctrl+K global search across memories, wiki, signals -->
+	{#if browser}
+		<SearchPalette
+			engine={getEngine()}
+			open={engineSearchOpen}
+			onclose={() => (engineSearchOpen = false)}
+			onselect={handleEngineSearchSelect}
+		/>
+	{/if}
 {/if}
+
+<svelte:window onkeydown={handleGlobalKeydown} />
 
 <style>
 	/* ══════════════════════════════════════════════════════════════ */

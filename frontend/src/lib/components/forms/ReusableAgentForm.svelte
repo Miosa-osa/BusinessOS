@@ -35,6 +35,7 @@
 	let localError = $state('');
 	let localSuccess = $state('');
 	let fieldErrors = $state<Record<string, string>>({});
+	let fieldValues = $derived(data as Record<string, string | number | boolean | string[]>);
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
@@ -89,7 +90,7 @@
 	}
 </script>
 
-<form {onsubmit} class="space-y-6">
+<form onsubmit={handleSubmit} class="space-y-6">
 	<!-- Header -->
 	{#if title}
 		<div class="mb-6">
@@ -148,7 +149,7 @@
 					{...field}
 					error={fieldErrors[field.name] ?? ''}
 					onchange={() => resetErrors(field.name)}
-					bind:value={data[field.name]}
+					bind:value={fieldValues[field.name]}
 				/>
 			{/if}
 		{/each}
@@ -162,7 +163,7 @@
 					{...field}
 					error={fieldErrors[field.name] ?? ''}
 					onchange={() => resetErrors(field.name)}
-					bind:value={data[field.name]}
+					bind:value={fieldValues[field.name]}
 				/>
 			{/if}
 		{/each}
@@ -176,7 +177,7 @@
 					{...field}
 					error={fieldErrors[field.name] ?? ''}
 					onchange={() => resetErrors(field.name)}
-					bind:value={data[field.name]}
+					bind:value={fieldValues[field.name]}
 				/>
 			</FormSection>
 		{/if}

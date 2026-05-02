@@ -14,7 +14,7 @@
 
 	let { appId, sandboxEditId }: Props = $props();
 
-	let showReviewPanel = $state(Boolean(sandboxEditId));
+	let showReviewPanel = $state(false);
 
 	let app = $state<GeneratedApp | null>(null);
 	let sandboxInfo = $state<SandboxInfo | null>(null);
@@ -35,6 +35,7 @@
 	let isError = $derived(sandboxStatus === 'failed');
 
 	onMount(async () => {
+		showReviewPanel = Boolean(sandboxEditId);
 		await loadApp();
 		// Poll for status updates while building
 		pollInterval = setInterval(async () => {

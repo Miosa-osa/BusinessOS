@@ -460,7 +460,7 @@
 			{allArtifacts}
 			availableContexts={cx.availableContexts.map(c => ({ id: c.id, name: c.name }))}
 			selectedContextIds={cx.selectedContextIds}
-			onTabChange={(tab) => { ui.rightPanelTab = tab as 'progress' | 'context' | 'artifacts'; }}
+			onTabChange={(tab) => { ui.rightPanelTab = tab as 'progress' | 'context' | 'artifacts' | 'recall'; }}
 			onClose={() => { ui.rightPanelOpen = false; }}
 			onStartResize={ui.startRightPanelResize}
 			onContextToggle={(id) => cx.handleContextToggle(id, !cx.selectedContextIds.includes(id))}

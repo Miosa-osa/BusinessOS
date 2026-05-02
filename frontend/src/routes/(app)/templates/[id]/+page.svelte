@@ -8,7 +8,7 @@
 	import AgentProgressPanel from '$lib/components/osa/AgentProgressPanel.svelte';
 	import type { AppTemplate, BuiltInTemplateInfo, GenerationResult } from '$lib/api/templates';
 
-	const templateId = $derived($page.params.id);
+	const templateId = $derived($page.params.id ?? '');
 
 	let template = $state<AppTemplate | null>(null);
 	let builtInInfo = $state<BuiltInTemplateInfo | null>(null);

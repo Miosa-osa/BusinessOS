@@ -8,6 +8,7 @@ import (
 
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
+	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
 
 	"github.com/gin-gonic/gin"
@@ -17,12 +18,16 @@ import (
 
 // CalendarStatsHandler handles calendar statistics endpoints.
 type CalendarStatsHandler struct {
-	pool *pgxpool.Pool
+	pool        *pgxpool.Pool
+	suggestions *services.SuggestionService
 }
 
 // NewCalendarStatsHandler constructs a CalendarStatsHandler.
 func NewCalendarStatsHandler(pool *pgxpool.Pool) *CalendarStatsHandler {
-	return &CalendarStatsHandler{pool: pool}
+	return &CalendarStatsHandler{
+		pool:        pool,
+		suggestions: services.NewSuggestionService(pool),
+	}
 }
 
 // RegisterCalendarStatsRoutes wires /api/calendar routes.
@@ -32,6 +37,7 @@ func RegisterCalendarStatsRoutes(api *gin.RouterGroup, h *CalendarStatsHandler, 
 		calendar.GET("/stats", auth, h.GetCalendarStats)
 		calendar.GET("/upcoming", auth, h.GetUpcomingCalendarEvents)
 		calendar.GET("/today", auth, h.GetTodayCalendarEvents)
+		calendar.GET("/task-suggestions", auth, h.GetTaskSuggestions)
 	}
 }
 
@@ -153,6 +159,23 @@ func (h *CalendarStatsHandler) GetTodayCalendarEvents(c *gin.Context) {
 	response := make([]CalendarEventResponse, len(events))
 	for i, e := range events {
 		response[i] = TransformCalendarEvent(e)
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetTaskSuggestions returns calendar-derived task recommendations for the user.
+func (h *CalendarStatsHandler) GetTaskSuggestions(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		utils.RespondUnauthorized(c, slog.Default())
+		return
+	}
+
+	response, err := h.suggestions.GetTaskSuggestions(c.Request.Context(), user.ID)
+	if err != nil {
+		utils.RespondInternalError(c, slog.Default(), "get task suggestions", err)
+		return
 	}
 
 	c.JSON(http.StatusOK, response)

@@ -99,7 +99,6 @@
 
 <section
 	class="sandbox-preview flex flex-col h-full {className ?? ''}"
-	role="region"
 	aria-labelledby="preview-title"
 >
 	<!-- Header -->

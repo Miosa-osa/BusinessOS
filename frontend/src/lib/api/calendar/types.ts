@@ -127,3 +127,30 @@ export interface ScheduleProposal {
   proposed_slots: ProposedSlot[];
   created_at: string;
 }
+
+export type SuggestionType = 'meeting_prep' | 'prep' | 'follow_up' | 'deadline' | 'reminder';
+export type SuggestionPriority = 'high' | 'medium' | 'low';
+
+export interface TaskSuggestion {
+  type: SuggestionType;
+  title: string;
+  description: string;
+  related_event_id?: string;
+  related_event?: string;
+  related_event_title: string;
+  suggested_due: string;
+  suggested_due_date: string;
+  priority: SuggestionPriority;
+  reason: string;
+  confidence: number;
+}
+
+export interface TaskSuggestionsResponse {
+  suggestions: TaskSuggestion[];
+  generated_at: string;
+  events_analyzed: number;
+  analysis_period: {
+    start: string;
+    end: string;
+  };
+}

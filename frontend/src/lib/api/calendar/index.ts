@@ -16,6 +16,7 @@ export const api = {
   getCalendarConnectionStatus: calendarApi.getCalendarConnectionStatus,
   getCalendarAuthUrl: calendarApi.getCalendarAuthUrl,
   disconnectCalendar: calendarApi.disconnectCalendar,
+  getTaskSuggestions: calendarApi.getTaskSuggestions,
 };
 
 export default api;

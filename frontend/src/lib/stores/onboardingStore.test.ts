@@ -90,6 +90,7 @@ describe('Onboarding Store', () => {
 					email: 'test@example.com',
 					username: 'testuser',
 					gmailConnected: true,
+					integrationsConnected: [],
 					interests: ['design', 'coding']
 				},
 				analysis: {
@@ -179,9 +180,9 @@ describe('Onboarding Store', () => {
 			expect(state.currentStep).toBe(7);
 		});
 
-		it('clamps step to valid range when going to specific step', () => {
-			onboardingStore.goToStep(999);
-			expect(get(onboardingStore).currentStep).toBe(6);
+			it('clamps step to valid range when going to specific step', () => {
+				onboardingStore.goToStep(999);
+				expect(get(onboardingStore).currentStep).toBe(4);
 
 			onboardingStore.goToStep(-5);
 			expect(get(onboardingStore).currentStep).toBe(0);
@@ -411,11 +412,11 @@ describe('Onboarding Store', () => {
 			expect(progress).toBe(0);
 		});
 
-		it('calculates progress at step 3 (halfway) as 50%', () => {
-			onboardingStore.goToStep(3);
+			it('calculates progress at step 3 as 75%', () => {
+				onboardingStore.goToStep(3);
 
-			const progress = get(onboardingProgress);
-			expect(progress).toBe(50);
+				const progress = get(onboardingProgress);
+				expect(progress).toBe(75);
 		});
 
 		it('calculates progress at last step as 100%', () => {
@@ -457,7 +458,7 @@ describe('Onboarding Store', () => {
 
 	describe('Reset', () => {
 		it('resets to default state', () => {
-			onboardingStore.goToStep(5);
+				onboardingStore.goToStep(4);
 			onboardingStore.setUserData({ email: 'test@example.com' });
 			onboardingStore.setAnalysis({ message1: 'Test' });
 			onboardingStore.complete();
@@ -568,7 +569,7 @@ describe('Onboarding Store', () => {
 
 			// Simulate page reload by parsing saved state
 			const loaded = JSON.parse(savedState!);
-			expect(loaded.currentStep).toBe(5);
+				expect(loaded.currentStep).toBe(4);
 			expect(loaded.userData.email).toBe('persistent@example.com');
 		});
 	});
@@ -652,13 +653,13 @@ describe('Onboarding Store', () => {
 			onboardingStore.setUserData({ email: 'test@example.com' });
 			onboardingStore.prevStep();
 			onboardingStore.setAnalysis({ message1: 'Analysis' });
-			onboardingStore.goToStep(5);
+				onboardingStore.goToStep(4);
 			onboardingStore.setStarterApps([
 				{ id: '1', title: 'App', description: 'Desc', reason: 'Because' }
 			]);
 
 			const state = get(onboardingStore);
-			expect(state.currentStep).toBe(5);
+				expect(state.currentStep).toBe(4);
 			expect(state.userData.email).toBe('test@example.com');
 			expect(state.analysis.message1).toBe('Analysis');
 			expect(state.userData.starterApps?.length).toBe(1);

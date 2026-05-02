@@ -183,6 +183,8 @@
 					<div class="flex items-center bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-1">
 						<button
 							onclick={() => (viewMode = 'grid')}
+							aria-label="Grid view"
+							title="Grid view"
 							class="px-3 py-1.5 text-sm font-medium rounded {viewMode === 'grid'
 								? 'bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white'
 								: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} transition-colors"
@@ -198,6 +200,8 @@
 						</button>
 						<button
 							onclick={() => (viewMode = 'list')}
+							aria-label="List view"
+							title="List view"
 							class="px-3 py-1.5 text-sm font-medium rounded {viewMode === 'list'
 								? 'bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white'
 								: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'} transition-colors"

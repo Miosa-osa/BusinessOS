@@ -43,7 +43,7 @@ export function validateValue(value: unknown, rules: ValidationRule[], field?: F
  * Validate a single rule
  */
 function validateRule(value: unknown, rule: ValidationRule, field?: Field): string | null {
-	const fieldLabel = field?.label || 'Field';
+	const fieldLabel = getFieldLabel(field);
 
 	switch (rule.type) {
 		case 'required': {
@@ -180,27 +180,27 @@ export function getFieldValidationRules(field: Field): ValidationRule[] {
 			break;
 		case 'number':
 		case 'currency':
-			if (field.config?.min !== undefined) {
-				rules.push({ type: 'min', value: field.config.min });
+			if (getFieldConfig(field).min !== undefined) {
+				rules.push({ type: 'min', value: getFieldConfig(field).min });
 			}
-			if (field.config?.max !== undefined) {
-				rules.push({ type: 'max', value: field.config.max });
+			if (getFieldConfig(field).max !== undefined) {
+				rules.push({ type: 'max', value: getFieldConfig(field).max });
 			}
 			break;
 		case 'text':
-			if (field.config?.minLength !== undefined) {
-				rules.push({ type: 'minLength', value: field.config.minLength });
+			if (getFieldConfig(field).minLength !== undefined) {
+				rules.push({ type: 'minLength', value: getFieldConfig(field).minLength });
 			}
-			if (field.config?.maxLength !== undefined) {
-				rules.push({ type: 'maxLength', value: field.config.maxLength });
+			if (getFieldConfig(field).maxLength !== undefined) {
+				rules.push({ type: 'maxLength', value: getFieldConfig(field).maxLength });
 			}
-			if (field.config?.pattern) {
-				rules.push({ type: 'pattern', value: field.config.pattern });
+			if (getFieldConfig(field).pattern) {
+				rules.push({ type: 'pattern', value: getFieldConfig(field).pattern });
 			}
 			break;
 		case 'rating':
 			rules.push({ type: 'min', value: 0 });
-			rules.push({ type: 'max', value: field.config?.max || 5 });
+			rules.push({ type: 'max', value: getFieldConfig(field).max || 5 });
 			break;
 		case 'progress':
 			rules.push({ type: 'min', value: 0 });
@@ -221,4 +221,19 @@ export function createValidationSchema(fields: Field[]): FieldValidation[] {
 			rules: getFieldValidationRules(field)
 		}))
 		.filter(v => v.rules.length > 0);
+}
+
+function getFieldLabel(field?: Field): string {
+	if (!field) return 'Field';
+	return field.label ?? field.name ?? field.id;
+}
+
+function getFieldConfig(field: Field): {
+	min?: number;
+	max?: number;
+	minLength?: number;
+	maxLength?: number;
+	pattern?: string | RegExp;
+} {
+	return field.config ?? {};
 }

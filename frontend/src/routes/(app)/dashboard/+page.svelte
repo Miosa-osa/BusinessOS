@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { fade, fly } from 'svelte/transition';
 	import { optimalStore, type OptimalNode, type DashboardData } from '$lib/stores/optimal';
+	import OptimalIntelligence from '$lib/components/dashboard/OptimalIntelligence.svelte';
 
 	// ── State ────────────────────────────────────────────────────────────────────
 
@@ -114,6 +115,14 @@
 		}
 	}
 
+	function refreshDashboard(): void {
+		void Promise.all([
+			optimalStore.loadNodes(),
+			optimalStore.loadTodayRhythm(),
+			optimalStore.loadDashboard(),
+		]);
+	}
+
 	const MODE_COLORS: Record<string, string> = {
 		BUILD: '#3b82f6',
 		OPERATE: '#f59e0b',
@@ -137,13 +146,7 @@
 
 	// ── Lifecycle ────────────────────────────────────────────────────────────────
 
-	onMount(() => {
-		Promise.all([
-			optimalStore.loadNodes(),
-			optimalStore.loadTodayRhythm(),
-			optimalStore.loadDashboard(),
-		]);
-	});
+	onMount(refreshDashboard);
 </script>
 
 <div class="od-page">
@@ -154,14 +157,9 @@
 			<p class="od-muted">Loading OptimalOS...</p>
 		</div>
 
-	{:else if storeState.error}
-		<div class="od-center" in:fade>
-			<p class="od-error-text">{storeState.error}</p>
-			<button class="od-retry-btn" onclick={() => optimalStore.loadNodes()}>Retry</button>
-		</div>
-
 	{:else}
 		<div class="od-content" in:fade={{ duration: 250 }}>
+			<OptimalIntelligence />
 
 			<!-- ── Stats bar ─────────────────────────────────────────────────── -->
 			<div class="od-stats-bar" in:fly={{ y: -8, duration: 250 }}>
@@ -440,6 +438,38 @@
 
 	.od-error-text { color: #dc2626; font-size: 0.875rem; }
 	:global(.dark) .od-error-text { color: #f87171; }
+
+	.od-warning {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.875rem 1rem;
+		background: #fff7ed;
+		border: 1px solid #fed7aa;
+		border-radius: 0.875rem;
+	}
+
+	.od-warning-title {
+		margin: 0 0 0.125rem;
+		color: #9a3412;
+		font-size: 0.8125rem;
+		font-weight: 600;
+	}
+
+	.od-warning-text {
+		margin: 0;
+		color: #c2410c;
+		font-size: 0.75rem;
+	}
+
+	:global(.dark) .od-warning {
+		background: rgba(154, 52, 18, 0.16);
+		border-color: rgba(251, 146, 60, 0.32);
+	}
+
+	:global(.dark) .od-warning-title { color: #fdba74; }
+	:global(.dark) .od-warning-text { color: #fb923c; }
 
 	.od-retry-btn {
 		padding: 0.5rem 1.25rem;

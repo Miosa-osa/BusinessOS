@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { ArrowLeft, Download, Star, Share2, Upload, Loader2, Trash2, Play, Code, Workflow, Info, Lock, CheckCircle2 } from 'lucide-svelte';
+	import { ArrowLeft, Download, Star, Share2, Upload, Loader2, Trash2, Play, Code, Workflow, Info, Lock, CheckCircle2, Package } from 'lucide-svelte';
 	import { customModulesStore } from '$lib/stores/customModulesStore';
 	import ManifestViewer from '$lib/components/modules/ManifestViewer.svelte';
 	import ShareDialog from '$lib/components/modules/ShareDialog.svelte';

@@ -6,6 +6,8 @@
 	import { toNodeTrees } from '$lib/stores/optimalGraph';
 	import { NodeGraphView, NodeBuildingView, NodeBuilding3D } from '$lib/components/nodes';
 	import type { NodeTree, NodeType, NodeHealth } from '$lib/api/nodes/types';
+	import { NodeTree as SDKNodeTree } from '@miosa/optimal-engine';
+	import { toSDKTreeNodes } from '$lib/optimal-engine/mappers';
 
 	// Sanitize user input to prevent XSS and injection attacks
 	function sanitizeInput(input: string): string {
@@ -26,7 +28,7 @@
 	}
 
 	// View state (local - UI specific)
-	let viewMode: 'tree' | 'list' | 'grid' | 'graph' | 'building' | 'building3d' = $state('tree');
+	let viewMode: 'tree' | 'list' | 'grid' | 'graph' | 'building' | 'building3d' | 'sdk-tree' = $state('tree');
 	let selectedGraphNode: string | null = $state(null);
 	let selectedBuildingNode: string | null = $state(null);
 	let searchInput = $state(''); // Raw input value
@@ -149,6 +151,9 @@
 
 	const allNodes = $derived(getAllNodes(nodeTree));
 
+	// SDK NodeTree view — flat OptimalOS nodes mapped to SDK TreeNode shape
+	const sdkTreeNodes = $derived(toSDKTreeNodes($optimalStore.nodes));
+
 	// ─── Handlers ─────────────────────────────────────────────────────────────────
 
 	function toggleExpand(nodeId: string) {
@@ -258,6 +263,15 @@
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
 					</svg>
 					3D
+				</button>
+				<button
+					onclick={() => viewMode = 'sdk-tree'}
+					class="ng-view-tab {viewMode === 'sdk-tree' ? 'ng-view-tab--active' : ''}"
+				>
+					<svg class="ng-view-tab__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h4M3 12h8M3 17h4M9 7l2 5-2 5M13 5v14" />
+					</svg>
+					SDK
 				</button>
 			</div>
 
@@ -578,6 +592,14 @@
 					onCreateRoom={() => { showNewNodeModal = true; }}
 				/>
 			</div>
+		{:else if viewMode === 'sdk-tree'}
+			<!-- SDK NodeTree View -->
+			<div class="ng-sdk-tree">
+				<SDKNodeTree
+					nodes={sdkTreeNodes}
+					onselect={(slug) => goto(`/nodes/${slug}`)}
+				/>
+			</div>
 		{/if}
 	</div>
 </div>
@@ -877,4 +899,10 @@
 	.ng-view-tab__icon { width: 1rem; height: 1rem; display: inline-block; margin-right: 0.25rem; vertical-align: middle; }
 	.ng-canvas-wrap { height: calc(100vh - 280px); min-height: 500px; }
 	.ng-canvas-wrap--full { margin: 0 -1.5rem -1.5rem; }
+
+	/* ── SDK NodeTree View ── */
+	.ng-sdk-tree {
+		padding: 0.5rem 0;
+		min-height: 200px;
+	}
 </style>

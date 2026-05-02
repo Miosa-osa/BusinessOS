@@ -427,9 +427,9 @@ describe('Agents Store', () => {
           }
 
           if (state.filters.status === 'active') {
-            matches = matches && a.is_active;
+            matches = matches && a.is_active === true;
           } else if (state.filters.status === 'inactive') {
-            matches = matches && !a.is_active;
+            matches = matches && a.is_active !== true;
           }
 
           return matches;

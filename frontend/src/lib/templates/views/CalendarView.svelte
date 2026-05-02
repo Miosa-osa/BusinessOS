@@ -26,7 +26,11 @@
 	}: Props = $props();
 
 	let currentDate = $state(new Date());
-	let viewMode = $state<'month' | 'week' | 'day'>(config.defaultView || 'month');
+	let viewMode = $state<'month' | 'week' | 'day'>('month');
+
+	$effect(() => {
+		viewMode = config.defaultView || 'month';
+	});
 
 	const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 	const weekStartsOn = $derived(config.weekStartsOn || 0);
@@ -109,12 +113,19 @@
 
 		const field = fields.find(f => f.id === config.colorField);
 		if (field?.type === 'status') {
-			const option = (field.config?.options ?? field.options).find((o) => o.value === colorValue);
+			const option = getFieldOptions(field).find((o) => o.value === colorValue);
 			if (option?.color) {
 				return `var(--tpl-status-${option.color}, ${option.color})`;
 			}
 		}
 		return String(colorValue);
+	}
+
+	function getFieldOptions(field: Field): { value: string; label: string; color?: string }[] {
+		if ('options' in field && Array.isArray(field.options)) {
+			return field.options;
+		}
+		return field.config?.options ?? [];
 	}
 
 	const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' });

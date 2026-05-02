@@ -3,7 +3,7 @@
  * Testing sandbox integration with backend (commit cd8e4b49)
  *
  * These tests verify:
- * 1. Store correctly handles 'building' status from backend
+ * 1. Store correctly handles 'deploying' status from backend
  * 2. API connectivity uses correct /sandbox/* namespace
  * 3. SandboxInfo type alignment with backend responses
  */
@@ -14,6 +14,7 @@ import { get } from "svelte/store";
 // Mock the API modules BEFORE importing the store
 vi.mock("$lib/api/base", () => ({
   request: vi.fn(),
+  requestPaginated: vi.fn(),
   getApiBaseUrl: vi.fn(() => "http://localhost:8080/api/v1"),
 }));
 
@@ -34,7 +35,7 @@ import {
   type GeneratedApp,
   type AppStatus,
 } from "./generatedAppsStore";
-import { request } from "$lib/api/base";
+import { requestPaginated } from "$lib/api/base";
 import {
   deploySandbox,
   restartSandbox,
@@ -51,21 +52,21 @@ describe("generatedAppsStore - Sandbox Integration", () => {
     vi.clearAllMocks();
   });
 
-  describe("TDD Cycle 1: Building Status Handling", () => {
-    it("should handle backend response with status: building", async () => {
-      // Arrange: Mock backend response with 'building' status
+	  describe("TDD Cycle 1: Deploying Status Handling", () => {
+    it("should handle backend response with status: deploying", async () => {
+      // Arrange: Mock backend response with 'deploying' status
       const mockBuildingResponse: DeployResponse = {
         container_id: "abc123",
         port: 9001,
         url: "http://localhost:9001",
-        status: "building" as SandboxStatus,
+        status: "deploying" as SandboxStatus,
       };
 
       (deploySandbox as Mock).mockResolvedValueOnce(mockBuildingResponse);
 
-      // Mock fetchApps to return an app with building sandbox
-      (request as Mock).mockResolvedValueOnce({
-        apps: [
+      // Mock fetchApps to return an app with deploying sandbox
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: [
           {
             id: "test-app-uuid",
             app_name: "Test App",
@@ -77,16 +78,14 @@ describe("generatedAppsStore - Sandbox Integration", () => {
             workspace_id: "ws-123",
             sandbox: {
               app_id: "test-app-uuid",
-              container_id: "abc123",
-              status: "building" as SandboxStatus,
+              id: "abc123",
+              status: "deploying" as SandboxStatus,
               port: 9001,
               url: "http://localhost:9001",
-              health_status: "unknown",
-              app_type: "svelte",
-              created_at: new Date().toISOString(),
             },
           },
         ],
+        pagination: { page: 1, page_size: 20, total_items: 1, total_pages: 1, has_more: false },
       });
 
       // Act: Deploy the app
@@ -96,7 +95,11 @@ describe("generatedAppsStore - Sandbox Integration", () => {
       expect(deploySandbox).toHaveBeenCalledWith("test-app-uuid");
 
       // Verify the store fetched updated state
-      expect(request).toHaveBeenCalledWith("/osa/module-instances");
+      expect(requestPaginated).toHaveBeenCalledWith(
+        "/osa/module-instances",
+        { page: 1, page_size: 20 },
+        "apps"
+      );
     });
 
     it("should correctly type sandbox.status as SandboxStatus", async () => {
@@ -105,7 +108,7 @@ describe("generatedAppsStore - Sandbox Integration", () => {
         {
           id: "app-1",
           app_name: "Building App",
-          description: "Currently building",
+	          description: "Currently deploying",
           status: "deployed",
           progress: 100,
           generated_at: new Date().toISOString(),
@@ -113,13 +116,10 @@ describe("generatedAppsStore - Sandbox Integration", () => {
           workspace_id: "ws-1",
           sandbox: {
             app_id: "app-1",
-            container_id: "c1",
-            status: "building",
+	            id: "c1",
+	            status: "deploying",
             port: 9001,
             url: "http://localhost:9001",
-            health_status: "unknown",
-            app_type: "svelte",
-            created_at: new Date().toISOString(),
           },
         },
         {
@@ -133,18 +133,18 @@ describe("generatedAppsStore - Sandbox Integration", () => {
           workspace_id: "ws-1",
           sandbox: {
             app_id: "app-2",
-            container_id: "c2",
+	            id: "c2",
             status: "running",
             port: 9002,
             url: "http://localhost:9002",
-            health_status: "healthy",
-            app_type: "react",
-            created_at: new Date().toISOString(),
           },
         },
       ];
 
-      (request as Mock).mockResolvedValueOnce({ apps: mockApps });
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: mockApps,
+        pagination: { page: 1, page_size: 20, total_items: 2, total_pages: 1, has_more: false },
+      });
 
       // Act
       await generatedAppsStore.fetchApps();
@@ -152,7 +152,7 @@ describe("generatedAppsStore - Sandbox Integration", () => {
       // Assert: Verify store state
       const state = get(generatedAppsStore);
       expect(state.apps).toHaveLength(2);
-      expect(state.apps[0].sandbox?.status).toBe("building");
+      expect(state.apps[0].sandbox?.status).toBe("deploying");
       expect(state.apps[1].sandbox?.status).toBe("running");
     });
 
@@ -160,20 +160,22 @@ describe("generatedAppsStore - Sandbox Integration", () => {
       // Verify type alignment: These should be the ONLY valid values
       const validStatuses: SandboxStatus[] = [
         "pending",
-        "building",
+	        "deploying",
         "running",
         "stopped",
-        "error",
+	        "failed",
+	        "removing",
       ];
 
       // This is a compile-time test - if it compiles, types are aligned
       validStatuses.forEach((status) => {
         expect([
           "pending",
-          "building",
+	          "deploying",
           "running",
           "stopped",
-          "error",
+	          "failed",
+	          "removing",
         ]).toContain(status);
       });
     });
@@ -186,11 +188,14 @@ describe("generatedAppsStore - Sandbox Integration", () => {
         container_id: "restarted-123",
         port: 9003,
         url: "http://localhost:9003",
-        status: "building",
+        status: "deploying",
       };
 
       (restartSandbox as Mock).mockResolvedValueOnce(mockRestartResponse);
-      (request as Mock).mockResolvedValueOnce({ apps: [] });
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: [],
+        pagination: { page: 1, page_size: 20, total_items: 0, total_pages: 0, has_more: false },
+      });
 
       // Act
       await generatedAppsStore.startSandbox("app-123");
@@ -203,8 +208,8 @@ describe("generatedAppsStore - Sandbox Integration", () => {
 
     it("should call removeSandbox API and clear local state", async () => {
       // Arrange: Set up initial state with a sandbox
-      (request as Mock).mockResolvedValueOnce({
-        apps: [
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: [
           {
             id: "app-to-remove",
             app_name: "Remove Me",
@@ -216,16 +221,14 @@ describe("generatedAppsStore - Sandbox Integration", () => {
             workspace_id: "w1",
             sandbox: {
               app_id: "app-to-remove",
-              container_id: "c1",
+	              id: "c1",
               status: "running",
               port: 9004,
               url: "http://localhost:9004",
-              health_status: "healthy",
-              app_type: "svelte",
-              created_at: new Date().toISOString(),
             },
           },
         ],
+        pagination: { page: 1, page_size: 20, total_items: 1, total_pages: 1, has_more: false },
       });
       await generatedAppsStore.fetchApps();
 
@@ -233,7 +236,10 @@ describe("generatedAppsStore - Sandbox Integration", () => {
       (removeSandbox as Mock).mockResolvedValueOnce({
         message: "Sandbox removed",
       });
-      (request as Mock).mockResolvedValueOnce({ apps: [] });
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: [],
+        pagination: { page: 1, page_size: 20, total_items: 0, total_pages: 0, has_more: false },
+      });
 
       // Act
       await generatedAppsStore.removeSandbox("app-to-remove");
@@ -245,7 +251,10 @@ describe("generatedAppsStore - Sandbox Integration", () => {
     it("should call stopSandbox API correctly", async () => {
       // Arrange
       (stopSandbox as Mock).mockResolvedValueOnce({ message: "Stopped" });
-      (request as Mock).mockResolvedValueOnce({ apps: [] });
+      (requestPaginated as Mock).mockResolvedValueOnce({
+        data: [],
+        pagination: { page: 1, page_size: 20, total_items: 0, total_pages: 0, has_more: false },
+      });
 
       // Act
       await generatedAppsStore.stopSandbox("app-456");

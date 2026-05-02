@@ -3,6 +3,8 @@
 	import ProgressPanel, { type DelegatedTask } from '$lib/components/chat/panels/ProgressPanel.svelte';
 	import ContextPanel, { type ActiveResource } from '$lib/components/chat/panels/ContextPanel.svelte';
 	import { getArtifactIcon, getArtifactColor } from '../chatActions';
+	import { RecallWidget } from '@miosa/optimal-engine';
+	import { getEngine } from '$lib/optimal-engine/context';
 
 	interface ArtifactItem {
 		id: string;
@@ -17,7 +19,7 @@
 		name: string;
 	}
 
-	type PanelTab = 'progress' | 'context' | 'artifacts';
+	type PanelTab = 'progress' | 'context' | 'artifacts' | 'recall';
 
 	interface Props {
 		rightPanelTab: PanelTab;
@@ -100,6 +102,12 @@
 			{/if}
 		</button>
 		<button
+			onclick={() => onTabChange('recall')}
+			class="flex-1 px-3 py-3 text-xs font-medium transition-colors {rightPanelTab === 'recall' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-700'}"
+		>
+			Recall
+		</button>
+		<button
 			onclick={onClose}
 			class="btn-pill btn-pill-ghost btn-pill-icon"
 			aria-label="Close panel"
@@ -122,6 +130,10 @@
 				onContextToggle={(id) => onContextToggle(id)}
 				{onMemoriesSelected}
 			/>
+		{:else if rightPanelTab === 'recall'}
+			<div class="flex flex-col h-full overflow-y-auto p-3 bg-white dark:bg-gray-900">
+				<RecallWidget engine={getEngine()} />
+			</div>
 		{:else if rightPanelTab === 'artifacts'}
 			<!-- Artifacts List in Panel -->
 			<div class="flex flex-col h-full bg-gray-50 dark:bg-[#1c1c1e]">

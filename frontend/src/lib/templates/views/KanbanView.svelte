@@ -3,7 +3,7 @@
 	 * KanbanView - Kanban board view for app templates
 	 */
 
-	import type { Field, StatusOption } from '../types/field';
+	import type { Field, SelectOption } from '../types/field';
 	import type { KanbanViewConfig } from '../types/view';
 	import { TemplateCard, TemplateBadge, TemplateAvatar, TemplateSkeleton } from '../primitives';
 
@@ -43,11 +43,9 @@
 	// Get column options from the status/select field
 	const columns = $derived(() => {
 		if (!groupField) return [];
-		if (groupField.type === 'status' && groupField.config?.options) {
-			return groupField.config.options as StatusOption[];
-		}
-		if (groupField.type === 'select' && groupField.config?.options) {
-			return groupField.config.options;
+		if (groupField.type === 'status' || groupField.type === 'select') {
+			const options = getFieldOptions(groupField);
+			if (options.length > 0) return options;
 		}
 		// Generate columns from unique values in data
 		const uniqueValues = new Set<string>();
@@ -57,14 +55,14 @@
 				uniqueValues.add(String(value));
 			}
 		});
-		return Array.from(uniqueValues).map(value => ({ value, label: value, color: 'gray' }));
+		return Array.from(uniqueValues).map<SelectOption>(value => ({ value, label: value, color: 'gray' }));
 	});
 
 	// Group data by column
 	const groupedData = $derived(() => {
 		const groups: Record<string, Record<string, unknown>[]> = {};
 		const cols = columns();
-		cols.forEach(col => {
+		cols.forEach((col) => {
 			groups[col.value] = [];
 		});
 		// Add uncategorized column
@@ -131,8 +129,19 @@
 		if (config.columnColors?.[value]) {
 			return config.columnColors[value];
 		}
-		const col = columns().find(c => c.value === value);
+		const col = columns().find((c) => c.value === value);
 		return col?.color || 'gray';
+	}
+
+	function getFieldLabel(field: Field): string {
+		return ((field as Field & { label?: string }).label) ?? field.name ?? field.id;
+	}
+
+	function getFieldOptions(field: Field): SelectOption[] {
+		if ('options' in field && Array.isArray(field.options)) {
+			return field.options;
+		}
+		return ((field as Field & { config?: { options?: SelectOption[] } }).config?.options) ?? [];
 	}
 
 	function isWipLimitExceeded(columnValue: string): boolean {
@@ -222,7 +231,7 @@
 												{@const value = getFieldValue(record, fieldId)}
 												{#if field && value !== null && value !== undefined}
 													<div class="tpl-kanban-card-field">
-														<span class="tpl-kanban-card-field-label">{field.label}:</span>
+														<span class="tpl-kanban-card-field-label">{getFieldLabel(field)}:</span>
 														<span class="tpl-kanban-card-field-value">{value}</span>
 													</div>
 												{/if}

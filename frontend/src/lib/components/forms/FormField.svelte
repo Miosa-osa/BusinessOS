@@ -5,6 +5,7 @@
 	interface Props extends Partial<FormFieldConfig> {
 		value: string | number | boolean | string[];
 		error?: string;
+		onchange?: () => void;
 	}
 
 	let {
@@ -23,7 +24,8 @@
 		min,
 		max,
 		rows = 3,
-		autoComplete = ''
+		autoComplete = '',
+		onchange
 	}: Props = $props();
 
 	let inputAutoComplete = $derived(autoComplete as HTMLInputAttributes['autocomplete']);
@@ -51,6 +53,7 @@
 			minlength={minLength}
 			maxlength={maxLength}
 			autocomplete={inputAutoComplete}
+			{onchange}
 			bind:value
 			class="input input-bordered w-full {error ? 'input-error' : ''}"
 		/>
@@ -66,6 +69,7 @@
 			{placeholder}
 			{min}
 			{max}
+			{onchange}
 			bind:value
 			class="input input-bordered w-full {error ? 'input-error' : ''}"
 		/>
@@ -81,6 +85,7 @@
 			{rows}
 			minlength={minLength}
 			maxlength={maxLength}
+			{onchange}
 			bind:value
 			class="textarea textarea-bordered w-full {error ? 'textarea-error' : ''}"
 		></textarea>
@@ -92,6 +97,7 @@
 			{name}
 			{required}
 			{disabled}
+			{onchange}
 			bind:value
 			class="select select-bordered w-full {error ? 'select-error' : ''}"
 		>
@@ -117,6 +123,7 @@
 				checked={value === true}
 				onchange={(event) => {
 					value = event.currentTarget.checked;
+					onchange?.();
 				}}
 				class="checkbox checkbox-primary"
 			/>
@@ -135,6 +142,7 @@
 						{required}
 						{disabled}
 						value={option.value}
+						{onchange}
 						bind:group={value}
 						class="radio radio-primary"
 					/>

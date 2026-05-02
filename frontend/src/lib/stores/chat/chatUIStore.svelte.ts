@@ -23,7 +23,9 @@ function createChatUIStore() {
 
   // ── Right panel (Progress / Context / Artifacts) ──────────────────────────
   let rightPanelOpen = $state(false);
-  let rightPanelTab = $state<"progress" | "context" | "artifacts">("progress");
+  let rightPanelTab = $state<"progress" | "context" | "artifacts" | "recall">(
+    "progress",
+  );
   let rightPanelWidth = $state(320);
 
   // Right panel resize bookkeeping (internal — only mutated by resize methods)
@@ -132,7 +134,7 @@ function createChatUIStore() {
     get rightPanelTab() {
       return rightPanelTab;
     },
-    set rightPanelTab(v: "progress" | "context" | "artifacts") {
+    set rightPanelTab(v: "progress" | "context" | "artifacts" | "recall") {
       rightPanelTab = v;
     },
 
@@ -253,7 +255,8 @@ function createChatUIStore() {
         if (
           parsed.rightPanelTab === "progress" ||
           parsed.rightPanelTab === "context" ||
-          parsed.rightPanelTab === "artifacts"
+          parsed.rightPanelTab === "artifacts" ||
+          parsed.rightPanelTab === "recall"
         ) {
           rightPanelTab = parsed.rightPanelTab;
         }

@@ -24,7 +24,7 @@
 
 	let exportFormat = $state<'csv' | 'json' | 'xlsx'>('csv');
 	let exportScope = $state<'all' | 'selected' | 'filtered'>('all');
-	let selectedFields = $state<Set<string>>(new Set(fields.map(f => f.id)));
+	let selectedFields = $state<Set<string>>(new Set());
 	let includeHeaders = $state(true);
 
 	$effect(() => {

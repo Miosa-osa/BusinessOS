@@ -13,13 +13,19 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
-	const memberId = $derived($page.params.memberId);
+	const memberId = $derived($page.params.memberId ?? '');
 
 	onMount(async () => {
 		await loadMember();
 	});
 
 	async function loadMember() {
+		if (!memberId) {
+			error = 'Member not found';
+			loading = false;
+			return;
+		}
+
 		loading = true;
 		error = null;
 		try {

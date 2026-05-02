@@ -5,11 +5,8 @@
 	 * Composes knowledge-base module components with Foundation kb- patterns.
 	 */
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
 	import {
 		// Stores
-		documentsStore,
 		activeDocumentStore,
 		sidebarStore,
 		documentMetas,
@@ -24,66 +21,15 @@
 		DocumentEditor
 	} from '$lib/modules/knowledge-base';
 	import type { DocumentMeta } from '$lib/modules/knowledge-base';
-	import KnowledgeGraph from '$lib/components/knowledge/KnowledgeGraph.svelte';
 	import NodeDrillDown from '$lib/components/knowledge/NodeDrillDown.svelte';
-	import type { Memory } from '$lib/api/memory/types';
+	import OptimalGraphView from '$lib/components/knowledge/OptimalGraphView.svelte';
 	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
 
 	// State
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let showQuickSearch = $state(false);
-	let showNewDocForm = $state(false);
-	let newDocTitle = $state('');
 	let folderView = $state<{ id: string; title: string; children: DocumentMeta[] } | null>(null);
-	let panelSize = $state<'default' | 'wide' | 'full'>('default');
-
-	// Knowledge graph data — map OptimalOS documents to Memory objects for the 3D graph
-	let graphMemories = $state<Memory[]>([]);
-	let graphNodeMap = $state<Map<string, { name: string; type: string }>>(new Map());
-
-	// Graph data loaded directly by KnowledgeGraph component from API — no need to preload here
-
-	async function loadGraphData() {
-		const now = new Date().toISOString();
-		const nodeColors: Record<string, string> = {
-			'folder': '#3b82f6', 'document': '#8b5cf6',
-		};
-
-		// Map documents to Memory objects
-		graphMemories = documents.slice(0, 300).map((doc, i) => ({
-			id: doc.id,
-			user_id: 'local',
-			title: doc.title || 'Untitled',
-			summary: doc.type === 'folder' ? `${doc.children_count} items` : doc.id.split('/').slice(0, -1).join('/'),
-			content: '',
-			memory_type: 'fact' as const,
-			importance_score: doc.type === 'folder' ? 0.8 : 0.5,
-			is_pinned: false,
-			is_active: true,
-			tags: doc.id.split('/').filter(Boolean),
-			metadata: {},
-			source_type: doc.type,
-			source_id: null,
-			project_id: null,
-			node_id: doc.parent_id,
-			expires_at: null,
-			access_count: 0,
-			last_accessed_at: null,
-			created_at: now,
-			updated_at: doc.updated_at || now,
-			color: nodeColors[doc.type || 'document'] || '#6b7280',
-		}));
-
-		// Build node lookup
-		const map = new Map<string, { name: string; type: string }>();
-		for (const doc of documents) {
-			if (doc.type === 'folder' && !doc.parent_id?.includes('/')) {
-				map.set(doc.id, { name: doc.title || doc.id, type: doc.type });
-			}
-		}
-		graphNodeMap = map;
-	}
 
 	// Derived
 	let currentDocumentId = $derived($activeDocumentStore.id);
@@ -261,43 +207,15 @@
 				>Retry</button>
 			</div>
 		{:else if currentView === 'graph' || currentView === 'knowledge-graph'}
-			<div class="kg-split" style="position:relative; height:100%; width:100%;">
-				<!-- Graph fills the whole space -->
-				<KnowledgeGraph
-					memories={[]}
-					nodes={graphNodeMap}
-					onSelect={(mem) => {
-						if (mem.id.endsWith('.md') || mem.id.includes('/')) {
-							openAndFetchDocument(mem.id).catch(() => {});
+			<div class="kg-split">
+				<OptimalGraphView
+					onNodeSelect={(node) => {
+						// If the node id looks like a document path, open it in the editor
+						if (node.id.endsWith('.md') || node.id.includes('/')) {
+							openAndFetchDocument(node.id).catch(() => {});
 						}
 					}}
 				/>
-				<!-- Floating resizable panel -->
-				{#if currentDocumentId}
-					<div
-						class="kg-panel"
-						class:kg-panel--wide={panelSize === 'wide'}
-						class:kg-panel--full={panelSize === 'full'}
-					>
-						<div class="kg-panel__header">
-							<span class="kg-panel__title">{currentDocumentId.split('/').pop()}</span>
-							<div class="kg-panel__controls">
-								<button class="kg-panel__btn" onclick={() => panelSize = panelSize === 'default' ? 'wide' : panelSize === 'wide' ? 'full' : 'default'} title="Resize">
-									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-								</button>
-								<button class="kg-panel__btn" onclick={handleCloseDocument} title="Close">
-									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-								</button>
-							</div>
-						</div>
-						<div class="kg-panel__body">
-							<DocumentEditor
-								documentId={currentDocumentId}
-								onClose={handleCloseDocument}
-							/>
-						</div>
-					</div>
-				{/if}
 			</div>
 		{:else if currentDocumentId}
 			<DocumentEditor

@@ -4,7 +4,9 @@ import type {
   CreateCalendarEventData,
   UpdateCalendarEventData,
   ScheduleRequest,
-  ScheduleProposal
+  ScheduleProposal,
+  TaskSuggestion,
+  TaskSuggestionsResponse
 } from './types';
 
 // ============================================
@@ -101,4 +103,38 @@ export async function createEventFromProposal(
       client_id: scheduleRequest.client_id
     }
   });
+}
+
+export async function getTaskSuggestions(
+  contextId?: string,
+  projectId?: string
+): Promise<TaskSuggestionsResponse> {
+  const params = new URLSearchParams();
+  if (contextId) params.set('context_id', contextId);
+  if (projectId) params.set('project_id', projectId);
+  const query = params.toString();
+  const response = await request<Partial<TaskSuggestionsResponse> & { suggestions?: TaskSuggestion[] }>(
+    `/calendar/task-suggestions${query ? `?${query}` : ''}`
+  );
+  const generatedAt = response.generated_at ?? new Date().toISOString();
+
+  return {
+    suggestions: (response.suggestions ?? []).map(normalizeTaskSuggestion),
+    generated_at: generatedAt,
+    events_analyzed: response.events_analyzed ?? 0,
+    analysis_period: response.analysis_period ?? {
+      start: generatedAt,
+      end: generatedAt
+    }
+  };
+}
+
+function normalizeTaskSuggestion(suggestion: TaskSuggestion): TaskSuggestion {
+  return {
+    ...suggestion,
+    related_event_title: suggestion.related_event_title ?? suggestion.related_event ?? '',
+    suggested_due_date: suggestion.suggested_due_date ?? suggestion.suggested_due,
+    description: suggestion.description ?? suggestion.reason,
+    confidence: suggestion.confidence ?? 0.85
+  };
 }

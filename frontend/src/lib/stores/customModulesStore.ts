@@ -10,14 +10,14 @@ import {
   exportModule,
   importModule,
   shareModule,
-  getModuleVersions,
-  type CreateModuleData,
-  type UpdateModuleData,
-  type ShareModuleData
+  getModuleVersions
 } from '$lib/api/modules';
 import type {
   CustomModule,
+  CreateModuleData,
   ModuleFilters,
+  ShareModuleData,
+  UpdateModuleData,
   ModuleVersion,
   ModuleInstallation
 } from '$lib/types/modules';

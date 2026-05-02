@@ -185,6 +185,8 @@
 			<div
 				class="tpl-import-dropzone"
 				class:tpl-import-dropzone-active={dragOver}
+				role="button"
+				tabindex="0"
 				ondrop={handleDrop}
 				ondragover={handleDragOver}
 				ondragleave={handleDragLeave}

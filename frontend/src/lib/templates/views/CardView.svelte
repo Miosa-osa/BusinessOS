@@ -43,7 +43,7 @@
 
 		switch (field.type) {
 			case 'currency':
-				const currencySymbol = field.config?.symbol || '$';
+				const currencySymbol = ((field as Field & { config?: { symbol?: string } }).config?.symbol) || '$';
 				return `${currencySymbol}${Number(value).toLocaleString()}`;
 			case 'date':
 				return new Date(value as string).toLocaleDateString();
@@ -56,6 +56,13 @@
 
 	function getField(fieldId: string): Field | undefined {
 		return fields.find(f => f.id === fieldId);
+	}
+
+	function getFieldOptions(field: Field | undefined) {
+		if (!field || (field.type !== 'status' && field.type !== 'select' && field.type !== 'multiselect')) {
+			return [];
+		}
+		return ((field as Field & { config?: { options?: { value: string; label: string; color?: string }[] } }).config?.options) ?? field.options;
 	}
 
 	const gridStyle = $derived(`grid-template-columns: ${config.columns ? `repeat(${config.columns}, 1fr)` : columnSizes[config.cardSize || 'medium']}`);
@@ -114,8 +121,8 @@
 						<h3 class="tpl-card-title">{title}</h3>
 						{#if badge}
 							{@const badgeField = getField(config.badgeField!)}
-							{#if badgeField?.type === 'status' && badgeField.config?.options}
-								{@const option = badgeField.config.options.find((o: {value: string}) => o.value === badge)}
+							{#if badgeField?.type === 'status'}
+								{@const option = getFieldOptions(badgeField).find((o) => o.value === badge)}
 								<TemplateBadge color={option?.color || 'gray'}>{badge}</TemplateBadge>
 							{:else}
 								<TemplateBadge>{badge}</TemplateBadge>

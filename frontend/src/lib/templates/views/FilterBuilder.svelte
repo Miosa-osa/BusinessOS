@@ -6,6 +6,7 @@
 	import type { Field } from '../types/field';
 	import type { FilterCondition, FilterGroup, FilterOperator } from '../types/view';
 	import { TemplateButton, TemplateSelect, TemplateInput } from '../primitives';
+	import FilterBuilder from './FilterBuilder.svelte';
 
 	interface Props {
 		fields: Field[];
@@ -239,9 +240,9 @@
 				{:else}
 					<!-- Nested group (recursive) -->
 					<div class="tpl-filter-nested-group">
-						<svelte:self
+						<FilterBuilder
 							{fields}
-							bind:filter={filter.conditions[index]}
+							filter={condition}
 							onchange={() => onchange?.(filter)}
 						/>
 					</div>

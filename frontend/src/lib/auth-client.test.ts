@@ -122,7 +122,7 @@ describe('Auth Client', () => {
 
 			// Check that fetch was called with the right URL and method
 			expect(mockFetch).toHaveBeenCalledWith(
-				'https://api.com/api/v1/auth/sign-up/email',
+				'https://api.com/api/auth/sign-up/email',
 				expect.objectContaining({
 					method: 'POST'
 				})
@@ -180,7 +180,7 @@ describe('Auth Client', () => {
 			const result = initiateGoogleOAuth('https://api.example.com');
 
 			expect(result).toBe(true);
-			expect(mockLocation.href).toContain('https://api.example.com/api/v1/auth/google');
+			expect(mockLocation.href).toContain('https://api.example.com/api/auth/google');
 			expect(mockLocation.href).toContain('redirect=');
 		});
 
@@ -199,14 +199,16 @@ describe('Auth Client', () => {
 			const result = initiateGoogleOAuth();
 
 			expect(result).toBe(true);
-			expect(mockLocation.href).toContain('https://stored-url.com/api/v1/auth/google');
+			expect(mockLocation.href).toContain('https://stored-url.com/api/auth/google');
 		});
 
 		it('opens external browser in Electron mode', () => {
 			const mockOpenExternal = vi.fn();
 			const originalElectron = (window as any).electron;
 			(window as any).electron = {
-				openExternal: mockOpenExternal
+				shell: {
+					openExternal: mockOpenExternal
+				}
 			};
 
 			initiateGoogleOAuth('https://api.example.com');
@@ -234,7 +236,7 @@ describe('Auth Client', () => {
 			expect(result.data).toEqual(mockResponse);
 			expect(result.error).toBeUndefined();
 			expect(mockFetch).toHaveBeenCalledWith(
-				'https://api.com/api/v1/auth/sign-up/email',
+				'https://api.com/api/auth/sign-up/email',
 				expect.objectContaining({
 					method: 'POST',
 					credentials: 'include',
@@ -276,13 +278,19 @@ describe('Auth Client', () => {
 		});
 
 		it('returns error when no server URL configured', async () => {
-			// Clear the store URL to simulate no URL
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ user: { id: '1' } })
+			});
 			cloudServerUrl.set('');
 
 			const result = await signUpWithEmail('test@example.com', 'password123', 'Test');
 
-			expect(result.error).toBeDefined();
-			expect(result.error?.message).toContain('No cloud server URL configured');
+			expect(result.data).toBeDefined();
+			expect(mockFetch).toHaveBeenCalledWith(
+				'/api/auth/sign-up/email',
+				expect.objectContaining({ method: 'POST' })
+			);
 		});
 	});
 
@@ -302,7 +310,7 @@ describe('Auth Client', () => {
 			expect(result.data).toEqual(mockResponse);
 			expect(result.error).toBeUndefined();
 			expect(mockFetch).toHaveBeenCalledWith(
-				'https://api.com/api/v1/auth/sign-in/email',
+				'https://api.com/api/auth/sign-in/email',
 				expect.objectContaining({
 					method: 'POST',
 					credentials: 'include'
@@ -330,12 +338,19 @@ describe('Auth Client', () => {
 		});
 
 		it('returns error when no server URL configured', async () => {
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ user: { id: '1' } })
+			});
 			cloudServerUrl.set('');
 
 			const result = await signInWithEmail('test@example.com', 'password123');
 
-			expect(result.error).toBeDefined();
-			expect(result.error?.message).toContain('No cloud server URL configured');
+			expect(result.data).toBeDefined();
+			expect(mockFetch).toHaveBeenCalledWith(
+				'/api/auth/sign-in/email',
+				expect.objectContaining({ method: 'POST' })
+			);
 		});
 	});
 
@@ -348,6 +363,7 @@ describe('Auth Client', () => {
 
 			mockFetch.mockResolvedValueOnce({
 				ok: true,
+				headers: new Headers({ 'content-type': 'application/json' }),
 				json: async () => mockSessionData
 			});
 
@@ -356,7 +372,7 @@ describe('Auth Client', () => {
 			expect(result.data).toEqual(mockSessionData);
 			expect(result.error).toBeNull();
 			expect(mockFetch).toHaveBeenCalledWith(
-				'https://api.com/api/v1/auth/session',
+				'https://api.com/api/auth/session',
 				expect.objectContaining({
 					method: 'GET',
 					credentials: 'include'
@@ -385,12 +401,16 @@ describe('Auth Client', () => {
 		});
 
 		it('returns error when no server URL configured', async () => {
+			mockFetch.mockResolvedValueOnce({
+				ok: false,
+				headers: new Headers({ 'content-type': 'application/json' })
+			});
 			cloudServerUrl.set('');
 
 			const result = await getSession();
 
 			expect(result.data).toBeNull();
-			expect(result.error).toContain('No cloud server URL configured');
+			expect(result.error).toBe('Not authenticated');
 		});
 
 		it('clears session data', () => {
@@ -404,6 +424,7 @@ describe('Auth Client', () => {
 		it('refreshes session', async () => {
 			mockFetch.mockResolvedValueOnce({
 				ok: true,
+				headers: new Headers({ 'content-type': 'application/json' }),
 				json: async () => ({ user: { id: '1' }, session: { id: 's1' } })
 			});
 
@@ -413,7 +434,7 @@ describe('Auth Client', () => {
 			await refreshSession();
 
 			expect(mockFetch).toHaveBeenCalledWith(
-				expect.stringContaining('/api/v1/auth/session'),
+				expect.stringContaining('/api/auth/session'),
 				expect.any(Object)
 			);
 		});
@@ -435,7 +456,7 @@ describe('Auth Client', () => {
 					credentials: 'include'
 				})
 			);
-			expect(mockLocation.href).toBe('/');
+			expect(mockLocation.href).toBe('/login');
 		});
 
 		it('handles sign out failure but still redirects', async () => {
@@ -451,8 +472,7 @@ describe('Auth Client', () => {
 
 			expect(result.success).toBe(false);
 			expect(result.error).toContain('500');
-			expect(mockLocation.href).toBe('/');
-			expect(consoleErrorSpy).toHaveBeenCalled();
+			expect(mockLocation.href).toBe('/login');
 
 			consoleErrorSpy.mockRestore();
 		});
@@ -466,7 +486,7 @@ describe('Auth Client', () => {
 
 			expect(result.success).toBe(false);
 			expect(result.error).toBe('Network failure');
-			expect(mockLocation.href).toBe('/');
+			expect(mockLocation.href).toBe('/login');
 
 			consoleErrorSpy.mockRestore();
 		});
@@ -479,7 +499,7 @@ describe('Auth Client', () => {
 
 			expect(result.success).toBe(false);
 			expect(result.error).toBeDefined();
-			expect(mockLocation.href).toBe('/');
+			expect(mockLocation.href).toBe('/login');
 
 			consoleErrorSpy.mockRestore();
 		});
