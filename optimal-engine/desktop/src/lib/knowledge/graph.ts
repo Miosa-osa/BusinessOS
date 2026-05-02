@@ -1,18 +1,3 @@
-/**
- * Builds the unified graph data shape for the /graph route:
- *   workspace nodes  (kind=node,   color=type-based)
- *   signals          (kind=signal, color=genre-based)
- *   entities         (kind=entity, color=entity-type-based)
- *
- * Edges:
- *   node → signal    (signal lives in this node)
- *   signal → entity  (signal mentions this entity)
- *   node → node      (parent → child in the workspace tree)
- *
- * The component uses PixiJS for rendering + d3-force for layout, matching
- * the visual language of the Pages module.
- */
-
 import type { WorkspaceNode } from "$lib/api/workspace";
 
 export type GKind = "node" | "signal" | "entity";
@@ -21,11 +6,8 @@ export interface GNode {
   id: string;
   label: string;
   kind: GKind;
-  // Drives colour + sizing. For `node` this is the node.kind (org/person/…);
-  // for `signal` it's the genre; for `entity` it's the entity type.
   sub: string;
   connections: number;
-  // Signal-specific
   node_slug?: string;
 }
 
@@ -40,168 +22,73 @@ export interface GraphData {
   edges: GEdge[];
 }
 
-export interface OptimalGraphResponse {
-  entities: { name: string; type: string; connections: number }[];
-  edges: {
-    source: string;
-    target: string;
-    relation: string;
-    weight: number;
-  }[];
-  stats: {
-    entity_count: number;
-    edge_count: number;
-    edge_types: Record<string, number>;
-  };
+interface EngineGraphNode {
+  node: string;
+  context_count: number;
+  last_modified: string;
 }
 
-export interface NodeFilesResponse {
-  files: {
-    name: string;
-    path: string;
-    is_dir: boolean;
-    size: number;
+interface EngineEdge {
+  source: string;
+  target: string;
+  relation: string;
+  weight: number;
+}
+
+interface EngineNodeDetail {
+  node: string;
+  contexts: {
+    id: string;
+    title: string;
     genre: string | null;
-    modified_at: string | null;
+    sn_ratio: number | null;
+    type: string | null;
   }[];
+  edges: EngineEdge[];
 }
 
-/** Pull everything the graph needs in parallel and fold it into one shape. */
+const KIND_MAP: Record<string, string> = {
+  founder: "person",
+  platform: "org",
+  services: "org",
+  academy: "operation",
+  partners: "org",
+  media: "org",
+  "getting-started": "concept",
+  "new-stuff": "concept",
+  businessos: "product",
+  tasks: "operation",
+  crm: "product",
+  chat: "product",
+  team: "org",
+  clients: "org",
+  "integration-test": "concept",
+  inbox: "operation",
+  "platform-core": "project",
+  "platform-services": "project",
+  "platform-investors": "project",
+  "academy-beginner": "project",
+  "academy-advanced": "project",
+  "partners-healthtech": "project",
+};
+
+function slugToName(slug: string): string {
+  return slug
+    .replace(/^\d+-/, "")
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export async function loadGraph(): Promise<GraphData> {
-  // The engine serves at /api/graph (not /api/optimal/graph).
-  // /api/graph returns {nodes: [{node, context_count, last_modified}], edges: [...], stats: {...}}
+  // 1. Fetch workspace graph (nodes + edges)
   const graphRes = (await fetch("/api/graph").then((r) => r.json())) as {
-    nodes: { node: string; context_count: number; last_modified: string }[];
-    edges: {
-      source: string;
-      target: string;
-      relation: string;
-      weight: number;
-    }[];
+    nodes: EngineGraphNode[];
+    edges: EngineEdge[];
     stats: { entity_count: number; edge_count: number };
   };
 
-  // Convert engine graph nodes to WorkspaceNode shape
-  const kindGuess: Record<string, string> = {
-    founder: "person",
-    platform: "org",
-    services: "org",
-    academy: "operation",
-    partners: "org",
-    media: "org",
-    "getting-started": "concept",
-    "new-stuff": "concept",
-    businessos: "product",
-    tasks: "operation",
-    crm: "product",
-    chat: "product",
-    team: "org",
-    clients: "org",
-    "integration-test": "concept",
-    inbox: "operation",
-  };
-
-  const workspaceNodes: WorkspaceNode[] = graphRes.nodes.map((n) => {
-    const slug = n.node;
-    const name = slug
-      .replace(/^\d+-/, "")
-      .split("-")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
-    const kindKey = slug.replace(/^\d+-/, "");
-    return {
-      id: slug,
-      slug,
-      name,
-      kind: kindGuess[kindKey] ?? "default",
-      signal_count: n.context_count,
-      parent_id: null,
-    } as WorkspaceNode;
-  });
-
-  const entityData = (graphRes as any).entities ?? [];
-  const entityEdges = graphRes.edges;
-
-  // Fetch per-node signal lists in parallel (engine serves at /api/node/:slug).
-  const signalLists = await Promise.all(
-    workspaceNodes.map(async (n) => {
-      try {
-        const res = await fetch(
-          `/api/node/${encodeURIComponent(n.slug)}/files`,
-        );
-        if (!res.ok) return { node: n, files: [] };
-        const data = (await res.json()) as NodeFilesResponse;
-        return { node: n, files: data.files ?? [] };
-      } catch {
-        return { node: n, files: [] };
-      }
-    }),
-  );
-
-  const nodes: GNode[] = [];
-  const edges: GEdge[] = [];
-
-  // Workspace nodes
-  for (const n of workspaceNodes) {
-    nodes.push({
-      id: `node:${n.slug}`,
-      label: n.name,
-      kind: "node",
-      sub: n.kind,
-      connections: n.signal_count,
-    });
-    if (n.parent_id) {
-      // parent_id is the nodes.id, but our node ids here use slugs — walk
-      // the list to find the parent slug.
-      const parent = workspaceNodes.find((p) => p.id === n.parent_id);
-      if (parent) {
-        edges.push({
-          source: `node:${parent.slug}`,
-          target: `node:${n.slug}`,
-          relation: "parent",
-        });
-      }
-    }
-  }
-
-  // Signals under each node
-  for (const { node, files } of signalLists) {
-    for (const f of files) {
-      const sigId = `signal:${f.path}`;
-      nodes.push({
-        id: sigId,
-        label: f.name,
-        kind: "signal",
-        sub: f.genre ?? "note",
-        connections: 0,
-        node_slug: node.slug,
-      });
-      edges.push({
-        source: `node:${node.slug}`,
-        target: sigId,
-        relation: "contains",
-      });
-    }
-  }
-
-  // Entities (collapse into one node per entity name across the tenant)
-  const entityIds = new Set<string>();
-  for (const e of entityData) {
-    const eid = `entity:${e.name}`;
-    if (!entityIds.has(eid)) {
-      entityIds.add(eid);
-      nodes.push({
-        id: eid,
-        label: e.name,
-        kind: "entity",
-        sub: e.type,
-        connections: e.connections,
-      });
-    }
-  }
-
-  // Fetch context→node mapping so we can resolve edge endpoints
-  // (context IDs like "seed-founder-weekly-14851") to workspace nodes.
+  // 2. Fetch context→node mapping for edge resolution
   const contextToNode = new Map<string, string>();
   try {
     const mapRes = await fetch("/api/contexts/map");
@@ -214,12 +101,79 @@ export async function loadGraph(): Promise<GraphData> {
       }
     }
   } catch {
-    // Degrade: edges won't resolve, but nodes still show
+    /* degrade gracefully */
   }
 
-  // Map context-to-context edges into node-to-node edges
+  // 3. Fetch per-node contexts (signals) in parallel
+  const nodeDetails = await Promise.all(
+    graphRes.nodes.map(async (n) => {
+      try {
+        const res = await fetch(`/api/node/${encodeURIComponent(n.node)}`);
+        if (!res.ok) return null;
+        return (await res.json()) as EngineNodeDetail;
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  const nodes: GNode[] = [];
+  const edges: GEdge[] = [];
+
+  // 4. Build workspace nodes
+  for (const n of graphRes.nodes) {
+    const kindKey = n.node.replace(/^\d+-/, "");
+    nodes.push({
+      id: `node:${n.node}`,
+      label: slugToName(n.node),
+      kind: "node",
+      sub: KIND_MAP[kindKey] ?? "default",
+      connections: n.context_count,
+    });
+  }
+
+  // 5. Build signal nodes from per-node contexts
+  const seenEntities = new Set<string>();
+  for (const detail of nodeDetails) {
+    if (!detail) continue;
+    for (const ctx of detail.contexts) {
+      const sigId = `signal:${ctx.id}`;
+      nodes.push({
+        id: sigId,
+        label: ctx.title || ctx.id,
+        kind: "signal",
+        sub: ctx.genre ?? "note",
+        connections: 0,
+        node_slug: detail.node,
+      });
+      edges.push({
+        source: `node:${detail.node}`,
+        target: sigId,
+        relation: "contains",
+      });
+    }
+
+    // Build entity nodes from edge data (entities appear in node edges)
+    for (const e of detail.edges || []) {
+      if (e.relation === "mentions" || e.relation === "shared_entity") {
+        const eid = `entity:${e.target}`;
+        if (!seenEntities.has(eid)) {
+          seenEntities.add(eid);
+          nodes.push({
+            id: eid,
+            label: e.target,
+            kind: "entity",
+            sub: "person",
+            connections: 1,
+          });
+        }
+      }
+    }
+  }
+
+  // 6. Build node-to-node edges from context cross-references
   const nodeEdgeSet = new Set<string>();
-  for (const e of entityEdges) {
+  for (const e of graphRes.edges) {
     const srcNode = contextToNode.get(e.source);
     const tgtNode = contextToNode.get(e.target);
     if (srcNode && tgtNode && srcNode !== tgtNode) {
@@ -229,24 +183,6 @@ export async function loadGraph(): Promise<GraphData> {
         edges.push({
           source: `node:${srcNode}`,
           target: `node:${tgtNode}`,
-          relation: "mentions",
-        });
-      }
-    }
-  }
-
-  // Entity → node edges: connect each entity to nodes whose contexts mention it
-  for (const e of entityData) {
-    const eid = `entity:${e.name}`;
-    const eName = e.name.toLowerCase();
-    for (const wn of workspaceNodes) {
-      if (
-        wn.name.toLowerCase().includes(eName) ||
-        eName.includes(wn.name.toLowerCase())
-      ) {
-        edges.push({
-          source: `node:${wn.slug}`,
-          target: eid,
           relation: "mentions",
         });
       }
