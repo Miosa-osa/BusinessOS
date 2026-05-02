@@ -375,19 +375,19 @@ func (h *GoogleAuthHandler) GetCurrentSession(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	var userID, userName, userEmail, sessionID string
+	var userID, userName, userEmail, sessionID, platformRole string
 	var userImage *string
 	var emailVerified bool
 	var sessionExpiresAt time.Time
 	var userCreatedAt time.Time
 
 	err = h.pool.QueryRow(ctx, `
-		SELECT u.id, u.name, u.email, u."emailVerified", u.image, u."createdAt", s.id, s."expiresAt"
+		SELECT u.id, u.name, u.email, u."emailVerified", u.image, u."createdAt", COALESCE(u.platform_role, 'user'), s.id, s."expiresAt"
 		FROM session s
 		JOIN "user" u ON s."userId" = u.id
 		WHERE s.token = $1 AND s."expiresAt" > NOW()
 	`, sessionToken).Scan(
-		&userID, &userName, &userEmail, &emailVerified, &userImage, &userCreatedAt, &sessionID, &sessionExpiresAt,
+		&userID, &userName, &userEmail, &emailVerified, &userImage, &userCreatedAt, &platformRole, &sessionID, &sessionExpiresAt,
 	)
 
 	if err != nil {
@@ -406,6 +406,7 @@ func (h *GoogleAuthHandler) GetCurrentSession(c *gin.Context) {
 			"emailVerified": emailVerified,
 			"image":         userImage,
 			"createdAt":     userCreatedAt,
+			"platform_role": platformRole,
 		},
 		"session": gin.H{
 			"id":        sessionID,

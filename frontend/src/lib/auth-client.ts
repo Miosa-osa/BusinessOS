@@ -296,6 +296,7 @@ const localSession = writable({
       email: "local@businessos.app",
       name: "Local User",
       image: undefined as string | undefined,
+      platform_role: "user",
     },
     session: {
       id: "local-session",
@@ -344,6 +345,7 @@ const cloudSession = writable<{
       name: string;
       image?: string;
       createdAt?: string;
+      platform_role?: string;
     };
     session: { id: string };
   } | null;

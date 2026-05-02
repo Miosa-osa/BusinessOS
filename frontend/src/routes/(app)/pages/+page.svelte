@@ -22,7 +22,7 @@
 	} from '$lib/modules/knowledge-base';
 	import type { DocumentMeta } from '$lib/modules/knowledge-base';
 	import NodeDrillDown from '$lib/components/knowledge/NodeDrillDown.svelte';
-	import OptimalGraphView from '$lib/components/knowledge/OptimalGraphView.svelte';
+	import { OptimalGraphView } from '$lib/modules/knowledge-base';
 	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
 
 	// State
@@ -209,10 +209,10 @@
 		{:else if currentView === 'graph' || currentView === 'knowledge-graph'}
 			<div class="kg-split">
 				<OptimalGraphView
-					onNodeSelect={(node) => {
+					onSelectEntity={(entityName: string) => {
 						// If the node id looks like a document path, open it in the editor
-						if (node.id.endsWith('.md') || node.id.includes('/')) {
-							openAndFetchDocument(node.id).catch(() => {});
+						if (entityName.endsWith('.md') || entityName.includes('/')) {
+							openAndFetchDocument(entityName).catch(() => {});
 						}
 					}}
 				/>

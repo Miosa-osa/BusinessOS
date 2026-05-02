@@ -174,11 +174,61 @@
 
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			graphData = await res.json() as OptimalGraphData;
+
+			// Fallback: if the entity graph is empty (no LLM entity extraction yet),
+			// populate from /optimal/nodes so the 3D graph still shows the workspace
+			// structure (departments, divisions, etc.) instead of a blank scene.
+			if (!graphData.entities || graphData.entities.length === 0) {
+				const nodesRes = await fetch(`${base}/optimal/nodes`, {
+					credentials: 'include',
+					headers
+				});
+				if (nodesRes.ok) {
+					const nodesData = await nodesRes.json();
+					const nodeList = nodesData.nodes ?? [];
+					const nodeKindMap: Record<string, string> = {
+						person: 'person', org: 'org', operation: 'operation',
+						workspace: 'product', guide: 'concept'
+					};
+					graphData = {
+						entities: nodeList.map((n: { slug: string; name: string; signal_count: number; context_md?: string }) => ({
+							name: n.name || n.slug,
+							type: nodeKindMap[
+								(n.context_md?.match(/kind:\s*(\w+)/)?.[1] ?? 'default')
+							] ?? 'default',
+							connections: n.signal_count || 1,
+						})),
+						edges: buildNodeEdges(nodeList),
+						stats: {
+							entity_count: nodeList.length,
+							edge_count: 0,
+							edge_types: {}
+						}
+					};
+				}
+			}
 		} catch (e) {
 			fetchError = e instanceof Error ? e.message : 'Failed to load graph';
 		} finally {
 			loading = false;
 		}
+	}
+
+	function buildNodeEdges(nodeList: { slug: string; name: string; context_md?: string }[]): OptimalEdge[] {
+		const edges: OptimalEdge[] = [];
+		for (let i = 0; i < nodeList.length; i++) {
+			for (let j = i + 1; j < nodeList.length; j++) {
+				const a = nodeList[i], b = nodeList[j];
+				const aText = (a.context_md || '').toLowerCase();
+				const bText = (b.context_md || '').toLowerCase();
+				const aName = (a.name || a.slug).toLowerCase();
+				const bName = (b.name || b.slug).toLowerCase();
+				if (aText.includes(bName) || bText.includes(aName)) {
+					edges.push({ source: a.name, target: b.name, relation: 'related_to', weight: 1 });
+				}
+			}
+		}
+		return edges;
 	}
 
 	// ── Three.js ──────────────────────────────────────────────────────────────────

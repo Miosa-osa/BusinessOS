@@ -189,6 +189,7 @@
 		href: string;
 		label: string;
 		icon: string;
+		adminOnly?: boolean;
 	}
 
 	interface NavGroup {
@@ -327,6 +328,12 @@
 					icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1'
 				},
 				{
+					href: '/admin',
+					label: 'Admin',
+					adminOnly: true,
+					icon: 'M9 12.75L11.25 15 15 9.75M12 3.75c2.04 1.838 4.728 2.75 7.5 2.75v4.75c0 4.25-2.9 8.213-7.5 9.25-4.6-1.037-7.5-5-7.5-9.25V6.5c2.772 0 5.46-.912 7.5-2.75z'
+				},
+				{
 					href: '/settings',
 					label: 'Settings',
 					icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z'
@@ -334,6 +341,8 @@
 			]
 		},
 	];
+
+	const canSeeAdminNav = $derived($session.data?.user?.platform_role === 'superadmin');
 
 </script>
 
@@ -436,64 +445,66 @@
 					{#if !collapsedSections.has(group.label)}
 						<div class="sb-section-items {collapsedSections.has(group.label) ? 'sb-section-items--collapsed' : ''}">
 							{#each group.items as item}
-								{#if item.label === 'Projects'}
-									<!-- Projects with dropdown -->
-									<div class="relative group">
-										<div class="flex items-center">
-											<a
-												href={item.href}
-												class="sb-nav-item flex-1 flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200
-													{$page.url.pathname.startsWith(item.href) ? 'sb-nav-item--active' : ''}
-													{isCollapsed ? 'justify-center' : ''}"
-												title={isCollapsed ? item.label : ''}
-											>
-												<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={item.icon} />
-												</svg>
-												{#if !isCollapsed}
-													<span>{item.label}</span>
-												{/if}
-											</a>
-											{#if !isCollapsed && projects.length > 0}
-												<button
-													onclick={() => showProjectsDropdown = !showProjectsDropdown}
-													class="sb-chevron-btn p-1.5 rounded-lg transition-colors mr-1 opacity-0 group-hover:opacity-100 {showProjectsDropdown ? 'opacity-100' : ''} transition-opacity duration-200"
-													title="Show recent projects"
+								{#if !item.adminOnly || canSeeAdminNav}
+									{#if item.label === 'Projects'}
+										<!-- Projects with dropdown -->
+										<div class="relative group">
+											<div class="flex items-center">
+												<a
+													href={item.href}
+													class="sb-nav-item flex-1 flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200
+														{$page.url.pathname.startsWith(item.href) ? 'sb-nav-item--active' : ''}
+														{isCollapsed ? 'justify-center' : ''}"
+													title={isCollapsed ? item.label : ''}
 												>
-													<ChevronDown size={16} strokeWidth={2} class="sb-chevron-icon transition-transform {showProjectsDropdown ? 'rotate-180' : ''}" />
-												</button>
+													<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={item.icon} />
+													</svg>
+													{#if !isCollapsed}
+														<span>{item.label}</span>
+													{/if}
+												</a>
+												{#if !isCollapsed && projects.length > 0}
+													<button
+														onclick={() => showProjectsDropdown = !showProjectsDropdown}
+														class="sb-chevron-btn p-1.5 rounded-lg transition-colors mr-1 opacity-0 group-hover:opacity-100 {showProjectsDropdown ? 'opacity-100' : ''} transition-opacity duration-200"
+														title="Show recent projects"
+													>
+														<ChevronDown size={16} strokeWidth={2} class="sb-chevron-icon transition-transform {showProjectsDropdown ? 'rotate-180' : ''}" />
+													</button>
+												{/if}
+											</div>
+											{#if showProjectsDropdown && !isCollapsed && projects.length > 0}
+												<div class="ml-6 mt-1 space-y-0.5">
+													{#each projects as project}
+														<a
+															href="/projects/{project.id}"
+															class="sb-sub-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-colors
+																{$page.url.pathname === `/projects/${project.id}` ? 'sb-sub-item--active' : ''}"
+														>
+															<span class="w-1.5 h-1.5 rounded-full {project.status === 'active' ? 'bg-green-500' : 'sb-dot-inactive'}"></span>
+															<span class="truncate">{project.name}</span>
+														</a>
+													{/each}
+												</div>
 											{/if}
 										</div>
-										{#if showProjectsDropdown && !isCollapsed && projects.length > 0}
-											<div class="ml-6 mt-1 space-y-0.5">
-												{#each projects as project}
-													<a
-														href="/projects/{project.id}"
-														class="sb-sub-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-colors
-															{$page.url.pathname === `/projects/${project.id}` ? 'sb-sub-item--active' : ''}"
-													>
-														<span class="w-1.5 h-1.5 rounded-full {project.status === 'active' ? 'bg-green-500' : 'sb-dot-inactive'}"></span>
-														<span class="truncate">{project.name}</span>
-													</a>
-												{/each}
-											</div>
-										{/if}
-									</div>
-								{:else}
-									<a
-										href={item.href}
-										class="sb-nav-item flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200
-											{$page.url.pathname.startsWith(item.href) ? 'sb-nav-item--active' : ''}
-											{isCollapsed ? 'justify-center' : ''}"
-										title={isCollapsed ? item.label : ''}
-									>
-										<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={item.icon} />
-										</svg>
-										{#if !isCollapsed}
-											<span>{item.label}</span>
-										{/if}
-									</a>
+									{:else}
+										<a
+											href={item.href}
+											class="sb-nav-item flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200
+												{$page.url.pathname.startsWith(item.href) ? 'sb-nav-item--active' : ''}
+												{isCollapsed ? 'justify-center' : ''}"
+											title={isCollapsed ? item.label : ''}
+										>
+											<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={item.icon} />
+											</svg>
+											{#if !isCollapsed}
+												<span>{item.label}</span>
+											{/if}
+										</a>
+									{/if}
 								{/if}
 							{/each}
 						</div>
@@ -564,6 +575,14 @@
 			onselect={handleEngineSearchSelect}
 		/>
 	{/if}
+{:else if !bootComplete}
+	<!-- Loading state only during initial auth check -->
+	<div class="h-screen flex items-center justify-center sb-main-bg">
+		<div class="text-center">
+			<div class="w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+			<p class="sb-muted">Loading...</p>
+		</div>
+	</div>
 {/if}
 
 <svelte:window onkeydown={handleGlobalKeydown} />
