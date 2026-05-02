@@ -31,11 +31,18 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Build local SDK dependencies
+        run: |
+          echo "Building @optimal-engine/client..."
+          cd optimal-engine/sdks/typescript && npm install --no-audit && npm run build
+          echo "Building @miosa/optimal-engine..."
+          cd ../miosa && npm install --no-audit && npm run build
+
       - name: Install dependencies
         working-directory: frontend
         run: |
           echo "Installing dependencies..."
-          npm ci
+          npm install --no-audit
 
       - name: Run TypeScript check
         working-directory: frontend
