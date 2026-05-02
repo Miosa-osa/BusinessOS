@@ -41,6 +41,8 @@ jobs:
       - name: Install dependencies
         working-directory: frontend
         run: |
+          echo "Converting link: deps to file: for npm compatibility..."
+          sed -i 's|"link:|"file:|g' package.json
           echo "Installing dependencies..."
           npm install --no-audit
 
