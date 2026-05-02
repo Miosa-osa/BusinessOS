@@ -1,17 +1,14 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
 	import { Sparkles } from 'lucide-svelte';
-	import { generatedAppsStore, type AppStatus } from '$lib/stores/generatedAppsStore';
+	import { generatedAppsStore, type AppStatus, type GeneratedApp } from '$lib/stores/generatedAppsStore';
 	import GeneratedAppCard from '$lib/components/osa/GeneratedAppCard.svelte';
 	import CreateAppModal from '$lib/components/osa/CreateAppModal.svelte';
 	import { currentWorkspace } from '$lib/stores/workspaces';
 
-	let { data } = $props();
-
 	let showCreateModal = $state(false);
-	let workspaceId = $derived($currentWorkspace?.id ?? data?.workspaceId ?? $page.data?.workspaceId ?? '');
+	let workspaceId = $derived($currentWorkspace?.id ?? '');
 
 	let loading = $state(false);
 	let error = $state<string | null>(null);
@@ -20,8 +17,27 @@
 	let viewMode = $state<'grid' | 'list'>('grid');
 
 	// Subscribe to store
-	let apps = $derived($generatedAppsStore.filteredApps);
 	let storeState = $derived($generatedAppsStore);
+	let apps = $derived.by(() => {
+		let filtered = storeState.apps;
+
+		if (storeState.filter !== 'all') {
+			filtered = filtered.filter((app) => app.status === storeState.filter);
+		}
+
+		if (storeState.searchQuery.trim()) {
+			const query = storeState.searchQuery.toLowerCase();
+			filtered = filtered.filter(
+				(app) =>
+					app.app_name.toLowerCase().includes(query) ||
+					app.description?.toLowerCase().includes(query)
+			);
+		}
+
+		return [...filtered].sort(
+			(a, b) => new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime()
+		);
+	});
 
 	// Stats
 	let stats = $derived({
@@ -79,11 +95,11 @@
 		generatedAppsStore.setSearchQuery(target.value);
 	}
 
-	function handleViewApp(app: any) {
+	function handleViewApp(app: GeneratedApp) {
 		goto(`/generated-apps/${app.id}`);
 	}
 
-	async function handleDeployApp(app: any) {
+	async function handleDeployApp(app: GeneratedApp) {
 		try {
 			await generatedAppsStore.deployApp(app.id);
 		} catch (err) {
@@ -91,7 +107,7 @@
 		}
 	}
 
-	async function handleDeleteApp(app: any) {
+	async function handleDeleteApp(app: GeneratedApp) {
 		if (!confirm(`Are you sure you want to delete ${app.app_name}?`)) return;
 
 		try {

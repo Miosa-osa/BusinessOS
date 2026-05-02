@@ -16,7 +16,7 @@
 	let autoScroll = $state(true);
 	let expanded = $state(true);
 
-	let logContainer: HTMLDivElement | null = null;
+	let logContainer = $state<HTMLDivElement | null>(null);
 
 	const LOG_LEVEL_STYLES: Record<LogLevel, { bg: string; text: string; label: string }> = {
 		info: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400', label: 'INFO' },
@@ -26,6 +26,7 @@
 	};
 
 	const AGENT_COLORS: Record<AgentType, string> = {
+		orchestrator: 'text-indigo-500',
 		frontend: 'text-blue-500',
 		backend: 'text-green-500',
 		database: 'text-purple-500',

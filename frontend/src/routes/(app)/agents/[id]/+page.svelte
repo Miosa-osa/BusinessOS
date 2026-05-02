@@ -125,6 +125,18 @@
     setTimeout(() => { copyFeedback = false; }, 1800);
   }
 
+  function startNameEdit() {
+    if (!agent) return;
+    editNameValue = agent.display_name ?? '';
+    editingName = true;
+  }
+
+  function startDescEdit() {
+    if (!agent) return;
+    editDescValue = agent.description ?? '';
+    editingDesc = true;
+  }
+
   async function saveNameEdit() {
     if (!agent || !agentId || !editNameValue.trim()) { editingName = false; return; }
     savingName = true;
@@ -215,7 +227,7 @@
                 {#if savingName}<span class="agd-inline-saving" aria-label="Saving..."></span>{/if}
               </div>
             {:else}
-              <button class="agd-editable-field agd-sb__name-btn" onclick={() => { editNameValue = agent.display_name ?? ''; editingName = true; }} title="Click to edit">
+              <button class="agd-editable-field agd-sb__name-btn" onclick={startNameEdit} title="Click to edit">
                 <span class="agd-sb__name">{agent.display_name}</span>
                 <svg class="agd-edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
@@ -375,7 +387,7 @@
                       </div>
                     </div>
                   {:else}
-                    <div class="agd-editable-field agd-editable-field--block" onclick={() => { editDescValue = agent.description ?? ''; editingDesc = true; }} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && (() => { editDescValue = agent.description ?? ''; editingDesc = true; })()} title="Click to edit">
+                    <div class="agd-editable-field agd-editable-field--block" onclick={startDescEdit} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter') startDescEdit(); }} title="Click to edit">
                       <p class="agd-overview__desc">{agent.description || 'No description. Click to add one.'}</p>
                       <svg class="agd-edit-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     </div>
@@ -914,13 +926,6 @@
     letter-spacing: 0.06em;
   }
   .agd-card__header .agd-card__title { margin: 0; }
-  .agd-card__text {
-    font-size: 0.875rem;
-    line-height: 1.6;
-    color: var(--dt2, #555);
-    margin: 0;
-  }
-
   .agd-copy-btn {
     display: inline-flex;
     align-items: center;

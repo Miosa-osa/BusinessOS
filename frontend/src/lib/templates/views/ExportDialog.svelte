@@ -27,6 +27,10 @@
 	let selectedFields = $state<Set<string>>(new Set(fields.map(f => f.id)));
 	let includeHeaders = $state(true);
 
+	$effect(() => {
+		selectedFields = new Set(fields.map(f => f.id));
+	});
+
 	function toggleField(fieldId: string) {
 		if (selectedFields.has(fieldId)) {
 			selectedFields.delete(fieldId);
@@ -70,6 +74,10 @@
 		}
 	}
 
+	function getFieldLabel(field: Field): string {
+		return field.label ?? field.name ?? field.id;
+	}
+
 	function exportCSV() {
 		const exportData = getExportData();
 		const exportFields = fields.filter(f => selectedFields.has(f.id));
@@ -77,7 +85,7 @@
 		let csv = '';
 
 		if (includeHeaders) {
-			csv += exportFields.map(f => `"${f.label.replace(/"/g, '""')}"`).join(',') + '\n';
+			csv += exportFields.map(f => `"${getFieldLabel(f).replace(/"/g, '""')}"`).join(',') + '\n';
 		}
 
 		exportData.forEach(record => {
@@ -217,7 +225,7 @@
 							checked={selectedFields.has(field.id)}
 							onchange={() => toggleField(field.id)}
 						/>
-						<span>{field.label}</span>
+						<span>{getFieldLabel(field)}</span>
 					</label>
 				{/each}
 			</div>

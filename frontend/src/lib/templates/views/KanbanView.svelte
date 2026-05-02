@@ -31,7 +31,11 @@
 
 	let draggedItem: string | null = $state(null);
 	let dragOverColumn: string | null = $state(null);
-	let collapsedColumns = $state(new Set(config.collapsedColumns || []));
+	let collapsedColumns = $state(new Set<string>());
+
+	$effect(() => {
+		collapsedColumns = new Set(config.collapsedColumns || []);
+	});
 
 	// Get the group-by field
 	const groupField = $derived(fields.find(f => f.id === config.groupByField));
@@ -163,6 +167,7 @@
 					class:tpl-kanban-column-collapsed={isCollapsed}
 					class:tpl-kanban-column-drag-over={isDragOver}
 					class:tpl-kanban-column-wip-exceeded={wipExceeded}
+					role="list"
 					ondragover={(e) => handleDragOver(e, column.value)}
 					ondragleave={handleDragLeave}
 					ondrop={(e) => handleDrop(e, column.value)}

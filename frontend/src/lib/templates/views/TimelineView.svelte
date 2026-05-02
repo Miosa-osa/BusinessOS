@@ -112,8 +112,8 @@
 		if (!colorValue) return 'var(--tpl-accent-primary)';
 
 		const field = fields.find(f => f.id === config.colorField);
-		if (field?.type === 'status' && field.config?.options) {
-			const option = field.config.options.find((o: { value: string; color?: string }) => o.value === colorValue);
+		if (field?.type === 'status') {
+			const option = (field.config?.options ?? field.options).find((o) => o.value === colorValue);
 			if (option?.color) {
 				return `var(--tpl-status-${option.color}, ${option.color})`;
 			}

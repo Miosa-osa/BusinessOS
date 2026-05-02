@@ -118,7 +118,11 @@
 		onclose?.();
 	}
 
-	const fieldOptions = $derived(fields.map(f => ({ value: f.id, label: f.label })));
+	function getFieldLabel(field: Field): string {
+		return field.label ?? field.name ?? field.id;
+	}
+
+	const fieldOptions = $derived(fields.map(f => ({ value: f.id, label: getFieldLabel(f) })));
 </script>
 
 <div class="tpl-filter-builder">
@@ -166,10 +170,10 @@
 								size="sm"
 								onchange={(e) => updateCondition(condition.id, { operator: (e.target as HTMLSelectElement).value as FilterOperator })}
 							/>
-							{#if condition.operator !== 'is_empty' && condition.operator !== 'is_not_empty'}
+								{#if condition.operator !== 'is_empty' && condition.operator !== 'is_not_empty'}
 								{#if field?.type === 'select' || field?.type === 'status'}
 									<TemplateSelect
-										options={(field.config?.options || []).map((o: { value: string; label?: string }) => ({ value: o.value, label: o.label || o.value }))}
+										options={(field.config?.options ?? field.options).map((o) => ({ value: o.value, label: o.label || o.value }))}
 										value={String(condition.value || '')}
 										size="sm"
 										onchange={(e) => updateCondition(condition.id, { value: (e.target as HTMLSelectElement).value })}
@@ -201,7 +205,7 @@
 									{/if}
 								{:else if field?.type === 'date' || field?.type === 'datetime'}
 									<TemplateInput
-										type="date"
+										type="text"
 										value={String(condition.value || '')}
 										size="sm"
 										onchange={(e) => updateCondition(condition.id, { value: (e.target as HTMLInputElement).value })}
@@ -209,7 +213,7 @@
 									{#if condition.operator === 'between'}
 										<span class="tpl-filter-between">and</span>
 										<TemplateInput
-											type="date"
+											type="text"
 											value={String(condition.value2 || '')}
 											size="sm"
 											onchange={(e) => updateCondition(condition.id, { value2: (e.target as HTMLInputElement).value })}
@@ -225,7 +229,7 @@
 									/>
 								{/if}
 							{/if}
-							<button class="tpl-filter-remove" onclick={() => removeCondition(condition.id)}>
+							<button class="tpl-filter-remove" aria-label="Remove condition" onclick={() => removeCondition(condition.id)}>
 								<svg viewBox="0 0 20 20" fill="currentColor">
 									<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
 								</svg>

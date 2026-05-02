@@ -146,25 +146,30 @@ void main(){
   fragColor=o;
 }`;
 
-	onMount(async () => {
-		const { Renderer, Program, Mesh, Triangle } = await import('ogl');
+	onMount(() => {
+		let cleanup: (() => void) | undefined;
+		let cancelled = false;
 
-		const renderer = new Renderer({
-			webgl: 2,
-			alpha: true,
-			antialias: false,
-			dpr: 1 // Fixed at 1x for scroll performance
-		});
+		async function mountRenderer() {
+			const { Renderer, Program, Mesh, Triangle } = await import('ogl');
+			if (cancelled) return;
 
-		const gl = renderer.gl;
-		const canvas = gl.canvas as HTMLCanvasElement;
-		canvas.style.width = '100%';
-		canvas.style.height = '100%';
-		canvas.style.display = 'block';
-		container.appendChild(canvas);
+			const renderer = new Renderer({
+				webgl: 2,
+				alpha: true,
+				antialias: false,
+				dpr: 1 // Fixed at 1x for scroll performance
+			});
 
-		const geometry = new Triangle(gl);
-		const program = new Program(gl, {
+			const gl = renderer.gl;
+			const canvas = gl.canvas as HTMLCanvasElement;
+			canvas.style.width = '100%';
+			canvas.style.height = '100%';
+			canvas.style.display = 'block';
+			container.appendChild(canvas);
+
+			const geometry = new Triangle(gl);
+			const program = new Program(gl, {
 			vertex,
 			fragment,
 			uniforms: {
@@ -194,39 +199,39 @@ void main(){
 			}
 		});
 
-		const mesh = new Mesh(gl, { geometry, program });
+			const mesh = new Mesh(gl, { geometry, program });
 
-		const setSize = (w?: number, h?: number) => {
+			const setSize = (w?: number, h?: number) => {
 			const width = Math.max(1, Math.floor(w ?? container.clientWidth));
 			const height = Math.max(1, Math.floor(h ?? container.clientHeight));
 			renderer.setSize(width, height);
 			const res = (program.uniforms.iResolution as { value: Float32Array }).value;
 			res[0] = gl.drawingBufferWidth;
 			res[1] = gl.drawingBufferHeight;
-		};
+			};
 
-		const ro = new ResizeObserver((entries) => {
+			const ro = new ResizeObserver((entries) => {
 			const { width, height } = entries[0].contentRect;
 			setSize(width, height);
 		});
-		ro.observe(container);
-		setSize();
+			ro.observe(container);
+			setSize();
 
-		let raf = 0;
-		let scrolling = false;
-		let scrollTimer: ReturnType<typeof setTimeout>;
-		const t0 = performance.now();
+			let raf = 0;
+			let scrolling = false;
+			let scrollTimer: ReturnType<typeof setTimeout>;
+			const t0 = performance.now();
 
-		const loop = (t: number) => {
+			const loop = (t: number) => {
 			(program.uniforms.iTime as { value: number }).value = (t - t0) * 0.001;
 			renderer.render({ scene: mesh });
 			raf = requestAnimationFrame(loop);
-		};
-		raf = requestAnimationFrame(loop);
+			};
+			raf = requestAnimationFrame(loop);
 
 		// CANCEL the RAF loop during scroll — zero GPU/CPU work while scrolling
 		// Resume 200ms after scroll stops (last frame stays on canvas)
-		const onScroll = () => {
+			const onScroll = () => {
 			if (!scrolling) {
 				scrolling = true;
 				cancelAnimationFrame(raf);
@@ -236,17 +241,25 @@ void main(){
 				scrolling = false;
 				raf = requestAnimationFrame(loop);
 			}, 200);
-		};
-		window.addEventListener('scroll', onScroll, { passive: true });
+			};
+			window.addEventListener('scroll', onScroll, { passive: true });
+
+			cleanup = () => {
+				cancelAnimationFrame(raf);
+				clearTimeout(scrollTimer);
+				window.removeEventListener('scroll', onScroll);
+				ro.disconnect();
+				if (container.contains(canvas)) {
+					container.removeChild(canvas);
+				}
+			};
+		}
+
+		void mountRenderer();
 
 		return () => {
-			cancelAnimationFrame(raf);
-			clearTimeout(scrollTimer);
-			window.removeEventListener('scroll', onScroll);
-			ro.disconnect();
-			if (container.contains(canvas)) {
-				container.removeChild(canvas);
-			}
+			cancelled = true;
+			cleanup?.();
 		};
 	});
 </script>

@@ -4,7 +4,7 @@
 	 * Features: Sorting, selection, pagination, inline editing
 	 */
 
-	import type { Field, RecordData } from '../types';
+	import type { Field, RecordData, User } from '../types';
 	import type { TableViewConfig, SortConfig } from '../types';
 	import TextCell from '../cells/TextCell.svelte';
 	import NumberCell from '../cells/NumberCell.svelte';
@@ -122,6 +122,39 @@
 
 	function handleCellEdit(record: RecordData, fieldId: string, value: unknown) {
 		oncelledit?.(getRecordId(record), fieldId, value);
+	}
+
+	function asString(value: unknown): string | null {
+		if (value == null) return null;
+		return typeof value === 'string' ? value : String(value);
+	}
+
+	function asNumber(value: unknown): number | null {
+		return typeof value === 'number' ? value : null;
+	}
+
+	function asBoolean(value: unknown): boolean | null {
+		return typeof value === 'boolean' ? value : null;
+	}
+
+	function asDateValue(value: unknown): string | Date | null {
+		return typeof value === 'string' || value instanceof Date ? value : null;
+	}
+
+	function asStringArray(value: unknown): string[] | null {
+		return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : null;
+	}
+
+	function asUserValue(value: unknown): User | User[] | null {
+		if (!value) return null;
+		if (Array.isArray(value)) return value.filter(isUser);
+		return isUser(value) ? value : null;
+	}
+
+	function isUser(value: unknown): value is User {
+		if (!value || typeof value !== 'object') return false;
+		const candidate = value as Record<string, unknown>;
+		return typeof candidate.id === 'string' && typeof candidate.name === 'string';
 	}
 
 	function getColumnWidth(field: Field): string {
@@ -250,13 +283,13 @@
 
 								{#if field.type === 'text'}
 									<TextCell
-										{value}
+										value={asString(value)}
 										{editable}
 										onchange={(v) => handleCellEdit(record, field.id, v)}
 									/>
 								{:else if field.type === 'number'}
 									<NumberCell
-										{value}
+										value={asNumber(value)}
 										{editable}
 										precision={field.precision}
 										format={field.format}
@@ -266,76 +299,76 @@
 									/>
 								{:else if field.type === 'currency'}
 									<CurrencyCell
-										{value}
+										value={asNumber(value)}
 										{editable}
 										currency={field.currency}
 										onchange={(v) => handleCellEdit(record, field.id, v)}
 									/>
 								{:else if field.type === 'date' || field.type === 'datetime'}
 									<DateCell
-										{value}
+										value={asDateValue(value)}
 										{editable}
 										includeTime={field.type === 'datetime'}
 										onchange={(v) => handleCellEdit(record, field.id, v)}
 									/>
 								{:else if field.type === 'status'}
 									<StatusBadge
-										{value}
+										value={asString(value)}
 										options={field.options}
 										{editable}
 										onchange={(v) => handleCellEdit(record, field.id, v)}
 									/>
 								{:else if field.type === 'email'}
 									<EmailCell
-										{value}
+										value={asString(value)}
 										{editable}
 										onchange={(v) => handleCellEdit(record, field.id, v)}
 									/>
 								{:else if field.type === 'phone'}
 									<PhoneCell
-										{value}
+										value={asString(value)}
 										{editable}
 										onchange={(v) => handleCellEdit(record, field.id, v)}
 									/>
 								{:else if field.type === 'url'}
 									<URLCell
-										{value}
+										value={asString(value)}
 										{editable}
 										onchange={(v) => handleCellEdit(record, field.id, v)}
 									/>
 								{:else if field.type === 'checkbox'}
 									<CheckboxCell
-										{value}
+										value={asBoolean(value)}
 										{editable}
 										onchange={(v) => handleCellEdit(record, field.id, v)}
 									/>
 								{:else if field.type === 'rating'}
 									<RatingCell
-										{value}
+										value={asNumber(value)}
 										{editable}
 										max={field.max}
 										onchange={(v) => handleCellEdit(record, field.id, v)}
 									/>
 								{:else if field.type === 'progress'}
-									<ProgressCell {value} />
+									<ProgressCell value={asNumber(value)} />
 								{:else if field.type === 'user'}
-									<UserCell {value} />
+									<UserCell value={asUserValue(value)} />
 								{:else if field.type === 'select'}
 									<StatusBadge
-										{value}
+										value={asString(value)}
 										options={field.options}
 										{editable}
 										onchange={(v) => handleCellEdit(record, field.id, v)}
 									/>
 								{:else if field.type === 'multiselect'}
 									<MultiSelectCell
-										{value}
+										value={asStringArray(value)}
 										options={field.options}
 										{editable}
 										onchange={(v) => handleCellEdit(record, field.id, v)}
 									/>
 								{:else}
-									<TextCell {value} {editable} onchange={(v) => handleCellEdit(record, field.id, v)} />
+									<TextCell value={asString(value)} {editable} onchange={(v) => handleCellEdit(record, field.id, v)} />
 								{/if}
 							</td>
 						{/each}

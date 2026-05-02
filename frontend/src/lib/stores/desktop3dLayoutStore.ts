@@ -66,6 +66,10 @@ function getApiBase(): string {
 	return getApiBaseUrl();
 }
 
+function tupleToVector3(tuple: [number, number, number]): { x: number; y: number; z: number } {
+	return { x: tuple[0], y: tuple[1], z: tuple[2] };
+}
+
 function createLayoutStore() {
 	const { subscribe, set, update } = writable<LayoutState>(initialState);
 
@@ -80,8 +84,8 @@ function createLayoutStore() {
 			const store = get(desktop3dStore);
 			const modules: ModulePosition[] = store.windows.map((win) => ({
 				module_id: win.module,
-				position: win.position,
-				rotation: win.rotation || { x: 0, y: 0, z: 0 },
+				position: tupleToVector3(win.position),
+				rotation: tupleToVector3(win.rotation || [0, 0, 0]),
 				scale: win.targetScale || 1
 			}));
 
@@ -102,7 +106,7 @@ function createLayoutStore() {
 		 */
 		initialize: async () => {
 			if (import.meta.env.DEV) console.log('[Layout Store] Initializing...');
-			await get(desktop3dLayoutStore).loadLayouts();
+			await desktop3dLayoutStore.loadLayouts();
 		},
 
 		/**
@@ -121,7 +125,7 @@ function createLayoutStore() {
 					const layouts: Layout[] = await response.json();
 
 					// Always include default layout at the beginning
-					const defaultLayout = get(desktop3dLayoutStore).getDefaultLayout();
+					const defaultLayout = desktop3dLayoutStore.getDefaultLayout();
 
 					// Get active layout from backend
 					const activeResponse = await fetch(`${baseUrl}/desktop3d/layouts/active`, {
@@ -158,7 +162,7 @@ function createLayoutStore() {
 				console.error('[Layout Store] ❌ Failed to load layouts:', error);
 
 				// On error, just show default layout
-				const defaultLayout = get(desktop3dLayoutStore).getDefaultLayout();
+				const defaultLayout = desktop3dLayoutStore.getDefaultLayout();
 				update((s) => ({
 					...s,
 					layouts: [defaultLayout],
@@ -183,8 +187,8 @@ function createLayoutStore() {
 			const store = get(desktop3dStore);
 			const modules: ModulePosition[] = store.windows.map((win) => ({
 				module_id: win.module,
-				position: win.position,
-				rotation: win.rotation || { x: 0, y: 0, z: 0 },
+				position: tupleToVector3(win.position),
+				rotation: tupleToVector3(win.rotation || [0, 0, 0]),
 				scale: win.targetScale || 1
 			}));
 
@@ -264,6 +268,13 @@ function createLayoutStore() {
 
 			update((s) => ({ ...s, activeLayoutId: layoutId, error: null }));
 			if (import.meta.env.DEV) console.log('[Layout Store] ✅ Loaded layout', { id: layoutId, name: layout.name });
+		},
+
+		/**
+		 * Restore the generated default layout.
+		 */
+		resetToDefault: async () => {
+			await desktop3dLayoutStore.loadLayout('default');
 		},
 
 		/**

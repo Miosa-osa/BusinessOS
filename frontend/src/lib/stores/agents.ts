@@ -29,6 +29,19 @@ interface AgentsState {
   filters: AgentFilters;
 }
 
+function readResponseArray<T>(response: unknown, key: string): T[] {
+  if (Array.isArray(response)) {
+    return response as T[];
+  }
+
+  if (response && typeof response === "object") {
+    const value = (response as Record<string, unknown>)[key];
+    return Array.isArray(value) ? (value as T[]) : [];
+  }
+
+  return [];
+}
+
 function createAgentsStore() {
   const { subscribe, update } = writable<AgentsState>({
     agents: [],
@@ -89,11 +102,7 @@ function createAgentsStore() {
         const response = await Promise.race([fetchPromise, timeoutPromise]);
 
         // Safely access agents array — backend may return different shapes
-        let agents: CustomAgent[] = Array.isArray(response)
-          ? response
-          : Array.isArray((response as Record<string, unknown>)?.agents)
-            ? (response as { agents: CustomAgent[] }).agents
-            : [];
+        let agents = readResponseArray<CustomAgent>(response, "agents");
 
         // Apply client-side filters
         if (currentFilters.category) {
@@ -503,11 +512,7 @@ function createAgentsStore() {
           setTimeout(() => reject(new Error("Presets timeout")), 6000),
         );
         const response = await Promise.race([fetchPromise, timeoutPromise]);
-        const presets = Array.isArray(response)
-          ? response
-          : Array.isArray((response as Record<string, unknown>)?.presets)
-            ? (response as { presets: AgentPreset[] }).presets
-            : [];
+        const presets = readResponseArray<AgentPreset>(response, "presets");
         update((s) => ({ ...s, presets, loading: false }));
       } catch (error) {
         console.error("Failed to load agent presets:", error);

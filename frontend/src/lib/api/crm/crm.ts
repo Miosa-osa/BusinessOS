@@ -22,6 +22,7 @@ import type {
   ActivitiesResponse,
   CreateActivityData,
   ContactsResponse,
+  CRMContact,
   LinkContactData,
   ContactCompanyRelation,
 } from "./types";
@@ -128,9 +129,9 @@ export async function getCompanyContacts(
   companyId: string,
 ): Promise<ContactsResponse> {
   const raw = await request<{
-    data: unknown[];
+    data: CRMContact[];
     pagination?: { total_items?: number };
-    contacts?: unknown[];
+    contacts?: CRMContact[];
     count?: number;
   }>(`/crm/companies/${companyId}/contacts`);
   if (

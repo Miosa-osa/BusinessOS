@@ -143,10 +143,10 @@
       context.role_name === 'manager';
   }
 
-  function handleWorkspaceUpdated(event: CustomEvent<Workspace>) {
-    workspace = event.detail;
+  function handleWorkspaceUpdated(updatedWorkspace: Workspace) {
+    workspace = updatedWorkspace;
     if ($currentWorkspace) {
-      $currentWorkspace = { ...$currentWorkspace, ...event.detail };
+      $currentWorkspace = { ...$currentWorkspace, ...updatedWorkspace };
     }
   }
 

@@ -100,7 +100,7 @@
 			<TemplateCard
 				variant="default"
 				padding="none"
-				interactive
+				clickable
 				selected={isSelected}
 				onclick={() => onrowclick?.(record)}
 			>
@@ -247,6 +247,7 @@
 		color: var(--tpl-text-tertiary);
 		line-height: var(--tpl-leading-normal);
 		display: -webkit-box;
+		line-clamp: 2;
 		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;

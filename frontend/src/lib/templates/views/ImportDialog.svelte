@@ -55,6 +55,10 @@
 		dragOver = false;
 	}
 
+	function getFieldLabel(field: Field): string {
+		return field.label ?? field.name ?? field.id;
+	}
+
 	async function processFile(f: File) {
 		file = f;
 
@@ -83,7 +87,7 @@
 		headers.forEach(header => {
 			const normalizedHeader = header.toLowerCase().replace(/[^a-z0-9]/g, '');
 			const matchingField = fields.find(f => {
-				const normalizedLabel = f.label.toLowerCase().replace(/[^a-z0-9]/g, '');
+				const normalizedLabel = getFieldLabel(f).toLowerCase().replace(/[^a-z0-9]/g, '');
 				const normalizedId = f.id.toLowerCase().replace(/[^a-z0-9]/g, '');
 				return normalizedLabel === normalizedHeader || normalizedId === normalizedHeader;
 			});
@@ -215,7 +219,7 @@
 						<TemplateSelect
 							options={[
 								{ value: '', label: 'Skip this column' },
-								...fields.map(f => ({ value: f.id, label: f.label }))
+								...fields.map(f => ({ value: f.id, label: getFieldLabel(f) }))
 							]}
 							value={fieldMapping[header] || ''}
 							size="sm"
@@ -257,7 +261,7 @@
 					<thead>
 						<tr>
 							{#each fields.filter(f => Object.values(fieldMapping).includes(f.id)) as field}
-								<th>{field.label}</th>
+								<th>{getFieldLabel(field)}</th>
 							{/each}
 						</tr>
 					</thead>

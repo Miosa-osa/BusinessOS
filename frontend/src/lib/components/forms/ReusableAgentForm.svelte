@@ -146,7 +146,6 @@
 			{#if !['system_prompt', 'category', 'temperature', 'max_tokens', 'thinking_enabled', 'streaming_enabled'].includes(field.name)}
 				<FormField
 					{...field}
-					value={data[field.name] ?? ''}
 					error={fieldErrors[field.name] ?? ''}
 					onchange={() => resetErrors(field.name)}
 					bind:value={data[field.name]}
@@ -156,12 +155,11 @@
 	</FormSection>
 
 	<!-- Advanced Settings Section -->
-	<FormSection {title: 'Advanced Settings'} description="Model preferences and behavior">
+	<FormSection title="Advanced Settings" description="Model preferences and behavior">
 		{#each fields as field (field.name)}
 			{#if ['category', 'temperature', 'max_tokens'].includes(field.name)}
 				<FormField
 					{...field}
-					value={data[field.name] ?? ''}
 					error={fieldErrors[field.name] ?? ''}
 					onchange={() => resetErrors(field.name)}
 					bind:value={data[field.name]}
@@ -173,10 +171,9 @@
 	<!-- System Prompt Section -->
 	{#each fields as field (field.name)}
 		{#if field.name === 'system_prompt'}
-			<FormSection {title: 'System Prompt'} description="Define how the agent behaves and responds">
+			<FormSection title="System Prompt" description="Define how the agent behaves and responds">
 				<FormField
 					{...field}
-					value={data[field.name] ?? ''}
 					error={fieldErrors[field.name] ?? ''}
 					onchange={() => resetErrors(field.name)}
 					bind:value={data[field.name]}

@@ -14,14 +14,14 @@
 
 	let { appId, sandboxEditId }: Props = $props();
 
-	let showReviewPanel = $state(!!sandboxEditId);
+	let showReviewPanel = $state(Boolean(sandboxEditId));
 
-	let app: GeneratedApp | null = $state(null);
-	let sandboxInfo: SandboxInfo | null = $state(null);
+	let app = $state<GeneratedApp | null>(null);
+	let sandboxInfo = $state<SandboxInfo | null>(null);
 	let isLoading = $state(true);
 	let actionLoading = $state(false);
 	let error = $state<string | null>(null);
-	let iframeRef: HTMLIFrameElement | null = null;
+	let iframeRef = $state<HTMLIFrameElement | null>(null);
 	let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 	// Derive sandbox status
@@ -30,9 +30,9 @@
 	);
 	let sandboxUrl = $derived(sandboxInfo?.url ?? app?.sandbox?.url);
 	let isRunning = $derived(sandboxStatus === 'running');
-	let isBuilding = $derived(sandboxStatus === 'building');
+	let isBuilding = $derived(sandboxStatus === 'deploying');
 	let isStopped = $derived(sandboxStatus === 'stopped');
-	let isError = $derived(sandboxStatus === 'error');
+	let isError = $derived(sandboxStatus === 'failed');
 
 	onMount(async () => {
 		await loadApp();

@@ -249,6 +249,7 @@ export interface IntegrationProviderInfo {
 export interface UserIntegration {
   id: string;
   provider_id: string;
+  oauth_provider?: string;
   provider_name: string;
   category: IntegrationCategory;
   icon_url: string | null;

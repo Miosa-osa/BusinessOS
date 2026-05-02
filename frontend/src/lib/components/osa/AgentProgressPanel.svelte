@@ -518,7 +518,7 @@
 	<!-- Agent cards grid -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 		{#each agents as agent, index (agent.id)}
-			<AgentStatusCard {agent} {index} />
+			<AgentStatusCard {agent} />
 		{/each}
 	</div>
 

@@ -233,7 +233,11 @@ export function onNavigate(callback: (path: string) => void): () => void {
   const api = getElectronAPI();
   if (!api) return () => {};
 
-  return api.on("navigate", callback);
+  return api.on("navigate", (path) => {
+    if (typeof path === "string") {
+      callback(path);
+    }
+  });
 }
 
 /**
@@ -246,5 +250,9 @@ export function onShortcut(callback: (shortcut: string) => void): () => void {
   const api = getElectronAPI();
   if (!api) return () => {};
 
-  return api.on("shortcut", callback);
+  return api.on("shortcut", (shortcut) => {
+    if (typeof shortcut === "string") {
+      callback(shortcut);
+    }
+  });
 }

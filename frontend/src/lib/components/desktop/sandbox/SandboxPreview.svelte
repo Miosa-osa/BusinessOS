@@ -25,14 +25,14 @@
 
 	let { sandboxId, onClose, class: className }: Props = $props();
 
-	let sandbox: SandboxEdit | null = $state(null);
+	let sandbox = $state<SandboxEdit | null>(null);
 	let isLoading = $state(true);
 	let isValidating = $state(false);
 	let error = $state<string | null>(null);
 	let successMessage = $state<string | null>(null);
 
-	let hasDiffs = $derived(sandbox?.diff && sandbox.diff.length > 0);
-	let hasErrors = $derived(sandbox?.errors && sandbox.errors.length > 0);
+	let hasDiffs = $derived((sandbox?.diff?.length ?? 0) > 0);
+	let hasErrors = $derived((sandbox?.errors?.length ?? 0) > 0);
 
 	// Track timeouts for cleanup on destroy
 	let timeoutIds: ReturnType<typeof setTimeout>[] = [];

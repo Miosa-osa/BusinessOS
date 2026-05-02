@@ -195,7 +195,7 @@ describe('Agents Store', () => {
       expect(state.agents[0].id).toBe('1');
     });
 
-    it('should handle API errors gracefully', async () => {
+    it('should fall back to demo agents when API errors', async () => {
       const mockError = new Error('Failed to load agents');
       vi.mocked(aiApi.getCustomAgents).mockRejectedValue(mockError);
 
@@ -203,8 +203,9 @@ describe('Agents Store', () => {
 
       const state = get(agents);
       expect(state.loading).toBe(false);
-      expect(state.error).toBe('Failed to load agents');
-      expect(state.agents).toHaveLength(0);
+      expect(state.error).toBe('demo');
+      expect(state.agents.length).toBeGreaterThan(0);
+      expect(state.agents.every((agent) => agent.user_id === 'demo')).toBe(true);
     });
 
     // ============ RACE CONDITION TESTS ============
@@ -421,7 +422,7 @@ describe('Agents Store', () => {
             matches = matches && (
               a.name.toLowerCase().includes(search) ||
               a.display_name.toLowerCase().includes(search) ||
-              a.description?.toLowerCase().includes(search)
+              (a.description?.toLowerCase().includes(search) ?? false)
             );
           }
 
@@ -663,7 +664,7 @@ describe('Agents Store', () => {
       await agents.loadAgents();
 
       let state = get(agents);
-      expect(state.error).toBe('Test error');
+      expect(state.error).toBe('demo');
 
       agents.clearError();
 
@@ -695,14 +696,15 @@ describe('Agents Store', () => {
       expect(state.presets[0].id).toBe('preset1');
     });
 
-    it('should handle preset loading errors', async () => {
+    it('should fall back to demo presets when preset loading errors', async () => {
       const mockError = new Error('Failed to load presets');
       vi.mocked(aiApi.getAgentPresets).mockRejectedValue(mockError);
 
       await agents.loadPresets();
 
       const state = get(agents);
-      expect(state.error).toBe('Failed to load presets');
+      expect(state.error).toBeNull();
+      expect(state.presets.length).toBeGreaterThan(0);
     });
   });
 

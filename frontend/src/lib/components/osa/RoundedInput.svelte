@@ -11,6 +11,8 @@
 	/>
 -->
 <script lang="ts">
+	import type { HTMLInputAttributes } from 'svelte/elements';
+
 	interface Props {
 		label?: string;
 		type?: string;
@@ -18,7 +20,7 @@
 		placeholder?: string;
 		disabled?: boolean;
 		required?: boolean;
-		autocomplete?: string;
+		autocomplete?: HTMLInputAttributes['autocomplete'];
 		error?: string;
 		helperText?: string;
 		id?: string;
@@ -41,8 +43,7 @@
 		class: className = ''
 	}: Props = $props();
 
-	const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
-	const classes = `input-rounded ${className}`.trim();
+	let inputId = $derived(id || `input-${Math.random().toString(36).substr(2, 9)}`);
 </script>
 
 <div class="input-container">

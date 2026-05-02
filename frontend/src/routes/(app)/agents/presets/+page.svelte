@@ -5,6 +5,8 @@
   import type { AgentPreset } from '$lib/api/ai/types';
   import PresetCard from '$lib/components/agents/PresetCard.svelte';
 
+  type PresetWithTags = AgentPreset & { tags?: string[] };
+
   let loading = $state(true);
   let error = $state<string | null>(null);
   let selectedCategory = $state('all');
@@ -25,6 +27,9 @@
   ];
 
   let allPresets = $derived($agents.presets ?? []);
+  let selectedPresetTags = $derived(
+    selectedPreset ? ((selectedPreset as PresetWithTags).tags ?? []) : []
+  );
 
   let filteredPresets = $derived.by(() => {
     let result = allPresets;
@@ -329,11 +334,11 @@
       {/if}
 
       <!-- Tags -->
-      {#if selectedPreset.tags && selectedPreset.tags.length > 0}
+      {#if selectedPresetTags.length > 0}
         <div class="agp-drawer__section">
           <p class="agp-drawer__section-label">Tags</p>
           <div class="agp-drawer__chips">
-            {#each selectedPreset.tags as tag}
+            {#each selectedPresetTags as tag}
               <span class="agp-drawer__chip agp-drawer__chip--tag">{tag}</span>
             {/each}
           </div>

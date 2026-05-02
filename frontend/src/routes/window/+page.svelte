@@ -4,7 +4,6 @@
 	import { windowStore, visibleWindows, focusedWindow, type SnapZone } from '$lib/stores/windowStore';
 	import { desktopSettings, getBackgroundCSS, isBackgroundDark } from '$lib/stores/desktopStore';
 	import { deployedAppsStore } from '$lib/stores/deployedAppsStore';
-	import { currentWorkspaceId } from '$lib/stores/workspaces';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { isElectron, isMacOS } from '$lib/utils/platform';
@@ -37,8 +36,7 @@
 		windowStore.initialize();
 
 		// Start discovering deployed OSA apps and user-generated apps
-		const workspaceId = $currentWorkspaceId || undefined;
-		deployedAppsStore.startDiscovery(workspaceId);
+		deployedAppsStore.startDiscovery();
 
 		// Show loading screen for consistent duration (matches CSS animation)
 		setTimeout(() => {

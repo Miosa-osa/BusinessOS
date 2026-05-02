@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { FormFieldConfig } from '$lib/types/forms';
+	import type { HTMLInputAttributes } from 'svelte/elements';
 
 	interface Props extends Partial<FormFieldConfig> {
 		value: string | number | boolean | string[];
@@ -24,6 +25,8 @@
 		rows = 3,
 		autoComplete = ''
 	}: Props = $props();
+
+	let inputAutoComplete = $derived(autoComplete as HTMLInputAttributes['autocomplete']);
 </script>
 
 <div class="form-control w-full">
@@ -45,9 +48,9 @@
 			{required}
 			{disabled}
 			{placeholder}
-			{minLength}
-			{maxLength}
-			autocomplete={autoComplete ?? undefined}
+			minlength={minLength}
+			maxlength={maxLength}
+			autocomplete={inputAutoComplete}
 			bind:value
 			class="input input-bordered w-full {error ? 'input-error' : ''}"
 		/>
@@ -80,7 +83,7 @@
 			maxlength={maxLength}
 			bind:value
 			class="textarea textarea-bordered w-full {error ? 'textarea-error' : ''}"
-		/>
+		></textarea>
 	{/if}
 
 	<!-- Select -->
@@ -111,7 +114,10 @@
 				type="checkbox"
 				{required}
 				disabled={!!disabled}
-				bind:checked={value}
+				checked={value === true}
+				onchange={(event) => {
+					value = event.currentTarget.checked;
+				}}
 				class="checkbox checkbox-primary"
 			/>
 			<span class="label-text">{label}</span>
@@ -140,7 +146,7 @@
 
 	<!-- Error Message -->
 	{#if error}
-		<label class="label">
+		<div class="label">
 			<span class="label-text-alt text-error flex items-center gap-1">
 				<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
 					<path
@@ -151,14 +157,14 @@
 				</svg>
 				{error}
 			</span>
-		</label>
+		</div>
 	{/if}
 
 	<!-- Help Text -->
 	{#if help}
-		<label class="label">
+		<div class="label">
 			<span class="label-text-alt text-gray-500">{help}</span>
-		</label>
+		</div>
 	{/if}
 </div>
 
