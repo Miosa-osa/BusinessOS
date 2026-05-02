@@ -258,6 +258,16 @@ defmodule OptimalEngine.API.Router do
     end
   end
 
+  get "/api/contexts/map" do
+    case Store.raw_query("SELECT id, node FROM contexts WHERE node IS NOT NULL", []) do
+      {:ok, rows} ->
+        mapping = Enum.map(rows, fn [id, node] -> %{id: id, node: node} end)
+        json(conn, %{contexts: mapping})
+      {:error, _} ->
+        json(conn, %{contexts: []})
+    end
+  end
+
   get "/api/health" do
     {:ok, checks} = HealthDiagnostics.run()
     json(conn, %{health: format_health(checks)})

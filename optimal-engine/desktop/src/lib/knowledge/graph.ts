@@ -200,17 +200,17 @@ export async function loadGraph(): Promise<GraphData> {
     }
   }
 
-  // Fetch context→node mapping from the search API so we can resolve
-  // edge endpoints (context hashes) to workspace nodes.
+  // Fetch context→node mapping so we can resolve edge endpoints
+  // (context IDs like "seed-founder-weekly-14851") to workspace nodes.
   const contextToNode = new Map<string, string>();
   try {
-    const searchRes = await fetch("/api/search?q=*&limit=500");
-    if (searchRes.ok) {
-      const searchData = (await searchRes.json()) as {
-        results: { id: string; node: string }[];
+    const mapRes = await fetch("/api/contexts/map");
+    if (mapRes.ok) {
+      const mapData = (await mapRes.json()) as {
+        contexts: { id: string; node: string }[];
       };
-      for (const r of searchData.results) {
-        contextToNode.set(r.id, r.node);
+      for (const c of mapData.contexts) {
+        contextToNode.set(c.id, c.node);
       }
     }
   } catch {
