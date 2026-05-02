@@ -91,8 +91,8 @@
 			period: '',
 			desc: 'Local only. No credit card.',
 			features: ['Local app only', 'Unlimited modules', 'Bring your own API keys', 'Apache 2.0 licensed'],
-			cta: 'Download Free',
-			href: '#download',
+			cta: 'Get Started Free',
+			href: 'https://github.com/Miosa-osa/BusinessOS',
 			highlight: false
 		},
 		{
@@ -173,8 +173,8 @@
 		<nav class="lp-nav__links" aria-label="Site navigation">
 			<a href="#modules" class="lp-nav__link">Modules</a>
 			<a href="#pricing" class="lp-nav__link">Pricing</a>
-			<a href="https://github.com/Miosa-osa/businessos" target="_blank" rel="noopener" class="lp-nav__link">Docs</a>
-			<a href="https://github.com/miosa-osa/businessos" target="_blank" rel="noopener" class="lp-nav__link">GitHub</a>
+			<a href="https://github.com/Miosa-osa/BusinessOS" target="_blank" rel="noopener" class="lp-nav__link">Docs</a>
+			<a href="https://github.com/Miosa-osa/BusinessOS" target="_blank" rel="noopener" class="lp-nav__link">GitHub</a>
 		</nav>
 		<div class="lp-nav__actions">
 			<a href="/login" class="lp-btn lp-btn--ghost">Sign in</a>
@@ -217,11 +217,11 @@
 				Proactive agents that run in your cloud computer. Automations that learn your workflows. A system that gets smarter with every decision you make.
 			</p>
 			<div class="lp-hero__ctas">
-				<a href="https://github.com/Miosa-osa/businessos/releases" target="_blank" rel="noopener" class="lp-btn lp-btn--primary lp-btn--lg">
-					Download for Mac
+				<a href="https://github.com/Miosa-osa/BusinessOS" target="_blank" rel="noopener" class="lp-btn lp-btn--primary lp-btn--lg">
+					Get Started
 				</a>
 				<a href="/register" class="lp-btn lp-btn--ghost lp-btn--lg">
-					Start in Browser
+					Try in Browser
 				</a>
 			</div>
 			<div class="lp-hero__pills">
@@ -402,7 +402,7 @@
 			</p>
 			<div class="lp-oss__actions">
 				<a
-					href="https://github.com/miosa-osa/businessos"
+					href="https://github.com/Miosa-osa/BusinessOS"
 					target="_blank"
 					rel="noopener noreferrer"
 					class="lp-btn lp-btn--primary lp-btn--lg"
@@ -413,7 +413,7 @@
 					</svg>
 					View on GitHub
 				</a>
-				<a href="https://github.com/Miosa-osa/businessos" target="_blank" rel="noopener" class="lp-btn lp-btn--outline lp-btn--lg">
+				<a href="https://github.com/Miosa-osa/BusinessOS" target="_blank" rel="noopener" class="lp-btn lp-btn--outline lp-btn--lg">
 					Read the Docs
 				</a>
 			</div>
@@ -436,8 +436,8 @@
 			<p class="lp-footer__tagline">Built by MIOSA</p>
 		</div>
 		<nav class="lp-footer__links" aria-label="Footer navigation">
-			<a href="https://github.com/miosa-osa/businessos" target="_blank" rel="noopener" class="lp-footer__link">GitHub</a>
-			<a href="https://github.com/Miosa-osa/businessos" target="_blank" rel="noopener" class="lp-footer__link">Documentation</a>
+			<a href="https://github.com/Miosa-osa/BusinessOS" target="_blank" rel="noopener" class="lp-footer__link">GitHub</a>
+			<a href="https://github.com/Miosa-osa/BusinessOS" target="_blank" rel="noopener" class="lp-footer__link">Documentation</a>
 			<a href="#pricing" class="lp-footer__link">Pricing</a>
 			<a href="/privacy" class="lp-footer__link">Privacy</a>
 			<a href="mailto:hello@businessos.dev" class="lp-footer__link">Contact</a>
