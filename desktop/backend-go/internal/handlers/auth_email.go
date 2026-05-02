@@ -206,6 +206,43 @@ func provisionDefaultWorkspace(ctx context.Context, pool *pgxpool.Pool, userID s
 	}
 
 	logger.Info("provisionDefaultWorkspace: done", slog.String("user_id", userID), slog.String("workspace_id", workspaceID))
+
+	seedOptimalEngineWorkspace(ctx, workspaceID, logger)
+}
+
+// seedOptimalEngineWorkspace ensures the OptimalEngine nodes directory exists
+// and contains the sample workspace seed data. For self-hosted single-tenant
+// deployments, OPTIMAL_NODES_ROOT already points at sample-workspace/nodes/
+// which ships with the repo. This function is a no-op in that case.
+//
+// For cloud multi-tenant, this would copy seed data into a per-workspace
+// directory. Currently single-tenant only.
+func seedOptimalEngineWorkspace(ctx context.Context, workspaceID string, logger *slog.Logger) {
+	nodesRoot := os.Getenv("OPTIMAL_NODES_ROOT")
+	if nodesRoot == "" {
+		logger.Info("seedOptimalEngineWorkspace: OPTIMAL_NODES_ROOT not set, skipping")
+		return
+	}
+
+	// Verify the nodes directory exists and has content
+	entries, err := os.ReadDir(nodesRoot)
+	if err != nil {
+		logger.Warn("seedOptimalEngineWorkspace: cannot read nodes directory",
+			slog.String("path", nodesRoot), slog.Any("error", err))
+		return
+	}
+
+	nodeCount := 0
+	for _, e := range entries {
+		if e.IsDir() {
+			nodeCount++
+		}
+	}
+
+	logger.Info("seedOptimalEngineWorkspace: engine workspace ready",
+		slog.String("workspace_id", workspaceID),
+		slog.String("nodes_root", nodesRoot),
+		slog.Int("node_count", nodeCount))
 }
 
 // SignUp handles user registration with email/password

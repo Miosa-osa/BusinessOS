@@ -107,55 +107,69 @@ Every module gets full access to the BusinessOS context — the same projects, c
 
 ## Quick Start
 
+### Option 1: One command (recommended)
+
 ```bash
 git clone https://github.com/Miosa-osa/BusinessOS.git
 cd BusinessOS
+make dev-local
+```
 
-# Start everything
-./startup.sh
+This builds the Go backend, starts the OptimalEngine, SvelteKit frontend, and
+Electron desktop app. A sample company workspace is pre-loaded so you see real
+data immediately — nodes, signals, knowledge graph, and all.
 
-# Open browser
+Open the Electron window or visit `http://localhost:5273`. Create an account,
+and you're in.
+
+**Requirements:** Node.js 22+, Go 1.24+, pnpm, PostgreSQL 15+ (with pgvector), Redis 7+
+
+### Option 2: Docker
+
+```bash
+docker-compose up -d    # Starts PostgreSQL, Redis, backend, frontend
 open http://localhost:5173
 ```
 
-### Manual Setup
+### Option 3: Manual
 
 ```bash
-# Frontend
-cd frontend && npm install && npm run dev
-
-# Backend (separate terminal)
+# Backend
 cd desktop/backend-go
-cp .env.example .env   # Configure your environment
+cp .env.example .env    # Configure your environment
 go run ./cmd/server
+
+# Frontend (separate terminal)
+cd frontend && pnpm install && pnpm dev
+
+# Electron (separate terminal, optional)
+cd desktop && npm install && npm start
 ```
 
-**Requirements:** Node.js 22+, Go 1.24+, PostgreSQL 15+ (with pgvector), Redis 7+
-
-### Run as Native Desktop App (Electron)
+### Run as native desktop app
 
 Works on **macOS**, **Windows**, and **Linux**.
 
 ```bash
 cd desktop
 npm install
-npm run make          # Build native app
-
-# Outputs:
-#   macOS   → .dmg
-#   Windows → .exe
-#   Linux   → .deb / .rpm
-
-# Or run in dev mode
-npm run start
+npm run make            # Build native app → .dmg / .exe / .deb
 ```
 
-### Run with Docker
+### What you get on first boot
 
-```bash
-docker-compose up -d  # Starts PostgreSQL, Redis, backend, frontend
-open http://localhost:5173
-```
+Every new workspace ships with a sample company pre-loaded in OptimalEngine:
+
+- **Founder's Desk** — priorities, delegations, decision log
+- **Platform Division** — engineering org, architecture, security
+- **Services** — contracts, invoices, retainers
+- **Customer Academy** — courses, NPS, retention
+- **Partner Network** — channel partners, renewals, at-risk accounts
+- **Media** — content pillars, editorial pipeline
+
+Explore the **Knowledge Graph** (Pages > Knowledge Graph), edit any node, add
+your own signals, or delete the sample data and start fresh. The **Getting
+Started** node explains everything.
 
 See [docs/development/DEVELOPER_QUICKSTART.md](docs/development/DEVELOPER_QUICKSTART.md) for the full setup guide.
 

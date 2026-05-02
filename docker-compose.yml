@@ -104,6 +104,12 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-20250514}
 
+      # ── OptimalEngine (knowledge substrate) ────────────────────────────────
+      OPTIMAL_NODES_ROOT: /app/optimal-engine/sample-workspace/nodes
+      OPTIMAL_OS_ROOT: /app/optimal-engine/sample-workspace
+      OPTIMAL_ENGINE_PATH: /app/optimal-engine
+      OPTIMAL_DB_PATH: /app/optimal-engine/sample-workspace/.system/index.db
+
       # ── OSA Integration (optional — disabled by default) ──────────────────
       OSA_ENABLED: ${OSA_ENABLED:-false}
       OSA_MODE: ${OSA_MODE:-local}
@@ -151,6 +157,8 @@ services:
       redis:
         condition: service_healthy
     volumes:
+      # OptimalEngine seed data — provides sample company nodes on first boot
+      - ./optimal-engine/sample-workspace:/app/optimal-engine/sample-workspace
       # Docker socket — only needed for sandbox/container management features.
       # Remove this line if you are not using the terminal/sandbox feature.
       - /var/run/docker.sock:/var/run/docker.sock:ro
