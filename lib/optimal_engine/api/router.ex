@@ -21,6 +21,7 @@ defmodule OptimalEngine.API.Router do
 
   use Plug.Router
 
+  alias OptimalEngine.API.Pagination
   alias OptimalEngine.Graph.Analyzer, as: GraphAnalyzer
   alias OptimalEngine.Health
   alias OptimalEngine.Insight.Health, as: HealthDiagnostics
@@ -35,10 +36,15 @@ defmodule OptimalEngine.API.Router do
   alias OptimalEngine.Telemetry
   alias OptimalEngine.Wiki
 
+  plug(OptimalEngine.API.VersionPlug)
   plug(:cors)
   plug(:match)
   plug(Plug.Parsers, parsers: [:json], json_decoder: Jason, pass: ["application/json"])
-  plug(OptimalEngine.API.RateLimitPlug)
+
+  plug(OptimalEngine.API.RateLimitPlug,
+    exempt_paths: ["/api/status", "/api/health", "/api/metrics/prometheus"]
+  )
+
   plug(OptimalEngine.API.AuthPlug)
   plug(:dispatch)
 
@@ -109,20 +115,35 @@ defmodule OptimalEngine.API.Router do
 
   get "/api/search" do
     q = query_param(conn, "q", "")
-    limit = conn |> query_param("limit", "10") |> parse_int(10)
     workspace = query_param(conn, "workspace", "default")
+    {offset, limit} = Pagination.parse(conn, 10)
 
-    results =
+    {results, total} =
       if q == "" do
-        []
+        {[], 0}
       else
-        case OptimalEngine.search(q, limit: limit, workspace_id: workspace) do
-          {:ok, contexts} -> format_search_results(contexts)
-          _ -> []
+        # Fetch up to max_limit to get the real total, then slice.
+        fetch_limit = min(limit + offset + 200, 200)
+
+        case OptimalEngine.search(q, limit: fetch_limit, workspace_id: workspace) do
+          {:ok, contexts} ->
+            all = format_search_results(contexts)
+            total = length(all)
+            page = all |> Enum.drop(offset) |> Enum.take(limit)
+            {page, total}
+
+          _ ->
+            {[], 0}
         end
       end
 
-    json(conn, %{query: q, results: results})
+    pagination = Pagination.wrap(results, total, offset, limit)
+
+    json(conn, %{
+      query: q,
+      results: results,
+      pagination: pagination.pagination
+    })
   end
 
   # GET /api/grep — hybrid semantic + literal grep over a workspace.
@@ -146,7 +167,7 @@ defmodule OptimalEngine.API.Router do
     intent = query_param(conn, "intent", "")
     scale = query_param(conn, "scale", "")
     modality = query_param(conn, "modality", "")
-    limit = conn |> query_param("limit", "25") |> parse_int(25)
+    {offset, limit} = Pagination.parse(conn, 25)
     literal? = conn |> query_param("literal", "false") |> parse_bool(false)
     path_prefix = query_param(conn, "path", "")
 
@@ -156,7 +177,7 @@ defmodule OptimalEngine.API.Router do
       grep_opts =
         [
           workspace_id: workspace_id,
-          limit: limit,
+          limit: limit + offset,
           literal: literal?
         ]
         |> api_maybe_put(:intent, parse_atom(intent, nil))
@@ -165,22 +186,30 @@ defmodule OptimalEngine.API.Router do
         |> api_maybe_put(:path_prefix, if(path_prefix == "", do: nil, else: path_prefix))
 
       case Grep.grep(q, grep_opts) do
-        {:ok, matches} ->
+        {:ok, all_matches} ->
+          total = length(all_matches)
+          matches = all_matches |> Enum.drop(offset) |> Enum.take(limit)
+
+          results =
+            Enum.map(matches, fn m ->
+              %{
+                slug: m.slug,
+                scale: to_string(m.scale),
+                intent: if(m.intent, do: to_string(m.intent), else: nil),
+                sn_ratio: m.sn_ratio,
+                modality: if(m.modality, do: to_string(m.modality), else: nil),
+                snippet: m.snippet,
+                score: m.score
+              }
+            end)
+
+          pagination = Pagination.wrap(results, total, offset, limit)
+
           json(conn, %{
             query: q,
             workspace_id: workspace_id,
-            results:
-              Enum.map(matches, fn m ->
-                %{
-                  slug: m.slug,
-                  scale: to_string(m.scale),
-                  intent: if(m.intent, do: to_string(m.intent), else: nil),
-                  sn_ratio: m.sn_ratio,
-                  modality: if(m.modality, do: to_string(m.modality), else: nil),
-                  snippet: m.snippet,
-                  score: m.score
-                }
-              end)
+            results: results,
+            pagination: pagination.pagination
           })
 
         {:error, reason} ->
@@ -244,8 +273,21 @@ defmodule OptimalEngine.API.Router do
       status: Health.status(),
       ok?: report.ok?,
       checks: Map.new(report.checks, fn {k, v} -> {k, inspect(v)} end),
-      degraded: report.degraded
+      degraded: report.degraded,
+      api_version: "v1"
     })
+  end
+
+  # Prometheus text exposition format — not rate-limited, no auth required.
+  # MUST appear before the JSON /api/metrics route (first-match routing).
+  get "/api/metrics/prometheus" do
+    alias OptimalEngine.Telemetry.Prometheus
+
+    body = Prometheus.render()
+
+    conn
+    |> put_resp_content_type("text/plain; version=0.0.4; charset=utf-8")
+    |> send_resp(200, body)
   end
 
   # Runtime metrics snapshot (Phase 10 Telemetry module).
@@ -337,28 +379,115 @@ defmodule OptimalEngine.API.Router do
   get "/api/wiki" do
     tenant = query_param(conn, "tenant", "default")
     workspace = query_param(conn, "workspace", "default")
+    {offset, limit} = Pagination.parse(conn)
 
-    case Wiki.list(tenant, workspace) do
+    total =
+      case Wiki.count(tenant, workspace),
+        do: (
+          {:ok, n} -> n
+          _ -> 0
+        )
+
+    case Wiki.list(tenant, workspace, limit: limit, offset: offset) do
       {:ok, pages} ->
+        formatted =
+          Enum.map(pages, fn p ->
+            %{
+              slug: p.slug,
+              audience: p.audience,
+              version: p.version,
+              last_curated: p.last_curated,
+              curated_by: p.curated_by,
+              size_bytes: byte_size(p.body || ""),
+              workspace_id: p.workspace_id
+            }
+          end)
+
+        pagination = Pagination.wrap(formatted, total, offset, limit)
+
         json(conn, %{
           tenant_id: tenant,
           workspace_id: workspace,
-          pages:
-            Enum.map(pages, fn p ->
-              %{
-                slug: p.slug,
-                audience: p.audience,
-                version: p.version,
-                last_curated: p.last_curated,
-                curated_by: p.curated_by,
-                size_bytes: byte_size(p.body || ""),
-                workspace_id: p.workspace_id
-              }
-            end)
+          pages: formatted,
+          pagination: pagination.pagination
         })
 
       _ ->
-        json(conn, %{pages: []})
+        json(conn, %{pages: [], pagination: Pagination.wrap([], 0, offset, limit).pagination})
+    end
+  end
+
+  # GET /api/wiki/stale?workspace=X&tenant=Y
+  # Returns stale pages (last_curated too old AND new signals in cited nodes).
+  # MUST sit before /:slug — "stale" would otherwise match as a slug.
+  get "/api/wiki/stale" do
+    workspace = query_param(conn, "workspace", "default")
+    tenant = query_param(conn, "tenant", "default")
+
+    pages = OptimalEngine.Wiki.Scheduler.stale_pages(workspace, tenant_id: tenant)
+
+    now = DateTime.utc_now()
+
+    items =
+      Enum.map(pages, fn p ->
+        days_stale =
+          case DateTime.from_iso8601(p.last_curated || "") do
+            {:ok, curated_at, _} ->
+              diff = DateTime.diff(now, curated_at, :second)
+              Float.round(diff / 86_400, 1)
+
+            _ ->
+              nil
+          end
+
+        %{
+          slug: p.slug,
+          audience: p.audience,
+          workspace_id: p.workspace_id,
+          last_curated: p.last_curated,
+          days_stale: days_stale
+        }
+      end)
+
+    json(conn, %{workspace_id: workspace, stale_count: length(items), pages: items})
+  end
+
+  # POST /api/wiki/curate?workspace=X&slug=Y&audience=Z
+  # Force-curate one page immediately (async). Returns 202 Accepted.
+  post "/api/wiki/curate" do
+    workspace = query_param(conn, "workspace", "default")
+    slug = query_param(conn, "slug", "")
+    audience = query_param(conn, "audience", "default")
+    tenant = query_param(conn, "tenant", "default")
+
+    cond do
+      slug == "" ->
+        send_resp(conn, 400, Jason.encode!(%{error: "slug is required"}))
+
+      true ->
+        case Wiki.latest(tenant, slug, audience, workspace) do
+          {:ok, page} ->
+            OptimalEngine.Wiki.Scheduler.force_run(workspace)
+
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(
+              202,
+              Jason.encode!(%{
+                accepted: true,
+                slug: page.slug,
+                audience: page.audience,
+                workspace_id: workspace,
+                message: "re-curation queued"
+              })
+            )
+
+          {:error, :not_found} ->
+            send_resp(conn, 404, Jason.encode!(%{error: "page not found"}))
+
+          {:error, reason} ->
+            send_resp(conn, 500, Jason.encode!(%{error: inspect(reason)}))
+        end
     end
   end
 
@@ -368,6 +497,21 @@ defmodule OptimalEngine.API.Router do
   # and "contradictions" would otherwise be matched as a slug.
   get "/api/wiki/contradictions" do
     workspace = query_param(conn, "workspace", "default")
+    {offset, limit} = Pagination.parse(conn)
+
+    count_sql = """
+    SELECT COUNT(*)
+    FROM surfacing_events
+    WHERE workspace_id = ?1
+      AND category = 'contradictions'
+      AND datetime(pushed_at) >= datetime('now', '-90 days')
+    """
+
+    total =
+      case Store.raw_query(count_sql, [workspace]) do
+        {:ok, [[n]]} -> n
+        _ -> 0
+      end
 
     sql = """
     SELECT envelope_slug, metadata, score, pushed_at
@@ -376,11 +520,11 @@ defmodule OptimalEngine.API.Router do
       AND category = 'contradictions'
       AND datetime(pushed_at) >= datetime('now', '-90 days')
     ORDER BY pushed_at DESC
-    LIMIT 200
+    LIMIT ?2 OFFSET ?3
     """
 
     rows =
-      case Store.raw_query(sql, [workspace]) do
+      case Store.raw_query(sql, [workspace, limit, offset]) do
         {:ok, r} -> r
         _ -> []
       end
@@ -402,7 +546,14 @@ defmodule OptimalEngine.API.Router do
         }
       end)
 
-    json(conn, %{workspace_id: workspace, contradictions: items, count: length(items)})
+    pagination = Pagination.wrap(items, total, offset, limit)
+
+    json(conn, %{
+      workspace_id: workspace,
+      contradictions: items,
+      count: length(items),
+      pagination: pagination.pagination
+    })
   end
 
   # Wiki page render — GET /api/wiki/:slug?workspace=default&audience=default&format=markdown
@@ -489,12 +640,16 @@ defmodule OptimalEngine.API.Router do
   end
 
   # GET /api/activity — reverse-chron events (audit log). Params:
-  #   limit=N  (default 100, max 1000)
+  #   limit=N   (default 50, max 200 via pagination; legacy max 1000 honoured when no offset given)
+  #   offset=N  (default 0)
   #   kind=ingest|erasure|retention_action|…  (optional filter)
   get "/api/activity" do
-    limit = conn |> query_param("limit", "100") |> parse_int(100) |> min(1000)
+    {offset, limit} = Pagination.parse(conn, 100)
     kind = query_param(conn, "kind", "")
-    json(conn, %{events: recent_events(limit, kind)})
+    total = count_events(kind)
+    events = recent_events(limit, offset, kind)
+    pagination = Pagination.wrap(events, total, offset, limit)
+    json(conn, %{events: events, pagination: pagination.pagination})
   end
 
   # GET /api/architectures — every data architecture the engine recognises,
@@ -560,6 +715,7 @@ defmodule OptimalEngine.API.Router do
   # Status filter via ?status=active|archived|all (default: active).
   get "/api/workspaces" do
     tenant_id = query_param(conn, "tenant", OptimalEngine.Tenancy.Tenant.default_id())
+    {offset, limit} = Pagination.parse(conn)
 
     status =
       conn
@@ -570,11 +726,26 @@ defmodule OptimalEngine.API.Router do
         _ -> :active
       end
 
-    case OptimalEngine.Workspace.list(tenant_id: tenant_id, status: status) do
+    total =
+      case OptimalEngine.Workspace.count(tenant_id: tenant_id, status: status) do
+        {:ok, n} -> n
+        _ -> 0
+      end
+
+    case OptimalEngine.Workspace.list(
+           tenant_id: tenant_id,
+           status: status,
+           limit: limit,
+           offset: offset
+         ) do
       {:ok, list} ->
+        ws = Enum.map(list, &workspace_to_map/1)
+        pagination = Pagination.wrap(ws, total, offset, limit)
+
         json(conn, %{
           tenant_id: tenant_id,
-          workspaces: Enum.map(list, &workspace_to_map/1)
+          workspaces: ws,
+          pagination: pagination.pagination
         })
 
       {:error, reason} ->
@@ -754,12 +925,27 @@ defmodule OptimalEngine.API.Router do
   # GET /api/subscriptions?workspace=default
   get "/api/subscriptions" do
     workspace_id = query_param(conn, "workspace", OptimalEngine.Workspace.default_id())
+    {offset, limit} = Pagination.parse(conn)
 
-    case OptimalEngine.Memory.Subscription.list(workspace_id: workspace_id) do
+    total =
+      case OptimalEngine.Memory.Subscription.count(workspace_id: workspace_id) do
+        {:ok, n} -> n
+        _ -> 0
+      end
+
+    case OptimalEngine.Memory.Subscription.list(
+           workspace_id: workspace_id,
+           limit: limit,
+           offset: offset
+         ) do
       {:ok, subs} ->
+        formatted = Enum.map(subs, &subscription_to_map/1)
+        pagination = Pagination.wrap(formatted, total, offset, limit)
+
         json(conn, %{
           workspace_id: workspace_id,
-          subscriptions: Enum.map(subs, &subscription_to_map/1)
+          subscriptions: formatted,
+          pagination: pagination.pagination
         })
 
       {:error, reason} ->
@@ -769,9 +955,21 @@ defmodule OptimalEngine.API.Router do
 
   # POST /api/subscriptions
   # Body: {"workspace": "default", "scope": "topic", "scope_value": "pricing",
-  #        "categories": ["recent_actions","ownership"], "principal_id": "alice"}
+  #        "categories": ["recent_actions","ownership"], "principal_id": "alice",
+  #        "webhook_url": "https://…", "webhook_secret": "s3cr3t",
+  #        "webhook_headers": {"x-custom": "value"}}
   post "/api/subscriptions" do
     body = conn.body_params || %{}
+
+    # Collect webhook fields into metadata (stored as JSON in the metadata column)
+    webhook_meta =
+      %{}
+      |> maybe_put("webhook_url", Map.get(body, "webhook_url"))
+      |> maybe_put("webhook_secret", Map.get(body, "webhook_secret"))
+      |> maybe_put("webhook_headers", Map.get(body, "webhook_headers"))
+
+    base_metadata = coerce_metadata(Map.get(body, "metadata"))
+    merged_metadata = Map.merge(base_metadata, webhook_meta)
 
     attrs =
       %{
@@ -779,7 +977,8 @@ defmodule OptimalEngine.API.Router do
         principal_id: Map.get(body, "principal_id"),
         scope: parse_atom(Map.get(body, "scope", "workspace"), :workspace),
         scope_value: Map.get(body, "scope_value"),
-        activity: Map.get(body, "activity")
+        activity: Map.get(body, "activity"),
+        metadata: merged_metadata
       }
       |> maybe_put(:categories, parse_categories(Map.get(body, "categories")))
 
@@ -807,6 +1006,54 @@ defmodule OptimalEngine.API.Router do
     case OptimalEngine.Memory.Subscription.resume(id) do
       :ok -> send_resp(conn, 204, "")
       other -> send_resp(conn, 500, Jason.encode!(%{error: inspect(other)}))
+    end
+  end
+
+  # POST /api/subscriptions/:id/test-webhook
+  # Triggers a test delivery to the subscription's configured webhook URL.
+  # Returns: 200 + {delivered: true, status: <http_status>}
+  #       or 200 + {delivered: false, error: "..."}
+  # Returns 404 if the subscription is not found.
+  # Returns 400 if the subscription has no webhook_url configured.
+  post "/api/subscriptions/:id/test-webhook" do
+    alias OptimalEngine.Memory.{Subscription, Webhook}
+
+    subs =
+      case Subscription.list(status: :all) do
+        {:ok, list} -> list
+        _ -> []
+      end
+
+    case Enum.find(subs, &(&1.id == id)) do
+      nil ->
+        send_resp(conn, 404, Jason.encode!(%{error: "subscription not found"}))
+
+      sub ->
+        webhook_url = get_in(sub.metadata, ["webhook_url"])
+
+        if is_nil(webhook_url) or webhook_url == "" do
+          send_resp(
+            conn,
+            400,
+            Jason.encode!(%{error: "subscription has no webhook_url configured"})
+          )
+        else
+          test_payload = %{
+            event: "test",
+            subscription_id: sub.id,
+            workspace_id: sub.workspace_id,
+            message: "OptimalEngine webhook test delivery",
+            sent_at: DateTime.utc_now() |> DateTime.to_iso8601()
+          }
+
+          response =
+            case Webhook.deliver(test_payload, sub.metadata) do
+              {:ok, status} -> %{delivered: true, status: status}
+              {:error, reason} -> %{delivered: false, error: inspect(reason)}
+            end
+
+          json(conn, response)
+        end
     end
   end
 
@@ -937,30 +1184,58 @@ defmodule OptimalEngine.API.Router do
   end
 
   # GET /api/memory — list memories for a workspace.
-  # Params: workspace, audience, include_forgotten (bool), include_old_versions (bool), limit (int)
+  # Params:
+  #   workspace            — workspace_id (default "default")
+  #   audience             — filter by audience string
+  #   include_forgotten    — bool, default false
+  #   include_old_versions — bool, default false
+  #   limit                — int, default 50
+  #   q                    — full-text search (FTS5 MATCH on content, BM25-ranked)
+  #                          Empty string treated as absent (no FTS filter applied).
+  # GET /api/memory — list memories for a workspace.
+  # Params: workspace, audience, include_forgotten (bool), include_old_versions (bool),
+  #         limit (int, default 50), offset (int, default 0), q (FTS query)
   get "/api/memory" do
     workspace_id = query_param(conn, "workspace", "default")
     audience = query_param(conn, "audience", "")
     include_forgotten = conn |> query_param("include_forgotten", "false") |> parse_bool(false)
     include_old_versions = conn |> query_param("include_old_versions", "false") |> parse_bool(false)
-    limit = conn |> query_param("limit", "50") |> parse_int(50)
+    {offset, limit} = Pagination.parse(conn)
+    q = query_param(conn, "q", "")
 
-    opts =
+    filter_opts =
       [
         workspace_id: workspace_id,
-        limit: limit,
         include_forgotten: include_forgotten,
         include_old_versions: include_old_versions
       ]
       |> api_maybe_put(:audience, if(audience == "", do: nil, else: audience))
 
-    memories = OptimalEngine.Memory.list(opts)
+    total =
+      case OptimalEngine.Memory.count(filter_opts) do
+        {:ok, n} -> n
+        _ -> 0
+      end
 
-    json(conn, %{
+    list_opts =
+      filter_opts
+      |> Keyword.put(:limit, limit)
+      |> Keyword.put(:offset, offset)
+      |> api_maybe_put(:q, if(q == "", do: nil, else: q))
+
+    memories = OptimalEngine.Memory.list(list_opts)
+    formatted = Enum.map(memories, &memory_to_map/1)
+    pagination = Pagination.wrap(formatted, total, offset, limit)
+
+    response = %{
       workspace_id: workspace_id,
       count: length(memories),
-      memories: Enum.map(memories, &memory_to_map/1)
-    })
+      memories: formatted,
+      pagination: pagination.pagination
+    }
+
+    response = if q != "", do: Map.put(response, :query, q), else: response
+    json(conn, response)
   end
 
   # POST /api/memory/:id/forget — mark a memory as forgotten.
@@ -1008,7 +1283,6 @@ defmodule OptimalEngine.API.Router do
       {:error, reason} -> send_resp(conn, 500, Jason.encode!(%{error: inspect(reason)}))
     end
   end
-
 
   # POST /api/memory/:id/promote — manually promote a memory to a wiki page section.
   # Body: {"slug": "my-page", "audience"?: "default", "workspace"?: "default"}
@@ -1085,12 +1359,23 @@ defmodule OptimalEngine.API.Router do
   # GET /api/auth/keys — list non-revoked keys for current tenant (no secrets).
   get "/api/auth/keys" do
     tenant_id = conn.assigns[:current_tenant] || "default"
+    {offset, limit} = Pagination.parse(conn)
 
-    case ApiKey.list(tenant_id) do
+    total =
+      case ApiKey.count(tenant_id) do
+        {:ok, n} -> n
+        _ -> 0
+      end
+
+    case ApiKey.list(tenant_id, limit: limit, offset: offset) do
       {:ok, keys} ->
+        formatted = Enum.map(keys, &api_key_to_map/1)
+        pagination = Pagination.wrap(formatted, total, offset, limit)
+
         json(conn, %{
           tenant_id: tenant_id,
-          keys: Enum.map(keys, &api_key_to_map/1)
+          keys: formatted,
+          pagination: pagination.pagination
         })
 
       {:error, reason} ->
@@ -1111,6 +1396,111 @@ defmodule OptimalEngine.API.Router do
     case ApiKey.delete(id) do
       :ok -> send_resp(conn, 204, "")
       {:error, reason} -> send_resp(conn, 500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  # ── Batch import / export (Phase 19) ───────────────────────────────────────
+  #
+  # Designed for workspace migration and API-level backup. All import endpoints
+  # accumulate errors per-item — a single bad item never aborts the batch.
+  #
+  # POST /api/batch/import/signals
+  # Body: {workspace: "default", signals: [{content, title?, genre?, node?, entities?}]}
+  # Returns: {imported: N, skipped: M, errors: K}
+  post "/api/batch/import/signals" do
+    body = conn.body_params || %{}
+    workspace_id = Map.get(body, "workspace", "default")
+    items = Map.get(body, "signals", [])
+
+    if not is_list(items) do
+      send_resp(conn, 400, Jason.encode!(%{error: "signals must be a list"}))
+    else
+      case OptimalEngine.Batch.import_signals(items, workspace_id: workspace_id) do
+        {:ok, summary} -> json(conn, summary)
+        {:error, reason} -> send_resp(conn, 500, Jason.encode!(%{error: inspect(reason)}))
+      end
+    end
+  end
+
+  # POST /api/batch/import/memories
+  # Body: {workspace: "default", memories: [{content, is_static?, audience?, ...}]}
+  # Returns: {imported: N, skipped: M, errors: K}
+  post "/api/batch/import/memories" do
+    body = conn.body_params || %{}
+    workspace_id = Map.get(body, "workspace", "default")
+    items = Map.get(body, "memories", [])
+
+    if not is_list(items) do
+      send_resp(conn, 400, Jason.encode!(%{error: "memories must be a list"}))
+    else
+      case OptimalEngine.Batch.import_memories(items, workspace_id: workspace_id) do
+        {:ok, summary} -> json(conn, summary)
+        {:error, reason} -> send_resp(conn, 500, Jason.encode!(%{error: inspect(reason)}))
+      end
+    end
+  end
+
+  # GET /api/batch/export/signals?workspace=default
+  # Returns: {workspace_id, signals: [...]}
+  get "/api/batch/export/signals" do
+    workspace_id = query_param(conn, "workspace", "default")
+
+    case OptimalEngine.Batch.export_signals(workspace_id: workspace_id) do
+      {:ok, signals} -> json(conn, %{workspace_id: workspace_id, signals: signals})
+      {:error, reason} -> send_resp(conn, 500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  # GET /api/batch/export/memories?workspace=default
+  # Returns: {workspace_id, memories: [...]}
+  get "/api/batch/export/memories" do
+    workspace_id = query_param(conn, "workspace", "default")
+
+    case OptimalEngine.Batch.export_memories(workspace_id: workspace_id) do
+      {:ok, memories} -> json(conn, %{workspace_id: workspace_id, memories: memories})
+      {:error, reason} -> send_resp(conn, 500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  # GET /api/batch/export/workspace?workspace=default
+  # Returns full snapshot: {workspace_id, signals, memories, wiki, config}
+  get "/api/batch/export/workspace" do
+    workspace_id = query_param(conn, "workspace", "default")
+    tenant_id = query_param(conn, "tenant", OptimalEngine.Tenancy.Tenant.default_id())
+
+    case OptimalEngine.Batch.export_workspace(workspace_id, tenant_id: tenant_id) do
+      {:ok, snapshot} -> json(conn, snapshot)
+      {:error, reason} -> send_resp(conn, 500, Jason.encode!(%{error: inspect(reason)}))
+    end
+  end
+
+  # POST /api/backup — run an online SQLite backup and return the file info.
+  # Body: {path?: "/tmp/backup.db"} — path defaults to a timestamped temp file.
+  # Returns: {path, size_bytes, rows_backed_up, duration_ms}
+  post "/api/backup" do
+    body = conn.body_params || %{}
+
+    target_path =
+      Map.get(body, "path") ||
+        Path.join(System.tmp_dir!(), "optimal-backup-#{System.os_time(:second)}.db")
+
+    case OptimalEngine.Backup.create(target_path) do
+      {:ok, info} ->
+        json(conn, %{
+          path: info.target,
+          size_bytes: info.size_bytes,
+          rows_backed_up: info.rows_backed_up,
+          duration_ms: info.duration_ms
+        })
+
+      {:error, {:target_exists, path}} ->
+        send_resp(conn, 409, Jason.encode!(%{error: "backup target already exists: #{path}"}))
+
+      {:error, {:parent_missing, dir}} ->
+        send_resp(conn, 400, Jason.encode!(%{error: "parent directory missing: #{dir}"}))
+
+      {:error, reason} ->
+        send_resp(conn, 500, Jason.encode!(%{error: inspect(reason)}))
     end
   end
 
@@ -1135,6 +1525,7 @@ defmodule OptimalEngine.API.Router do
     |> put_resp_header("access-control-allow-origin", "*")
     |> put_resp_header("access-control-allow-methods", "GET, POST, PATCH, DELETE, OPTIONS")
     |> put_resp_header("access-control-allow-headers", "content-type")
+    |> put_resp_header("x-api-version", "v1")
   end
 
   defp workspace_to_map(ws) do
@@ -1237,6 +1628,10 @@ defmodule OptimalEngine.API.Router do
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, val), do: Map.put(map, key, val)
 
+  # Coerce an arbitrary metadata value from the request body into a string-keyed map.
+  defp coerce_metadata(nil), do: %{}
+  defp coerce_metadata(m) when is_map(m), do: m
+  defp coerce_metadata(_), do: %{}
   # Keyword-list variant for the /api/grep opts builder.
   defp api_maybe_put(kw, _key, nil), do: kw
   defp api_maybe_put(kw, key, val), do: Keyword.put(kw, key, val)
@@ -1286,6 +1681,9 @@ defmodule OptimalEngine.API.Router do
   # ── SSE plumbing for /api/surface/stream ────────────────────────────────
 
   defp subscription_to_map(s) do
+    # Strip webhook_secret from the API response — never expose signing keys
+    safe_metadata = Map.drop(s.metadata || %{}, ["webhook_secret"])
+
     %{
       id: s.id,
       tenant_id: s.tenant_id,
@@ -1296,7 +1694,8 @@ defmodule OptimalEngine.API.Router do
       categories: Enum.map(s.categories, &Atom.to_string/1),
       activity: s.activity,
       status: Atom.to_string(s.status),
-      created_at: s.created_at
+      created_at: s.created_at,
+      metadata: safe_metadata
     }
   end
 
@@ -1368,6 +1767,7 @@ defmodule OptimalEngine.API.Router do
 
       {:rag_stream_done, final} ->
         conn = send_sse(conn, "envelope", final.envelope)
+
         send_sse(conn, "done", %{
           elapsed_ms: final.trace.elapsed_ms,
           source: final.source
@@ -1951,19 +2351,20 @@ defmodule OptimalEngine.API.Router do
   end
 
   # Activity feed — append-only events table. Most-recent first.
-  defp recent_events(limit, kind) do
+  # 3-arg form used by the paginated endpoint (limit, offset, kind).
+  defp recent_events(limit, offset, kind) do
     {where, params} =
       if kind == "" do
-        {"WHERE 1=1", [limit]}
+        {"WHERE 1=1", [limit, offset]}
       else
-        {"WHERE kind = ?2", [limit, kind]}
+        {"WHERE kind = ?3", [limit, offset, kind]}
       end
 
     sql = """
     SELECT id, tenant_id, ts, principal, kind, target_uri, latency_ms, metadata
     FROM events #{where}
     ORDER BY ts DESC, id DESC
-    LIMIT ?1
+    LIMIT ?1 OFFSET ?2
     """
 
     case Store.raw_query(sql, params) do
@@ -1983,6 +2384,22 @@ defmodule OptimalEngine.API.Router do
 
       _ ->
         []
+    end
+  end
+
+  defp count_events(kind) do
+    {where, params} =
+      if kind == "" do
+        {"WHERE 1=1", []}
+      else
+        {"WHERE kind = ?1", [kind]}
+      end
+
+    sql = "SELECT COUNT(*) FROM events #{where}"
+
+    case Store.raw_query(sql, params) do
+      {:ok, [[n]]} -> n
+      _ -> 0
     end
   end
 

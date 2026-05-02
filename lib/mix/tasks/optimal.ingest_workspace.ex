@@ -51,7 +51,9 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
 
     root =
       case rest do
-        [r | _] -> Path.expand(r)
+        [r | _] ->
+          Path.expand(r)
+
         [] ->
           Mix.raise(
             "Usage: mix optimal.ingest_workspace <path> [--tenant id] [--workspace id] [--reset]"
@@ -116,9 +118,7 @@ defmodule Mix.Tasks.Optimal.IngestWorkspace do
       {name, kind, style, parent_slug} =
         case read_frontmatter(ctx_path) do
           {:ok, fm, _body} ->
-            {fm["name"] || fm["title"] || slug,
-             fm["kind"] || "node",
-             fm["style"] || "internal",
+            {fm["name"] || fm["title"] || slug, fm["kind"] || "node", fm["style"] || "internal",
              fm["parent"]}
 
           _ ->

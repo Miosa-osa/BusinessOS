@@ -170,6 +170,7 @@ defmodule Mix.Tasks.Optimal.Grep do
             print_json(matches)
           else
             Enum.each(matches, &print_match/1)
+
             IO.puts(
               "\n" <>
                 IO.ANSI.bright() <>
@@ -233,6 +234,7 @@ defmodule Mix.Tasks.Optimal.Grep do
 
   defp print_header(query, workspace_slug, opts) do
     IO.puts("")
+
     IO.puts(
       IO.ANSI.bright() <>
         IO.ANSI.cyan() <>
@@ -321,8 +323,7 @@ defmodule Mix.Tasks.Optimal.Grep do
     if intent in @valid_intents do
       :ok
     else
-      {:error,
-       "Unknown intent '#{intent}'. Valid values: #{Enum.join(@valid_intents, " | ")}"}
+      {:error, "Unknown intent '#{intent}'. Valid values: #{Enum.join(@valid_intents, " | ")}"}
     end
   end
 
@@ -332,8 +333,7 @@ defmodule Mix.Tasks.Optimal.Grep do
     if scale in @valid_scales do
       :ok
     else
-      {:error,
-       "Unknown scale '#{scale}'. Valid values: #{Enum.join(@valid_scales, " | ")}"}
+      {:error, "Unknown scale '#{scale}'. Valid values: #{Enum.join(@valid_scales, " | ")}"}
     end
   end
 

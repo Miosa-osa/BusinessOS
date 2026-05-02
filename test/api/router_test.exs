@@ -155,4 +155,75 @@ defmodule OptimalEngine.API.RouterTest do
       assert body["body"] =~ "Hello"
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # API versioning — /v1/ prefix rewrite + response headers + status field
+  # ---------------------------------------------------------------------------
+
+  describe "GET /v1/status (version rewrite)" do
+    test "returns 200 — same as /api/status" do
+      conn = request(:get, "/v1/status")
+      assert conn.status == 200
+    end
+
+    test "response body has same keys as /api/status" do
+      v1_conn = request(:get, "/v1/status")
+      api_conn = request(:get, "/api/status")
+      {:ok, v1_body} = Jason.decode(v1_conn.resp_body)
+      {:ok, api_body} = Jason.decode(api_conn.resp_body)
+      assert Enum.sort(Map.keys(v1_body)) == Enum.sort(Map.keys(api_body))
+    end
+
+    test "status response includes api_version field set to v1" do
+      conn = request(:get, "/v1/status")
+      {:ok, body} = Jason.decode(conn.resp_body)
+      assert body["api_version"] == "v1"
+    end
+  end
+
+  describe "GET /api/status (backward compat)" do
+    test "still returns 200" do
+      conn = request(:get, "/api/status")
+      assert conn.status == 200
+    end
+
+    test "includes api_version field" do
+      conn = request(:get, "/api/status")
+      {:ok, body} = Jason.decode(conn.resp_body)
+      assert body["api_version"] == "v1"
+    end
+  end
+
+  describe "POST /v1/rag (version rewrite)" do
+    test "returns 400 when query is missing — same as /api/rag" do
+      conn = request(:post, "/v1/rag", %{})
+      assert conn.status == 400
+    end
+
+    test "returns a RAG envelope for a valid query" do
+      conn =
+        request(:post, "/v1/rag", %{
+          "query" => "nonexistent-v1-rag-probe-#{System.unique_integer([:positive])}",
+          "format" => "markdown",
+          "audience" => "default"
+        })
+
+      assert conn.status == 200
+      {:ok, body} = Jason.decode(conn.resp_body)
+      assert Map.has_key?(body, "source")
+      assert Map.has_key?(body, "envelope")
+    end
+  end
+
+  describe "X-API-Version response header" do
+    test "is present on GET /api/status" do
+      conn = request(:get, "/api/status")
+      assert get_resp_header(conn, "x-api-version") == ["v1"]
+    end
+
+    test "is present on GET /v1/status" do
+      conn = request(:get, "/v1/status")
+      assert get_resp_header(conn, "x-api-version") == ["v1"]
+    end
+  end
 end

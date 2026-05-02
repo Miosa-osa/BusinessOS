@@ -32,6 +32,11 @@ defmodule OptimalEngine.Wiki do
   @doc "List wiki pages for a tenant, optionally scoped to a workspace."
   defdelegate list(tenant_id), to: Store
   defdelegate list(tenant_id, workspace_id), to: Store
+  defdelegate list(tenant_id, workspace_id, opts), to: Store
+
+  @doc "Count latest wiki pages for a tenant + workspace (for pagination)."
+  defdelegate count(tenant_id), to: Store
+  defdelegate count(tenant_id, workspace_id), to: Store
 
   @doc "Render a page's body, resolving every directive via the supplied resolver."
   @spec render(Page.t(), Directives.resolver(), keyword()) :: {String.t(), [String.t()]}

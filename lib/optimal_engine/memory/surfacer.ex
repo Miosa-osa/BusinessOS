@@ -32,6 +32,7 @@ defmodule OptimalEngine.Memory.Surfacer do
   require Logger
 
   alias OptimalEngine.Memory.Subscription
+  alias OptimalEngine.Memory.Webhook
   alias OptimalEngine.Store
 
   @threshold 0.5
@@ -266,26 +267,35 @@ defmodule OptimalEngine.Memory.Surfacer do
   # ── Push + record ───────────────────────────────────────────────────────
 
   defp push(sub, trigger, slug, meta, score, listeners) do
-    msg =
-      {:surface,
-       %{
-         subscription_id: sub.id,
-         workspace_id: sub.workspace_id,
-         trigger: trigger,
-         envelope: %{
-           slug: slug,
-           kind: kind_of(trigger),
-           audience: meta[:audience] || "default"
-         },
-         category: detect_category(slug, meta),
-         score: score,
-         pushed_at: now()
-       }}
+    payload = %{
+      subscription_id: sub.id,
+      workspace_id: sub.workspace_id,
+      trigger: trigger,
+      envelope: %{
+        slug: slug,
+        kind: kind_of(trigger),
+        audience: meta[:audience] || "default"
+      },
+      category: detect_category(slug, meta),
+      score: score,
+      pushed_at: now()
+    }
 
+    msg = {:surface, payload}
+
+    # SSE push to connected listener PIDs (existing behaviour — unchanged)
     case Map.get(listeners, sub.id) do
       nil -> :ok
       set -> Enum.each(set, &send(&1, msg))
     end
+
+    # Webhook delivery — fire-and-forget; must never block or crash the Surfacer
+    with webhook_url when is_binary(webhook_url) and webhook_url != "" <-
+           get_in(sub.metadata, ["webhook_url"]) do
+      Task.start(fn -> Webhook.deliver(payload, sub.metadata) end)
+    end
+
+    :ok
   end
 
   defp record_event(sub, trigger, slug, meta, score) do

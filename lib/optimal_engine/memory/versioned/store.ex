@@ -99,11 +99,17 @@ defmodule OptimalEngine.Memory.Versioned.Store do
 
   @doc """
   Lists memories filtered by opts:
-    - `:workspace_id` (required)
+    - `:workspace_id` (required) — defaults to "default"
     - `:audience` — filter by audience string
     - `:include_forgotten` — default false
     - `:include_old_versions` — default false (only is_latest=1)
     - `:limit` — default 50
+    - `:offset` — default 0 (for pagination)
+    - `:q` — full-text search query; when present, results are ordered by
+              BM25 rank (best match first) instead of `created_at DESC`.
+              Uses the `memories_fts` FTS5 virtual table created in
+              migration 031. An empty string or nil is treated as absent
+              (no FTS filter applied).
   """
   @spec list(keyword()) :: {:ok, [list()]} | {:error, term()}
   def list(opts) do
@@ -112,40 +118,168 @@ defmodule OptimalEngine.Memory.Versioned.Store do
     include_forgotten = Keyword.get(opts, :include_forgotten, false)
     include_old = Keyword.get(opts, :include_old_versions, false)
     limit = Keyword.get(opts, :limit, 50)
+    offset = Keyword.get(opts, :offset, 0)
+    q = opts |> Keyword.get(:q) |> normalize_fts_query()
 
-    conditions = ["workspace_id = ?1"]
-    params = [workspace_id]
-    param_idx = 2
+    if q do
+      list_with_fts(workspace_id, audience, include_forgotten, include_old, limit, offset, q)
+    else
+      list_without_fts(workspace_id, audience, include_forgotten, include_old, limit, offset)
+    end
+  end
 
-    {conditions, params, param_idx} =
-      if audience do
-        {conditions ++ ["audience = ?#{param_idx}"], params ++ [audience], param_idx + 1}
-      else
-        {conditions, params, param_idx}
-      end
+  @doc """
+  Counts total memories matching the same filter opts as `list/1`.
+  Accepts `:workspace_id`, `:audience`, `:include_forgotten`, `:include_old_versions`.
+  Returns `{:ok, non_neg_integer()}`.
+  """
+  @spec count(keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(opts) do
+    workspace_id = Keyword.get(opts, :workspace_id, "default")
+    audience = Keyword.get(opts, :audience)
+    include_forgotten = Keyword.get(opts, :include_forgotten, false)
+    include_old = Keyword.get(opts, :include_old_versions, false)
 
-    {conditions, _params, _param_idx} =
-      if not include_forgotten do
-        {conditions ++ ["is_forgotten = 0"], params, param_idx}
-      else
-        {conditions, params, param_idx}
-      end
-
-    {conditions, _params, _param_idx} =
-      if not include_old do
-        {conditions ++ ["is_latest = 1"], params, param_idx}
-      else
-        {conditions, params, param_idx}
-      end
+    {conditions, params} =
+      build_filter_conditions(workspace_id, audience, include_forgotten, include_old, "m")
 
     where = Enum.join(conditions, " AND ")
 
-    sql =
-      "SELECT #{@select_cols} FROM memories WHERE #{where} ORDER BY created_at DESC LIMIT ?#{param_idx}"
+    sql = "SELECT COUNT(*) FROM memories m WHERE #{where}"
 
-    final_params = params ++ [limit]
+    case Store.raw_query(sql, params) do
+      {:ok, [[n]]} -> {:ok, n}
+      {:ok, []} -> {:ok, 0}
+      other -> other
+    end
+  end
 
-    Store.raw_query(sql, final_params)
+  # ---------------------------------------------------------------------------
+  # Private — list helpers
+  # ---------------------------------------------------------------------------
+
+  # Plain list path (no FTS). Builds a dynamic WHERE using positional params.
+  defp list_without_fts(workspace_id, audience, include_forgotten, include_old, limit, offset) do
+    {conditions, params} =
+      build_filter_conditions(workspace_id, audience, include_forgotten, include_old, "m")
+
+    param_idx = length(params) + 1
+    where = Enum.join(conditions, " AND ")
+
+    sql = """
+    SELECT #{prefixed_select_cols("m")} FROM memories m
+    WHERE #{where}
+    ORDER BY m.created_at DESC
+    LIMIT ?#{param_idx} OFFSET ?#{param_idx + 1}
+    """
+
+    Store.raw_query(sql, params ++ [limit, offset])
+  end
+
+  # FTS path: JOIN memories against memories_fts on rowid, filter with MATCH,
+  # apply the same workspace/audience/forgotten/latest constraints, and order
+  # by BM25 rank (negated — lower raw value = better match in SQLite).
+  defp list_with_fts(
+         workspace_id,
+         audience,
+         include_forgotten,
+         include_old,
+         limit,
+         offset,
+         fts_query
+       ) do
+    # ?1 = fts_query; build the rest of the conditions starting at ?2.
+    {conditions, base_params} =
+      build_filter_conditions(workspace_id, audience, include_forgotten, include_old, "m", 2)
+
+    params = [fts_query | base_params]
+    param_idx = length(params) + 1
+    where = Enum.join(conditions, " AND ")
+
+    sql = """
+    SELECT #{prefixed_select_cols("m")} FROM memories_fts
+    JOIN memories m ON m.rowid = memories_fts.rowid
+    WHERE memories_fts MATCH ?1
+      AND #{where}
+    ORDER BY bm25(memories_fts) ASC
+    LIMIT ?#{param_idx} OFFSET ?#{param_idx + 1}
+    """
+
+    Store.raw_query(sql, params ++ [limit, offset])
+  end
+
+  # Builds {conditions_list, params_list} for the WHERE clause.
+  # `table_alias` is the SQL alias prefix (e.g. "m").
+  # `start_idx` is the first positional param index (default 1 for non-FTS,
+  # 2 for FTS where ?1 is the FTS query term).
+  defp build_filter_conditions(
+         workspace_id,
+         audience,
+         include_forgotten,
+         include_old,
+         table_alias,
+         start_idx \\ 1
+       ) do
+    conditions = ["#{table_alias}.workspace_id = ?#{start_idx}"]
+    params = [workspace_id]
+    param_idx = start_idx + 1
+
+    {conditions, params, param_idx} =
+      if audience do
+        {conditions ++ ["#{table_alias}.audience = ?#{param_idx}"], params ++ [audience],
+         param_idx + 1}
+      else
+        {conditions, params, param_idx}
+      end
+
+    _ = param_idx
+
+    conditions =
+      if not include_forgotten,
+        do: conditions ++ ["#{table_alias}.is_forgotten = 0"],
+        else: conditions
+
+    conditions =
+      if not include_old,
+        do: conditions ++ ["#{table_alias}.is_latest = 1"],
+        else: conditions
+
+    {conditions, params}
+  end
+
+  # Returns a comma-separated column list with the given table alias prefix.
+  # Must match the column order of @select_cols exactly so row_to_struct/1
+  # in Versioned continues to work without modification.
+  defp prefixed_select_cols(alias) do
+    Enum.map_join(
+      ~w[id tenant_id workspace_id content is_static is_forgotten
+         forget_after forget_reason version parent_memory_id root_memory_id
+         is_latest citation_uri source_chunk_id audience metadata
+         created_at updated_at],
+      ", ",
+      fn col -> "#{alias}.#{col}" end
+    )
+  end
+
+  # Normalises the caller-supplied FTS query.
+  # Returns nil (no FTS) for blank/nil; otherwise escapes SQLite FTS5 special
+  # characters and wraps bare terms so the query is MATCH-safe.
+  defp normalize_fts_query(nil), do: nil
+  defp normalize_fts_query(""), do: nil
+
+  defp normalize_fts_query(q) when is_binary(q) do
+    trimmed = String.trim(q)
+
+    if trimmed == "" do
+      nil
+    else
+      # Escape double-quotes (used for phrase queries) by doubling them,
+      # then strip FTS5 operator chars that could cause parse errors.
+      trimmed
+      |> String.replace("\"", "\"\"")
+      |> String.replace(~r/[*^()]/u, " ")
+      |> String.trim()
+    end
   end
 
   @doc """

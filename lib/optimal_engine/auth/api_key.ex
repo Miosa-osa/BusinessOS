@@ -140,19 +140,42 @@ defmodule OptimalEngine.Auth.ApiKey do
 
   def verify(_), do: {:error, :invalid}
 
-  @doc "List all non-revoked API keys for a tenant. Secrets are never returned."
-  @spec list(String.t()) :: {:ok, [t()]}
-  def list(tenant_id) when is_binary(tenant_id) do
+  @doc """
+  List non-revoked API keys for a tenant. Secrets are never returned.
+
+  Options:
+    - `:limit`  — max rows (default 50)
+    - `:offset` — row offset for pagination (default 0)
+  """
+  @spec list(String.t(), keyword()) :: {:ok, [t()]}
+  def list(tenant_id, opts \\ []) when is_binary(tenant_id) do
+    limit = Keyword.get(opts, :limit, 50)
+    offset = Keyword.get(opts, :offset, 0)
+
     sql = """
     SELECT id, tenant_id, principal_id, prefix, name, scopes, workspace_scope,
            expires_at, created_at, last_used_at, revoked_at, metadata
     FROM api_keys
     WHERE tenant_id = ?1 AND revoked_at IS NULL
     ORDER BY created_at DESC
+    LIMIT ?2 OFFSET ?3
     """
 
-    case Store.raw_query(sql, [tenant_id]) do
+    case Store.raw_query(sql, [tenant_id, limit, offset]) do
       {:ok, rows} -> {:ok, Enum.map(rows, &row_to_struct/1)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc "Count non-revoked API keys for a tenant."
+  @spec count(String.t()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(tenant_id) when is_binary(tenant_id) do
+    case Store.raw_query(
+           "SELECT COUNT(*) FROM api_keys WHERE tenant_id = ?1 AND revoked_at IS NULL",
+           [tenant_id]
+         ) do
+      {:ok, [[n]]} -> {:ok, n}
+      {:ok, []} -> {:ok, 0}
       {:error, reason} -> {:error, reason}
     end
   end

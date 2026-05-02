@@ -3,20 +3,51 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "site/**"
+      - "apps/docs/**"
+      - "skills/**"
+      - "deploy/**"
+      - "extensions/**"
+      - "sdks/**"
+      - "desktop/**"
+      - ".gitignore"
+      - "LICENSE"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "site/**"
+      - "apps/docs/**"
+      - "skills/**"
+      - "deploy/**"
+      - "extensions/**"
+      - "sdks/**"
+      - "desktop/**"
+
+# Cancel any in-progress CI run for the same branch when a new push lands.
+# Saves Actions minutes on rapid-fire commits.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
+    name: test (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
-          - otp: "26"
-            elixir: "1.17"
-          - otp: "27"
-            elixir: "1.17"
+          # Single supported version pair — matches the project's documented
+          # requirement (`mix.exs` → elixir: "~> 1.17"). Halves minute usage
+          # vs the previous 2-version matrix. Add OTP 27 here later once the
+          # project officially supports it.
+          - otp: "26.2"
+            elixir: "1.17.3"
 
     steps:
       - uses: actions/checkout@v4
@@ -48,3 +79,5 @@ jobs:
 
       - name: Run tests
         run: mix test
+        env:
+          MIX_ENV: test

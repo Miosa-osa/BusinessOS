@@ -94,23 +94,27 @@ defmodule OptimalEngine.Workspace do
 
   @doc """
   Lists workspaces in a tenant. Options:
-    * `:status` — `:active` (default) | `:archived` | `:all`
+    * `:status`    — `:active` (default) | `:archived` | `:all`
     * `:tenant_id` — defaults to the default tenant
+    * `:limit`     — max rows (default 50)
+    * `:offset`    — row offset for pagination (default 0)
   """
   @spec list(keyword()) :: {:ok, [t()]} | {:error, term()}
   def list(opts \\ []) do
     tenant_id = Keyword.get(opts, :tenant_id, Tenant.default_id())
     status = Keyword.get(opts, :status, :active)
+    limit = Keyword.get(opts, :limit, 50)
+    offset = Keyword.get(opts, :offset, 0)
 
     {sql, params} =
       case status do
         :all ->
-          {"SELECT id, tenant_id, slug, name, description, status, created_at, archived_at, metadata FROM workspaces WHERE tenant_id = ?1 ORDER BY name",
-           [tenant_id]}
+          {"SELECT id, tenant_id, slug, name, description, status, created_at, archived_at, metadata FROM workspaces WHERE tenant_id = ?1 ORDER BY name LIMIT ?2 OFFSET ?3",
+           [tenant_id, limit, offset]}
 
         s when s in @allowed_statuses ->
-          {"SELECT id, tenant_id, slug, name, description, status, created_at, archived_at, metadata FROM workspaces WHERE tenant_id = ?1 AND status = ?2 ORDER BY name",
-           [tenant_id, Atom.to_string(s)]}
+          {"SELECT id, tenant_id, slug, name, description, status, created_at, archived_at, metadata FROM workspaces WHERE tenant_id = ?1 AND status = ?2 ORDER BY name LIMIT ?3 OFFSET ?4",
+           [tenant_id, Atom.to_string(s), limit, offset]}
 
         other ->
           throw({:invalid_status, other})
@@ -118,6 +122,36 @@ defmodule OptimalEngine.Workspace do
 
     case Store.raw_query(sql, params) do
       {:ok, rows} -> {:ok, Enum.map(rows, &row_to_struct/1)}
+      other -> other
+    end
+  catch
+    {:invalid_status, s} -> {:error, {:invalid_status, s}}
+  end
+
+  @doc """
+  Counts workspaces in a tenant. Accepts the same `:tenant_id` and `:status` opts as `list/1`.
+  """
+  @spec count(keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(opts \\ []) do
+    tenant_id = Keyword.get(opts, :tenant_id, Tenant.default_id())
+    status = Keyword.get(opts, :status, :active)
+
+    {sql, params} =
+      case status do
+        :all ->
+          {"SELECT COUNT(*) FROM workspaces WHERE tenant_id = ?1", [tenant_id]}
+
+        s when s in @allowed_statuses ->
+          {"SELECT COUNT(*) FROM workspaces WHERE tenant_id = ?1 AND status = ?2",
+           [tenant_id, Atom.to_string(s)]}
+
+        other ->
+          throw({:invalid_status, other})
+      end
+
+    case Store.raw_query(sql, params) do
+      {:ok, [[n]]} -> {:ok, n}
+      {:ok, []} -> {:ok, 0}
       other -> other
     end
   catch
@@ -160,7 +194,10 @@ defmodule OptimalEngine.Workspace do
 
               {:error, reason} ->
                 require Logger
-                Logger.warning("[Workspace.create] config write failed for #{slug}: #{inspect(reason)}")
+
+                Logger.warning(
+                  "[Workspace.create] config write failed for #{slug}: #{inspect(reason)}"
+                )
             end
 
           {:error, reason} ->
@@ -326,7 +363,17 @@ defmodule OptimalEngine.Workspace do
       else: "#{tenant_id}:#{slug}"
   end
 
-  defp row_to_struct([id, tenant_id, slug, name, description, status, created_at, archived_at, meta_json]) do
+  defp row_to_struct([
+         id,
+         tenant_id,
+         slug,
+         name,
+         description,
+         status,
+         created_at,
+         archived_at,
+         meta_json
+       ]) do
     %__MODULE__{
       id: id,
       tenant_id: tenant_id,

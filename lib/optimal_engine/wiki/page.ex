@@ -62,7 +62,8 @@ defmodule OptimalEngine.Wiki.Page do
 
     page = %__MODULE__{
       tenant_id: Keyword.get(opts, :tenant_id, Map.get(frontmatter, "tenant_id", "default")),
-      workspace_id: Keyword.get(opts, :workspace_id, Map.get(frontmatter, "workspace_id", "default")),
+      workspace_id:
+        Keyword.get(opts, :workspace_id, Map.get(frontmatter, "workspace_id", "default")),
       slug: Keyword.get(opts, :slug, Map.get(frontmatter, "slug")),
       audience: Keyword.get(opts, :audience, Map.get(frontmatter, "audience", "default")),
       version: Map.get(frontmatter, "version", 1) |> to_integer_safe(1),

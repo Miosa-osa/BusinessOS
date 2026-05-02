@@ -85,6 +85,13 @@ defmodule OptimalEngine.Memory do
   end
 
   @doc """
+  Counts versioned memories matching the same filter opts as `list/1`.
+  Returns `{:ok, integer()}` so callers can distinguish 0 from error.
+  """
+  @spec count(keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(opts \\ []), do: Versioned.count(opts)
+
+  @doc """
   Creates a new version of a memory (bumps version, demotes old to
   is_latest=false, adds `:updates` relation).
   """
