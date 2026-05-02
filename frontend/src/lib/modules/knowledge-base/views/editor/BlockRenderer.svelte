@@ -6,7 +6,13 @@
 	import BlockControls from './BlockControls.svelte';
 	import BlockContentRenderer from './BlockContentRenderer.svelte';
 	import { parseHTMLToRichText } from './blockUtils';
-	import { extractRichTextPlainText, plainTextToRichText, richTextToHTML } from '../../utils/rich-text';
+	import { extractRichTextPlainText, plainTextToRichText } from '../../utils/rich-text';
+	import {
+		createContenteditableSyncAction,
+		createContenteditableSyncState,
+		type ContenteditableSyncState
+	} from './contenteditable-sync';
+	import { detectMarkdownShortcut } from './markdown-shortcuts';
 
 	interface Props {
 		block: Block;
@@ -80,14 +86,17 @@
 	let dragOverPosition: 'before' | 'after' | null = $state(null);
 
 	// Track block ID to detect external changes (document switch)
-	let lastBlockId = $state('');
-	let lastContent = $state('');
+	let contenteditableSyncState = $state<ContenteditableSyncState>(createContenteditableSyncState());
 
 	// Initialize tracking state from block prop
 	$effect(() => {
-		if (lastBlockId === '') {
-			lastBlockId = block.id;
-			lastContent = getPlainText();
+		if (contenteditableSyncState.lastBlockId === '') {
+			const initialState = createContenteditableSyncState({
+				blockId: block.id,
+				content: block.content
+			});
+			contenteditableSyncState.lastBlockId = initialState.lastBlockId;
+			contenteditableSyncState.lastContent = initialState.lastContent;
 		}
 	});
 
@@ -96,32 +105,19 @@
 	}
 
 	// Action for contenteditable elements - handles initial content and external updates
-	function contenteditable(node: HTMLElement) {
-		blockElementRef = node;
-		node.innerHTML = richTextToHTML(block.content);
-
-		return {
-			update() {
-				const currentContent = getPlainText();
-				if (block.id !== lastBlockId || (currentContent !== lastContent && document.activeElement !== node)) {
-					node.innerHTML = richTextToHTML(block.content);
-					lastBlockId = block.id;
-					lastContent = currentContent;
-				}
-			},
-			destroy() {
-				if (blockElementRef === node) {
-					blockElementRef = null;
-				}
-			}
-		};
-	}
+	const contenteditable = createContenteditableSyncAction({
+		getSnapshot: () => ({ blockId: block.id, content: block.content }),
+		state: contenteditableSyncState,
+		onElementChange: (node) => {
+			blockElementRef = node;
+		}
+	});
 
 	$effect(() => {
 		const content = getPlainText();
-		if (block.id !== lastBlockId) {
-			lastBlockId = block.id;
-			lastContent = content;
+		if (block.id !== contenteditableSyncState.lastBlockId) {
+			contenteditableSyncState.lastBlockId = block.id;
+			contenteditableSyncState.lastContent = content;
 		}
 	});
 
@@ -144,7 +140,7 @@
 		const target = e.target as HTMLElement;
 		const newContent = target.textContent || '';
 
-		lastContent = newContent;
+		contenteditableSyncState.lastContent = newContent;
 
 		const slashMatch = newContent.match(/^\/(\S*)$/);
 		if (slashMatch) {
@@ -176,7 +172,7 @@
 		if (blockElementRef) {
 			blockElementRef.textContent = '';
 		}
-		lastContent = '';
+		contenteditableSyncState.lastContent = '';
 		onBlockChange?.({
 			...block,
 			type,
@@ -249,50 +245,10 @@
 		}
 
 		if (e.key === ' ') {
-			const text = getPlainText();
-			if (text === '#') {
+			const shortcut = detectMarkdownShortcut(blockElementRef?.textContent || getPlainText());
+			if (shortcut) {
 				e.preventDefault();
-				applyMarkdownShortcut('heading_1');
-				return;
-			}
-			if (text === '##') {
-				e.preventDefault();
-				applyMarkdownShortcut('heading_2');
-				return;
-			}
-			if (text === '###') {
-				e.preventDefault();
-				applyMarkdownShortcut('heading_3');
-				return;
-			}
-			if (text === '-' || text === '*') {
-				e.preventDefault();
-				applyMarkdownShortcut('bulleted_list');
-				return;
-			}
-			if (/^\d+\.$/.test(text)) {
-				e.preventDefault();
-				applyMarkdownShortcut('numbered_list');
-				return;
-			}
-			if (text === '>') {
-				e.preventDefault();
-				applyMarkdownShortcut('quote');
-				return;
-			}
-			if (text === '[]' || text === '[ ]') {
-				e.preventDefault();
-				applyMarkdownShortcut('to_do', { checked: false });
-				return;
-			}
-			if (/^\[x\]$/i.test(text)) {
-				e.preventDefault();
-				applyMarkdownShortcut('to_do', { checked: true });
-				return;
-			}
-			if (/^(---+|\*\*\*+|___+)$/.test(text)) {
-				e.preventDefault();
-				applyMarkdownShortcut('divider', { divider_style: 'solid' });
+				applyMarkdownShortcut(shortcut.type, shortcut.properties);
 				return;
 			}
 		}
@@ -449,7 +405,7 @@
 		const text = blockElementRef.textContent || '';
 		const richText = parseHTMLToRichText(html, text);
 
-		lastContent = text;
+		contenteditableSyncState.lastContent = text;
 		onBlockChange?.({ ...block, content: richText });
 	}
 

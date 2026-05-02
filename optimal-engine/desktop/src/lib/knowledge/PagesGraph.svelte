@@ -66,6 +66,7 @@
   let stats = $state({ nodes: 0, edges: 0 });
   let selected = $state<GNode | null>(null);
   let hoveredLabel = $state<{ text: string; x: number; y: number } | null>(null);
+  let nodeLabels = $state<{ id: string; label: string; kind: GKind; x: number; y: number; visible: boolean }[]>([]);
 
   // ── three.js handles ─────────────────────────────────────────────────
   let scene: THREE.Scene;
@@ -367,6 +368,27 @@
       }
     }
 
+    // Project node positions to screen coords for HTML labels
+    if (container && camera) {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      const v = new THREE.Vector3();
+      nodeLabels = d3nodes
+        .filter((n) => n.kind === 'node' || (n.kind === 'entity' && n.connections > 2))
+        .map((n) => {
+          v.set(n.x ?? 0, n.y ?? 0, n.z ?? 0);
+          v.project(camera);
+          return {
+            id: n.id,
+            label: n.label,
+            kind: n.kind,
+            x: (v.x * 0.5 + 0.5) * w,
+            y: (-v.y * 0.5 + 0.5) * h,
+            visible: v.z < 1 && v.z > -1,
+          };
+        });
+    }
+
     controls.update();
     renderer.render(scene, camera);
   }
@@ -511,6 +533,15 @@
     <div class="pg__overlay pg__overlay--error">{error}</div>
   {/if}
 
+  {#each nodeLabels as nl (nl.id)}
+    {#if nl.visible}
+      <div
+        class="pg__node-label pg__node-label--{nl.kind}"
+        style="left: {nl.x}px; top: {nl.y}px"
+      >{nl.label}</div>
+    {/if}
+  {/each}
+
   {#if hoveredLabel}
     <div class="pg__tooltip" style="left: {hoveredLabel.x}px; top: {hoveredLabel.y}px">
       {hoveredLabel.text}
@@ -569,6 +600,21 @@
     inset: 0;
     cursor: grab;
   }
+  .pg__node-label {
+    position: absolute;
+    transform: translate(-50%, -100%) translateY(-10px);
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 5;
+    letter-spacing: 0.02em;
+  }
+  .pg__node-label--node { font-size: 11px; font-weight: 700; color: #e6edf3; }
+  .pg__node-label--entity { font-size: 9px; color: rgba(255, 255, 255, 0.6); }
+  .pg__node-label--signal { font-size: 8px; color: rgba(255, 255, 255, 0.4); }
   .pg__canvas :global(canvas) {
     display: block;
   }
