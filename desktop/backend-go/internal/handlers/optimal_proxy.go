@@ -43,7 +43,20 @@ func NewOptimalProxy(engineURL string) (*OptimalProxy, error) {
 		return nil, errors.New("optimal proxy: engine URL must include scheme + host")
 	}
 
-	rp := httputil.NewSingleHostReverseProxy(u)
+	rp := &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(u)
+			// Rewrite path: /api/v1/optimal/nodes → /api/nodes
+			//               /api/optimal/graph   → /api/graph
+			p := r.Out.URL.Path
+			if i := strings.Index(p, "/optimal/"); i >= 0 {
+				r.Out.URL.Path = "/api" + p[i+len("/optimal"):]
+			} else if strings.HasSuffix(p, "/optimal") {
+				r.Out.URL.Path = "/api"
+			}
+			r.Out.Host = u.Host
+		},
+	}
 
 	// Surface upstream failures with structured slog instead of the default
 	// "http: proxy error: …" line. Operators triaging a Pages graph stall
