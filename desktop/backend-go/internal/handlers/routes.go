@@ -20,9 +20,6 @@ func (h *Handlers) RegisterRoutes(api *gin.RouterGroup) {
 	}
 	optionalAuth := middleware.OptionalAuthMiddleware(h.pool) // For dev-friendly routes
 
-	RegisterDashboardItemRoutes(api, NewDashboardItemHandler(h.pool, h.queryCache, h.notificationTriggers), auth)
-	RegisterDashboardCRUDRoutes(api, NewDashboardCRUDHandler(h.pool, h.notificationService), auth)
-
 	h.registerChatRoutes(api, auth)
 	h.registerProjectRoutes(api, auth)
 	h.registerWorkspaceRoutes(api, auth)
