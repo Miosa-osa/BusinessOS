@@ -200,66 +200,55 @@ export async function loadGraph(): Promise<GraphData> {
     }
   }
 
-  // Build a context_id → node_slug lookup from the engine edges.
-  // Engine edges use format: {source: context_hash, target: node_slug, relation: "lives_in"|"cross_ref"|"works_on"}
+  // Fetch context→node mapping from the search API so we can resolve
+  // edge endpoints (context hashes) to workspace nodes.
   const contextToNode = new Map<string, string>();
-  for (const e of entityEdges) {
-    if (
-      e.relation === "lives_in" &&
-      workspaceNodes.some((n) => n.slug === e.target)
-    ) {
-      contextToNode.set(e.source, e.target);
+  try {
+    const searchRes = await fetch("/api/search?q=*&limit=500");
+    if (searchRes.ok) {
+      const searchData = (await searchRes.json()) as {
+        results: { id: string; node: string }[];
+      };
+      for (const r of searchData.results) {
+        contextToNode.set(r.id, r.node);
+      }
     }
+  } catch {
+    // Degrade: edges won't resolve, but nodes still show
   }
 
-  // Cross-ref edges: context references another context → node-to-node edge
+  // Map context-to-context edges into node-to-node edges
   const nodeEdgeSet = new Set<string>();
   for (const e of entityEdges) {
-    if (e.relation === "cross_ref") {
-      const srcNode = contextToNode.get(e.source);
-      const tgtNode = contextToNode.get(e.target);
-      if (srcNode && tgtNode && srcNode !== tgtNode) {
-        const key = [srcNode, tgtNode].sort().join("|");
-        if (!nodeEdgeSet.has(key)) {
-          nodeEdgeSet.add(key);
-          edges.push({
-            source: `node:${srcNode}`,
-            target: `node:${tgtNode}`,
-            relation: "mentions",
-          });
-        }
-      }
-    }
-    // works_on edges: node → node relationship from topology
-    if (e.relation === "works_on") {
-      const src = workspaceNodes.find((n) => n.slug === e.source);
-      const tgt = workspaceNodes.find((n) => n.slug === e.target);
-      if (src && tgt) {
-        const key = [src.slug, tgt.slug].sort().join("|");
-        if (!nodeEdgeSet.has(key)) {
-          nodeEdgeSet.add(key);
-          edges.push({
-            source: `node:${src.slug}`,
-            target: `node:${tgt.slug}`,
-            relation: "mentions",
-          });
-        }
+    const srcNode = contextToNode.get(e.source);
+    const tgtNode = contextToNode.get(e.target);
+    if (srcNode && tgtNode && srcNode !== tgtNode) {
+      const key = [srcNode, tgtNode].sort().join("|");
+      if (!nodeEdgeSet.has(key)) {
+        nodeEdgeSet.add(key);
+        edges.push({
+          source: `node:${srcNode}`,
+          target: `node:${tgtNode}`,
+          relation: "mentions",
+        });
       }
     }
   }
 
-  // Entity → node edges: connect entities to the nodes they appear in
+  // Entity → node edges: connect each entity to nodes whose contexts mention it
   for (const e of entityData) {
     const eid = `entity:${e.name}`;
-    // Find which nodes mention this entity
-    for (const { node, files } of signalLists) {
-      if (files.length > 0) {
+    const eName = e.name.toLowerCase();
+    for (const wn of workspaceNodes) {
+      if (
+        wn.name.toLowerCase().includes(eName) ||
+        eName.includes(wn.name.toLowerCase())
+      ) {
         edges.push({
-          source: `node:${node.slug}`,
+          source: `node:${wn.slug}`,
           target: eid,
           relation: "mentions",
         });
-        break;
       }
     }
   }
