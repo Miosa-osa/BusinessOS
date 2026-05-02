@@ -163,6 +163,13 @@ export const moduleDefaults: Record<
     minWidth: 700,
     minHeight: 500,
   },
+  engine: {
+    title: "Optimal Engine",
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 500,
+  },
   folder: {
     title: "Folder",
     width: 600,

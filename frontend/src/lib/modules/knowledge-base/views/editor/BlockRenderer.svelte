@@ -1,11 +1,12 @@
 <script lang="ts">
-	import type { Block, BlockType, RichText } from '../../entities/types';
+	import type { Block, BlockType } from '../../entities/types';
 	import { createBlock } from '../../services/documents.service';
 	import SlashMenu from './SlashMenu.svelte';
 	import FormatToolbar from './FormatToolbar.svelte';
 	import BlockControls from './BlockControls.svelte';
 	import BlockContentRenderer from './BlockContentRenderer.svelte';
 	import { parseHTMLToRichText } from './blockUtils';
+	import { extractRichTextPlainText, plainTextToRichText, richTextToHTML } from '../../utils/rich-text';
 
 	interface Props {
 		block: Block;
@@ -91,19 +92,19 @@
 	});
 
 	function getPlainText(): string {
-		return block.content.map((rt) => rt.plain_text).join('');
+		return extractRichTextPlainText(block.content);
 	}
 
 	// Action for contenteditable elements - handles initial content and external updates
 	function contenteditable(node: HTMLElement) {
 		blockElementRef = node;
-		node.textContent = getPlainText();
+		node.innerHTML = richTextToHTML(block.content);
 
 		return {
 			update() {
 				const currentContent = getPlainText();
 				if (block.id !== lastBlockId || (currentContent !== lastContent && document.activeElement !== node)) {
-					node.textContent = currentContent;
+					node.innerHTML = richTextToHTML(block.content);
 					lastBlockId = block.id;
 					lastContent = currentContent;
 				}
@@ -168,24 +169,20 @@
 			}
 		}
 
-		const richText: RichText[] = [
-			{
-				type: 'text',
-				text: { content: newContent, link: null },
-				annotations: {
-					bold: false,
-					italic: false,
-					strikethrough: false,
-					underline: false,
-					code: false,
-					color: 'default'
-				},
-				plain_text: newContent,
-				href: null
-			}
-		];
+		onBlockChange?.({ ...block, content: parseHTMLToRichText(target.innerHTML, newContent) });
+	}
 
-		onBlockChange?.({ ...block, content: richText });
+	function applyMarkdownShortcut(type: BlockType, properties: Record<string, unknown> = {}) {
+		if (blockElementRef) {
+			blockElementRef.textContent = '';
+		}
+		lastContent = '';
+		onBlockChange?.({
+			...block,
+			type,
+			content: plainTextToRichText(''),
+			properties: { ...block.properties, ...properties }
+		});
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -251,6 +248,55 @@
 			return;
 		}
 
+		if (e.key === ' ') {
+			const text = getPlainText();
+			if (text === '#') {
+				e.preventDefault();
+				applyMarkdownShortcut('heading_1');
+				return;
+			}
+			if (text === '##') {
+				e.preventDefault();
+				applyMarkdownShortcut('heading_2');
+				return;
+			}
+			if (text === '###') {
+				e.preventDefault();
+				applyMarkdownShortcut('heading_3');
+				return;
+			}
+			if (text === '-' || text === '*') {
+				e.preventDefault();
+				applyMarkdownShortcut('bulleted_list');
+				return;
+			}
+			if (/^\d+\.$/.test(text)) {
+				e.preventDefault();
+				applyMarkdownShortcut('numbered_list');
+				return;
+			}
+			if (text === '>') {
+				e.preventDefault();
+				applyMarkdownShortcut('quote');
+				return;
+			}
+			if (text === '[]' || text === '[ ]') {
+				e.preventDefault();
+				applyMarkdownShortcut('to_do', { checked: false });
+				return;
+			}
+			if (/^\[x\]$/i.test(text)) {
+				e.preventDefault();
+				applyMarkdownShortcut('to_do', { checked: true });
+				return;
+			}
+			if (/^(---+|\*\*\*+|___+)$/.test(text)) {
+				e.preventDefault();
+				applyMarkdownShortcut('divider', { divider_style: 'solid' });
+				return;
+			}
+		}
+
 		if (e.key === 'Escape' && showFormatToolbar) {
 			showFormatToolbar = false;
 			currentSelection = null;
@@ -272,8 +318,7 @@
 		if (target) {
 			target.textContent = '';
 		}
-		const emptyRichText: RichText[] = [];
-		onBlockChange?.({ ...block, content: emptyRichText });
+		onBlockChange?.({ ...block, content: plainTextToRichText('') });
 		onBlockAdd?.(newBlock);
 		showSlashMenu = false;
 		slashFilter = '';

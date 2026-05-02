@@ -20,6 +20,11 @@ import type {
 } from "$lib/api/contexts/types";
 import { getApiBaseUrl, getCSRFToken } from "$lib/api/base";
 import type { OptimalNode, FileEntry } from "$lib/stores/optimal";
+import {
+  extractRichTextPlainText,
+  parseInlineMarkdownToRichText,
+  richTextToMarkdown,
+} from "../utils/rich-text";
 
 /**
  * Document Service
@@ -112,23 +117,7 @@ function mapContextBlocksToDocBlocks(blocks: ContextBlock[]): Block[] {
  */
 function parseBlockContent(content: string | null): RichText[] {
   if (!content) return [];
-  // Simple text content
-  return [
-    {
-      type: "text",
-      text: { content, link: null },
-      annotations: {
-        bold: false,
-        italic: false,
-        strikethrough: false,
-        underline: false,
-        code: false,
-        color: "default",
-      },
-      plain_text: content,
-      href: null,
-    },
-  ];
+  return parseInlineMarkdownToRichText(content);
 }
 
 /**
@@ -150,9 +139,8 @@ function mapDocBlocksToContextBlocks(blocks: Block[]): ContextBlock[] {
  * Extract plain text from RichText array
  */
 function extractPlainText(content: RichText[] | string | null): string | null {
-  if (!content) return null;
-  if (typeof content === "string") return content;
-  return content.map((rt) => rt.plain_text || "").join("");
+  const text = extractRichTextPlainText(content);
+  return text || null;
 }
 
 // ============================================================================
@@ -295,23 +283,6 @@ function markdownToBlocks(markdown: string): Block[] {
   const now = new Date().toISOString();
   const blocks: Block[] = [];
 
-  const makeRichText = (text: string): RichText[] => [
-    {
-      type: "text",
-      text: { content: text, link: null },
-      annotations: {
-        bold: false,
-        italic: false,
-        strikethrough: false,
-        underline: false,
-        code: false,
-        color: "default",
-      },
-      plain_text: text,
-      href: null,
-    },
-  ];
-
   const makeBlock = (
     type: BlockType,
     text: string,
@@ -319,7 +290,7 @@ function markdownToBlocks(markdown: string): Block[] {
   ): Block => ({
     id: crypto.randomUUID(),
     type,
-    content: makeRichText(text),
+    content: parseInlineMarkdownToRichText(text),
     properties: extra ?? {},
     children: [],
     created_at: now,
@@ -447,11 +418,9 @@ function blocksToMarkdownInternal(blocks: Block[]): string {
   return blocks
     .map((block) => {
       const text =
-        typeof block.content === "string"
-          ? block.content
-          : Array.isArray(block.content)
-            ? block.content.map((rt) => rt.plain_text || "").join("")
-            : "";
+        block.type === "code"
+          ? extractRichTextPlainText(block.content)
+          : richTextToMarkdown(block.content);
 
       switch (block.type) {
         case "heading_1":
@@ -1126,11 +1095,10 @@ export async function disableSharing(id: string): Promise<void> {
 function blocksToMarkdown(blocks: Block[]): string {
   return blocks
     .map((block) => {
-      const text = block.content
-        ? typeof block.content === "string"
-          ? block.content
-          : block.content.map((rt) => rt.plain_text || "").join("")
-        : "";
+      const text =
+        block.type === "code"
+          ? extractRichTextPlainText(block.content)
+          : richTextToMarkdown(block.content);
 
       switch (block.type) {
         case "heading_1":

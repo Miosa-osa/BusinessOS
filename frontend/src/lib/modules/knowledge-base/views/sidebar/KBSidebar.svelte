@@ -20,9 +20,10 @@
 		onNewDocument?: () => void;
 		onOpenDocument?: (id: string) => void;
 		onOpenSearch?: () => void;
+		onViewChange?: (view: SidebarView) => void;
 	}
 
-	let { onNewDocument, onOpenDocument, onOpenSearch }: Props = $props();
+	let { onNewDocument, onOpenDocument, onOpenSearch, onViewChange }: Props = $props();
 
 	// Sidebar state
 	let sidebarWidth = $derived($sidebarStore.width);
@@ -134,7 +135,9 @@
 	const viewOptions = [...documentViews, ...profileViews];
 
 	function handleViewChange(view: SidebarView) {
+		selectedNodeSlug = null;
 		sidebarStore.setView(view);
+		onViewChange?.(view);
 	}
 
 	function handleToggleCollapse() {
@@ -326,7 +329,7 @@
 			{onNewDocument}
 			{onOpenSearch}
 			onOpenSettings={handleOpenSettings}
-			onOpenTrash={() => sidebarStore.setView('trash')}
+			onOpenTrash={() => handleViewChange('trash')}
 		/>
 
 		<nav class="bos-sidebar__nav">

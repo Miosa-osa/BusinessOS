@@ -1,4 +1,5 @@
 import type { RichText } from "../../entities/types";
+import { plainTextToRichText } from "../../utils/rich-text";
 
 /**
  * Parses innerHTML from a contenteditable element into a RichText[] array.
@@ -11,23 +12,7 @@ export function parseHTMLToRichText(
   const segments: RichText[] = [];
 
   if (html === plainText || !html.includes("<")) {
-    if (plainText) {
-      segments.push({
-        type: "text",
-        text: { content: plainText, link: null },
-        annotations: {
-          bold: false,
-          italic: false,
-          strikethrough: false,
-          underline: false,
-          code: false,
-          color: "default",
-        },
-        plain_text: plainText,
-        href: null,
-      });
-    }
-    return segments;
+    return plainTextToRichText(plainText);
   }
 
   const temp = document.createElement("div");
@@ -89,13 +74,5 @@ export function parseHTMLToRichText(
 
   return segments.length > 0
     ? segments
-    : [
-        {
-          type: "text",
-          text: { content: plainText, link: null },
-          annotations: defaultAnnotations,
-          plain_text: plainText,
-          href: null,
-        },
-      ];
+    : plainTextToRichText(plainText);
 }

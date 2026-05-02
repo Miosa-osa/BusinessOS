@@ -68,26 +68,73 @@ export interface NodeFilesResponse {
 
 /** Pull everything the graph needs in parallel and fold it into one shape. */
 export async function loadGraph(): Promise<GraphData> {
-  const [workspaceRes, optimalRes] = await Promise.all([
-    fetch("/api/workspace").then((r) => r.json()) as Promise<{
-      nodes: WorkspaceNode[];
-    }>,
-    fetch("/api/optimal/graph").then((r) =>
-      r.json(),
-    ) as Promise<OptimalGraphResponse>,
-  ]);
+  // The engine serves at /api/graph (not /api/optimal/graph).
+  // /api/graph returns {nodes: [{node, context_count, last_modified}], edges: [...], stats: {...}}
+  const graphRes = (await fetch("/api/graph").then((r) => r.json())) as {
+    nodes: { node: string; context_count: number; last_modified: string }[];
+    edges: {
+      source: string;
+      target: string;
+      relation: string;
+      weight: number;
+    }[];
+    stats: { entity_count: number; edge_count: number };
+  };
 
-  const workspaceNodes = workspaceRes.nodes;
-  const entityData = optimalRes.entities;
-  const entityEdges = optimalRes.edges;
+  // Convert engine graph nodes to WorkspaceNode shape
+  const kindGuess: Record<string, string> = {
+    founder: "person",
+    platform: "org",
+    services: "org",
+    academy: "operation",
+    partners: "org",
+    media: "org",
+    "getting-started": "concept",
+    "new-stuff": "concept",
+    businessos: "product",
+    tasks: "operation",
+    crm: "product",
+    chat: "product",
+    team: "org",
+    clients: "org",
+    "integration-test": "concept",
+    inbox: "operation",
+  };
 
-  // Fetch per-node signal lists in parallel.
+  const workspaceNodes: WorkspaceNode[] = graphRes.nodes.map((n) => {
+    const slug = n.node;
+    const name = slug
+      .replace(/^\d+-/, "")
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+    const kindKey = slug.replace(/^\d+-/, "");
+    return {
+      id: slug,
+      slug,
+      name,
+      kind: kindGuess[kindKey] ?? "default",
+      signal_count: n.context_count,
+      parent_id: null,
+    } as WorkspaceNode;
+  });
+
+  const entityData = (graphRes as any).entities ?? [];
+  const entityEdges = graphRes.edges;
+
+  // Fetch per-node signal lists in parallel (engine serves at /api/node/:slug).
   const signalLists = await Promise.all(
     workspaceNodes.map(async (n) => {
-      const res = (await fetch(
-        `/api/optimal/nodes/${encodeURIComponent(n.slug)}/files`,
-      ).then((r) => r.json())) as NodeFilesResponse;
-      return { node: n, files: res.files };
+      try {
+        const res = await fetch(
+          `/api/node/${encodeURIComponent(n.slug)}/files`,
+        );
+        if (!res.ok) return { node: n, files: [] };
+        const data = (await res.json()) as NodeFilesResponse;
+        return { node: n, files: data.files ?? [] };
+      } catch {
+        return { node: n, files: [] };
+      }
     }),
   );
 

@@ -20,7 +20,7 @@
 		QuickSearch,
 		DocumentEditor
 	} from '$lib/modules/knowledge-base';
-	import type { DocumentMeta } from '$lib/modules/knowledge-base';
+	import type { DocumentMeta, SidebarView } from '$lib/modules/knowledge-base';
 	import NodeDrillDown from '$lib/components/knowledge/NodeDrillDown.svelte';
 	import { getApiBaseUrl, getCSRFToken } from '$lib/api/base';
 	import { browser } from '$app/environment';
@@ -108,6 +108,7 @@
 				title: '',
 				type: 'document'
 			});
+			folderView = null;
 			await openAndFetchDocument(doc.id);
 		} catch (e) {
 			console.error('Failed to create document:', e);
@@ -116,6 +117,8 @@
 	}
 
 	async function handleOpenDocument(id: string) {
+		error = null;
+
 		// Check if this is a folder — find it in the document list
 		const doc = documents.find(d => d.id === id);
 		const isFolder = doc?.type === 'folder' || (!id.endsWith('.md') && id.includes('/'));
@@ -138,6 +141,12 @@
 			console.error('Failed to open document:', e);
 			error = 'Failed to open document';
 		}
+	}
+
+	function handleViewChange(_view: SidebarView) {
+		folderView = null;
+		activeDocumentStore.setActiveDocument(null);
+		error = null;
 	}
 
 	function handleCloseDocument() {
@@ -188,6 +197,7 @@
 		onNewDocument={handleNewDocument}
 		onOpenDocument={handleOpenDocument}
 		onOpenSearch={handleOpenSearch}
+		onViewChange={handleViewChange}
 	/>
 
 	<!-- Main Content -->
@@ -206,6 +216,47 @@
 					onclick={() => { error = null; isLoading = true; fetchDocuments().finally(() => { isLoading = false; }) }}
 				>Retry</button>
 			</div>
+		{:else if currentDocumentId}
+			<DocumentEditor
+				documentId={currentDocumentId}
+				onClose={handleCloseDocument}
+			/>
+		{:else if folderView}
+			<!-- Folder contents view -->
+			<div class="kb-page__listing">
+				<div class="kb-page__header">
+					<h1 class="kb-page__title">{folderView.title}</h1>
+					<span style="color: var(--dt3, rgba(255,255,255,0.3)); font-size: 13px;">{folderView.children.length} items</span>
+				</div>
+				{#if folderView.children.length === 0}
+					<div class="kb-page__empty">
+						<p class="kb-page__empty-desc">This folder is empty</p>
+					</div>
+				{:else}
+					<div class="kb-page__grid">
+						{#each folderView.children as child (child.id)}
+							<button
+								class="kb-page__card"
+								onclick={() => handleOpenDocument(child.id)}
+							>
+								<div class="kb-page__card-icon">
+									{#if child.type === 'folder'}
+										<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+									{:else}
+										<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+									{/if}
+								</div>
+								<div class="kb-page__card-body">
+									<span class="kb-page__card-title">{child.title || 'Untitled'}</span>
+									{#if child.type === 'folder'}
+										<span class="kb-page__card-meta">{child.children_count} items</span>
+									{/if}
+								</div>
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		{:else if currentView === 'graph' || currentView === 'knowledge-graph'}
 			<div class="kg-engine-frame">
 				{#if browser}
@@ -217,11 +268,6 @@
 					></iframe>
 				{/if}
 			</div>
-		{:else if currentDocumentId}
-			<DocumentEditor
-				documentId={currentDocumentId}
-				onClose={handleCloseDocument}
-			/>
 		{:else if currentView === 'recent'}
 			<div class="kb-page__listing">
 				<div class="kb-page__header"><h1 class="kb-page__title">Recent</h1></div>
@@ -332,42 +378,6 @@
 						</div>
 					{/if}
 				{/each}
-			</div>
-		{:else if folderView}
-			<!-- Folder contents view -->
-			<div class="kb-page__listing">
-				<div class="kb-page__header">
-					<h1 class="kb-page__title">{folderView.title}</h1>
-					<span style="color: var(--dt3, rgba(255,255,255,0.3)); font-size: 13px;">{folderView.children.length} items</span>
-				</div>
-				{#if folderView.children.length === 0}
-					<div class="kb-page__empty">
-						<p class="kb-page__empty-desc">This folder is empty</p>
-					</div>
-				{:else}
-					<div class="kb-page__grid">
-						{#each folderView.children as child (child.id)}
-							<button
-								class="kb-page__card"
-								onclick={() => handleOpenDocument(child.id)}
-							>
-								<div class="kb-page__card-icon">
-									{#if child.type === 'folder'}
-										<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-									{:else}
-										<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-									{/if}
-								</div>
-								<div class="kb-page__card-body">
-									<span class="kb-page__card-title">{child.title || 'Untitled'}</span>
-									{#if child.type === 'folder'}
-										<span class="kb-page__card-meta">{child.children_count} items</span>
-									{/if}
-								</div>
-							</button>
-						{/each}
-					</div>
-				{/if}
 			</div>
 		{:else}
 			<!-- Node Drill-Down View — breadcrumb file explorer -->

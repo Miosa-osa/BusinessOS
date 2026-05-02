@@ -37,6 +37,7 @@
 		modules: '/settings',
 		admin: '/admin',
 		computer: '/computer',
+		engine: '/engine',
 	};
 
 	// Iframe titles for accessibility
@@ -62,6 +63,7 @@
 		help: 'Help',
 		admin: 'Platform Admin',
 		computer: 'Computer',
+		engine: 'Optimal Engine',
 	};
 
 	interface Props {
