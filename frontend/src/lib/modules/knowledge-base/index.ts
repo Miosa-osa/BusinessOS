@@ -225,3 +225,16 @@ export {
 
 // Graph View Components
 export { GraphView, OptimalGraphView } from "./views/graph";
+
+// Page View Components
+export {
+  EmptyPageView,
+  FolderContentsView,
+  GraphFrame,
+  PageListLayout,
+  ProfilesView,
+  RecentDocumentsView,
+  StatusView,
+  type PagesNodeInfo,
+  type RecentDocumentItem,
+} from "./views/page";

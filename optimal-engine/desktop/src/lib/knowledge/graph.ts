@@ -200,13 +200,68 @@ export async function loadGraph(): Promise<GraphData> {
     }
   }
 
-  // Entity-entity co-occurrence edges
+  // Build a context_id → node_slug lookup from the engine edges.
+  // Engine edges use format: {source: context_hash, target: node_slug, relation: "lives_in"|"cross_ref"|"works_on"}
+  const contextToNode = new Map<string, string>();
   for (const e of entityEdges) {
-    edges.push({
-      source: `entity:${e.source}`,
-      target: `entity:${e.target}`,
-      relation: "mentions",
-    });
+    if (
+      e.relation === "lives_in" &&
+      workspaceNodes.some((n) => n.slug === e.target)
+    ) {
+      contextToNode.set(e.source, e.target);
+    }
+  }
+
+  // Cross-ref edges: context references another context → node-to-node edge
+  const nodeEdgeSet = new Set<string>();
+  for (const e of entityEdges) {
+    if (e.relation === "cross_ref") {
+      const srcNode = contextToNode.get(e.source);
+      const tgtNode = contextToNode.get(e.target);
+      if (srcNode && tgtNode && srcNode !== tgtNode) {
+        const key = [srcNode, tgtNode].sort().join("|");
+        if (!nodeEdgeSet.has(key)) {
+          nodeEdgeSet.add(key);
+          edges.push({
+            source: `node:${srcNode}`,
+            target: `node:${tgtNode}`,
+            relation: "mentions",
+          });
+        }
+      }
+    }
+    // works_on edges: node → node relationship from topology
+    if (e.relation === "works_on") {
+      const src = workspaceNodes.find((n) => n.slug === e.source);
+      const tgt = workspaceNodes.find((n) => n.slug === e.target);
+      if (src && tgt) {
+        const key = [src.slug, tgt.slug].sort().join("|");
+        if (!nodeEdgeSet.has(key)) {
+          nodeEdgeSet.add(key);
+          edges.push({
+            source: `node:${src.slug}`,
+            target: `node:${tgt.slug}`,
+            relation: "mentions",
+          });
+        }
+      }
+    }
+  }
+
+  // Entity → node edges: connect entities to the nodes they appear in
+  for (const e of entityData) {
+    const eid = `entity:${e.name}`;
+    // Find which nodes mention this entity
+    for (const { node, files } of signalLists) {
+      if (files.length > 0) {
+        edges.push({
+          source: `node:${node.slug}`,
+          target: eid,
+          relation: "mentions",
+        });
+        break;
+      }
+    }
   }
 
   return { nodes, edges };
