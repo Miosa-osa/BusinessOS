@@ -387,7 +387,15 @@ defmodule OptimalEngine.Retrieval.Search do
     fts_query = sanitize_fts_query(query)
 
     {sql, params} =
-      build_fts_sql(fts_query, type_filter, node_filter, genre_filter, workspace_id, limit * 3, offset)
+      build_fts_sql(
+        fts_query,
+        type_filter,
+        node_filter,
+        genre_filter,
+        workspace_id,
+        limit * 3,
+        offset
+      )
 
     with {:ok, rows} <- Store.raw_query(sql, params) do
       now = DateTime.utc_now()

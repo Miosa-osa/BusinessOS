@@ -77,7 +77,8 @@ defmodule OptimalEngine.Retrieval.GrepTest do
     test "non-existent workspace returns empty list rather than error" do
       assert {:ok, matches} =
                Grep.grep("pricing",
-                 workspace_id: "workspace-that-does-not-exist-#{System.unique_integer([:positive])}",
+                 workspace_id:
+                   "workspace-that-does-not-exist-#{System.unique_integer([:positive])}",
                  limit: 5
                )
 

@@ -150,29 +150,68 @@ defmodule OptimalEngine.Memory.Subscription do
     end
   end
 
-  @doc "Lists active subscriptions for a workspace (or all if `:all`)."
+  @doc """
+  Lists subscriptions for a workspace.
+
+  Options:
+    - `:workspace_id` — defaults to the default workspace
+    - `:status` — `:active` (default) | `:paused` | `:all`
+    - `:limit`  — max rows (default 50)
+    - `:offset` — row offset for pagination (default 0)
+  """
   @spec list(keyword()) :: {:ok, [t()]} | {:error, term()}
   def list(opts \\ []) do
+    workspace_id = Keyword.get(opts, :workspace_id, Workspace.default_id())
+    status = Keyword.get(opts, :status, :active)
+    limit = Keyword.get(opts, :limit, 50)
+    offset = Keyword.get(opts, :offset, 0)
+
+    {sql, params} =
+      case status do
+        :all ->
+          {"SELECT id, tenant_id, workspace_id, principal_id, scope, scope_value, categories, activity, status, created_at, metadata FROM surfacing_subscriptions WHERE workspace_id = ?1 ORDER BY created_at DESC LIMIT ?2 OFFSET ?3",
+           [workspace_id, limit, offset]}
+
+        :active ->
+          {"SELECT id, tenant_id, workspace_id, principal_id, scope, scope_value, categories, activity, status, created_at, metadata FROM surfacing_subscriptions WHERE workspace_id = ?1 AND status = 'active' ORDER BY created_at DESC LIMIT ?2 OFFSET ?3",
+           [workspace_id, limit, offset]}
+
+        :paused ->
+          {"SELECT id, tenant_id, workspace_id, principal_id, scope, scope_value, categories, activity, status, created_at, metadata FROM surfacing_subscriptions WHERE workspace_id = ?1 AND status = 'paused' ORDER BY created_at DESC LIMIT ?2 OFFSET ?3",
+           [workspace_id, limit, offset]}
+      end
+
+    case Store.raw_query(sql, params) do
+      {:ok, rows} -> {:ok, Enum.map(rows, &row_to_struct/1)}
+      other -> other
+    end
+  end
+
+  @doc """
+  Counts subscriptions for a workspace. Accepts the same `:workspace_id` and `:status` opts as `list/1`.
+  """
+  @spec count(keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(opts \\ []) do
     workspace_id = Keyword.get(opts, :workspace_id, Workspace.default_id())
     status = Keyword.get(opts, :status, :active)
 
     {sql, params} =
       case status do
         :all ->
-          {"SELECT id, tenant_id, workspace_id, principal_id, scope, scope_value, categories, activity, status, created_at, metadata FROM surfacing_subscriptions WHERE workspace_id = ?1 ORDER BY created_at DESC",
-           [workspace_id]}
+          {"SELECT COUNT(*) FROM surfacing_subscriptions WHERE workspace_id = ?1", [workspace_id]}
 
         :active ->
-          {"SELECT id, tenant_id, workspace_id, principal_id, scope, scope_value, categories, activity, status, created_at, metadata FROM surfacing_subscriptions WHERE workspace_id = ?1 AND status = 'active' ORDER BY created_at DESC",
+          {"SELECT COUNT(*) FROM surfacing_subscriptions WHERE workspace_id = ?1 AND status = 'active'",
            [workspace_id]}
 
         :paused ->
-          {"SELECT id, tenant_id, workspace_id, principal_id, scope, scope_value, categories, activity, status, created_at, metadata FROM surfacing_subscriptions WHERE workspace_id = ?1 AND status = 'paused' ORDER BY created_at DESC",
+          {"SELECT COUNT(*) FROM surfacing_subscriptions WHERE workspace_id = ?1 AND status = 'paused'",
            [workspace_id]}
       end
 
     case Store.raw_query(sql, params) do
-      {:ok, rows} -> {:ok, Enum.map(rows, &row_to_struct/1)}
+      {:ok, [[n]]} -> {:ok, n}
+      {:ok, []} -> {:ok, 0}
       other -> other
     end
   end

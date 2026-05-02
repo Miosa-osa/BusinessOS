@@ -178,6 +178,7 @@ defmodule OptimalEngine.Memory.Versioned do
     - `:include_forgotten` — default false
     - `:include_old_versions` — default false (only is_latest=1 rows)
     - `:limit` — default 50
+    - `:offset` — default 0 (for pagination)
   """
   @spec list(keyword()) :: {:ok, [t()]} | {:error, term()}
   def list(opts \\ []) do
@@ -185,6 +186,14 @@ defmodule OptimalEngine.Memory.Versioned do
       {:ok, rows} -> {:ok, Enum.map(rows, &row_to_struct/1)}
       other -> other
     end
+  end
+
+  @doc """
+  Counts memories matching the same filter opts as `list/1` (minus limit/offset).
+  """
+  @spec count(keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(opts \\ []) do
+    VStore.count(opts)
   end
 
   @doc """

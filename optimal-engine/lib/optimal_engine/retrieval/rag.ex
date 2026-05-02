@@ -143,7 +143,10 @@ defmodule OptimalEngine.Retrieval.RAG do
           {:wiki, deliver_wiki(page, receiver), %{candidates: 1, delivered: 1, truncated?: false}}
 
         :miss ->
-          hybrid_deliver(query, intent, receiver,
+          hybrid_deliver(
+            query,
+            intent,
+            receiver,
             Keyword.merge(Keyword.put(opts, :workspace_id, workspace_id),
               on_event: on_event
             )
@@ -195,9 +198,12 @@ defmodule OptimalEngine.Retrieval.RAG do
         }
       end)
 
-    on_event.(:chunks, Enum.map(items, fn item ->
-      %{slug: item.uri, score: item.score, scale: "chunk"}
-    end))
+    on_event.(
+      :chunks,
+      Enum.map(items, fn item ->
+        %{slug: item.uri, score: item.score, scale: "chunk"}
+      end)
+    )
 
     plan = BandwidthPlanner.plan(items, receiver.token_budget)
 

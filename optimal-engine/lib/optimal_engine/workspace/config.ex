@@ -74,6 +74,12 @@ defmodule OptimalEngine.Workspace.Config do
         requests_per_minute: 100,
         burst_capacity: 200,
         exempt_paths: ["/api/status", "/api/health"]
+      },
+      curation: %{
+        enabled: true,
+        interval_minutes: 60,
+        max_stale_days: 7,
+        max_pages_per_cycle: 5
       }
     }
   end

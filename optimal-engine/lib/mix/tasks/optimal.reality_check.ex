@@ -279,12 +279,18 @@ defmodule Mix.Tasks.Optimal.RealityCheck do
     state
     |> probe("RAG.ask simple ('pricing')", fn ->
       {:ok, res} = Retrieval.ask("pricing", receiver: receiver, skip_intent: true)
-      {:ok, "source=#{res.source} delivered=#{res.trace.n_delivered} elapsed=#{res.trace.elapsed_ms}ms"}
+
+      {:ok,
+       "source=#{res.source} delivered=#{res.trace.n_delivered} elapsed=#{res.trace.elapsed_ms}ms"}
     end)
     |> probe("RAG.ask complex (long natural query)", fn ->
-      q = "customer pricing decision Q4 healthtech partner renewal pipeline advanced track curriculum"
+      q =
+        "customer pricing decision Q4 healthtech partner renewal pipeline advanced track curriculum"
+
       {:ok, res} = Retrieval.ask(q, receiver: receiver, skip_intent: true)
-      {:ok, "source=#{res.source} delivered=#{res.trace.n_delivered} elapsed=#{res.trace.elapsed_ms}ms"}
+
+      {:ok,
+       "source=#{res.source} delivered=#{res.trace.n_delivered} elapsed=#{res.trace.elapsed_ms}ms"}
     end)
     |> probe("RAG.ask empty query (edge)", fn ->
       {:ok, res} = Retrieval.ask("", receiver: receiver, skip_intent: true, skip_wiki: true)
@@ -332,9 +338,7 @@ defmodule Mix.Tasks.Optimal.RealityCheck do
     state
     |> probe("Compliance.scan_pii", fn ->
       matches =
-        Compliance.scan_pii(
-          "Reach me at rc@example.com or 415-555-0100. Card 4532015112830366."
-        )
+        Compliance.scan_pii("Reach me at rc@example.com or 415-555-0100. Card 4532015112830366.")
 
       {:ok, "#{length(matches)} matches: #{Enum.map_join(matches, ",", & &1.kind)}"}
     end)
@@ -442,7 +446,10 @@ defmodule Mix.Tasks.Optimal.RealityCheck do
     IO.puts("\n└──────────────────────────────────────────────────────────────┘\n")
 
     if fail > 0 do
-      IO.puts(IO.ANSI.red() <> "Reality check: #{fail} failures. See FAIL lines above." <> IO.ANSI.reset())
+      IO.puts(
+        IO.ANSI.red() <> "Reality check: #{fail} failures. See FAIL lines above." <> IO.ANSI.reset()
+      )
+
       System.halt(1)
     end
   end

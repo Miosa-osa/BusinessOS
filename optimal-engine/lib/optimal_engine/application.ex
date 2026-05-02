@@ -67,7 +67,10 @@ defmodule OptimalEngine.Application do
       {OptimalEngine.Signal.Journal, name: OptimalEngine.Signal.Journal},
 
       # ── HTTP API rate limiter (owns the ETS bucket table) ────────────────
-      OptimalEngine.API.RateLimiter
+      OptimalEngine.API.RateLimiter,
+
+      # ── Wiki maintenance (periodic staleness scan + re-curation) ─────────
+      OptimalEngine.Wiki.Scheduler
     ]
   end
 

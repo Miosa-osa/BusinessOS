@@ -597,7 +597,8 @@ defmodule Mix.Tasks.Optimal.Seed do
         node: "02-platform-core",
         title: "Data-architecture review — new signal types",
         genre: "spec",
-        abstract: "Review of adding time-series + geo signal types to the data-architecture registry.",
+        abstract:
+          "Review of adding time-series + geo signal types to the data-architecture registry.",
         content:
           "Data-architecture review: adding time-series (IoT telemetry) and geo (polygon / trajectory) as first-class modalities. Carol designs the processor bindings. Bob extends the SQL schema. Ivan writes the tests. Target: ship in 2 sprints.",
         entities: [

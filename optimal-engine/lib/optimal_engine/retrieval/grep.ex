@@ -102,7 +102,9 @@ defmodule OptimalEngine.Retrieval.Grep do
       {:ok, contexts} ->
         matches =
           contexts
-          |> Enum.flat_map(&explode_to_chunks(&1, query, intent_filter, scale_filter, modality_filter, snippet_len))
+          |> Enum.flat_map(
+            &explode_to_chunks(&1, query, intent_filter, scale_filter, modality_filter, snippet_len)
+          )
           |> apply_path_prefix(path_prefix)
           |> Enum.sort_by(& &1.score, :desc)
           |> Enum.take(limit)
@@ -325,6 +327,7 @@ defmodule OptimalEngine.Retrieval.Grep do
 
   defp validate_intent(nil), do: nil
   defp validate_intent(atom) when is_atom(atom) and atom in @valid_intents, do: atom
+
   defp validate_intent(str) when is_binary(str) do
     try do
       atom = String.to_existing_atom(str)
@@ -338,6 +341,7 @@ defmodule OptimalEngine.Retrieval.Grep do
 
   defp validate_scale(nil), do: nil
   defp validate_scale(atom) when is_atom(atom) and atom in @valid_scales, do: atom
+
   defp validate_scale(str) when is_binary(str) do
     try do
       atom = String.to_existing_atom(str)

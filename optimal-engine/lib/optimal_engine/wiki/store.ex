@@ -166,9 +166,16 @@ defmodule OptimalEngine.Wiki.Store do
   List every page for a tenant + workspace (latest version of each
   (slug, audience) pair). Defaults to the `default` workspace for
   backwards compat with pre-Phase-1.6 callers.
+
+  Options:
+    - `:limit`  — max rows to return (default 50)
+    - `:offset` — row offset for pagination (default 0)
   """
-  @spec list(String.t(), String.t()) :: {:ok, [Page.t()]}
-  def list(tenant_id, workspace_id \\ "default") do
+  @spec list(String.t(), String.t(), keyword()) :: {:ok, [Page.t()]}
+  def list(tenant_id, workspace_id \\ "default", opts \\ []) do
+    limit = Keyword.get(opts, :limit, 50)
+    offset = Keyword.get(opts, :offset, 0)
+
     sql = """
     SELECT w.tenant_id, w.workspace_id, w.slug, w.audience, w.version, w.frontmatter, w.body, w.last_curated, w.curated_by
     FROM wiki_pages w
@@ -184,10 +191,40 @@ defmodule OptimalEngine.Wiki.Store do
      AND w.audience     = latest.audience
      AND w.version      = latest.max_version
     ORDER BY w.slug, w.audience
+    LIMIT ?3 OFFSET ?4
+    """
+
+    case Store.raw_query(sql, [tenant_id, workspace_id, limit, offset]) do
+      {:ok, rows} -> {:ok, Enum.map(rows, &row_to_page/1)}
+      other -> other
+    end
+  end
+
+  @doc """
+  Counts the total number of unique (slug, audience) latest wiki pages
+  for a tenant + workspace. Used for API pagination totals.
+  """
+  @spec count(String.t(), String.t()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(tenant_id, workspace_id \\ "default") do
+    sql = """
+    SELECT COUNT(*)
+    FROM wiki_pages w
+    INNER JOIN (
+      SELECT tenant_id, workspace_id, slug, audience, MAX(version) AS max_version
+      FROM wiki_pages
+      WHERE tenant_id = ?1 AND workspace_id = ?2
+      GROUP BY tenant_id, workspace_id, slug, audience
+    ) latest
+      ON w.tenant_id    = latest.tenant_id
+     AND w.workspace_id = latest.workspace_id
+     AND w.slug         = latest.slug
+     AND w.audience     = latest.audience
+     AND w.version      = latest.max_version
     """
 
     case Store.raw_query(sql, [tenant_id, workspace_id]) do
-      {:ok, rows} -> {:ok, Enum.map(rows, &row_to_page/1)}
+      {:ok, [[n]]} -> {:ok, n}
+      {:ok, []} -> {:ok, 0}
       other -> other
     end
   end

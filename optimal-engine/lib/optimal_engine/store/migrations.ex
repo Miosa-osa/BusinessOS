@@ -75,7 +75,8 @@ defmodule OptimalEngine.Store.Migrations do
       migration_027_surfacing(),
       migration_028_memories(),
       migration_029_memory_content_hash(),
-      migration_030_api_keys()
+      migration_030_api_keys(),
+      migration_031_memories_fts()
     ]
   end
 
@@ -1083,6 +1084,67 @@ defmodule OptimalEngine.Store.Migrations do
        {"idx_api_keys_tenant_revoked",
         "CREATE INDEX IF NOT EXISTS idx_api_keys_tenant_revoked ON api_keys(tenant_id, revoked_at)"},
        {"idx_api_keys_prefix", "CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(prefix)"}
+     ]}
+  end
+
+  # Phase 19 — FTS5 full-text search index for the versioned memories table.
+  # Uses trigger-based sync (same pattern as contexts_fts) so the index
+  # stays in sync automatically on INSERT, UPDATE, and DELETE without any
+  # application-level maintenance.
+  #
+  # Why triggers instead of `content=` external content?
+  # The `content=` mode requires memories.rowid == FTS docid. Our
+  # memories.id is TEXT (UUID), so the hidden SQLite rowid is the reliable
+  # integer anchor. Triggers give us explicit control with the same rowid.
+  defp migration_031_memories_fts do
+    {31, "memories_fts — FTS5 full-text search index for versioned memories (Phase 19)",
+     [
+       # Step 1: FTS5 virtual table — porter+unicode61 tokenizer for stemming.
+       {"memories_fts",
+        """
+        CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+          content,
+          tokenize='porter unicode61'
+        )
+        """},
+
+       # Step 2: INSERT trigger — syncs new rows into the FTS index.
+       {"memories_fts_insert",
+        """
+        CREATE TRIGGER IF NOT EXISTS memories_fts_insert
+        AFTER INSERT ON memories BEGIN
+          INSERT INTO memories_fts(rowid, content)
+          VALUES (new.rowid, new.content);
+        END
+        """},
+
+       # Note: no UPDATE trigger. In the memories model, content never changes
+       # in-place — version bumps create NEW rows via INSERT (handled by the
+       # INSERT trigger above). Metadata-only UPDATEs (is_forgotten, is_latest,
+       # updated_at) don't affect search relevance and require no FTS sync.
+       # Adding an UPDATE trigger with the FTS5 'delete' command would silently
+       # roll back the enclosing UPDATE when executed via Exqlite prepared
+       # statements — a known SQLite FTS5 trigger interaction issue.
+
+       # Step 3: DELETE trigger — removes the FTS doc on hard delete.
+       # Uses standard DELETE FROM on the FTS virtual table, which is safe
+       # inside AFTER DELETE triggers (avoids the FTS5 'delete' command).
+       {"memories_fts_delete",
+        """
+        CREATE TRIGGER IF NOT EXISTS memories_fts_delete
+        AFTER DELETE ON memories BEGIN
+          DELETE FROM memories_fts WHERE rowid = old.rowid;
+        END
+        """},
+
+       # Step 5: Backfill — seed all existing memory rows into the FTS index.
+       # On a fresh database this inserts zero rows (no-op). On upgrade it
+       # indexes all historical memories so search works immediately.
+       {"memories_fts_backfill",
+        """
+        INSERT INTO memories_fts(rowid, content)
+        SELECT rowid, content FROM memories
+        """}
      ]}
   end
 
