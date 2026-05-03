@@ -18,11 +18,11 @@ importers:
         specifier: ^0.4.1675469240
         version: 0.4.1675469240
       '@miosa/optimal-engine':
-        specifier: link:../optimal-engine/sdks/miosa
-        version: link:../optimal-engine/sdks/miosa
+        specifier: file:../optimal-engine/sdks/miosa
+        version: file:../optimal-engine/sdks/miosa(@optimal-engine/client@file:../optimal-engine/sdks/typescript(ai@5.0.108(zod@4.3.5))(zod@4.3.5))(svelte@5.45.8)
       '@optimal-engine/client':
-        specifier: link:../optimal-engine/sdks/typescript
-        version: link:../optimal-engine/sdks/typescript
+        specifier: file:../optimal-engine/sdks/typescript
+        version: file:../optimal-engine/sdks/typescript(ai@5.0.108(zod@4.3.5))(zod@4.3.5)
       '@threlte/core':
         specifier: ^8.3.1
         version: 8.3.1(svelte@5.45.8)(three@0.182.0)
@@ -534,9 +534,30 @@ packages:
   '@mermaid-js/parser@0.6.3':
     resolution: {integrity: sha512-lnjOhe7zyHjc+If7yT4zoedx2vo4sHaTmtkl1+or8BRTnCtDmcTpAjpzDSfCZrshM5bCoz0GyidzadJAH1xobA==}
 
+  '@miosa/optimal-engine@file:../optimal-engine/sdks/miosa':
+    resolution: {directory: ../optimal-engine/sdks/miosa, type: directory}
+    peerDependencies:
+      '@optimal-engine/client': ^0.2.0
+      svelte: ^5.0.0
+
   '@opentelemetry/api@1.9.0':
     resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
     engines: {node: '>=8.0.0'}
+
+  '@optimal-engine/client@file:../optimal-engine/sdks/typescript':
+    resolution: {directory: ../optimal-engine/sdks/typescript, type: directory}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      ai: '>=4.0.0'
+      openai: '>=4.0.0'
+      zod: '>=3.0.0'
+    peerDependenciesMeta:
+      ai:
+        optional: true
+      openai:
+        optional: true
+      zod:
+        optional: true
 
   '@pixi/colord@2.9.6':
     resolution: {integrity: sha512-nezytU2pw587fQstUu1AsJZDVEynjskwOL+kibwcdxsMBFqPsFFNA7xl0ii/gXuDi6M0xj3mfRJj8pBSc2jCfA==}
@@ -3278,7 +3299,17 @@ snapshots:
     dependencies:
       langium: 3.3.1
 
+  '@miosa/optimal-engine@file:../optimal-engine/sdks/miosa(@optimal-engine/client@file:../optimal-engine/sdks/typescript(ai@5.0.108(zod@4.3.5))(zod@4.3.5))(svelte@5.45.8)':
+    dependencies:
+      '@optimal-engine/client': file:../optimal-engine/sdks/typescript(ai@5.0.108(zod@4.3.5))(zod@4.3.5)
+      svelte: 5.45.8
+
   '@opentelemetry/api@1.9.0': {}
+
+  '@optimal-engine/client@file:../optimal-engine/sdks/typescript(ai@5.0.108(zod@4.3.5))(zod@4.3.5)':
+    optionalDependencies:
+      ai: 5.0.108(zod@4.3.5)
+      zod: 4.3.5
 
   '@pixi/colord@2.9.6': {}
 
