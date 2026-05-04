@@ -133,8 +133,10 @@ func (s *GroqService) ChatWithTools(ctx context.Context, messages []ChatMessage,
 	return result, nil
 }
 
-// ContinueWithToolResults continues the conversation after tool execution
-func (s *GroqService) ContinueWithToolResults(ctx context.Context, messages []ChatMessage, systemPrompt string, toolResults map[string]string) (string, error) {
+// ContinueWithToolResults continues the conversation after tool execution.
+// OpenAI-compatible APIs require the assistant message that requested the tools
+// to appear immediately before the corresponding tool result messages.
+func (s *GroqService) ContinueWithToolResults(ctx context.Context, messages []ChatMessage, systemPrompt string, toolCalls []ToolCallResult, toolResults map[string]string) (string, error) {
 	groqMsgs := make([]GroqMessage, 0, len(messages)+len(toolResults)+1)
 
 	for _, msg := range messages {
@@ -159,12 +161,38 @@ func (s *GroqService) ContinueWithToolResults(ctx context.Context, messages []Ch
 		}}, groqMsgs...)
 	}
 
-	// Add tool results as tool messages
-	for toolCallID, result := range toolResults {
+	assistantToolCalls := make([]GroqToolCall, 0, len(toolCalls))
+	for _, tc := range toolCalls {
+		assistantToolCalls = append(assistantToolCalls, GroqToolCall{
+			ID:   tc.ID,
+			Type: "function",
+			Function: struct {
+				Name      string `json:"name"`
+				Arguments string `json:"arguments"`
+			}{
+				Name:      tc.Name,
+				Arguments: tc.Arguments,
+			},
+		})
+	}
+
+	if len(assistantToolCalls) > 0 {
+		groqMsgs = append(groqMsgs, GroqMessage{
+			Role:      "assistant",
+			ToolCalls: assistantToolCalls,
+		})
+	}
+
+	// Add tool results as tool messages in the same order as the calls.
+	for _, tc := range toolCalls {
+		result, ok := toolResults[tc.ID]
+		if !ok {
+			result = ""
+		}
 		groqMsgs = append(groqMsgs, GroqMessage{
 			Role:       "tool",
 			Content:    result,
-			ToolCallID: toolCallID,
+			ToolCallID: tc.ID,
 		})
 	}
 

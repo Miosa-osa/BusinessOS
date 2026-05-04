@@ -20,15 +20,19 @@
     Mail,
     Loader2,
     AlertCircle,
-    Brain
+    Brain,
+    CreditCard,
+    Server,
   } from 'lucide-svelte';
   import WorkspaceGeneralSettings from '$lib/components/workspace/WorkspaceGeneralSettings.svelte';
   import WorkspaceMembersList from '$lib/components/workspace/WorkspaceMembersList.svelte';
   import WorkspaceRolesList from '$lib/components/workspace/WorkspaceRolesList.svelte';
   import WorkspaceInvitesList from '$lib/components/workspace/WorkspaceInvitesList.svelte';
   import WorkspaceMemoryPanel from '$lib/components/workspace/WorkspaceMemoryPanel.svelte';
+  import WorkspacePlanBilling from '$lib/components/workspace/WorkspacePlanBilling.svelte';
+  import WorkspaceCompute from '$lib/components/workspace/WorkspaceCompute.svelte';
 
-  type TabType = 'general' | 'members' | 'roles' | 'invites' | 'memories';
+  type TabType = 'general' | 'members' | 'roles' | 'invites' | 'memories' | 'plan' | 'compute';
 
   let activeTab = $state<TabType>('general');
   let isLoading = $state(true);
@@ -196,6 +200,18 @@
       icon: Brain,
       show: true,
     },
+    {
+      id: 'plan' as TabType,
+      label: 'Plan & Billing',
+      icon: CreditCard,
+      show: canManageSettings || roleContext?.role_name === 'owner',
+    },
+    {
+      id: 'compute' as TabType,
+      label: 'Compute',
+      icon: Server,
+      show: canManageSettings || roleContext?.role_name === 'owner',
+    },
   ]);
 </script>
 
@@ -290,6 +306,10 @@
           />
         {:else if activeTab === 'memories'}
           <WorkspaceMemoryPanel />
+        {:else if activeTab === 'plan'}
+          <WorkspacePlanBilling {workspace} />
+        {:else if activeTab === 'compute'}
+          <WorkspaceCompute workspaceId={workspace.id} />
         {/if}
       </div>
     </div>

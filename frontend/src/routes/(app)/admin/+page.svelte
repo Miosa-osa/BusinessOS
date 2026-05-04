@@ -4,7 +4,7 @@
 
 	// ── Types ──────────────────────────────────────────────────────────────────
 
-	type TabId = 'overview' | 'users' | 'computers' | 'audit';
+	type TabId = 'overview' | 'users' | 'computers' | 'workspaces' | 'settings' | 'audit';
 
 	interface DashboardData {
 		users: { total: number; active: number };
@@ -35,6 +35,29 @@
 		created_at: string;
 	}
 
+	interface AdminWorkspace {
+		id: string;
+		name: string;
+		owner_email: string;
+		owner_name: string;
+		plan: string;
+		member_count: number;
+		created_at: string;
+	}
+
+	interface AdminSettings {
+		environment: string;
+		deployment_mode: string;
+		ai_provider: string;
+		default_model: string;
+		allowed_origins: string[];
+		feature_flags: {
+			osa_enabled: boolean;
+			carrier_enabled: boolean;
+			nats_enabled: boolean;
+		};
+	}
+
 	interface AuditEntry {
 		actor: string;
 		action: string;
@@ -60,12 +83,23 @@
 	let computersTotal = $state(0);
 	let computersLoading = $state(true);
 
+	// Workspaces
+	let workspaces = $state<AdminWorkspace[]>([]);
+	let workspacesTotal = $state(0);
+	let workspacesLoading = $state(true);
+	let expandedWorkspaceId = $state<string | null>(null);
+
+	// Settings
+	let settings = $state<AdminSettings | null>(null);
+	let settingsLoading = $state(true);
+	let settingsUnavailable = $state(false);
+
 	// Audit
 	let auditEntries = $state<AuditEntry[]>([]);
 	let auditLoading = $state(true);
 	let auditUnavailable = $state(false);
 
-	// Action menu
+	// Action menu (shared across tabs)
 	let openMenuId = $state<string | null>(null);
 	let actionBusy = $state(false);
 	let actionError = $state<string | null>(null);
@@ -79,7 +113,16 @@
 		{ id: 'overview', label: 'Overview' },
 		{ id: 'users', label: 'Users' },
 		{ id: 'computers', label: 'Computers' },
+		{ id: 'workspaces', label: 'Workspaces' },
+		{ id: 'settings', label: 'Settings' },
 		{ id: 'audit', label: 'Audit Log' },
+	];
+
+	const PLAN_OPTIONS: Array<{ value: string; label: string }> = [
+		{ value: 'free', label: 'Free' },
+		{ value: 'pro', label: 'Pro' },
+		{ value: 'growth', label: 'Growth' },
+		{ value: 'business', label: 'Business' },
 	];
 
 	// ── API helpers ────────────────────────────────────────────────────────────
@@ -148,6 +191,27 @@
 		computersLoading = false;
 	}
 
+	async function loadWorkspaces() {
+		workspacesLoading = true;
+		const data = await adminFetch<{ workspaces: AdminWorkspace[]; total: number }>('/admin/workspaces');
+		workspaces = data?.workspaces ?? [];
+		workspacesTotal = data?.total ?? 0;
+		workspacesLoading = false;
+	}
+
+	async function loadSettings() {
+		settingsLoading = true;
+		const data = await adminFetch<AdminSettings>('/admin/settings');
+		if (data === null) {
+			settingsUnavailable = true;
+			settings = null;
+		} else {
+			settingsUnavailable = false;
+			settings = data;
+		}
+		settingsLoading = false;
+	}
+
 	async function loadAudit() {
 		auditLoading = true;
 		const data = await adminFetch<{ entries: AuditEntry[] }>('/admin/audit-log');
@@ -173,6 +237,34 @@
 			actionError = 'Failed to update user role. Please try again.';
 		} else {
 			await loadUsers();
+		}
+		actionBusy = false;
+	}
+
+	async function setUserPlan(userId: string, plan: string) {
+		if (actionBusy) return;
+		actionBusy = true;
+		actionError = null;
+		openMenuId = null;
+		const ok = await adminPost(`/admin/users/${userId}/plan`, { plan });
+		if (!ok) {
+			actionError = 'Failed to update user plan. Please try again.';
+		} else {
+			await loadUsers();
+		}
+		actionBusy = false;
+	}
+
+	async function computerAction(computerId: string, action: 'restart' | 'stop' | 'hibernate') {
+		if (actionBusy) return;
+		actionBusy = true;
+		actionError = null;
+		openMenuId = null;
+		const ok = await adminPost(`/admin/computers/${computerId}/${action}`, {});
+		if (!ok) {
+			actionError = `Failed to ${action} computer. Please try again.`;
+		} else {
+			await loadComputers();
 		}
 		actionBusy = false;
 	}
@@ -207,7 +299,14 @@
 	// ── Lifecycle ──────────────────────────────────────────────────────────────
 
 	onMount(async () => {
-		await Promise.all([loadDashboard(), loadUsers(), loadComputers(), loadAudit()]);
+		await Promise.all([
+			loadDashboard(),
+			loadUsers(),
+			loadComputers(),
+			loadWorkspaces(),
+			loadSettings(),
+			loadAudit(),
+		]);
 
 		// Auto-refresh overview stats every 60s
 		refreshInterval = setInterval(loadDashboard, 60_000);
@@ -448,6 +547,23 @@
 															Set User
 														</button>
 														<div class="adm-dropdown-sep"></div>
+														<div class="adm-dropdown-label">Change Plan</div>
+														{#each PLAN_OPTIONS as opt}
+															<button
+																class="adm-dropdown-item"
+																class:adm-dropdown-item--active={user.plan === opt.value}
+																onclick={() => setUserPlan(user.id, opt.value)}
+																disabled={actionBusy}
+															>
+																{opt.label}
+																{#if user.plan === opt.value}
+																	<svg class="w-3 h-3 adm-dropdown-check" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+																	</svg>
+																{/if}
+															</button>
+														{/each}
+														<div class="adm-dropdown-sep"></div>
 														<a
 															href="/admin/workspace?id={user.id}"
 															class="adm-dropdown-item"
@@ -480,7 +596,7 @@
 						<table class="adm-table">
 							<thead>
 								<tr>
-									{#each ['Workspace', 'Owner', 'Slug', 'Status', 'Plan', 'RAM', 'CPUs', 'Created'] as col}
+									{#each ['Workspace', 'Owner', 'Slug', 'Status', 'Plan', 'RAM', 'CPUs', 'Created', 'Actions'] as col}
 										<th class="adm-th">{col}</th>
 									{/each}
 								</tr>
@@ -488,7 +604,7 @@
 							<tbody>
 								{#each Array(5) as _}
 									<tr class="adm-tr">
-										{#each Array(8) as _}
+										{#each Array(9) as _}
 											<td class="adm-td"><div class="adm-skel adm-skel--sm"></div></td>
 										{/each}
 									</tr>
@@ -513,6 +629,7 @@
 									<th class="adm-th">RAM</th>
 									<th class="adm-th">CPUs</th>
 									<th class="adm-th">Created</th>
+									<th class="adm-th adm-th--right">Actions</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -535,10 +652,311 @@
 										<td class="adm-td adm-td--mono">{formatRam(comp.ram_mb)}</td>
 										<td class="adm-td adm-td--mono">{comp.vcpus}</td>
 										<td class="adm-td adm-td--muted">{formatDate(comp.created_at)}</td>
+										<td class="adm-td adm-td--right">
+											<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+											<div class="adm-action-wrap" role="none" onclick={(e) => e.stopPropagation()}>
+												<button
+													class="adm-action-btn"
+													onclick={() => { openMenuId = openMenuId === comp.id ? null : comp.id; }}
+													aria-label="Computer actions"
+												>
+													<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+														<circle cx="5" cy="12" r="2" />
+														<circle cx="12" cy="12" r="2" />
+														<circle cx="19" cy="12" r="2" />
+													</svg>
+												</button>
+												{#if openMenuId === comp.id}
+													<div class="adm-dropdown">
+														<button
+															class="adm-dropdown-item adm-dropdown-item--icon"
+															onclick={() => computerAction(comp.id, 'restart')}
+															disabled={actionBusy}
+														>
+															<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+																	d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+															</svg>
+															Restart
+														</button>
+														<button
+															class="adm-dropdown-item adm-dropdown-item--icon"
+															onclick={() => computerAction(comp.id, 'hibernate')}
+															disabled={actionBusy}
+														>
+															<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+																	d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+															</svg>
+															Hibernate
+														</button>
+														<button
+															class="adm-dropdown-item adm-dropdown-item--icon adm-dropdown-item--danger"
+															onclick={() => computerAction(comp.id, 'stop')}
+															disabled={actionBusy}
+														>
+															<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+																	d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+																	d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+															</svg>
+															Stop
+														</button>
+													</div>
+												{/if}
+											</div>
+										</td>
 									</tr>
 								{/each}
 							</tbody>
 						</table>
+					</div>
+				{/if}
+			{/if}
+
+			<!-- ── Workspaces Tab ──────────────────────────────────────────── -->
+			{#if activeTab === 'workspaces'}
+				<div class="adm-section-header mb-3">
+					<span class="adm-section-title">All Workspaces</span>
+					{#if !workspacesLoading}
+						<span class="adm-count-badge">{workspacesTotal.toLocaleString()} total</span>
+					{/if}
+				</div>
+
+				{#if workspacesLoading}
+					<div class="adm-table-wrap">
+						<table class="adm-table">
+							<thead>
+								<tr>
+									{#each ['Workspace', 'Owner', 'Owner Name', 'Plan', 'Members', 'Created'] as col}
+										<th class="adm-th">{col}</th>
+									{/each}
+								</tr>
+							</thead>
+							<tbody>
+								{#each Array(5) as _}
+									<tr class="adm-tr">
+										{#each Array(6) as _}
+											<td class="adm-td"><div class="adm-skel adm-skel--sm"></div></td>
+										{/each}
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				{:else if workspaces.length === 0}
+					<div class="adm-empty">
+						<p class="adm-empty-text">No workspaces found.</p>
+					</div>
+				{:else}
+					<div class="adm-table-wrap">
+						<table class="adm-table">
+							<thead>
+								<tr>
+									<th class="adm-th">Workspace</th>
+									<th class="adm-th">Owner Email</th>
+									<th class="adm-th">Owner Name</th>
+									<th class="adm-th">Plan</th>
+									<th class="adm-th">Members</th>
+									<th class="adm-th">Created</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each workspaces as ws, i}
+									<!-- svelte-ignore a11y_click_events_have_key_events -->
+									<tr
+										class="adm-tr adm-tr--clickable"
+										class:adm-tr--alt={i % 2 === 1}
+										class:adm-tr--expanded={expandedWorkspaceId === ws.id}
+										onclick={() => { expandedWorkspaceId = expandedWorkspaceId === ws.id ? null : ws.id; }}
+										role="button"
+										tabindex="0"
+										onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { expandedWorkspaceId = expandedWorkspaceId === ws.id ? null : ws.id; } }}
+									>
+										<td class="adm-td adm-td--name">
+											<div class="adm-ws-name-cell">
+												<svg
+													class="adm-ws-chevron"
+													class:adm-ws-chevron--open={expandedWorkspaceId === ws.id}
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+													aria-hidden="true"
+												>
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+												</svg>
+												{ws.name}
+											</div>
+										</td>
+										<td class="adm-td adm-td--muted">{ws.owner_email}</td>
+										<td class="adm-td adm-td--muted">{ws.owner_name || '—'}</td>
+										<td class="adm-td">
+											<span class="adm-plan-badge">{planLabel(ws.plan)}</span>
+										</td>
+										<td class="adm-td adm-td--mono">{ws.member_count}</td>
+										<td class="adm-td adm-td--muted">{formatDate(ws.created_at)}</td>
+									</tr>
+									{#if expandedWorkspaceId === ws.id}
+										<tr class="adm-tr adm-tr--detail">
+											<td colspan="6" class="adm-td adm-td--detail">
+												<div class="adm-ws-detail">
+													<div class="adm-ws-detail-grid">
+														<div class="adm-ws-detail-item">
+															<span class="adm-ws-detail-label">Workspace ID</span>
+															<code class="adm-slug">{ws.id}</code>
+														</div>
+														<div class="adm-ws-detail-item">
+															<span class="adm-ws-detail-label">Owner Email</span>
+															<span class="adm-ws-detail-value">{ws.owner_email}</span>
+														</div>
+														<div class="adm-ws-detail-item">
+															<span class="adm-ws-detail-label">Plan</span>
+															<span class="adm-ws-detail-value">{planLabel(ws.plan)}</span>
+														</div>
+														<div class="adm-ws-detail-item">
+															<span class="adm-ws-detail-label">Members</span>
+															<span class="adm-ws-detail-value">{ws.member_count}</span>
+														</div>
+														<div class="adm-ws-detail-item">
+															<span class="adm-ws-detail-label">Created</span>
+															<span class="adm-ws-detail-value">{formatDate(ws.created_at)}</span>
+														</div>
+													</div>
+												</div>
+											</td>
+										</tr>
+									{/if}
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				{/if}
+			{/if}
+
+			<!-- ── Settings Tab ────────────────────────────────────────────── -->
+			{#if activeTab === 'settings'}
+				<div class="adm-section-header mb-3">
+					<span class="adm-section-title">Platform Settings</span>
+					<span class="adm-muted-label">Read-only view</span>
+				</div>
+
+				{#if settingsLoading}
+					<div class="adm-settings-grid">
+						{#each Array(6) as _}
+							<div class="adm-settings-card">
+								<div class="adm-skel adm-skel--sm mb-3 w-1/3"></div>
+								<div class="adm-skel adm-skel--sm mb-2"></div>
+								<div class="adm-skel adm-skel--sm w-2/3"></div>
+							</div>
+						{/each}
+					</div>
+				{:else if settingsUnavailable || !settings}
+					<div class="adm-empty adm-empty--notice">
+						<svg class="w-5 h-5 adm-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<p class="adm-empty-text">Settings endpoint is not available yet.</p>
+					</div>
+				{:else}
+					<div class="adm-settings-grid">
+						<!-- Environment & Deployment -->
+						<div class="adm-settings-card">
+							<div class="adm-settings-card-title">
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+										d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+								</svg>
+								Environment
+							</div>
+							<div class="adm-settings-rows">
+								<div class="adm-settings-row">
+									<span class="adm-settings-key">Environment</span>
+									<span class="adm-settings-val">
+										<span class="adm-env-badge adm-env-badge--{settings.environment}">
+											{settings.environment}
+										</span>
+									</span>
+								</div>
+								<div class="adm-settings-row">
+									<span class="adm-settings-key">Deployment Mode</span>
+									<code class="adm-slug">{settings.deployment_mode}</code>
+								</div>
+							</div>
+						</div>
+
+						<!-- AI Configuration -->
+						<div class="adm-settings-card">
+							<div class="adm-settings-card-title">
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+										d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+								</svg>
+								AI Configuration
+							</div>
+							<div class="adm-settings-rows">
+								<div class="adm-settings-row">
+									<span class="adm-settings-key">Provider</span>
+									<span class="adm-settings-val">{settings.ai_provider || '—'}</span>
+								</div>
+								<div class="adm-settings-row">
+									<span class="adm-settings-key">Default Model</span>
+									<code class="adm-slug">{settings.default_model || '—'}</code>
+								</div>
+							</div>
+						</div>
+
+						<!-- Allowed Origins -->
+						<div class="adm-settings-card adm-settings-card--wide">
+							<div class="adm-settings-card-title">
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+										d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+								</svg>
+								Allowed Origins
+							</div>
+							{#if settings.allowed_origins && settings.allowed_origins.length > 0}
+								<div class="adm-origins-list">
+									{#each settings.allowed_origins as origin}
+										<code class="adm-slug">{origin}</code>
+									{/each}
+								</div>
+							{:else}
+								<span class="adm-settings-val adm-settings-empty">No origins configured</span>
+							{/if}
+						</div>
+
+						<!-- Feature Flags -->
+						<div class="adm-settings-card adm-settings-card--wide">
+							<div class="adm-settings-card-title">
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+										d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+								</svg>
+								Feature Flags
+							</div>
+							<div class="adm-settings-rows">
+								<div class="adm-settings-row">
+									<span class="adm-settings-key">OSA</span>
+									<span class="adm-flag-badge adm-flag-badge--{settings.feature_flags.osa_enabled ? 'on' : 'off'}">
+										{settings.feature_flags.osa_enabled ? 'Enabled' : 'Disabled'}
+									</span>
+								</div>
+								<div class="adm-settings-row">
+									<span class="adm-settings-key">Carrier</span>
+									<span class="adm-flag-badge adm-flag-badge--{settings.feature_flags.carrier_enabled ? 'on' : 'off'}">
+										{settings.feature_flags.carrier_enabled ? 'Enabled' : 'Disabled'}
+									</span>
+								</div>
+								<div class="adm-settings-row">
+									<span class="adm-settings-key">NATS</span>
+									<span class="adm-flag-badge adm-flag-badge--{settings.feature_flags.nats_enabled ? 'on' : 'off'}">
+										{settings.feature_flags.nats_enabled ? 'Enabled' : 'Disabled'}
+									</span>
+								</div>
+							</div>
+						</div>
 					</div>
 				{/if}
 			{/if}
@@ -823,6 +1241,10 @@
 	.adm-tr:hover { background: var(--dbg3); }
 	.adm-tr--alt { background: var(--dbg); }
 	.adm-tr--alt:hover { background: var(--dbg3); }
+	.adm-tr--clickable { cursor: pointer; }
+	.adm-tr--expanded { background: var(--dbg3); }
+	.adm-tr--detail { background: var(--dbg); }
+	.adm-tr--detail:hover { background: var(--dbg); }
 	.adm-td {
 		padding: 10px 14px;
 		color: var(--dt2);
@@ -834,6 +1256,10 @@
 	.adm-td--muted { color: var(--dt3); }
 	.adm-td--mono  { font-family: ui-monospace, monospace; font-size: 0.8125rem; }
 	.adm-td--right { text-align: right; }
+	.adm-td--detail {
+		padding: 0;
+		border-bottom: 1px solid var(--dbd);
+	}
 
 	/* ── Badges ──────────────────────────────────────────────────────────────── */
 	.adm-role-badge {
@@ -893,6 +1319,41 @@
 	.adm-status-dot--stopped    { background: #9ca3af; }
 	.adm-status-dot--error      { background: #ef4444; }
 
+	/* ── Environment badge ───────────────────────────────────────────────────── */
+	.adm-env-badge {
+		display: inline-flex;
+		align-items: center;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		padding: 2px 8px;
+		border-radius: 20px;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+	.adm-env-badge--production { background: rgba(239,68,68,0.12); color: #dc2626; }
+	.adm-env-badge--staging    { background: rgba(245,158,11,0.12); color: #d97706; }
+	.adm-env-badge--development,
+	.adm-env-badge--local      { background: rgba(34,197,94,0.12); color: #16a34a; }
+	:global(.dark) .adm-env-badge--production { background: rgba(239,68,68,0.2); color: #f87171; }
+	:global(.dark) .adm-env-badge--staging    { background: rgba(245,158,11,0.2); color: #fbbf24; }
+	:global(.dark) .adm-env-badge--development,
+	:global(.dark) .adm-env-badge--local      { background: rgba(34,197,94,0.2); color: #4ade80; }
+
+	/* ── Feature flag badge ──────────────────────────────────────────────────── */
+	.adm-flag-badge {
+		display: inline-flex;
+		align-items: center;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		padding: 2px 8px;
+		border-radius: 20px;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+	.adm-flag-badge--on  { background: rgba(34,197,94,0.12); color: #16a34a; }
+	.adm-flag-badge--off { background: var(--dbg3); color: var(--dt3); }
+	:global(.dark) .adm-flag-badge--on { background: rgba(34,197,94,0.2); color: #4ade80; }
+
 	/* ── Slug code ───────────────────────────────────────────────────────────── */
 	.adm-slug {
 		font-family: ui-monospace, monospace;
@@ -931,7 +1392,7 @@
 		position: absolute;
 		top: calc(100% + 4px);
 		right: 0;
-		min-width: 150px;
+		min-width: 160px;
 		background: var(--dbg);
 		border: 1px solid var(--dbd);
 		border-radius: 8px;
@@ -942,8 +1403,18 @@
 	:global(.dark) .adm-dropdown {
 		box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 	}
+	.adm-dropdown-label {
+		padding: 5px 12px 3px;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--dt3);
+	}
 	.adm-dropdown-item {
-		display: block;
+		display: flex;
+		align-items: center;
+		gap: 7px;
 		width: 100%;
 		text-align: left;
 		padding: 8px 12px;
@@ -963,10 +1434,130 @@
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
+	.adm-dropdown-item--active {
+		color: var(--dt);
+		font-weight: 500;
+	}
+	.adm-dropdown-item--danger {
+		color: #dc2626;
+	}
+	.adm-dropdown-item--danger:hover {
+		background: rgba(239,68,68,0.08);
+		color: #dc2626;
+	}
+	:global(.dark) .adm-dropdown-item--danger { color: #f87171; }
+	:global(.dark) .adm-dropdown-item--danger:hover { background: rgba(239,68,68,0.15); color: #f87171; }
+	.adm-dropdown-check {
+		margin-left: auto;
+		color: var(--dt3);
+		flex-shrink: 0;
+	}
 	.adm-dropdown-sep {
 		height: 1px;
 		background: var(--dbd);
 		margin: 2px 0;
+	}
+
+	/* ── Workspace expand ────────────────────────────────────────────────────── */
+	.adm-ws-name-cell {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.adm-ws-chevron {
+		width: 14px;
+		height: 14px;
+		color: var(--dt3);
+		flex-shrink: 0;
+		transition: transform 150ms ease;
+	}
+	.adm-ws-chevron--open {
+		transform: rotate(90deg);
+	}
+	.adm-ws-detail {
+		padding: 14px 18px 14px 34px;
+		background: var(--dbg);
+		border-top: 1px solid var(--dbd2);
+	}
+	.adm-ws-detail-grid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 20px;
+	}
+	.adm-ws-detail-item {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 140px;
+	}
+	.adm-ws-detail-label {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--dt3);
+	}
+	.adm-ws-detail-value {
+		font-size: 0.8125rem;
+		color: var(--dt2);
+	}
+
+	/* ── Settings grid ───────────────────────────────────────────────────────── */
+	.adm-settings-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 16px;
+	}
+	@media (max-width: 700px) {
+		.adm-settings-grid { grid-template-columns: 1fr; }
+	}
+	.adm-settings-card {
+		background: var(--dbg2);
+		border: 1px solid var(--dbd);
+		border-radius: 12px;
+		padding: 18px 20px;
+	}
+	.adm-settings-card--wide {
+		grid-column: 1 / -1;
+	}
+	.adm-settings-card-title {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: var(--dt);
+		margin-bottom: 14px;
+	}
+	.adm-settings-rows {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+	.adm-settings-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+	.adm-settings-key {
+		font-size: 0.8125rem;
+		color: var(--dt3);
+		flex-shrink: 0;
+	}
+	.adm-settings-val {
+		font-size: 0.8125rem;
+		color: var(--dt2);
+		text-align: right;
+	}
+	.adm-settings-empty {
+		color: var(--dt3);
+		font-style: italic;
+	}
+	.adm-origins-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
 	}
 
 	/* ── Empty states ────────────────────────────────────────────────────────── */

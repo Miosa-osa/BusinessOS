@@ -15,6 +15,7 @@
 
 export type ChatSSEEventType =
   | "token"
+  | "blocks"
   | "thinking_chunk"
   | "thinking_start"
   | "thinking_end"
@@ -36,6 +37,11 @@ interface BaseEvent {
 export interface TokenEvent extends BaseEvent {
   type: "token";
   content: string;
+}
+
+export interface BlocksEvent extends BaseEvent {
+  type: "blocks";
+  data: unknown;
 }
 
 export interface ThinkingChunkEvent extends BaseEvent {
@@ -116,6 +122,7 @@ export interface DelegatingEvent extends BaseEvent {
 
 export type ChatSSEEvent =
   | TokenEvent
+  | BlocksEvent
   | ThinkingChunkEvent
   | ThinkingStartEvent
   | ThinkingEndEvent
@@ -147,7 +154,9 @@ interface RawThinkingStep {
 }
 
 interface RawToolCallEvent {
+  tool_call_id?: string;
   tool_name?: string;
+  params?: Record<string, unknown> | string;
   parameters?: Record<string, unknown>;
   status?: string;
   result?: string;
@@ -156,6 +165,7 @@ interface RawToolCallEvent {
 interface RawArtifact {
   id?: string;
   type?: string;
+  artifactType?: string;
   title?: string;
   content?: string;
 }
@@ -171,7 +181,12 @@ interface RawArtifact {
 function normaliseEventType(raw: string): ChatSSEEventType | null {
   switch (raw) {
     case "token":
+    case "chunk":
+    case "content":
+    case "content_delta":
       return "token";
+    case "blocks":
+      return "blocks";
     case "thinking_chunk":
     case "thinking":
       return "thinking_chunk";
@@ -186,6 +201,8 @@ function normaliseEventType(raw: string): ChatSSEEventType | null {
     case "error":
       return "error";
     case "done":
+    case "end":
+    case "complete":
       return "done";
     case "signal_classified":
     case "signal.classified":
@@ -215,6 +232,9 @@ function mapRawEvent(raw: RawStreamEvent): ChatSSEEvent | null {
     case "token":
       return { type: "token", content: raw.content ?? "" };
 
+    case "blocks":
+      return { type: "blocks", data: raw.data };
+
     case "thinking_chunk": {
       const thinking = raw.data as RawThinkingStep | undefined;
       return {
@@ -233,12 +253,32 @@ function mapRawEvent(raw: RawStreamEvent): ChatSSEEvent | null {
 
     case "tool_call": {
       const call = raw.data as RawToolCallEvent | undefined;
+      let params: Record<string, unknown> = {};
+      if (call?.params && typeof call.params === "object") {
+        params = call.params;
+      } else if (typeof call?.params === "string") {
+        try {
+          const parsed = JSON.parse(call.params);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            params = parsed as Record<string, unknown>;
+          }
+        } catch {
+          params = {};
+        }
+      } else if (call?.parameters) {
+        params = call.parameters;
+      }
       return {
         type: "tool_call",
         toolName: call?.tool_name ?? "",
-        toolCallId: call?.tool_name ?? "",
-        params: call?.parameters ?? {},
-        status: (call?.status as ToolCallEvent["status"]) ?? "calling",
+        toolCallId: call?.tool_call_id ?? call?.tool_name ?? "",
+        params,
+        status:
+          call?.status === "completed" || call?.status === "success"
+            ? "success"
+            : call?.status === "error"
+              ? "error"
+              : "calling",
       };
     }
 
@@ -247,7 +287,7 @@ function mapRawEvent(raw: RawStreamEvent): ChatSSEEvent | null {
       return {
         type: "tool_result",
         toolName: result?.tool_name ?? "",
-        toolCallId: result?.tool_name ?? "",
+        toolCallId: result?.tool_call_id ?? result?.tool_name ?? "",
         content: result?.result ?? raw.content ?? "",
         status: result?.status === "error" ? "error" : "success",
       };
@@ -291,20 +331,22 @@ function mapRawEvent(raw: RawStreamEvent): ChatSSEEvent | null {
 
     case "artifact_start": {
       const artifact = raw.data as RawArtifact | undefined;
+      const artifactType = artifact?.artifactType ?? (artifact?.type !== raw.type ? artifact?.type : undefined);
       return {
         type: "artifact_start",
         id: artifact?.id,
-        artifactType: artifact?.type,
+        artifactType,
         title: artifact?.title,
       };
     }
 
     case "artifact_complete": {
       const artifact = raw.data as RawArtifact | undefined;
+      const artifactType = artifact?.artifactType ?? (artifact?.type !== raw.type ? artifact?.type : undefined);
       return {
         type: "artifact_complete",
         id: artifact?.id,
-        artifactType: artifact?.type,
+        artifactType,
         title: artifact?.title,
         content: artifact?.content,
       };
@@ -470,8 +512,12 @@ function parseFrame(frame: SSEFrame): ChatSSEEvent | null {
   const rawEvent: RawStreamEvent = {
     type: rawType,
     content:
-      typeof payload["content"] === "string" ? payload["content"] : undefined,
-    data: payload["data"],
+      typeof payload["content"] === "string"
+        ? payload["content"]
+        : typeof payload["delta"] === "string"
+          ? payload["delta"]
+          : undefined,
+    data: payload["data"] ?? payload,
   };
 
   return mapRawEvent(rawEvent);

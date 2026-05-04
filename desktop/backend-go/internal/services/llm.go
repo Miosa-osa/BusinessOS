@@ -131,7 +131,7 @@ type LLMService interface {
 type ToolCallingService interface {
 	LLMService
 	ChatWithTools(ctx context.Context, messages []ChatMessage, systemPrompt string, tools []ToolDefinition) (*ChatWithToolsResponse, error)
-	ContinueWithToolResults(ctx context.Context, messages []ChatMessage, systemPrompt string, toolResults map[string]string) (string, error)
+	ContinueWithToolResults(ctx context.Context, messages []ChatMessage, systemPrompt string, toolCalls []ToolCallResult, toolResults map[string]string) (string, error)
 }
 
 // AsToolCallingService checks if an LLMService supports tool calling and returns the

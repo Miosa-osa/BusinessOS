@@ -118,7 +118,7 @@ func (a *BaseAgent) RunWithTools(ctx context.Context, input AgentInput) (<-chan 
 			}
 
 			// Continue conversation with tool results
-			finalResponse, err := toolService.ContinueWithToolResults(ctx, messages, systemPrompt, toolResults)
+			finalResponse, err := toolService.ContinueWithToolResults(ctx, messages, systemPrompt, resp.ToolCalls, toolResults)
 			if err != nil {
 				errs <- fmt.Errorf("tool continuation failed: %w", err)
 				return
