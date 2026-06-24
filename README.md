@@ -2,6 +2,8 @@
 
 **Your business, on autopilot.**
 
+> Current base direction: BusinessOS starts as a clean authenticated workspace with the Knowledge module as the primary surface. Companies, such as Agency MIOSA, should be workspaces inside BusinessOS by default. Do not put client/company data in the public base.
+
 Give your AI agents a home. BusinessOS is a [MIOSA](https://miosa.ai) template — a complete, self-hosted optimal system where AI agents don't just assist your business, they run it. Automate your existing company or build a new one from scratch.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -61,9 +63,23 @@ The desktop is where your agents live. OSA runs in the terminal. Your CRM, proje
 
 ---
 
-## Core Modules
+## Current Base Surface
 
-These ship with every BusinessOS instance. They're the tools your agents (and your team) use to operate.
+The public base should stay minimal until each module is deliberately productized.
+
+| Surface | Status |
+|--------|--------|
+| **Auth** | Sign in, sign up, session validation |
+| **Workspace shell** | Workspace switcher, sidebar, profile/settings |
+| **Knowledge** | Primary visible module for documents, operating context, and workspace knowledge |
+
+Private company workspaces can layer company-specific data and additional modules on top of this base.
+
+See [Base And Workspace Data](docs/architecture/base-vs-private-workspaces.md) for the code/workspace split.
+
+## Future Core Modules
+
+These should be added to the visible product surface only when they are ready and when a workspace actually needs them.
 
 | Module | What it does |
 |--------|-------------|

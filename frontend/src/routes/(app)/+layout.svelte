@@ -2,118 +2,16 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { useSession } from '$lib/auth-client';
-	import { Separator } from 'bits-ui';
 	import { browser } from '$app/environment';
 	import { isElectron as checkElectron, isMacOS } from '$lib/utils/platform';
-	import { desktopSettings } from '$lib/stores/desktopStore';
 	import { onMount } from 'svelte';
-	import { api } from '$lib/api';
 	import { getBackendUrl, initCSRF } from '$lib/api/base';
 	import { WorkspaceSwitcher } from '$lib/components/workspace';
 	import { loadSavedWorkspace } from '$lib/stores/workspaces';
 	import { notificationStore } from '$lib/stores/notifications';
 	import { initializePush } from '$lib/services/pushService';
-	import { getInstallations, getModule } from '$lib/api/modules';
-	import { desktop3dStore, BUILTIN_MODULES, DYNAMIC_MODULE_COLORS } from '$lib/stores/desktop3dStore';
-	import { windowStore } from '$lib/stores/windowStore';
 	import { currentWorkspace } from '$lib/stores/workspaces';
-	import { ChevronsLeft, Monitor, ChevronRight, ChevronDown } from 'lucide-svelte';
-	import { SearchPalette } from '@miosa/optimal-engine';
-	import '@miosa/optimal-engine/styles/notion.css';
-	import { getEngine } from '$lib/optimal-engine/context';
-
-	// ---------------------------------------------------------------------------
-	// Engine Search Palette state
-	// ---------------------------------------------------------------------------
-
-	let engineSearchOpen = $state(false);
-
-	function handleEngineSearchSelect(payload: { type: 'memory' | 'wiki' | 'signal'; id?: string; slug?: string }) {
-		if (payload.type === 'wiki' && payload.slug) {
-			goto(`/pages?view=knowledge-graph`);
-		} else if (payload.type === 'memory' && payload.id) {
-			goto(`/pages/${payload.id}`);
-		} else if (payload.type === 'signal' && payload.id) {
-			goto(`/nodes/${payload.id}`);
-		}
-	}
-
-	function handleGlobalKeydown(e: KeyboardEvent) {
-		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-			// Don't steal focus from active inputs/textareas unless it's the palette itself
-			const active = document.activeElement;
-			if (
-				active &&
-				(active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') &&
-				!engineSearchOpen
-			) {
-				return;
-			}
-			e.preventDefault();
-			engineSearchOpen = !engineSearchOpen;
-		}
-	}
-
-	// Projects state for dropdown
-	let projects = $state<Array<{id: string, name: string, status: string}>>([]);
-	let showProjectsDropdown = $state(false);
-
-	// Load projects for sidebar dropdown
-	async function loadProjects() {
-		try {
-			const data = await api.getProjects('active');
-			projects = data.slice(0, 5); // Show top 5 active projects
-		} catch (e) {
-			console.error('Failed to load projects:', e);
-		}
-	}
-
-	// Sync installed dynamic modules to 3D desktop + dock on startup
-	async function syncDynamicModules() {
-		try {
-			const result = await getInstallations();
-			const installations = result.installations ?? [];
-			if (!installations.length) return;
-
-			const builtinSet = new Set<string>(BUILTIN_MODULES);
-			const dynamicInstalls = installations.filter(
-				(inst) => inst.is_active && !builtinSet.has(inst.module_id)
-			);
-			if (!dynamicInstalls.length) return;
-
-			// Fetch all module details in parallel — avoids N+1 sequential requests
-			const results = await Promise.allSettled(
-				dynamicInstalls.map((inst) => getModule(inst.module_id))
-			);
-
-			for (let idx = 0; idx < results.length; idx++) {
-				const result = results[idx];
-				const inst = dynamicInstalls[idx];
-
-				if (result.status === 'fulfilled') {
-					const mod = result.value;
-					desktop3dStore.addModule({
-						id: mod.id,
-						title: mod.name,
-						icon: mod.icon ?? 'box',
-						color: DYNAMIC_MODULE_COLORS[mod.category] ?? DYNAMIC_MODULE_COLORS.general,
-						category: mod.category,
-					});
-					windowStore.addToDock(mod.id);
-				} else {
-					// Module details unavailable — add with fallback
-					desktop3dStore.addModule({
-						id: inst.module_id,
-						title: inst.module_id,
-						icon: 'box',
-						color: DYNAMIC_MODULE_COLORS.general,
-					});
-				}
-			}
-		} catch {
-			// Module API not available yet — skip silently
-		}
-	}
+	import { ChevronsLeft, ChevronRight } from 'lucide-svelte';
 
 	onMount(async () => {
 		// First-run detection: only redirect to welcome in Electron (desktop app)
@@ -135,18 +33,11 @@
 		// Skip rest of initialization in embed mode - iframes don't need workspace/notification systems
 		if (isEmbedMode) return;
 
-		// Fire all independent init tasks in parallel — no waterfall
-		await Promise.all([
-			loadSavedWorkspace(),
-			loadProjects(),
-		]);
+		await loadSavedWorkspace();
 
 		// These don't return promises — fire immediately
 		notificationStore.initialize();
 		initializePush();
-
-		// Sync dynamic modules after workspace is loaded
-		syncDynamicModules();
 	});
 
 	const APP_VERSION = '0.0.1';
@@ -189,7 +80,6 @@
 		href: string;
 		label: string;
 		icon: string;
-		adminOnly?: boolean;
 	}
 
 	interface NavGroup {
@@ -210,134 +100,18 @@
 
 	const navGroups: NavGroup[] = [
 		{
-			label: 'Core',
+			label: 'Workspace',
 			items: [
-				{
-					href: '/dashboard',
-					label: 'Dashboard',
-					icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'
-				},
-				{
-					href: '/modules',
-					label: 'Modules',
-					icon: 'M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z'
-				},
-				{
-					href: '/chat',
-					label: 'Chat',
-					icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'
-				},
-			]
-		},
-		{
-			label: 'Work',
-			items: [
-				{
-					href: '/tasks',
-					label: 'Tasks',
-					icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'
-				},
-				{
-					href: '/projects',
-					label: 'Projects',
-					icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z'
-				},
-				{
-					href: '/daily',
-					label: 'Daily Log',
-					icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
-				},
-			]
-		},
-		{
-			label: 'People',
-			items: [
-				{
-					href: '/communication',
-					label: 'Communication',
-					icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
-				},
-				{
-					href: '/team',
-					label: 'Team',
-					icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z'
-				},
-				{
-					href: '/clients',
-					label: 'Clients',
-					icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'
-				},
-				{
-					href: '/crm',
-					label: 'CRM',
-					icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'
-				},
-			]
-		},
-		{
-			label: 'Tools',
-			items: [
-				{
-					href: '/tables',
-					label: 'Tables',
-					icon: 'M3 10h18M3 14h18M9 3v18M15 3v18M3 6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6z'
-				},
 				{
 					href: '/pages',
-					label: 'Pages',
+					label: 'Knowledge',
 					icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
-				},
-				{
-					href: '/agents',
-					label: 'Agents',
-					icon: 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z'
-				},
-				{
-					href: '/nodes',
-					label: 'Nodes',
-					icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 6v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z'
-				},
-				{
-					href: '/code',
-					label: 'Code',
-					icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4'
-				},
-			]
-		},
-		{
-			label: 'Cloud',
-			items: [
-				{
-					href: '/engine',
-					label: 'Engine',
-					icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9'
-				},
-				{
-					href: '/computer',
-					label: 'Computer',
-					icon: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01'
 				},
 			]
 		},
 		{
 			label: 'System',
 			items: [
-				{
-					href: '/usage',
-					label: 'Analytics',
-					icon: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z'
-				},
-				{
-					href: '/integrations',
-					label: 'Integrations',
-					icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1'
-				},
-				{
-					href: '/admin',
-					label: 'Admin',
-					adminOnly: true,
-					icon: 'M9 12.75L11.25 15 15 9.75M12 3.75c2.04 1.838 4.728 2.75 7.5 2.75v4.75c0 4.25-2.9 8.213-7.5 9.25-4.6-1.037-7.5-5-7.5-9.25V6.5c2.772 0 5.46-.912 7.5-2.75z'
-				},
 				{
 					href: '/settings',
 					label: 'Settings',
@@ -346,8 +120,6 @@
 			]
 		},
 	];
-
-	const canSeeAdminNav = $derived($session.data?.user?.platform_role === 'superadmin');
 
 </script>
 
@@ -386,7 +158,7 @@
 					style="-webkit-app-region: no-drag;"
 					title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 				>
-<ChevronsLeft
+					<ChevronsLeft
 						size={20}
 						strokeWidth={2}
 						class="transition-transform duration-300 {isCollapsed ? 'rotate-180' : ''}"
@@ -412,23 +184,7 @@
 				</div>
 			{/if}
 
-			<!-- Window Desktop Button -->
-			<div class="px-2 pb-2">
-				<a
-					href="/window"
-					class="sb-desktop-btn flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200
-						{isCollapsed ? 'justify-center' : ''}"
-					title={isCollapsed ? 'Window Desktop' : ''}
-				>
-<Monitor size={20} strokeWidth={2} class="flex-shrink-0" />
-					{#if !isCollapsed}
-						<span class="font-medium">Window</span>
-						<span class="ml-auto text-xs sb-desktop-badge">Desktop</span>
-					{/if}
-				</a>
-			</div>
-
-			<Separator.Root class="sb-sep h-px" />
+			<div class="sb-sep h-px"></div>
 
 			<!-- Navigation -->
 			<nav class="flex-1 p-2 overflow-y-auto sb-nav-scroll">
@@ -441,7 +197,11 @@
 							aria-label="Toggle {group.label} section"
 						>
 							<span class="sb-section-label">{group.label}</span>
-							<ChevronRight size={16} strokeWidth={2} class="sb-section-chevron {collapsedSections.has(group.label) ? '' : 'sb-section-chevron--open'}" />
+							<ChevronRight
+								size={16}
+								strokeWidth={2}
+								class="h-3 w-3 text-neutral-400 transition-transform duration-200 {collapsedSections.has(group.label) ? '' : 'rotate-90'}"
+							/>
 						</button>
 					{:else if gi > 0}
 						<div class="sb-section-dot"></div>
@@ -450,74 +210,27 @@
 					{#if !collapsedSections.has(group.label)}
 						<div class="sb-section-items {collapsedSections.has(group.label) ? 'sb-section-items--collapsed' : ''}">
 							{#each group.items as item}
-								{#if !item.adminOnly || canSeeAdminNav}
-									{#if item.label === 'Projects'}
-										<!-- Projects with dropdown -->
-										<div class="relative group">
-											<div class="flex items-center">
-												<a
-													href={item.href}
-													class="sb-nav-item flex-1 flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200
-														{$page.url.pathname.startsWith(item.href) ? 'sb-nav-item--active' : ''}
-														{isCollapsed ? 'justify-center' : ''}"
-													title={isCollapsed ? item.label : ''}
-												>
-													<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={item.icon} />
-													</svg>
-													{#if !isCollapsed}
-														<span>{item.label}</span>
-													{/if}
-												</a>
-												{#if !isCollapsed && projects.length > 0}
-													<button
-														onclick={() => showProjectsDropdown = !showProjectsDropdown}
-														class="sb-chevron-btn p-1.5 rounded-lg transition-colors mr-1 opacity-0 group-hover:opacity-100 {showProjectsDropdown ? 'opacity-100' : ''} transition-opacity duration-200"
-														title="Show recent projects"
-													>
-														<ChevronDown size={16} strokeWidth={2} class="sb-chevron-icon transition-transform {showProjectsDropdown ? 'rotate-180' : ''}" />
-													</button>
-												{/if}
-											</div>
-											{#if showProjectsDropdown && !isCollapsed && projects.length > 0}
-												<div class="ml-6 mt-1 space-y-0.5">
-													{#each projects as project}
-														<a
-															href="/projects/{project.id}"
-															class="sb-sub-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-colors
-																{$page.url.pathname === `/projects/${project.id}` ? 'sb-sub-item--active' : ''}"
-														>
-															<span class="w-1.5 h-1.5 rounded-full {project.status === 'active' ? 'bg-green-500' : 'sb-dot-inactive'}"></span>
-															<span class="truncate">{project.name}</span>
-														</a>
-													{/each}
-												</div>
-											{/if}
-										</div>
-									{:else}
-										<a
-											href={item.href}
-											class="sb-nav-item flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200
-												{$page.url.pathname.startsWith(item.href) ? 'sb-nav-item--active' : ''}
-												{isCollapsed ? 'justify-center' : ''}"
-											title={isCollapsed ? item.label : ''}
-										>
-											<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={item.icon} />
-											</svg>
-											{#if !isCollapsed}
-												<span>{item.label}</span>
-											{/if}
-										</a>
+								<a
+									href={item.href}
+									class="sb-nav-item flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200
+										{$page.url.pathname.startsWith(item.href) ? 'sb-nav-item--active' : ''}
+										{isCollapsed ? 'justify-center' : ''}"
+									title={isCollapsed ? item.label : ''}
+								>
+									<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d={item.icon} />
+									</svg>
+									{#if !isCollapsed}
+										<span>{item.label}</span>
 									{/if}
-								{/if}
+								</a>
 							{/each}
 						</div>
 					{/if}
 				{/each}
 			</nav>
 
-			<Separator.Root class="sb-sep h-px" />
+			<div class="sb-sep h-px"></div>
 
 			<!-- User Section - Links to Profile -->
 			<div class="p-3">
@@ -571,16 +284,7 @@
 	</div>
 	{/if}
 
-	<!-- Engine Search Palette — Cmd+K / Ctrl+K global search across memories, wiki, signals -->
-	{#if browser}
-		<SearchPalette
-			engine={getEngine()}
-			open={engineSearchOpen}
-			onclose={() => (engineSearchOpen = false)}
-			onselect={handleEngineSearchSelect}
-		/>
-	{/if}
-{:else if !bootComplete}
+	{:else if !bootComplete}
 	<!-- Loading state only during initial auth check -->
 	<div class="h-screen flex items-center justify-center sb-main-bg">
 		<div class="text-center">
@@ -590,9 +294,7 @@
 	</div>
 {/if}
 
-<svelte:window onkeydown={handleGlobalKeydown} />
-
-<style>
+	<style>
 	/* ══════════════════════════════════════════════════════════════ */
 	/*  SIDEBAR (sb-) — Foundation Design Tokens                    */
 	/* ══════════════════════════════════════════════════════════════ */
@@ -631,20 +333,6 @@
 	/* Separator */
 	.sb-sep {
 		background: var(--dbd2, #f0f0f0);
-	}
-
-	/* Desktop button */
-	.sb-desktop-btn {
-		background: var(--dbg2, #f5f5f5);
-		border: 1px solid var(--dbd2, #f0f0f0);
-		color: var(--dt2, #555);
-	}
-	.sb-desktop-btn:hover {
-		background: var(--dbg3, #eee);
-		color: var(--dt, #111);
-	}
-	.sb-desktop-badge {
-		color: var(--dt3, #888);
 	}
 
 	/* ── Nav Items ──────────────────────────────────────────────── */
@@ -715,15 +403,6 @@
 		letter-spacing: 0.08em;
 		color: var(--dt4, #bbb);
 	}
-	.sb-section-chevron {
-		width: 12px;
-		height: 12px;
-		color: var(--dt4, #bbb);
-		transition: transform 200ms ease;
-	}
-	.sb-section-chevron--open {
-		transform: rotate(90deg);
-	}
 	.sb-section-dot {
 		width: 4px;
 		height: 4px;
@@ -764,30 +443,6 @@
 		box-shadow: 0 0 0 2px var(--dbg, #fff), 0 0 0 4px var(--bos-nav-active-glow);
 	}
 
-	/* Sub-items (projects dropdown) */
-	.sb-sub-item {
-		color: var(--dt3, #888);
-	}
-	.sb-sub-item:hover {
-		background: var(--dbg2, #f5f5f5);
-		color: var(--dt, #111);
-	}
-	.sb-sub-item--active {
-		background: var(--bos-nav-active-bg);
-		color: var(--bos-nav-active);
-	}
-	.sb-dot-inactive {
-		background: var(--dt4, #bbb);
-	}
-
-	/* Chevron toggle for projects dropdown */
-	.sb-chevron-btn:hover {
-		background: var(--dbg3, #eee);
-	}
-	.sb-chevron-icon {
-		color: var(--dt3, #888);
-	}
-
 	/* ── User Section ───────────────────────────────────────────── */
 	.sb-user-link:hover {
 		background: var(--dbg2, #f5f5f5);
@@ -803,8 +458,5 @@
 	}
 	.sb-user-email {
 		color: var(--dt3, #888);
-	}
-	.sb-user-chevron {
-		color: var(--dt4, #bbb);
 	}
 </style>

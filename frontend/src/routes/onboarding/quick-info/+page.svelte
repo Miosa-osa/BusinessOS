@@ -179,7 +179,7 @@
 	async function handleContinue() {
 		if (!validate()) return;
 
-		// Employee flow: validate invite, accept, and skip to /window
+		// Employee flow: validate invite, accept, and skip to the base Knowledge workspace
 		if (role === 'employee' && inviteCode) {
 			// First ensure invite is valid
 			if (!invitePreview?.valid) {
@@ -197,7 +197,7 @@
 			if (success) {
 				// Mark onboarding as complete and go to app
 				await onboardingStore.complete();
-				goto('/window');
+				goto('/pages');
 				return;
 			}
 			return; // Error shown, stay on page

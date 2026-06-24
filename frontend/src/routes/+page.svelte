@@ -7,9 +7,9 @@
 	let visible = $state(false);
 
 	onMount(() => {
-		// If logged in, go straight to dashboard
+		// If logged in, go straight to the base Knowledge workspace
 		if (document.cookie.includes('better-auth.session_token')) {
-			goto('/dashboard');
+			goto('/pages');
 			return;
 		}
 		visible = true;

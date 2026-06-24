@@ -15,7 +15,7 @@
 			if (onboardingStatus.needsOnboarding) {
 				goto('/onboarding');
 			} else {
-				goto('/window');
+				goto('/pages');
 			}
 		}, 100);
 	});

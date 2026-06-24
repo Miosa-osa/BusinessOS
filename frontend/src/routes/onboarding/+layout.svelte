@@ -42,7 +42,7 @@
 
 		if (!onboardingStatus.needsOnboarding) {
 			// User has completed onboarding, redirect to main app
-			goto('/window');
+			goto('/pages');
 			return;
 		}
 

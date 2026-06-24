@@ -30,7 +30,7 @@
 		}
 
 		await onboardingStore.complete();
-		goto('/window');
+		goto('/pages');
 	}
 </script>
 
