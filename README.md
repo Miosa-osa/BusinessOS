@@ -20,6 +20,9 @@ It gives each organization a place to model its work through isolated workspaces
 Optimal Engine supplies governed knowledge, memory, search, and context.
 BusinessOS supplies the interface where people and agents use that context to perform work.
 
+Follow verified updates in the [public commit history](https://github.com/Miosa-osa/BusinessOS/commits/main/).
+Read [how public development history works](docs/public-development.md) for the publication process and history baseline.
+
 ## What You Get
 
 - A real desktop environment with draggable, resizable, and persistent module windows.

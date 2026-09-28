@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The public mirror is a parentless sanitized snapshot. Fetching its
+          # Public history starts at a sanitized root. Fetching its
           # immutable closed-PR refs reintroduces the pre-sanitization history
           # into the runner even though those commits are not on public main.
           # Canonical/private repositories still receive a full-history scan.
