@@ -1,0 +1,134 @@
+# Desktop release matrix - builds BusinessOS installers for macOS, Windows, and
+# Linux, each on its own runner (a BEAM engine release is OS+arch-locked, so it
+# MUST be built on the target OS - this is why it cannot be produced from one
+# Mac). Every installer bundles a native OptimalEngine. Uploads to the public
+# download bucket.
+#
+# Trigger: push a version tag (v1.0.1) or run manually.
+#
+# REQUIRED GitHub secrets (Settings > Secrets and variables > Actions):
+#   GCP_SA_KEY            - service-account JSON with objectAdmin on gs://businessos-downloads
+#   GCP_PROJECT_ID        - business-os-481523
+#   Mac signing:  APPLE_ID, APPLE_PASSWORD (app-specific), APPLE_TEAM_ID (5UL79JP67U),
+#                 APPLE_IDENTITY ("Developer ID Application: MIOSA LLC (5UL79JP67U)"),
+#                 APPLE_CERT_P12_BASE64 + APPLE_CERT_PASSWORD (the Developer ID cert)
+#   Windows signing (optional now): WINDOWS_CERT_PFX_BASE64 + WINDOWS_CERT_PASSWORD
+# Without the mac cert secrets the mac build stays unsigned (Gatekeeper will warn);
+# Linux is unsigned by design; Windows unsigned shows a SmartScreen prompt.
+
+name: Desktop Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Upload installers to gs://businessos-downloads"
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: darwin
+            arch: arm64
+          - os: macos-13
+            platform: darwin
+            arch: x64
+          - os: windows-latest
+            platform: win32
+            arch: x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Erlang/Elixir on the TARGET OS so the engine release is native.
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28"
+          elixir-version: "1.18"
+
+      - name: Build + stage the native OptimalEngine
+        shell: bash
+        run: |
+          cd optimal-engine
+          MIX_ENV=prod mix deps.get
+          MIX_ENV=prod mix release optimal --overwrite
+          cd ..
+          # Stage into resources/engine/<platform>-<arch>
+          DEST="desktop/resources/engine/${{ matrix.platform }}-${{ matrix.arch }}"
+          mkdir -p "$DEST"
+          # Copy release, excluding runtime cruft (FIFOs break packaging).
+          rsync -a --exclude='tmp/' --exclude='log/' --exclude='*.pipe.*' \
+            optimal-engine/_build/prod/rel/optimal/ "$DEST/" || \
+            cp -R optimal-engine/_build/prod/rel/optimal/. "$DEST/"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build frontend + desktop
+        shell: bash
+        working-directory: desktop
+        run: |
+          npm ci
+          npm run build:all
+
+      # Mac: import the Developer ID cert so forge can sign + notarize.
+      - name: Import macOS signing cert
+        if: matrix.platform == 'darwin' && env.APPLE_CERT_P12_BASE64 != ''
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          echo "$APPLE_CERT_P12_BASE64" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p ci build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+
+      - name: Package + make installers
+        shell: bash
+        working-directory: desktop
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
+        run: |
+          npx electron-forge make --arch=${{ matrix.arch }}
+
+      - name: Authenticate to GCP
+        if: ${{ inputs.upload != false }}
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Upload installers
+        if: ${{ inputs.upload != false }}
+        uses: google-github-actions/setup-gcloud@v2
+      - name: Push to download bucket
+        if: ${{ inputs.upload != false }}
+        shell: bash
+        working-directory: desktop
+        run: |
+          # Upload whatever installers forge produced for this OS (dmg/exe/deb/rpm/AppImage).
+          find out/make -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.zip" \) -print0 \
+            | xargs -0 -I{} gsutil cp "{}" gs://businessos-downloads/
+
+      - name: Upload build artifacts (always, for inspection)
+        uses: actions/upload-artifact@v4
+        with:
+          name: businessos-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            desktop/out/make/**/*
+          if-no-files-found: warn

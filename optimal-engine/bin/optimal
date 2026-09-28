@@ -1,0 +1,395 @@
+#!/usr/bin/env bash
+# Optimal Engine source-checkout CLI.
+#
+# This is the repo-native entrypoint for humans and agents.
+# It delegates to mix optimal.* tasks, but adds a few practical agent commands
+# so a fresh clone has one stable command surface.
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+API_URL="${OPTIMAL_ENGINE_API_URL:-http://localhost:4200}"
+
+usage() {
+  cat <<'EOF'
+Optimal Engine CLI
+
+Usage:
+  bin/optimal <command> [args...]
+
+First-run:
+  bin/optimal install
+  bin/optimal bootstrap
+  bin/optimal dev
+  bin/optimal doctor
+  bin/optimal boot
+
+Agent loop:
+  bin/optimal find "query" --workspace default:my-workspace
+  bin/optimal capture "raw signal" --workspace default:my-workspace
+  bin/optimal aware "important signal" --workspace default:my-workspace
+  bin/optimal note "thing to remember"
+  bin/optimal lesson "reusable lesson"
+  bin/optimal decision "decision made"
+  bin/optimal task "action item"
+  bin/optimal close "what changed and how verified"
+
+Native engine commands:
+  bin/optimal setup ...
+  bin/optimal initiate ...
+  bin/optimal topology ...
+  bin/optimal claims ...
+  bin/optimal facts ...
+  bin/optimal search ...
+  bin/optimal rag ...
+  bin/optimal remember ...
+  bin/optimal reality-check
+  bin/optimal status --json
+
+Notes:
+  Runtime data stays in .optimal/ and is ignored by git.
+  This command must not be used to copy private stores, keys, or user data into the repo.
+EOF
+}
+
+need_arg() {
+  local label="$1"
+  local value="${2:-}"
+  if [[ -z "$value" ]]; then
+    printf 'optimal: missing %s\n' "$label" >&2
+    exit 64
+  fi
+}
+
+join_args() {
+  printf '%s' "$*"
+}
+
+mix_task_name() {
+  local command="$1"
+  command="${command//-/_}"
+  printf 'optimal.%s' "$command"
+}
+
+urlencode() {
+  python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))' "$1"
+}
+
+json_payload() {
+  python3 - "$@" <<'PY'
+import json
+import sys
+
+pairs = sys.argv[1:]
+payload = {}
+for i in range(0, len(pairs), 2):
+    key = pairs[i]
+    value = pairs[i + 1]
+    if value == "":
+        continue
+    if value == "true":
+        payload[key] = True
+    elif value == "false":
+        payload[key] = False
+    else:
+        payload[key] = value
+print(json.dumps(payload))
+PY
+}
+
+option_value() {
+  local long="$1"
+  local short="$2"
+  local default="$3"
+  shift 3
+  local prev=""
+  for arg in "$@"; do
+    if [[ "$prev" == "$long" || "$prev" == "$short" ]]; then
+      printf '%s' "$arg"
+      return 0
+    fi
+    case "$arg" in
+      "$long"=*)
+        printf '%s' "${arg#*=}"
+        return 0
+        ;;
+    esac
+    prev="$arg"
+  done
+  printf '%s' "$default"
+}
+
+api_up() {
+  curl -sf -m 1 "$API_URL/api/health" >/dev/null 2>&1
+}
+
+curl_auth_args() {
+  if [[ -n "${OPTIMAL_ENGINE_API_KEY:-}" ]]; then
+    printf '%s\n' -H "Authorization: Bearer ${OPTIMAL_ENGINE_API_KEY}"
+  fi
+}
+
+api_get() {
+  local path="$1"
+  if [[ -n "${OPTIMAL_ENGINE_API_KEY:-}" ]]; then
+    curl -sS -H "Authorization: Bearer ${OPTIMAL_ENGINE_API_KEY}" "$API_URL$path"
+  else
+    curl -sS "$API_URL$path"
+  fi
+  printf '\n'
+}
+
+api_post() {
+  local path="$1"
+  local body="$2"
+  if [[ -n "${OPTIMAL_ENGINE_API_KEY:-}" ]]; then
+    curl -sS -X POST "$API_URL$path" \
+      -H "Authorization: Bearer ${OPTIMAL_ENGINE_API_KEY}" \
+      -H 'Content-Type: application/json' \
+      -d "$body"
+  else
+    curl -sS -X POST "$API_URL$path" \
+      -H 'Content-Type: application/json' \
+      -d "$body"
+  fi
+  printf '\n'
+}
+
+run_mix_task() {
+  local command="$1"
+  shift || true
+  exec mix "$(mix_task_name "$command")" "$@"
+}
+
+run_mix_task_inline() {
+  local command="$1"
+  shift || true
+  mix "$(mix_task_name "$command")" "$@"
+}
+
+command="${1:-help}"
+if [[ $# -gt 0 ]]; then
+  shift
+fi
+
+case "$command" in
+  -h|--help|help)
+    usage
+    ;;
+
+  --version|-v)
+    mix run -e 'IO.puts("optimal " <> Mix.Project.config()[:version])'
+    ;;
+
+  install)
+    mix deps.get
+    mix compile
+    ;;
+
+  bootstrap)
+    make bootstrap
+    ;;
+
+  dev|serve|server)
+    exec scripts/run-engine.sh
+    ;;
+
+  doctor)
+    printf 'Optimal Engine doctor\n\n'
+    printf 'repo:   %s\n' "$ROOT_DIR"
+    printf 'db:     %s\n' "${OPTIMAL_ENGINE_DB:-$ROOT_DIR/.optimal/index.db}"
+    printf 'cache:  %s\n' "${OPTIMAL_ENGINE_CACHE:-$ROOT_DIR/.optimal/cache}"
+    printf 'root:   %s\n' "${OPTIMAL_ENGINE_ROOT:-$ROOT_DIR}"
+    printf 'api:    %s\n' "$API_URL"
+    printf '\n'
+    mix --version
+    printf '\n'
+    if api_up; then
+      printf 'Live API status:\n'
+      api_get "/api/status"
+    else
+      run_mix_task_inline status --quick || true
+    fi
+    ;;
+
+  boot)
+    printf 'Optimal Engine boot\n\n'
+    "$ROOT_DIR/bin/optimal" doctor
+    printf '\n'
+    "$ROOT_DIR/bin/optimal" l0 "$@" || true
+    ;;
+
+  find)
+    need_arg "query" "${1:-}"
+    if api_up; then
+      query="$1"
+      workspace="$(option_value --workspace -w default "$@")"
+      limit="$(option_value --limit -n 10 "$@")"
+      api_get "/api/search?q=$(urlencode "$query")&workspace=$(urlencode "$workspace")&limit=$(urlencode "$limit")"
+    else
+      run_mix_task search "$@"
+    fi
+    ;;
+
+  search)
+    need_arg "query" "${1:-}"
+    if api_up; then
+      query="$1"
+      workspace="$(option_value --workspace -w default "$@")"
+      limit="$(option_value --limit -n 10 "$@")"
+      api_get "/api/search?q=$(urlencode "$query")&workspace=$(urlencode "$workspace")&limit=$(urlencode "$limit")"
+    else
+      run_mix_task search "$@"
+    fi
+    ;;
+
+  grep)
+    need_arg "query" "${1:-}"
+    if api_up; then
+      query="$1"
+      workspace="$(option_value --workspace -w default "$@")"
+      limit="$(option_value --limit -n 10 "$@")"
+      api_get "/api/grep?q=$(urlencode "$query")&workspace=$(urlencode "$workspace")&limit=$(urlencode "$limit")"
+    else
+      run_mix_task grep "$@"
+    fi
+    ;;
+
+  health)
+    if api_up; then
+      api_get "/api/health"
+    else
+      run_mix_task health "$@"
+    fi
+    ;;
+
+  status)
+    if api_up; then
+      api_get "/api/status"
+    else
+      run_mix_task status "$@"
+    fi
+    ;;
+
+  l0)
+    if api_up; then
+      api_get "/api/l0"
+    else
+      run_mix_task l0 "$@"
+    fi
+    ;;
+
+  rag)
+    need_arg "query" "${1:-}"
+    if api_up; then
+      query="$1"
+      workspace="$(option_value --workspace -w default "$@")"
+      body="$(json_payload query "$query" workspace "$workspace")"
+      api_post "/api/rag" "$body"
+    else
+      run_mix_task rag "$@"
+    fi
+    ;;
+
+  reality|reality_check)
+    run_mix_task reality-check "$@"
+    ;;
+
+  context-refresh-stale|context.refresh_stale)
+    run_mix_task context.refresh-stale "$@"
+    ;;
+
+  capture|signal)
+    need_arg "signal text" "${1:-}"
+    if api_up; then
+      text="$1"
+      workspace="$(option_value --workspace -w default "$@")"
+      genre="$(option_value --genre -g "" "$@")"
+      title="$(option_value --title -t "" "$@")"
+      node="$(option_value --node -n "" "$@")"
+      body="$(json_payload text "$text" workspace "$workspace" genre "$genre" title "$title" node "$node" extract_claims true)"
+      api_post "/api/ingest" "$body"
+    else
+      run_mix_task ingest "$@"
+    fi
+    ;;
+
+  aware)
+    need_arg "signal text" "${1:-}"
+    signal_text="$1"
+    shift
+    if api_up; then
+      workspace="$(option_value --workspace -w default "$@")"
+      genre="$(option_value --genre -g "" "$@")"
+      title="$(option_value --title -t "" "$@")"
+      node="$(option_value --node -n "" "$@")"
+      body="$(json_payload text "$signal_text" workspace "$workspace" genre "$genre" title "$title" node "$node" extract_claims true)"
+      api_post "/api/ingest" "$body"
+      printf '\n[optimal.aware] Related context\n'
+      api_get "/api/search?q=$(urlencode "$signal_text")&workspace=$(urlencode "$workspace")&limit=5" || true
+      printf '\n[optimal.aware] Remembering signal summary\n'
+      body="$(json_payload content "Signal: $signal_text" workspace "$workspace" force true)"
+      api_post "/api/memory/remember" "$body" || true
+    else
+      run_mix_task_inline ingest "$signal_text" "$@"
+      printf '\n[optimal.aware] Related context\n'
+      run_mix_task_inline search "$signal_text" "$@" || true
+      printf '\n[optimal.aware] Remembering signal summary\n'
+      run_mix_task_inline remember "Signal: $signal_text" || true
+    fi
+    ;;
+
+  remember)
+    if [[ "${1:-}" == --* || $# -eq 0 ]]; then
+      run_mix_task remember "$@"
+    elif api_up; then
+      content="$1"
+      shift
+      workspace="$(option_value --workspace -w default "$@")"
+      body="$(json_payload content "$content" workspace "$workspace" force true)"
+      api_post "/api/memory/remember" "$body"
+    else
+      run_mix_task remember "$@"
+    fi
+    ;;
+
+  note)
+    need_arg "note text" "${1:-}"
+    note_text="$1"
+    shift
+    "$ROOT_DIR/bin/optimal" remember "Note: $note_text" "$@"
+    ;;
+
+  lesson)
+    need_arg "lesson text" "${1:-}"
+    lesson_text="$1"
+    shift
+    "$ROOT_DIR/bin/optimal" remember "Lesson: $lesson_text" "$@"
+    ;;
+
+  decision)
+    need_arg "decision text" "${1:-}"
+    decision_text="$1"
+    shift
+    "$ROOT_DIR/bin/optimal" remember "Decision: $decision_text" "$@"
+    ;;
+
+  task)
+    need_arg "task text" "${1:-}"
+    task_text="$1"
+    shift
+    "$ROOT_DIR/bin/optimal" remember "Task: $task_text" "$@"
+    ;;
+
+  close)
+    need_arg "close summary" "${1:-}"
+    close_text="$1"
+    shift
+    "$ROOT_DIR/bin/optimal" remember "Close-loop: $close_text" "$@"
+    ;;
+
+  *)
+    run_mix_task "$command" "$@"
+    ;;
+esac
