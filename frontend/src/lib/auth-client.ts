@@ -5,10 +5,10 @@ import {
   PRODUCTION_BACKEND_URL,
   getDefaultCloudBackendUrl,
 } from "$lib/config/runtime";
-import { openExternal } from "$lib/utils/platform";
+import { isElectron, openExternal } from "$lib/utils/platform";
 
 function isElectronRuntime(): boolean {
-  return typeof window !== "undefined" && "electron" in window;
+  return isElectron();
 }
 
 function isDevelopmentRenderer(): boolean {
@@ -153,7 +153,10 @@ export async function resetPasswordWithToken(
   }
 }
 
-export function initiateGoogleOAuth(serverUrl?: string): boolean {
+export function initiateGoogleOAuth(
+  serverUrl?: string,
+  returnPath?: string | null,
+): boolean {
   // Web: same-origin ("") so the request goes through the Cloudflare Pages
   // proxy to the backend (first-party cookies). Electron: use the absolute
   // cloud backend URL since it talks to Cloud Run directly.
@@ -173,9 +176,19 @@ export function initiateGoogleOAuth(serverUrl?: string): boolean {
   // reach the Electron session, so the backend hands the session token back on
   // this deep link and the main process installs it (see open-url handler).
   // Web: stay same-origin so the cookie is first-party.
+  const safeReturnPath =
+    returnPath && returnPath.startsWith("/") && !returnPath.startsWith("//")
+      ? returnPath
+      : null;
+  const webCallback = new URL("/auth/callback", window.location.origin);
+  if (safeReturnPath) {
+    webCallback.searchParams.set("redirect", safeReturnPath);
+  }
   const redirectTarget = isElectronRuntime()
-    ? "businessos://auth/callback"
-    : window.location.origin + "/auth/callback";
+    ? isDevelopmentRenderer()
+      ? "http://127.0.0.1:43821/auth/callback"
+      : "businessos://auth/callback"
+    : webCallback.toString();
   const redirectUrl = encodeURIComponent(redirectTarget);
   const authUrl = `${baseUrl}/api/auth/google?redirect=${redirectUrl}`;
 

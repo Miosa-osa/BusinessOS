@@ -27,6 +27,11 @@ func (h *CRMHandler) ListCRMDeals(c *gin.Context) {
 		return
 	}
 
+	wsID, ok := h.crmWorkspaceScope(c, user.ID)
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "select a workspace first"})
+		return
+	}
 	queries := sqlc.New(h.pool)
 
 	// Parse query params
@@ -38,13 +43,13 @@ func (h *CRMHandler) ListCRMDeals(c *gin.Context) {
 	pg := ParsePagination(c)
 
 	deals, err := queries.ListCRMDeals(c.Request.Context(), sqlc.ListCRMDealsParams{
-		UserID:     user.ID,
-		PipelineID: crmToNullUUID(pipelineID),
-		StageID:    crmToNullUUID(stageID),
-		Status:     crmToNullString(status),
-		OwnerID:    crmToNullString(ownerID),
-		LimitVal:   pg.Limit,
-		OffsetVal:  pg.Offset,
+		WorkspaceID: pgtype.UUID{Bytes: wsID, Valid: true},
+		PipelineID:  crmToNullUUID(pipelineID),
+		StageID:     crmToNullUUID(stageID),
+		Status:      crmToNullString(status),
+		OwnerID:     crmToNullString(ownerID),
+		LimitVal:    pg.Limit,
+		OffsetVal:   pg.Offset,
 	})
 	if err != nil {
 		utils.RespondInternalError(c, slog.Default(), "list deals", err)
@@ -76,10 +81,15 @@ func (h *CRMHandler) GetCRMDeal(c *gin.Context) {
 		return
 	}
 
+	wsID, ok := h.crmWorkspaceScope(c, user.ID)
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "select a workspace first"})
+		return
+	}
 	queries := sqlc.New(h.pool)
 	deal, err := queries.GetCRMDeal(c.Request.Context(), sqlc.GetCRMDealParams{
-		ID:     pgtype.UUID{Bytes: id, Valid: true},
-		UserID: user.ID,
+		ID:          pgtype.UUID{Bytes: id, Valid: true},
+		WorkspaceID: pgtype.UUID{Bytes: wsID, Valid: true},
 	})
 	if err != nil {
 		utils.RespondNotFound(c, slog.Default(), "Deal")
@@ -131,6 +141,11 @@ func (h *CRMHandler) CreateCRMDeal(c *gin.Context) {
 	stageID, err := uuid.Parse(req.StageID)
 	if err != nil {
 		utils.RespondInvalidID(c, slog.Default(), "stage_id")
+		return
+	}
+	wsID, ok := h.crmWorkspaceScope(c, user.ID)
+	if !ok || !h.pipelineInWorkspace(c, pipelineID, wsID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "pipeline is not in the selected workspace"})
 		return
 	}
 
@@ -402,12 +417,17 @@ func (h *CRMHandler) GetCRMDealStats(c *gin.Context) {
 		return
 	}
 
+	wsID, ok := h.crmWorkspaceScope(c, user.ID)
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "select a workspace first"})
+		return
+	}
 	pipelineID := c.Query("pipeline_id")
 
 	queries := sqlc.New(h.pool)
 	stats, err := queries.GetCRMDealStats(c.Request.Context(), sqlc.GetCRMDealStatsParams{
-		UserID:     user.ID,
-		PipelineID: crmToNullUUID(pipelineID),
+		WorkspaceID: pgtype.UUID{Bytes: wsID, Valid: true},
+		PipelineID:  crmToNullUUID(pipelineID),
 	})
 	if err != nil {
 		utils.RespondInternalError(c, slog.Default(), "get deal stats", err)

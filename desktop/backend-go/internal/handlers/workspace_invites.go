@@ -61,7 +61,7 @@ func (h *WorkspaceHandler) CreateWorkspaceInvite(c *gin.Context) {
 	}
 
 	// Send the invitation email (best-effort; never fails the request).
-	go func(to, role, token, inviterName, inviterEmail string, wsID uuid.UUID) {
+	go func(to, role, token, inviterName, inviterEmail string, wsID uuid.UUID, expiresAt time.Time) {
 		emailSvc := templates.NewEmailTemplateService()
 		if !emailSvc.IsEnabled() {
 			return
@@ -82,11 +82,11 @@ func (h *WorkspaceHandler) CreateWorkspaceInvite(c *gin.Context) {
 			WorkspaceName:  wsName,
 			Role:           role,
 			InvitationLink: appURL + "/invite/" + token,
-			ExpiresIn:      "7 days",
+			ExpiresAt:      "on " + expiresAt.UTC().Format("January 2, 2006"),
 		}); mailErr != nil {
 			slog.Warn("[Workspace Invites] failed to send invite email", "error", mailErr, "to", to)
 		}
-	}(req.Email, req.Role, invite.Token, user.Name, user.Email, workspaceID)
+	}(req.Email, req.Role, invite.Token, user.Name, user.Email, workspaceID, invite.ExpiresAt)
 
 	// Log the action
 	if h.auditService != nil {

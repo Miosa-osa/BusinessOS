@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -186,11 +187,12 @@ func (h *KnowledgeHandler) GetWorkspaces(c *gin.Context) {
 
 // kbNode is a node in the markdown file tree.
 type kbNode struct {
-	Name     string   `json:"name"`
-	Path     string   `json:"path"` // workspace-relative, forward-slash
-	Type     string   `json:"type"` // "dir" | "file"
-	Title    string   `json:"title,omitempty"`
-	Children []kbNode `json:"children,omitempty"`
+	Name     string     `json:"name"`
+	Path     string     `json:"path"` // workspace-relative, forward-slash
+	Type     string     `json:"type"` // "dir" | "file"
+	Title    string     `json:"title,omitempty"`
+	Modified *time.Time `json:"modified,omitempty"`
+	Children []kbNode   `json:"children,omitempty"`
 }
 
 // workspaceDir resolves and validates the directory for a workspace slug,
@@ -262,7 +264,12 @@ func (h *KnowledgeHandler) walk(base, dir string) []kbNode {
 		if !strings.HasSuffix(strings.ToLower(name), ".md") {
 			continue
 		}
-		nodes = append(nodes, kbNode{Name: name, Path: rel, Type: "file", Title: titleFromName(name)})
+		var modified *time.Time
+		if info, statErr := e.Info(); statErr == nil {
+			value := info.ModTime()
+			modified = &value
+		}
+		nodes = append(nodes, kbNode{Name: name, Path: rel, Type: "file", Title: titleFromName(name), Modified: modified})
 	}
 	// Dirs first, then files, each alphabetical.
 	sort.SliceStable(nodes, func(i, j int) bool {
@@ -285,8 +292,8 @@ func (h *KnowledgeHandler) GetFile(c *gin.Context) {
 			return
 		}
 		rel := c.Query("path")
-		if body, found := h.dbFile(c.Request.Context(), slug, rel); found {
-			c.JSON(http.StatusOK, gin.H{"workspace": slug, "path": rel, "content": body})
+		if body, modified, found := h.dbFile(c.Request.Context(), slug, rel); found {
+			c.JSON(http.StatusOK, gin.H{"workspace": slug, "path": rel, "content": body, "modified": modified})
 			return
 		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workspace"})

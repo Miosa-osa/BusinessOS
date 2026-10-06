@@ -16,6 +16,23 @@ import type {
   ClientBoardResponse,
 } from "./types";
 
+function finiteNumber(value: unknown): number {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+export function normalizeClientListItem(
+  item: Record<string, unknown>,
+): ClientListResponse {
+  return {
+    ...(item as unknown as ClientListResponse),
+    contacts_count: finiteNumber(item.contacts_count),
+    interactions_count: finiteNumber(item.interactions_count),
+    deals_count: finiteNumber(item.deals_count),
+    active_deals_value: finiteNumber(item.active_deals_value),
+  };
+}
+
 export async function getClients(filters?: {
   status?: string;
   type?: string;
@@ -39,10 +56,10 @@ export async function getClients(filters?: {
     "data" in raw &&
     Array.isArray(raw.data)
   ) {
-    return raw.data as ClientListResponse[];
+    return raw.data.map((item) => normalizeClientListItem(item as Record<string, unknown>));
   }
   if (Array.isArray(raw)) {
-    return raw as unknown as ClientListResponse[];
+    return raw.map((item) => normalizeClientListItem(item as Record<string, unknown>));
   }
   return [];
 }

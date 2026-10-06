@@ -47,8 +47,8 @@
 	const primitiveRequests = new Map<string, Promise<void>>();
 
 	const loadedRecordCount = $derived(states.reduce((total, state) => total + state.rows.length, 0));
-	const primitiveCount = $derived(states.length || manifest.expected_primitive_count || 0);
-	const totalRecords = $derived(loadedRecordCount || manifest.expected_record_count || 0);
+	const primitiveCount = $derived(manifest.expected_primitive_count ?? states.length);
+	const totalRecords = $derived(manifest.expected_record_count ?? loadedRecordCount);
 	const approvalState = $derived(states.find((state) => state.table.name === 'Approvals'));
 	const alertState = $derived(states.find((state) => state.table.name === 'Alerts'));
 	const evidenceState = $derived(states.find((state) => state.table.name === 'Evidence and Citations'));

@@ -393,4 +393,45 @@
 	:global(.dark) .get-started-btn:hover {
 		background: #409CFF;
 	}
+
+	@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+		.dock-highlight {
+			bottom: max(8px, env(safe-area-inset-bottom));
+			width: calc(100% - 16px);
+			height: 58px;
+			border-radius: 8px;
+		}
+
+		.menubar-highlight { height: 44px; }
+
+		.icons-highlight {
+			top: 60px;
+			left: 8px;
+			width: calc(100% - 16px);
+			height: min(420px, 55vh);
+			border-radius: 8px;
+		}
+
+		.onboarding-tooltip,
+		.onboarding-welcome {
+			position: fixed;
+			left: 12px;
+			right: 12px;
+			bottom: calc(82px + env(safe-area-inset-bottom));
+			top: auto;
+			width: auto;
+			padding: 18px;
+			border-radius: 8px;
+			transform: none;
+		}
+
+		.onboarding-welcome {
+			bottom: auto;
+			top: 50%;
+			transform: translateY(-50%);
+		}
+
+		.tooltip-actions button,
+		.get-started-btn { min-height: 44px; }
+	}
 </style>

@@ -54,6 +54,12 @@
 	let orbitControlsRef: any = $state(null);
 	let unsubscribeWorkspace: (() => void) | null = null;
 	let moduleSignature = '';
+	let compactMediaQuery: MediaQueryList | null = null;
+	let isCompact3D = $state(false);
+
+	function syncCompact3D() {
+		isCompact3D = compactMediaQuery?.matches ?? false;
+	}
 
 	// ===== HOOKS =====
 
@@ -76,6 +82,9 @@
 	// Initialize store and permissions on mount
 	onMount(async () => {
 		if (import.meta.env.DEV) console.log('[Desktop3D] Initializing 3D Desktop mode...');
+		compactMediaQuery = window.matchMedia('(max-width: 768px), (max-height: 500px) and (pointer: coarse)');
+		syncCompact3D();
+		compactMediaQuery.addEventListener('change', syncCompact3D);
 		unsubscribeWorkspace = currentWorkspace.subscribe((workspace) => {
 			const modules = [...getDesktopModuleIds(workspace?.settings ?? {}), 'settings'];
 			const nextSignature = `${workspace?.id ?? 'none'}:${modules.join(',')}`;
@@ -125,6 +134,7 @@
 
 		// CRITICAL: Release camera and microphone streams
 		desktop3dPermissions.cleanup();
+		compactMediaQuery?.removeEventListener('change', syncCompact3D);
 		unsubscribeWorkspace?.();
 		if (import.meta.env.DEV) console.log('[Desktop3D] Cleanup complete');
 	});
@@ -559,6 +569,7 @@ RESPOND NOW:`;
 				cameraDistance={$desktop3dStore.cameraDistance}
 				cameraRotationDelta={$desktop3dStore.cameraRotationDelta}
 				gestureDragging={$desktop3dStore.gestureDragging}
+				compact={isCompact3D}
 				bind:orbitControlsRef={orbitControlsRef}
 				onWindowClick={(id) => {
 					// Always focus the clicked window (smooth transition via springs)
@@ -626,7 +637,7 @@ RESPOND NOW:`;
 	<LiveCaptions {userMessage} {osaMessage} command={lastCommand} {isListening} {isSpeaking} />
 
 	<!-- Voice Control Panel (enhanced UI) -->
-	<VoiceControlPanel {isListening} {isSpeaking} onToggleListening={toggleVoiceCommands} />
+	<VoiceControlPanel />
 
 	<!-- Hidden video element for gesture camera (MediaPipe) -->
 	<!-- svelte-ignore a11y-media-has-caption -->
@@ -851,5 +862,28 @@ RESPOND NOW:`;
 
 	.btn-label {
 		white-space: nowrap;
+	}
+
+	@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+		.gesture-toggle-btn {
+			display: none;
+		}
+
+		.desktop-3d :global(.osa-orb) {
+			display: none;
+		}
+
+		.nav-arrow {
+			width: 44px;
+			height: 44px;
+		}
+
+		.nav-arrow-left {
+			left: 12px;
+		}
+
+		.nav-arrow-right {
+			right: 12px;
+		}
 	}
 </style>

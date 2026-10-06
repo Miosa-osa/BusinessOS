@@ -9,7 +9,7 @@
 	import { browser } from '$app/environment';
 	import { osaStore } from '$lib/stores/osa';
 	import { voiceTranscription } from '$lib/services/voiceTranscriptionService';
-	import { getActiveWorkspaceHeaders, getApiBaseUrl } from '$lib/api/base';
+	import { getActiveWorkspaceHeaders, getApiBaseUrl, initCSRF, getCSRFToken } from '$lib/api/base';
 
 	import type { Snippet } from 'svelte';
 
@@ -362,27 +362,33 @@
 		transcriptionAbortController = new AbortController();
 		const timeoutId = setTimeout(() => {
 			transcriptionAbortController?.abort();
-		}, 15000);
+		}, 90000);
 
 		// Keep a local copy of the pending text to use as fallback
 		const fallbackText = pendingTranscript;
 
 		try {
+			await initCSRF();
+			transcriptionAbortController.signal.throwIfAborted();
+			const headers = getActiveWorkspaceHeaders();
+			const csrf = getCSRFToken();
+			if (csrf) headers['X-CSRF-Token'] = csrf;
 			const formData = new FormData();
 			formData.append('audio', audioBlob, 'recording.webm');
 
 			const response = await fetch(`${getApiBaseUrl()}/transcribe`, {
 				method: 'POST',
 				credentials: 'include',
-				headers: getActiveWorkspaceHeaders(),
+				headers,
 				body: formData,
 				signal: transcriptionAbortController.signal
 			});
 
 			if (response.ok) {
 				const data = await response.json();
-				if (data.text) {
-					appendToInput(data.text);
+				const text = typeof data.text === 'string' ? data.text.replace(/\[(?:BLANK_AUDIO|SILENCE|NO_SPEECH|MUSIC)\]/gi, '').trim() : '';
+				if (text) {
+					appendToInput(text);
 					return;
 				}
 			} else {
@@ -393,10 +399,13 @@
 			if (fallbackText) {
 				if (import.meta.env.DEV) console.log('[OSA Voice] Using live transcript fallback:', fallbackText);
 				appendToInput(fallbackText);
+			} else {
+				osaStore.setError('No speech was transcribed. Please try the microphone again.');
 			}
 		} catch (error) {
 			if (error instanceof Error && error.name !== 'AbortError') {
 				console.warn('[OSA Voice] Server transcription failed:', error.message);
+				if (!fallbackText) osaStore.setError('Voice transcription failed. Please try again.');
 			}
 			// Use live text fallback on error too
 			if (fallbackText) {

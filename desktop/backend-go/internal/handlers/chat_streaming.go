@@ -76,6 +76,26 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
+	if req.Runtime != "" && req.Runtime != "osa" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "This chat endpoint supports the OSA runtime. Select OSA to continue."})
+		return
+	}
+	if req.Runtime == "osa" && (!h.cfg.OSAEnabled || h.osaClient == nil) {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "OSA is not connected. Start and configure the OSA runtime."})
+		return
+	}
+
+	// Pre-stream setup (ID parsing, conversation, history, model, agent config)
+	setup, ok := h.prepareStream(c, ctx, req, user.ID, user.Name, focusModeStr)
+	if !ok {
+		return // HTTP error already written by prepareStream
+	}
+
+	// Try OSA routing now that we have conversationID
+	if result := h.tryOSARouting(c, ctx, req, user.ID, setup.conversationID); result.handled {
+		return
+	}
+
 	// Pre-stream provider health check: fail fast for ollama_local instead of hanging 60s
 	provider := h.cfg.GetActiveProvider()
 	if provider == "ollama_local" {
@@ -89,22 +109,6 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 			})
 			return
 		}
-	}
-
-	// OSA routing: attempt before doing any local setup
-	if h.cfg.OSAEnabled && h.osaClient == nil {
-		slog.Warn("OSA unavailable, routing to local orchestrator")
-	}
-
-	// Pre-stream setup (ID parsing, conversation, history, model, agent config)
-	setup, ok := h.prepareStream(c, ctx, req, user.ID, user.Name, focusModeStr)
-	if !ok {
-		return // HTTP error already written by prepareStream
-	}
-
-	// Try OSA routing now that we have conversationID
-	if result := h.tryOSARouting(c, ctx, req, user.ID, setup.conversationID); result.handled {
-		return
 	}
 
 	// Set streaming headers

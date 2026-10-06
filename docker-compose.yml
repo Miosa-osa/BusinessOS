@@ -82,11 +82,15 @@ services:
       OPTIMAL_API_PORT: "4200"
       OPTIMAL_API_INTERFACE: "0.0.0.0"
       OPTIMAL_AUTH_REQUIRED: ${OPTIMAL_AUTH_REQUIRED:-false}
+      CONNECTOR_KEY: ${CONNECTOR_KEY:-}
       OPTIMAL_BCRYPT_COST: ${OPTIMAL_BCRYPT_COST:-12}
       OLLAMA_HOST: ${OPTIMAL_OLLAMA_URL:-http://host.docker.internal:11434}
       MIX_ENV: prod
     volumes:
-      - optimal_engine_data:/data
+      - ${OPTIMAL_ENGINE_ROOT:-/Users/rhl/code/OptimalOS/engine}:/data
+      - ${OPTIMAL_ENGINE_WORKSPACES:-/Users/rhl/code/OptimalOS/workspaces}:/workspaces
+      - ${OPTIMALOS_ROOT:-/Users/rhl/code/OptimalOS}/topology.yaml:/data/topology.yaml:ro
+      - ${OPTIMALOS_ROOT:-/Users/rhl/code/OptimalOS}/topology:/data/topology_dir:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4200/api/health"]
       interval: 30s

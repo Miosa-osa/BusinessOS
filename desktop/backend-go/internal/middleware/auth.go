@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -15,6 +16,54 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// SignSessionCookieValue applies the production session-cookie contract.
+// Development may use raw tokens when SECRET_KEY is intentionally absent, but
+// production must never issue a cookie that its own middleware will reject.
+func SignSessionCookieValue(token string) (string, error) {
+	if token == "" {
+		return "", fmt.Errorf("session token is empty")
+	}
+
+	secret := os.Getenv("SECRET_KEY")
+	if secret == "" {
+		if os.Getenv("ENVIRONMENT") == "production" {
+			return "", fmt.Errorf("SECRET_KEY is required to sign production sessions")
+		}
+		return token, nil
+	}
+
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(token))
+	return token + "." + hex.EncodeToString(mac.Sum(nil)), nil
+}
+
+// SessionTokenCandidates returns every valid session token from the request.
+// Browsers can retain both a host-only and parent-domain cookie with the same
+// name. Validate all candidates so a stale duplicate cannot hide a fresh login.
+func SessionTokenCandidates(r *http.Request) []string {
+	seen := make(map[string]struct{})
+	tokens := make([]string, 0, 1)
+	for _, cookie := range r.Cookies() {
+		if cookie.Name != SessionCookieName || cookie.Value == "" {
+			continue
+		}
+		value, err := url.QueryUnescape(cookie.Value)
+		if err != nil {
+			continue
+		}
+		token, valid := verifySessionCookie(value)
+		if !valid {
+			continue
+		}
+		if _, duplicate := seen[token]; duplicate {
+			continue
+		}
+		seen[token] = struct{}{}
+		tokens = append(tokens, token)
+	}
+	return tokens
+}
 
 // BetterAuthUser represents a user from Better Auth's user table
 type BetterAuthUser struct {
@@ -83,50 +132,30 @@ func verifySessionCookie(sessionCookie string) (string, bool) {
 // Implements sliding window session refresh for better security
 func AuthMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get session token from cookie
-		sessionCookie, err := c.Cookie(SessionCookieName)
-		if err != nil || sessionCookie == "" {
+		sessionTokens := SessionTokenCandidates(c.Request)
+		if len(sessionTokens) == 0 {
 			slog.Debug("AuthMiddleware: no session cookie found")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
 			return
 		}
-
-		slog.Debug("AuthMiddleware: session cookie received", "length", len(sessionCookie))
-
-		// URL decode in case it's encoded
-		sessionCookie, err = url.QueryUnescape(sessionCookie)
-		if err != nil {
-			slog.Debug("AuthMiddleware: URL decode failed", "error", err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid session cookie"})
-			return
-		}
-
-		slog.Debug("AuthMiddleware: cookie decoded successfully")
-
-		// Verify HMAC signature and extract the raw session token.
-		sessionToken, valid := verifySessionCookie(sessionCookie)
-		if !valid {
-			slog.Debug("AuthMiddleware: invalid session cookie signature")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid session signature"})
-			return
-		}
-
-		slog.Debug("AuthMiddleware: token extracted", "hasSignature", strings.Contains(sessionCookie, "."))
 
 		// Look up session in Better Auth's session table
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 		defer cancel()
 
 		var user BetterAuthUser
+		var sessionToken string
 		var sessionExpiresAt time.Time
 		var sessionCreatedAt time.Time
-		err = pool.QueryRow(ctx, `
+		err := pool.QueryRow(ctx, `
 			SELECT u.id, u.name, u.email, u."emailVerified", u.image, u."createdAt", u."updatedAt",
-			       s."expiresAt", s."createdAt"
+			       s.token, s."expiresAt", s."createdAt"
 			FROM session s
 			JOIN "user" u ON s."userId" = u.id
-			WHERE s.token = $1 AND s."expiresAt" > NOW()
-		`, sessionToken).Scan(
+			WHERE s.token = ANY($1) AND s."expiresAt" > NOW()
+			ORDER BY s."createdAt" DESC
+			LIMIT 1
+		`, sessionTokens).Scan(
 			&user.ID,
 			&user.Name,
 			&user.Email,
@@ -134,6 +163,7 @@ func AuthMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 			&user.Image,
 			&user.CreatedAt,
 			&user.UpdatedAt,
+			&sessionToken,
 			&sessionExpiresAt,
 			&sessionCreatedAt,
 		)
@@ -236,21 +266,8 @@ func MustGetCurrentUser(c *gin.Context) *BetterAuthUser {
 // OptionalAuthMiddleware allows unauthenticated requests but sets user if authenticated
 func OptionalAuthMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		sessionCookie, err := c.Cookie(SessionCookieName)
-		if err != nil || sessionCookie == "" {
-			c.Next()
-			return
-		}
-
-		sessionCookie, err = url.QueryUnescape(sessionCookie)
-		if err != nil {
-			c.Next()
-			return
-		}
-
-		sessionToken, valid := verifySessionCookie(sessionCookie)
-		if !valid {
-			slog.Debug("OptionalAuthMiddleware: invalid session cookie signature")
+		sessionTokens := SessionTokenCandidates(c.Request)
+		if len(sessionTokens) == 0 {
 			c.Next()
 			return
 		}
@@ -259,12 +276,14 @@ func OptionalAuthMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 		defer cancel()
 
 		var user BetterAuthUser
-		err = pool.QueryRow(ctx, `
+		err := pool.QueryRow(ctx, `
 			SELECT u.id, u.name, u.email, u."emailVerified", u.image, u."createdAt", u."updatedAt"
 			FROM session s
 			JOIN "user" u ON s."userId" = u.id
-			WHERE s.token = $1 AND s."expiresAt" > NOW()
-		`, sessionToken).Scan(
+			WHERE s.token = ANY($1) AND s."expiresAt" > NOW()
+			ORDER BY s."createdAt" DESC
+			LIMIT 1
+		`, sessionTokens).Scan(
 			&user.ID,
 			&user.Name,
 			&user.Email,

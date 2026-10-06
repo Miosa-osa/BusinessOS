@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import { resolveDocumentLink } from '$lib/kb/document-links';
+	import { NAVIGATION_PATH, parseNavigation, organizeKnowledge, type KnowledgeNavigation } from '$lib/kb/navigation';
+	import { sortKnowledge, recentKnowledge, type KnowledgeSort } from '$lib/kb/date-navigation';
 	import {
 		fetchWorkspaces,
 		fetchTree,
@@ -41,6 +44,10 @@
 
 	let tab = $state('docs');
 	let filter = $state('');
+	let docsView = $state<'active' | 'all' | 'recent'>('active');
+	let sortOrder = $state<KnowledgeSort>('manual');
+	let recentDays = $state(0);
+	let navigation = $state<KnowledgeNavigation | null>(null);
 
 	let selectedPath = $state('');
 	let selectedTitle = $state('');
@@ -64,6 +71,7 @@
 	let storage = $state<StorageUsage | null>(null);
 	let activating = $state(false);
 	let activateErr = $state<string | null>(null);
+	let cloudGateDismissed = $state(false);
 
 	// Load cloud-sync status (activated + usage) for the current workspace.
 	async function loadCloudStatus(ws: string) {
@@ -94,6 +102,16 @@
 		} finally {
 			activating = false;
 		}
+	}
+
+	function dismissCloudGate() {
+		cloudGateDismissed = true;
+		localStorage.setItem(`knowledge_cloud_gate_dismissed:${slug}`, 'true');
+	}
+
+	function showCloudGate() {
+		cloudGateDismissed = false;
+		localStorage.removeItem(`knowledge_cloud_gate_dismissed:${slug}`);
 	}
 
 	// Sync this workspace's local knowledge up to the shared cloud copy.
@@ -259,20 +277,37 @@
 	// The tree shown for a given tab (re-slices the same files by meaning).
 	function treeFor(id: string, src: KBTreeNode[]): KBTreeNode[] {
 		const curated = curate(src);
-		if (id === 'docs') return curated.filter((n) => n.name !== 'nodes');
+		if (id === 'docs') {
+			if (docsView === 'recent') return recentKnowledge(src, sortOrder, recentDays);
+			if (docsView === 'all') return src;
+			if (docsView === 'active' && navigation) return curate(organizeKnowledge(src, navigation));
+			if (docsView === 'active' && !filter) {
+				return findPackageFolders(src).map((node) => ({
+					...node,
+					title: packageLabel(node.name)
+				}));
+			}
+			return curated;
+		}
 		if (id === 'nodes') return buildNodesTree(src);
 		if (id === 'decisions') return flattenFiles(src, (n) => /decision/i.test(n.name));
 		if (id === 'sops') return flattenFiles(src, (n) => /(sop|playbook|checklist)/i.test(n.name));
 		return [];
 	}
 
-	const activeTree = $derived(treeFor(tab, rawTree));
+	const activeTree = $derived(docsView === 'recent' && tab === 'docs' ? treeFor(tab, rawTree) : sortKnowledge(treeFor(tab, rawTree), sortOrder));
 	const isPlaceholder = $derived(!!PLACEHOLDERS[tab]);
 
 	// Agent Context scope: what the agent can read, built entirely from data
 	// already loaded on the page (tree + source map) plus the source/deliverable
 	// counts. No extra backend.
 	const topFolders = $derived(curate(rawTree).filter((n) => n.type === 'dir'));
+	const recentDocs = $derived(
+		flattenFiles(rawTree, (node) => !!node.modified)
+			.sort((a, b) => new Date(b.modified ?? 0).getTime() - new Date(a.modified ?? 0).getTime())
+			.slice(0, 5)
+	);
+	const packageFolders = $derived(findPackageFolders(rawTree));
 	const totalDocs = $derived(flattenFiles(rawTree, () => true).length);
 	const totalSources = $derived(sourceCounts.engine + sourceCounts.cloud + sourceCounts.synced);
 	const trustedDocs = $derived(sourceCounts.engine + sourceCounts.synced);
@@ -328,12 +363,14 @@
 		loadingTree = true;
 		treeError = null;
 		rawTree = [];
+		navigation = null;
 		sources = {};
 		sourceCounts = { engine: 0, cloud: 0, synced: 0 };
 		storage = null;
 		cloudActivated = false;
 		overLimit = false;
 		activateErr = null;
+		cloudGateDismissed = localStorage.getItem(`knowledge_cloud_gate_dismissed:${requested}`) === 'true';
 		// Clear the real-layer caches so workspace B never shows workspace A's
 		// sources/packages; the $effect reloads them lazily per active tab.
 		engineItems = [];
@@ -354,7 +391,17 @@
 			const tree = await fetchTree(requested);
 			if (slug !== requested) return; // workspace changed mid-flight; stale response
 			rawTree = tree;
+			if (flattenFiles(tree, n => n.path === NAVIGATION_PATH).length) {
+				try {
+					const file = await fetchFile(requested, NAVIGATION_PATH);
+					if (slug !== requested) return;
+					navigation = parseNavigation(file.content);
+				} catch { /* A navigation failure must not hide the document library. */ }
+			}
+			if (slug !== requested) return;
 			expandActive();
+			const home = navigation && flattenFiles(tree, n => n.path === navigation?.home)[0];
+			if (home && !selectedPath) void openDoc(home.path, home.title ?? home.name);
 			// Tag each doc with its source (engine / cloud / synced). Best-effort.
 			fetchSources(requested)
 				.then((s) => {
@@ -372,7 +419,8 @@
 
 	function expandActive() {
 		const t = treeFor(tab, rawTree);
-		expanded = new Set(t.filter((n) => n.type === 'dir').map((n) => n.path));
+		const folders = t.filter((n) => n.type === 'dir');
+		expanded = new Set((tab === 'docs' && docsView === 'active' && navigation ? folders.slice(0, 1) : folders).map(n => n.path));
 	}
 
 	function switchTab(id: string) {
@@ -419,6 +467,7 @@
 	}
 
 	async function openDoc(path: string, title: string) {
+		const requestedWorkspace = slug;
 		selectedPath = path;
 		selectedTitle = title;
 		editing = false;
@@ -430,15 +479,44 @@
 		modified = '';
 		mobileTreeOpen = false; // close mobile drawer on doc select
 		try {
-			const file = await fetchFile(slug, path);
+			const file = await fetchFile(requestedWorkspace, path);
+			if (slug !== requestedWorkspace || selectedPath !== path) return;
 			rawContent = file.content;
 			modified = file.modified ?? '';
 			await renderFromContent(file.content);
 		} catch {
-			bodyHtml = `<p class="kb-error">Could not load this document.</p>`;
+			if (slug === requestedWorkspace && selectedPath === path) bodyHtml = `<p class="kb-error">Could not load this document.</p>`;
 		} finally {
-			loadingDoc = false;
+			if (slug === requestedWorkspace && selectedPath === path) loadingDoc = false;
 		}
+	}
+
+	function openPackagedDoc(path: string, title: string) {
+		tab = path.startsWith('nodes/') ? 'nodes' : 'docs';
+		void openDoc(path, title);
+	}
+
+	function documentLinks(node: HTMLElement) {
+		async function follow(event: MouseEvent) {
+			const anchor = event.target instanceof Element ? event.target.closest('a') : null;
+			if (!anchor || !node.contains(anchor)) return;
+			const link = resolveDocumentLink(anchor.getAttribute('href') ?? '', selectedPath);
+			if (!link) return;
+			event.preventDefault();
+			if (link === 'blocked') return;
+			if (link.path !== selectedPath) {
+				const file = flattenFiles(rawTree, n => n.path === link.path)[0];
+				await openDoc(link.path, file?.title ?? anchor.textContent?.trim() ?? link.path);
+			}
+			await tick();
+			if (link.fragment) {
+				const id = link.fragment.startsWith('h-') ? link.fragment : `h-${link.fragment}`;
+				const heading = document.getElementById(link.fragment) ?? document.getElementById(id);
+				heading?.scrollIntoView({ block: 'start' });
+			} else document.querySelector('.kb-doc-title')?.scrollIntoView({ block: 'start' });
+		}
+		node.addEventListener('click', follow);
+		return { destroy: () => node.removeEventListener('click', follow) };
 	}
 
 	function startEdit() {
@@ -500,7 +578,17 @@
 			.replace(/\.md$/i, '')
 			.replace(/^\d+[-_]/, '')
 			.replace(/[-_]/g, ' ')
-			.replace(/\b\w/g, (c) => c.toUpperCase());
+			.replace(/\b\w/g, (c) => c.toUpperCase())
+			.replace(/\bVsl\b/g, 'VSL')
+			.replace(/\bGtm\b/g, 'GTM')
+			.replace(/\bMiosa\b/g, 'MIOSA');
+	}
+
+	function packageLabel(name: string): string {
+		const dated = name.match(/^(\d{4})-(\d{2})-(\d{2})-(.+)$/);
+		if (!dated) return titleize(name);
+		const date = new Date(`${dated[1]}-${dated[2]}-${dated[3]}T12:00:00`);
+		return `${titleize(dated[4])} - ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
 	}
 
 	// Current workspace display name (for the breadcrumb root).
@@ -514,6 +602,24 @@
 		const d = new Date(s);
 		if (isNaN(+d)) return '';
 		return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+	}
+
+	function fmtShortDate(s?: string): string {
+		if (!s) return '';
+		const d = new Date(s);
+		if (isNaN(+d)) return '';
+		return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+	}
+
+	function findPackageFolders(nodes: KBTreeNode[]): KBTreeNode[] {
+		const found: KBTreeNode[] = [];
+		for (const node of nodes) {
+			if (node.type !== 'dir') continue;
+			const parts = node.path.split('/');
+			if (parts.length > 1 && parts.at(-2) === 'packages') found.push(node);
+			found.push(...findPackageFolders(node.children ?? []));
+		}
+		return found;
 	}
 
 	const propOrder = ['status', 'owner', 'type', 'layer', 'updated', 'tags'];
@@ -592,7 +698,23 @@
 					{/if}
 				</div>
 				{#if !isPlaceholder && workspaceMounted}
-					<input class="kb-filter" placeholder="Filter…" bind:value={filter} />
+					<input class="kb-filter" placeholder="Search document titles…" bind:value={filter} />
+					{#if tab === 'docs'}
+						<div class="kb-view-switch" aria-label="Document view">
+							<button class:active={docsView === 'active'} onclick={() => { docsView = 'active'; expandActive(); }}>Organized</button>
+							<button class:active={docsView === 'all'} onclick={() => { docsView = 'all'; expandActive(); }}>All files</button>
+							<button class:active={docsView === 'recent'} onclick={() => { docsView = 'recent'; if (sortOrder === 'manual' || sortOrder === 'title') sortOrder = 'newest'; expandActive(); }}>Recent</button>
+						</div>
+						<div class="kb-sort-controls">
+							<label>Sort<select aria-label="Sort documents" bind:value={sortOrder}>
+								{#if docsView !== 'recent'}<option value="manual">Section order</option><option value="title">Title A-Z</option>{/if}
+								<option value="newest">Updated newest</option><option value="oldest">Updated oldest</option>
+							</select></label>
+							{#if docsView === 'recent'}<label>Updated<select aria-label="Updated date range" bind:value={recentDays} onchange={expandActive}>
+								<option value={0}>All dates</option><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option>
+							</select></label>{/if}
+						</div>
+					{/if}
 					<div class="kb-tree-actions">
 						<button class="kb-newpage" onclick={createPage}><Plus size={14} strokeWidth={2.2} /> New page</button>
 						{#if cloudActivated}
@@ -603,9 +725,12 @@
 						{/if}
 					</div>
 					{#if syncMsg}<div class="kb-sync-msg">{syncMsg}</div>{/if}
-					{#if !cloudActivated}
+					{#if !cloudActivated && !cloudGateDismissed}
 						<div class="kb-cloud-gate">
-							<div class="kb-cloud-gate-icon"><CloudUpload size={16} strokeWidth={2} /></div>
+							<div class="kb-cloud-gate-top">
+								<div class="kb-cloud-gate-icon"><CloudUpload size={16} strokeWidth={2} /></div>
+								<button class="kb-cloud-gate-close" onclick={dismissCloudGate} title="Dismiss" aria-label="Dismiss cloud sync panel"><X size={14} /></button>
+							</div>
 							<div class="kb-cloud-gate-title">Activate cloud sync</div>
 							<p class="kb-cloud-gate-body">Your local knowledge is always on and free. Cloud sync is opt-in: it syncs this workspace's knowledge to the cloud so your team and your other devices can access it.</p>
 							<button class="kb-cloud-gate-btn" onclick={doActivate} disabled={activating}>
@@ -614,9 +739,11 @@
 							</button>
 							{#if activateErr}<div class="kb-cloud-gate-err">{activateErr}</div>{/if}
 						</div>
-					{:else}
+					{:else if cloudActivated}
 						{#if overLimit}<div class="kb-cloud-overlimit">You're over your free cloud storage - upgrade coming soon.</div>{/if}
 						{#if storage}<div class="kb-cloud-usage">{formatBytes(storage.bytes_used)} of {formatBytes(storage.bytes_limit)} used</div>{/if}
+					{:else}
+						<button class="kb-cloud-gate-reopen" onclick={showCloudGate}><CloudUpload size={12} /> Set up team access</button>
 					{/if}
 					{#if sourceCounts.engine + sourceCounts.cloud + sourceCounts.synced > 0}
 						<div class="kb-srcfilter">
@@ -646,6 +773,18 @@
 				{:else if activeTree.length === 0}
 					<div class="kb-muted">Nothing in this layer yet.</div>
 				{:else}
+					{#if tab === 'docs' && !navigation && !filter && recentDocs.length > 0}
+						<div class="kb-recent">
+							<div class="kb-recent-label">Recently updated</div>
+							{#each recentDocs as recent}
+								<button class="kb-recent-row" onclick={() => openDoc(recent.path, recent.title ?? recent.name)}>
+									<FileText size={13} />
+									<span>{recent.title ?? recent.name}</span>
+									<time datetime={recent.modified}>{fmtShortDate(recent.modified)}</time>
+								</button>
+							{/each}
+						</div>
+					{/if}
 					{#each activeTree as node}
 						{#if matches(node, filter.toLowerCase()) && sourceOk(node)}
 							{@render treeItem(node, 0)}
@@ -673,6 +812,9 @@
 				<div class="kb-empty">
 					<FileText size={26} strokeWidth={1.5} />
 					<p>Select a page to read it.</p>
+					<button class="kb-browse-pages" onclick={() => (mobileTreeOpen = true)}>
+						<PanelLeft size={15} /> Browse pages
+					</button>
 				</div>
 			{:else}
 				<div class="kb-doc-inner">
@@ -702,7 +844,7 @@
 					{:else if editing}
 						<textarea class="kb-editor" bind:value={draft} spellcheck="false"></textarea>
 					{:else}
-						<article class="kb-prose">{@html bodyHtml}</article>
+						<article class="kb-prose" use:documentLinks>{@html bodyHtml}</article>
 					{/if}
 				</div>
 			{/if}
@@ -743,7 +885,7 @@
 {#snippet treeItem(node: KBTreeNode, depth: number)}
 	{#if node.type === 'dir'}
 		<button
-			class="kb-row kb-dir {selectedPath && node.indexPath === selectedPath ? 'kb-file--active' : ''}"
+			class="kb-row kb-dir {node.path.startsWith('@section/') ? 'kb-section' : ''} {selectedPath && node.indexPath === selectedPath ? 'kb-file--active' : ''}"
 			style="padding-left: {8 + depth * 13}px"
 			onclick={() => onDirClick(node)}
 		>
@@ -751,7 +893,7 @@
 			<Folder size={14} class="kb-file-icon" />
 			<span class="kb-row-label">{node.title ?? node.name}</span>
 		</button>
-		{#if expanded.has(node.path) && node.children}
+		{#if (expanded.has(node.path) || filter) && node.children}
 			{#each node.children as child}
 				{#if matches(child, filter.toLowerCase())}
 					{@render treeItem(child, depth + 1)}
@@ -765,7 +907,8 @@
 			onclick={() => openDoc(node.path, node.title ?? node.name)}
 		>
 			<FileText size={14} class="kb-file-icon" />
-			<span class="kb-row-label">{node.title ?? node.name}</span>
+			<span class="kb-row-label" title={node.path}>{node.title ?? node.name}{#if docsView === 'recent'}<small class="kb-row-path">{node.path}</small>{/if}</span>
+			{#if node.modified}<time class="kb-row-date" datetime={node.modified} title={`Record updated: ${fmtDate(node.modified)}. May include imports or syncs; not the original event date.`}>{fmtDate(node.modified)}</time>{/if}
 			{#if sources[node.path]}
 				<span class="kb-src kb-src--{sources[node.path]}" title="{sources[node.path] === 'engine' ? 'In your engine only - not yet synced' : sources[node.path] === 'cloud' ? 'In the shared cloud only' : 'Synced: in your engine and the cloud'}">{sources[node.path]}</span>
 			{/if}
@@ -848,26 +991,44 @@
 			<p class="kb-head-sub">Deliverables and packaged exports produced from this workspace’s knowledge.</p>
 		</div>
 		<div class="kb-panel">
+			{#if packageFolders.length > 0}
+				<div class="kb-sec-label">Knowledge packages <span class="kb-count">{packageFolders.length}</span></div>
+				<div class="kb-cards">
+					{#each packageFolders as packageFolder}
+						<div class="kb-card">
+							<div class="kb-card-top">
+								<Package size={15} class="kb-file-icon" />
+								<span class="kb-card-title">{titleize(packageFolder.name)}</span>
+								<span class="kb-tag">Markdown package</span>
+							</div>
+							<div class="kb-package-files">
+								{#each flattenFiles(packageFolder.children ?? [], () => true) as file}
+									<button onclick={() => openPackagedDoc(file.path, file.title ?? file.name)}>
+									<span>{titleize(file.name)}</span>
+										{#if file.modified}<time datetime={file.modified}>{fmtDate(file.modified)}</time>{/if}
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
 			{#if loadingDeliverables}
 				<div class="kb-muted kb-center"><Loader2 size={15} class="kb-spin" /> Loading packages…</div>
 			{:else if deliverablesError}
 				<div class="kb-muted">Couldn’t load packages ({deliverablesError}).</div>
-			{:else if deliverables.length === 0}
-				<div class="kb-mount-state">
-					<Package size={17} strokeWidth={1.8} />
-					<div>
-						<div class="kb-mount-title">No packages yet.</div>
-						<p>Generated deliverables — proposals, briefs, decks, scripts, reports — appear here once produced in the Deliverables flow. Each links back to the artifact it shipped.</p>
-					</div>
-				</div>
-			{:else}
+			{:else if deliverables.length > 0}
 				<div class="kb-sec-label">Deliverables <span class="kb-count">{deliverables.length}</span></div>
 				<div class="kb-cards">
 					{#each deliverables as d}
 						<div class="kb-card">
 							<div class="kb-card-top">
 								<Package size={15} class="kb-file-icon" />
-								<span class="kb-card-title">{d.title || 'Untitled package'}</span>
+								{#if d.link?.startsWith('knowledge:')}
+									<button class="kb-card-title kb-document-title" onclick={() => openPackagedDoc(d.link.slice('knowledge:'.length), d.title)}>{d.title || 'Untitled package'}</button>
+								{:else}
+									<span class="kb-card-title">{d.title || 'Untitled package'}</span>
+								{/if}
 								<span class="kb-tag">{d.kind}</span>
 								<span class="kb-tag kb-tag--{d.status === 'delivered' ? 'good' : d.status === 'in_progress' ? 'warn' : ''}">{d.status.replace('_', ' ')}</span>
 							</div>
@@ -876,10 +1037,20 @@
 								{#if d.client}<span class="kb-meta-pill">{d.client}</span>{/if}
 								{#if d.project}<span class="kb-meta-pill">{d.project}</span>{/if}
 								{#if d.updated_at}<span class="kb-meta-date"><Clock size={11} /> {fmtDate(d.updated_at)}</span>{/if}
-								{#if d.link}<a class="kb-card-link" href={d.link} target="_blank" rel="noopener noreferrer"><ExternalLink size={12} /> Open</a>{/if}
+								{#if d.link?.startsWith('knowledge:')}
+									<button class="kb-card-link" onclick={() => openPackagedDoc(d.link.slice('knowledge:'.length), d.title)}><FileText size={12} /> Open document</button>
+								{:else if d.link}<a class="kb-card-link" href={d.link} target="_blank" rel="noopener noreferrer"><ExternalLink size={12} /> Open</a>{/if}
 							</div>
 						</div>
 					{/each}
+				</div>
+			{:else if packageFolders.length === 0}
+				<div class="kb-mount-state">
+					<Package size={17} strokeWidth={1.8} />
+					<div>
+						<div class="kb-mount-title">No packages yet.</div>
+						<p>Generated deliverables — proposals, briefs, decks, scripts, reports — appear here once produced in the Deliverables flow. Each links back to the artifact it shipped.</p>
+					</div>
 				</div>
 			{/if}
 		</div>
@@ -987,6 +1158,12 @@
 	}
 	.kb-paneltoggle:hover { color: var(--dt); background: color-mix(in srgb, var(--dt) 7%, transparent); }
 	.kb-paneltoggle--on { color: var(--dt2); }
+	.kb-paneltoggle--mobile { display: none; }
+	.kb-browse-pages {
+		display: none; align-items: center; gap: 7px; height: 36px; padding: 0 13px;
+		border: 1px solid var(--dbd); border-radius: 7px; background: var(--dbg);
+		color: var(--dt2); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+	}
 
 	.kb { display: flex; flex: 1; min-height: 0; }
 
@@ -1010,6 +1187,20 @@
 	}
 	.kb-filter::placeholder { color: var(--dt3); }
 	.kb-filter:focus { border-color: color-mix(in srgb, var(--dt) 25%, transparent); }
+	.kb-view-switch {
+		display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; margin-top: 8px; padding: 2px;
+		border: 1px solid var(--dbd); border-radius: 7px; background: color-mix(in srgb, var(--dt) 3%, transparent);
+	}
+	.kb-view-switch button {
+		min-width: 0; padding: 5px 7px; border: none; border-radius: 5px;
+		background: transparent; color: var(--dt3); font-size: 0.72rem; cursor: pointer;
+	}
+	.kb-view-switch button:hover { color: var(--dt); }
+	.kb-view-switch button.active { color: var(--dt); background: var(--dbg); box-shadow: 0 0 0 1px var(--dbd); }
+	.kb-sort-controls { display: grid; gap: 6px; margin-top: 8px; }
+	.kb-sort-controls label { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; color: var(--dt3); font-size: 0.72rem; }
+	.kb-sort-controls select { width: 100%; min-width: 0; padding: 5px; border: 1px solid var(--dbd); border-radius: 5px; background: var(--dbg); color: var(--dt); font: inherit; }
+	.kb-row-path { display: block; overflow: hidden; text-overflow: ellipsis; color: var(--dt3); font-size: 0.64rem; font-weight: 400; }
 	.kb-newpage {
 		display: flex; align-items: center; justify-content: center; gap: 6px;
 		margin-top: 8px; width: 100%; padding: 6px 9px; font-size: 0.78rem; font-weight: 500;
@@ -1035,11 +1226,18 @@
 		background: var(--dbg2); border: 1px solid var(--dbd);
 		display: flex; flex-direction: column; gap: 7px;
 	}
+	.kb-cloud-gate-top { display: flex; align-items: center; justify-content: space-between; }
 	.kb-cloud-gate-icon {
 		display: inline-flex; align-items: center; justify-content: center;
 		width: 30px; height: 30px; border-radius: 8px;
 		color: var(--dt); background: color-mix(in srgb, var(--dt) 8%, transparent);
 	}
+	.kb-cloud-gate-close {
+		display: inline-flex; align-items: center; justify-content: center;
+		width: 26px; height: 26px; padding: 0; border: none; border-radius: 6px;
+		color: var(--dt3); background: transparent; cursor: pointer;
+	}
+	.kb-cloud-gate-close:hover { color: var(--dt); background: color-mix(in srgb, var(--dt) 7%, transparent); }
 	.kb-cloud-gate-title { font-size: 0.82rem; font-weight: 600; color: var(--dt); }
 	.kb-cloud-gate-body { margin: 0; font-size: 0.73rem; line-height: 1.45; color: var(--dt2); }
 	.kb-cloud-gate-btn {
@@ -1052,6 +1250,11 @@
 	.kb-cloud-gate-btn:hover:not(:disabled) { filter: brightness(1.08); }
 	.kb-cloud-gate-btn:disabled { opacity: 0.6; cursor: default; }
 	.kb-cloud-gate-err { font-size: 0.72rem; color: #ef4444; }
+	.kb-cloud-gate-reopen {
+		display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 5px 0;
+		border: none; background: transparent; color: var(--dt3); font-size: 0.72rem; cursor: pointer;
+	}
+	.kb-cloud-gate-reopen:hover { color: var(--dt); }
 	.kb-cloud-usage { margin-top: 8px; font-size: 0.72rem; color: var(--dt3, var(--dt2)); }
 	.kb-cloud-overlimit {
 		margin-top: 8px; padding: 7px 9px; border-radius: 8px; font-size: 0.72rem; line-height: 1.4;
@@ -1069,6 +1272,19 @@
 	.kb-src--synced { color: #22c55e; background: color-mix(in srgb, #22c55e 15%, transparent); }
 	.kb-src--cloud { color: #3b82f6; background: color-mix(in srgb, #3b82f6 15%, transparent); }
 	.kb-tree-body { flex: 1; overflow-y: auto; padding: 8px 8px 24px; }
+	.kb-recent { margin: 0 0 9px; padding: 0 0 9px; border-bottom: 1px solid var(--dbd); }
+	.kb-recent-label {
+		padding: 4px 8px 5px; color: var(--dt3); font-size: 0.64rem;
+		font-weight: 620; text-transform: uppercase; letter-spacing: 0.07em;
+	}
+	.kb-recent-row {
+		display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; align-items: center; gap: 6px;
+		width: 100%; padding: 5px 8px; border: none; border-radius: 6px; background: transparent;
+		color: var(--dt2); font-size: 0.76rem; text-align: left; cursor: pointer;
+	}
+	.kb-recent-row:hover { color: var(--dt); background: color-mix(in srgb, var(--dt) 6%, transparent); }
+	.kb-recent-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.kb-recent-row time { color: var(--dt3); font-size: 0.66rem; }
 	.kb-row {
 		display: flex; align-items: center; gap: 6px; width: 100%; padding: 5px 8px;
 		border: none; background: none; border-radius: 7px; cursor: pointer; text-align: left;
@@ -1076,8 +1292,11 @@
 	}
 	.kb-row:hover { background: color-mix(in srgb, var(--dt) 6%, transparent); color: var(--dt); }
 	.kb-dir { font-weight: 550; color: var(--dt); }
+	.kb-section { margin-top: 12px; border-top: 1px solid var(--dbd); border-radius: 0; padding-top: 12px; font-size: 0.75rem; }
 	.kb-file--active { background: color-mix(in srgb, var(--dt) 9%, transparent); color: var(--dt); font-weight: 550; }
-	.kb-row-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.kb-row-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.kb-row-date { margin-left: auto; color: var(--dt3); font-size: 0.62rem; white-space: nowrap; flex-shrink: 0; }
+	.kb-row-date + .kb-src { margin-left: 0; }
 	:global(.kb-chev) { flex-shrink: 0; color: var(--dt3); transition: transform 160ms ease; }
 	:global(.kb-chev--open) { transform: rotate(90deg); }
 	:global(.kb-file-icon) { flex-shrink: 0; color: var(--dt3); }
@@ -1203,6 +1422,7 @@
 		/* Hide the desktop panel toggle, show the mobile one */
 		.kb-paneltoggle--desktop { display: none; }
 		.kb-paneltoggle--mobile { display: flex; }
+		.kb-browse-pages { display: inline-flex; }
 
 		/* Doc head padding reduced */
 		.kb-doc-head { padding: 16px 18px 0; }
@@ -1275,9 +1495,6 @@
 		.kb-doc-title { font-size: 1.5rem; }
 	}
 
-	/* Hide mobile toggle on desktop */
-	.kb-paneltoggle--mobile { display: none; }
-
 	/* ── Real layer views (Sources / Packages / Agent Context) ── */
 	.kb-layerhint { color: var(--dt3); font-size: 0.8rem; line-height: 1.5; padding: 10px 8px; }
 	.kb-head-sub { max-width: 640px; margin: 10px 0 0; color: var(--dt3); font-size: 0.9rem; line-height: 1.6; }
@@ -1314,8 +1531,20 @@
 		transition: border-color 140ms ease;
 	}
 	.kb-card:hover { border-color: color-mix(in srgb, var(--dt) 20%, transparent); }
+	.kb-package-files { display: flex; flex-direction: column; border-top: 1px solid var(--dbd); }
+	.kb-package-files button {
+		display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center;
+		width: 100%; padding: 8px 0; border: none; border-bottom: 1px solid var(--dbd);
+		background: transparent; color: var(--dt2); font-size: 0.8rem; text-align: left; cursor: pointer;
+	}
+	.kb-package-files button:last-child { border-bottom: none; }
+	.kb-package-files button:hover { color: var(--dt); }
+	.kb-package-files span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.kb-package-files time { color: var(--dt3); font-size: 0.7rem; white-space: nowrap; }
 	.kb-card-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 	.kb-card-title { font-size: 0.92rem; font-weight: 600; color: var(--dt); }
+	.kb-document-title { border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; }
+	.kb-document-title:hover { text-decoration: underline; }
 	.kb-card-abs { margin: 0; font-size: 0.84rem; line-height: 1.55; color: var(--dt2); }
 	.kb-card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.74rem; color: var(--dt3); }
 	.kb-meta-pill {

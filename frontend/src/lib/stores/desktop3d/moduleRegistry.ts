@@ -20,6 +20,8 @@ export const MODULE_INFO: Record<
   calendar: { title: "Calendar", color: "#EF4444", icon: "calendar" },
   campaigns: { title: "Campaigns", color: "#F97316", icon: "megaphone" },
   clients: { title: "Clients", color: "#0891B2", icon: "briefcase" },
+  chat: { title: "Conversations", color: "#3B82F6", icon: "message-square" },
+  conversations: { title: "Conversations", color: "#3B82F6", icon: "message-square" },
   communication: {
     title: "Communications",
     color: "#3B82F6",

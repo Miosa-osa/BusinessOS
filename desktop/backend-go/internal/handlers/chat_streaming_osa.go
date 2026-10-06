@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -33,85 +35,85 @@ func (h *ChatHandler) tryOSARouting(
 		return osaRoutingResult{handled: false}
 	}
 
-	sessionID := uuid.NewString()
-
+	// Bind the runtime session to both the authenticated user and conversation.
+	workspace := ""
 	var osaWorkspaceID uuid.UUID
-	if req.WorkspaceID != nil && *req.WorkspaceID != "" {
-		if parsed, err := uuid.Parse(*req.WorkspaceID); err == nil {
-			osaWorkspaceID = parsed
-		}
+	if req.WorkspaceID != nil {
+		workspace = *req.WorkspaceID
+		osaWorkspaceID, _ = uuid.Parse(workspace)
 	}
-
-	// OSA's SSE stream is a persistent session — it does NOT close automatically
-	// after a single response. We use a dedicated context so we can cancel the
-	// SSE connection once Orchestrate completes, which causes the SDK scanner to
-	// exit, closes the events channel, and allows mapOSAEventsToStreamEvents to
-	// inject the Done event that auto-completes the stream.
-	streamCtx, cancelStream := context.WithCancel(ctx)
-
-	osaEvents, streamErr := h.osaClient.Stream(streamCtx, sessionID)
-	if streamErr != nil {
-		cancelStream()
-		slog.Warn("OSA stream unavailable, falling back to local agents", "error", streamErr)
-		return osaRoutingResult{handled: false}
+	sessionID := "bos-" + uuid.NewSHA1(uuid.NameSpaceOID, []byte(userID+":"+workspace+":"+uuidToString(conversationID))).String()
+	streamCtx, cancelStream := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancelStream()
+	userUUID := uuid.NewSHA1(uuid.NameSpaceOID, []byte(userID))
+	osaEvents, err := h.osaClient.Chat(streamCtx, &osa.OrchestrateRequest{
+		UserID: userUUID, Input: req.Message, SessionID: sessionID,
+		WorkspaceID: osaWorkspaceID, PermissionMode: "overdrive",
+	})
+	if err != nil {
+		slog.Error("OSA chat unavailable", "error", err, "session_id", sessionID)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "OSA runtime could not start this conversation", "detail": err.Error()})
+		return osaRoutingResult{handled: true}
 	}
-
-	// Kick off orchestration in background — events flow through the stream channel.
-	// Cancel the stream context when Orchestrate finishes so the SSE connection
-	// closes and the Done event propagates to the client.
-	go func() {
-		defer cancelStream()
-		userUUID, _ := uuid.Parse(userID)
-		osaReq := &osa.OrchestrateRequest{
-			UserID:      userUUID,
-			Input:       req.Message,
-			SessionID:   sessionID,
-			WorkspaceID: osaWorkspaceID,
-		}
-		if _, err := h.osaClient.Orchestrate(ctx, osaReq); err != nil {
-			slog.Error("OSA orchestration failed", "error", err, "session_id", sessionID)
-		}
-	}()
-
-	bosEvents := mapOSAEventsToStreamEvents(osaEvents)
-
 	c.Header("Content-Type", "text/event-stream; charset=utf-8")
 	c.Header("X-Conversation-Id", uuidToString(conversationID))
 	c.Header("X-OSA-Routing", "true")
+	c.Header("X-OSA-Permission-Mode", "overdrive")
 	c.Header("X-OSA-Session-Id", sessionID)
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
-
 	var fullResp string
+	inThinking := false
+	persisted := false
+	persist := func() {
+		if persisted || fullResp == "" {
+			return
+		}
+		persisted = true
+		saveCtx, saveCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer saveCancel()
+		_, saveErr := sqlc.New(h.pool).CreateMessage(saveCtx, sqlc.CreateMessageParams{ConversationID: conversationID, Role: sqlc.MessageroleASSISTANT, Content: fullResp, MessageMetadata: []byte(`{"runtime":"osa"}`)})
+		if saveErr != nil {
+			slog.Error("Could not save OSA answer", "error", saveErr)
+		}
+		_, _ = h.pool.Exec(saveCtx, "UPDATE conversations SET updated_at=NOW() WHERE id=$1", conversationID)
+	}
+	defer persist()
+	completed := false
 	c.Stream(func(w io.Writer) bool {
 		select {
-		case event, ok := <-bosEvents:
-			if !ok {
+		case event, ok := <-osaEvents:
+			if !ok || event.Type == "done" {
+				persist()
+				if !ok && !completed {
+					writeSSEEvent(w, streaming.StreamEvent{Type: streaming.EventTypeError, Content: "OSA disconnected before completing the response"})
+				}
+				completed = true
+				writeSSEEvent(w, streaming.StreamEvent{Type: streaming.EventTypeDone})
 				return false
 			}
-			if event.Type == streaming.EventTypeToken {
-				fullResp += event.Content
+			mapped := mapSingleEvent(event, &inThinking)
+			if mapped == nil {
+				return true
 			}
-			writeSSEEvent(w, event)
-			return event.Type != streaming.EventTypeDone
-		case <-ctx.Done():
+			if mapped.Type == streaming.EventTypeToken {
+				fullResp += mapped.Content
+			}
+			writeSSEEvent(w, *mapped)
+			if mapped.Type == streaming.EventTypeError {
+				completed = true
+				writeSSEEvent(w, streaming.StreamEvent{Type: streaming.EventTypeDone})
+				return false
+			}
+			return true
+		case <-streamCtx.Done():
+			if ctx.Err() == nil {
+				writeSSEEvent(w, streaming.StreamEvent{Type: streaming.EventTypeError, Content: "OSA response timed out"})
+				writeSSEEvent(w, streaming.StreamEvent{Type: streaming.EventTypeDone})
+			}
 			return false
 		}
 	})
-
-	// Persist assistant response asynchronously
-	if fullResp != "" {
-		go func() {
-			bgCtx := context.Background()
-			bgQueries := sqlc.New(h.pool)
-			bgQueries.CreateMessage(bgCtx, sqlc.CreateMessageParams{
-				ConversationID:  conversationID,
-				Role:            sqlc.MessageroleASSISTANT,
-				Content:         fullResp,
-				MessageMetadata: nil,
-			})
-		}()
-	}
 
 	slog.Info("OSA handled chat request", "session_id", sessionID, "response_len", len(fullResp))
 	return osaRoutingResult{handled: true}

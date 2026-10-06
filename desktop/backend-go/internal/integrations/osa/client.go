@@ -119,6 +119,8 @@ func (c *Client) Orchestrate(ctx context.Context, req *OrchestrateRequest) (*Orc
 	}
 
 	var raw struct {
+		Status      string                 `json:"status"`
+		Prompt      string                 `json:"prompt"`
 		Success     bool                   `json:"success"`
 		Output      string                 `json:"output"`
 		AgentsUsed  []string               `json:"agents_used,omitempty"`
@@ -131,6 +133,8 @@ func (c *Client) Orchestrate(ctx context.Context, req *OrchestrateRequest) (*Orc
 	}
 
 	return &OrchestrateResponse{
+		Status:        raw.Status,
+		Prompt:        raw.Prompt,
 		Success:       raw.Success,
 		Output:        raw.Output,
 		AgentsUsed:    raw.AgentsUsed,
@@ -194,7 +198,11 @@ func (c *Client) Stream(ctx context.Context, sessionID string) (<-chan Event, er
 	}
 	req.Header.Set("Accept", "text/event-stream")
 
-	resp, err := c.httpClient.Do(req)
+	// An event stream stays open for the turn. The caller's context owns its
+	// lifetime; the ordinary JSON-request timeout must not cut it off.
+	streamClient := *c.httpClient
+	streamClient.Timeout = 0
+	resp, err := streamClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -255,6 +263,16 @@ func (c *Client) Stream(ctx context.Context, sessionID string) (<-chan Event, er
 			}
 		}
 		flush()
+		if ctx.Err() == nil {
+			message := "OSA event stream closed before the turn completed"
+			if err := scanner.Err(); err != nil {
+				message = err.Error()
+			}
+			select {
+			case events <- Event{Type: EventError, Data: map[string]interface{}{"message": message}}:
+			case <-ctx.Done():
+			}
+		}
 	}()
 
 	return events, nil

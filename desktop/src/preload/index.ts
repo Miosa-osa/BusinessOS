@@ -369,6 +369,13 @@ contextBridge.exposeInMainWorld("electron", {
   // Agent CLI detection (which of claude/codex/osa/ollama are installed).
   agents: {
     detect: () => ipcRenderer.invoke("agents:detect"),
+    run: (request: {id:string;runtime:string;prompt:string;model?:string}) => ipcRenderer.invoke("agents:run",request),
+    cancel: (id:string) => ipcRenderer.invoke("agents:cancel",id),
+    onEvent: (callback: (event:{id:string;type:string;content?:string})=>void) => {
+      const listener=(_event:Electron.IpcRendererEvent,data:{id:string;type:string;content?:string})=>callback(data);
+      ipcRenderer.on("agents:event",listener);
+      return ()=>ipcRenderer.removeListener("agents:event",listener);
+    },
   },
 
   // Auth - clear the persisted session cookie from the Electron partition so

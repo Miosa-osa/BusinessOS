@@ -12,6 +12,7 @@ import type {
   UpdateMemberRoleData,
   CreateRoleData,
   UpdateRoleData,
+  WorkspaceInviteValidation,
 } from "./types";
 
 /**
@@ -232,4 +233,15 @@ export async function acceptWorkspaceInvite(
       body: { token },
     },
   );
+}
+
+/** Preview a workspace invitation before the recipient signs in. */
+export async function validateWorkspaceInvite(
+  token: string,
+): Promise<WorkspaceInviteValidation> {
+  return request<WorkspaceInviteValidation>("/workspaces/invites/validate", {
+    method: "POST",
+    body: { token },
+    skipAuthRedirect: true,
+  });
 }

@@ -15,9 +15,9 @@ import (
 )
 
 // WorkspaceAgentsHandler powers the Agents module: the workspace's own roster of
-// AI workers. Each agent is a named role with a system prompt and a chosen Claude
-// model; running one sends its system prompt + a user input to Claude and records
-// the result as a run. This is the new agent system that replaces Dalya.
+// AI workers. Each agent is a named role with a system prompt, model, and
+// execution harness. Hosted OSA runs execute in BusinessOS. Machine-backed CLI
+// harnesses remain explicit until a connected runtime is available.
 // Workspace-scoped via X-Workspace-ID.
 type WorkspaceAgentsHandler struct {
 	pool *pgxpool.Pool
@@ -34,7 +34,7 @@ const defaultAgentModel = "claude-sonnet-4-5-20250929"
 
 var allowedModels = map[string]bool{
 	"claude-sonnet-4-5-20250929": true, // balanced (default)
-	"claude-opus-4-1-20250805":     true, // most capable
+	"claude-opus-4-1-20250805":   true, // most capable
 	"claude-haiku-4-5-20251001":  true, // fast/cheap
 }
 
@@ -44,6 +44,23 @@ func normalizeModel(m string) string {
 		return m
 	}
 	return defaultAgentModel
+}
+
+const defaultAgentRuntime = "osa"
+
+var allowedAgentRuntimes = map[string]bool{
+	"osa":         true,
+	"claude-code": true,
+	"codex":       true,
+	"hermes":      true,
+}
+
+func normalizeAgentRuntime(runtime string) string {
+	runtime = strings.ToLower(strings.TrimSpace(runtime))
+	if allowedAgentRuntimes[runtime] {
+		return runtime
+	}
+	return defaultAgentRuntime
 }
 
 // workspaceFromHeader resolves X-Workspace-ID and confirms active membership.
@@ -71,6 +88,7 @@ type workspaceAgent struct {
 	Name         string    `json:"name"`
 	Role         string    `json:"role"`
 	Description  string    `json:"description"`
+	Runtime      string    `json:"runtime"`
 	Model        string    `json:"model"`
 	SystemPrompt string    `json:"system_prompt"`
 	Status       string    `json:"status"`
@@ -83,6 +101,7 @@ type workspaceAgentInput struct {
 	Name         string `json:"name"`
 	Role         string `json:"role"`
 	Description  string `json:"description"`
+	Runtime      string `json:"runtime"`
 	Model        string `json:"model"`
 	SystemPrompt string `json:"system_prompt"`
 	Status       string `json:"status"`
@@ -93,6 +112,7 @@ type workspaceAgentRun struct {
 	AgentID   string    `json:"agent_id"`
 	Input     string    `json:"input"`
 	Output    string    `json:"output"`
+	Runtime   string    `json:"runtime"`
 	Model     string    `json:"model"`
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
@@ -112,7 +132,7 @@ func (h *WorkspaceAgentsHandler) ListAgents(c *gin.Context) {
 	}
 
 	rows, err := h.pool.Query(c.Request.Context(), `
-		SELECT id, name, role, description, model, system_prompt, status, created_by, created_at, updated_at
+		SELECT id, name, role, description, runtime, model, system_prompt, status, created_by, created_at, updated_at
 		FROM   workspace_agents
 		WHERE  workspace_id = $1
 		ORDER  BY created_at DESC
@@ -127,7 +147,7 @@ func (h *WorkspaceAgentsHandler) ListAgents(c *gin.Context) {
 	for rows.Next() {
 		var a workspaceAgent
 		var id uuid.UUID
-		if err := rows.Scan(&id, &a.Name, &a.Role, &a.Description, &a.Model, &a.SystemPrompt, &a.Status, &a.CreatedBy, &a.CreatedAt, &a.UpdatedAt); err != nil {
+		if err := rows.Scan(&id, &a.Name, &a.Role, &a.Description, &a.Runtime, &a.Model, &a.SystemPrompt, &a.Status, &a.CreatedBy, &a.CreatedAt, &a.UpdatedAt); err != nil {
 			RespondInternalErr(c, "scan agent", err)
 			return
 		}
@@ -162,11 +182,11 @@ func (h *WorkspaceAgentsHandler) CreateAgent(c *gin.Context) {
 	var a workspaceAgent
 	var id uuid.UUID
 	err := h.pool.QueryRow(c.Request.Context(), `
-		INSERT INTO workspace_agents (workspace_id, name, role, description, model, system_prompt, status, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, name, role, description, model, system_prompt, status, created_by, created_at, updated_at
-	`, wsID, strings.TrimSpace(in.Name), strings.TrimSpace(in.Role), in.Description, normalizeModel(in.Model), in.SystemPrompt, normalizeAgentStatus(in.Status), user.ID).
-		Scan(&id, &a.Name, &a.Role, &a.Description, &a.Model, &a.SystemPrompt, &a.Status, &a.CreatedBy, &a.CreatedAt, &a.UpdatedAt)
+		INSERT INTO workspace_agents (workspace_id, name, role, description, runtime, model, system_prompt, status, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, name, role, description, runtime, model, system_prompt, status, created_by, created_at, updated_at
+	`, wsID, strings.TrimSpace(in.Name), strings.TrimSpace(in.Role), in.Description, normalizeAgentRuntime(in.Runtime), normalizeModel(in.Model), in.SystemPrompt, normalizeAgentStatus(in.Status), user.ID).
+		Scan(&id, &a.Name, &a.Role, &a.Description, &a.Runtime, &a.Model, &a.SystemPrompt, &a.Status, &a.CreatedBy, &a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
 		RespondInternalErr(c, "create agent", err)
 		return
@@ -217,14 +237,15 @@ func (h *WorkspaceAgentsHandler) UpdateAgent(c *gin.Context) {
 		SET    name          = COALESCE(NULLIF($3,''), name),
 		       role          = $4,
 		       description   = $5,
-		       model         = $6,
-		       system_prompt = $7,
-		       status        = $8,
+		       runtime       = $6,
+		       model         = $7,
+		       system_prompt = $8,
+		       status        = $9,
 		       updated_at    = NOW()
 		WHERE  id = $1 AND workspace_id = $2
-		RETURNING id, name, role, description, model, system_prompt, status, created_by, created_at, updated_at
-	`, id, wsID, strings.TrimSpace(in.Name), strings.TrimSpace(in.Role), in.Description, normalizeModel(in.Model), in.SystemPrompt, normalizeAgentStatus(in.Status)).
-		Scan(&rid, &a.Name, &a.Role, &a.Description, &a.Model, &a.SystemPrompt, &a.Status, &a.CreatedBy, &a.CreatedAt, &a.UpdatedAt)
+		RETURNING id, name, role, description, runtime, model, system_prompt, status, created_by, created_at, updated_at
+	`, id, wsID, strings.TrimSpace(in.Name), strings.TrimSpace(in.Role), in.Description, normalizeAgentRuntime(in.Runtime), normalizeModel(in.Model), in.SystemPrompt, normalizeAgentStatus(in.Status)).
+		Scan(&rid, &a.Name, &a.Role, &a.Description, &a.Runtime, &a.Model, &a.SystemPrompt, &a.Status, &a.CreatedBy, &a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
 		RespondNotFoundErr(c, "agent")
 		return
@@ -294,12 +315,21 @@ func (h *WorkspaceAgentsHandler) RunAgent(c *gin.Context) {
 	}
 
 	// Load the agent (scoped to the workspace).
-	var systemPrompt, model, name string
+	var systemPrompt, model, name, runtime string
 	err = h.pool.QueryRow(c.Request.Context(),
-		`SELECT name, system_prompt, model FROM workspace_agents WHERE id=$1 AND workspace_id=$2`,
-		id, wsID).Scan(&name, &systemPrompt, &model)
+		`SELECT name, system_prompt, model, runtime FROM workspace_agents WHERE id=$1 AND workspace_id=$2`,
+		id, wsID).Scan(&name, &systemPrompt, &model, &runtime)
 	if err != nil {
 		RespondNotFoundErr(c, "agent")
+		return
+	}
+	runtime = normalizeAgentRuntime(runtime)
+	if runtime != defaultAgentRuntime {
+		c.JSON(http.StatusConflict, gin.H{
+			"error":   "This agent needs a connected " + runtime + " runtime before it can run.",
+			"runtime": runtime,
+			"status":  "connection_required",
+		})
 		return
 	}
 	model = normalizeModel(model)
@@ -322,10 +352,10 @@ func (h *WorkspaceAgentsHandler) RunAgent(c *gin.Context) {
 	var runID uuid.UUID
 	var createdAt time.Time
 	insErr := h.pool.QueryRow(c.Request.Context(), `
-		INSERT INTO workspace_agent_runs (workspace_id, agent_id, input, output, model, status)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO workspace_agent_runs (workspace_id, agent_id, input, output, runtime, model, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at
-	`, wsID, id, strings.TrimSpace(in.Input), output, model, status).Scan(&runID, &createdAt)
+	`, wsID, id, strings.TrimSpace(in.Input), output, runtime, model, status).Scan(&runID, &createdAt)
 	if insErr != nil {
 		RespondInternalErr(c, "record agent run", insErr)
 		return
@@ -339,6 +369,7 @@ func (h *WorkspaceAgentsHandler) RunAgent(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"output":     output,
 		"model":      model,
+		"runtime":    runtime,
 		"status":     status,
 		"run_id":     runID.String(),
 		"created_at": createdAt,
@@ -364,7 +395,7 @@ func (h *WorkspaceAgentsHandler) ListRuns(c *gin.Context) {
 	}
 
 	rows, err := h.pool.Query(c.Request.Context(), `
-		SELECT id, agent_id, input, output, model, status, created_at
+		SELECT id, agent_id, input, output, runtime, model, status, created_at
 		FROM   workspace_agent_runs
 		WHERE  workspace_id = $1 AND agent_id = $2
 		ORDER  BY created_at DESC
@@ -380,7 +411,7 @@ func (h *WorkspaceAgentsHandler) ListRuns(c *gin.Context) {
 	for rows.Next() {
 		var r workspaceAgentRun
 		var rid, aid uuid.UUID
-		if err := rows.Scan(&rid, &aid, &r.Input, &r.Output, &r.Model, &r.Status, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&rid, &aid, &r.Input, &r.Output, &r.Runtime, &r.Model, &r.Status, &r.CreatedAt); err != nil {
 			RespondInternalErr(c, "scan run", err)
 			return
 		}

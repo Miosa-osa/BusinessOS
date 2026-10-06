@@ -151,8 +151,8 @@
 					>
 				{/each}
 			</div>
-			<button class="btn btn--primary" onclick={openNew}
-				><Plus size={16} strokeWidth={2.4} />New entry</button
+			<button class="btn btn--primary" aria-label="New rhythm entry" title="New rhythm entry" onclick={openNew}
+				><Plus size={16} strokeWidth={2.4} /><span class="btn-label">New entry</span></button
 			>
 		</div>
 	</header>
@@ -362,6 +362,16 @@
 	.btn:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
+	}
+	@media (max-width: 640px) {
+		.topbar { display: grid; grid-template-columns: auto minmax(0, 1fr) 36px; gap: 10px; padding: 12px 14px; }
+		.tools { display: contents; }
+		.seg { min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+		.seg-btn { min-width: 0; padding: 6px 5px; }
+		.btn--primary { width: 36px; height: 36px; padding: 0; justify-content: center; }
+		.btn-label { display: none; }
+		.list { box-sizing: border-box; padding: 16px 14px; }
+		.entry-actions { opacity: 1; }
 	}
 	.loading,
 	.empty {
@@ -579,5 +589,8 @@
 		to {
 			transform: rotate(360deg);
 		}
+	}
+	@media (max-width: 640px) {
+		.entry-actions { opacity: 1; }
 	}
 </style>

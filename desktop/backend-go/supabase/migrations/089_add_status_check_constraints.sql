@@ -7,10 +7,10 @@
 -- Status constraint: enforces valid app lifecycle states
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF to_regclass('osa_generated_apps') IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'check_app_status'
-      AND conrelid = 'osa_generated_apps'::regclass
+      AND conrelid = to_regclass('osa_generated_apps')
   ) THEN
     ALTER TABLE osa_generated_apps
       ADD CONSTRAINT check_app_status
@@ -21,10 +21,10 @@ END$$;
 -- Sandbox status constraint: enforces valid sandbox lifecycle states
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF to_regclass('osa_generated_apps') IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'check_sandbox_status'
-      AND conrelid = 'osa_generated_apps'::regclass
+      AND conrelid = to_regclass('osa_generated_apps')
   ) THEN
     ALTER TABLE osa_generated_apps
       ADD CONSTRAINT check_sandbox_status
@@ -35,10 +35,10 @@ END$$;
 -- Health status constraint: enforces valid health check states
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF to_regclass('osa_generated_apps') IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'check_health_status'
-      AND conrelid = 'osa_generated_apps'::regclass
+      AND conrelid = to_regclass('osa_generated_apps')
   ) THEN
     ALTER TABLE osa_generated_apps
       ADD CONSTRAINT check_health_status

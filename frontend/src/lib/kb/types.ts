@@ -6,6 +6,7 @@ export interface KBTreeNode {
   path: string; // workspace-relative, forward-slash
   type: "dir" | "file";
   title?: string;
+  modified?: string;
   children?: KBTreeNode[];
   indexPath?: string; // for dirs: README that acts as the folder's own page
 }

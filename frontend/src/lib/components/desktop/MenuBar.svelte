@@ -453,13 +453,15 @@
 			{$focusedWindow?.title || 'Business OS'}
 		</span>
 
-		<MenuBarMenus
-			{menus}
-			{activeMenu}
-			onToggle={toggleMenu}
-			onAction={handleMenuAction}
-			onWindowSelect={handleWindowSelect}
-		/>
+		<div class="desktop-menu-groups">
+			<MenuBarMenus
+				{menus}
+				{activeMenu}
+				onToggle={toggleMenu}
+				onAction={handleMenuAction}
+				onWindowSelect={handleWindowSelect}
+			/>
+		</div>
 	</div>
 
 	{#if inElectron}
@@ -468,10 +470,12 @@
 
 	<!-- Right: clock, user avatar -->
 	<div class="menu-bar-right">
-		<MenuBarClock
-			isOpen={activeMenu === 'calendar'}
-			onToggle={() => toggleMenu('calendar')}
-		/>
+		<div class="desktop-menu-clock">
+			<MenuBarClock
+				isOpen={activeMenu === 'calendar'}
+				onToggle={() => toggleMenu('calendar')}
+			/>
+		</div>
 
 		<MenuBarUserMenu
 			isOpen={activeMenu === 'user'}
@@ -607,9 +611,17 @@
 		display: flex;
 		align-items: center;
 		gap: 0;
+		min-width: 0;
 		position: relative;
 		z-index: 1;
 		-webkit-app-region: no-drag;
+	}
+
+	.desktop-menu-groups {
+		display: flex;
+		align-items: center;
+		min-width: 0;
+		flex-wrap: nowrap;
 	}
 
 	.menu-bar-drag-region {
@@ -922,5 +934,61 @@
 
 	:global(.dark) :global(.menu-separator) {
 		background: rgba(255, 255, 255, 0.1);
+	}
+
+	@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+		.menu-bar {
+			height: 44px;
+			padding: 0 6px;
+			font-size: 12px;
+		}
+
+		.menu-bar-left {
+			min-width: 0;
+			flex: 1;
+		}
+
+		.menu-bar-app-name {
+			max-width: none;
+			min-width: 0;
+			padding: 0 8px 0 2px;
+			font-size: 13px;
+		}
+
+		.desktop-menu-groups,
+		.desktop-menu-clock {
+			display: none;
+		}
+
+		.menu-bar-right { gap: 4px; }
+
+		:global(.menu-bar-logo),
+		:global(.menu-bar-avatar) {
+			min-width: 40px;
+			min-height: 40px;
+		}
+
+		:global(.menu-bar-avatar) { border-radius: 8px; }
+
+		:global(.menu-dropdown) {
+			position: fixed;
+			top: 48px;
+			left: 8px;
+			right: 8px;
+			width: auto;
+			max-height: calc(100dvh - 64px);
+			overflow-y: auto;
+			border-radius: 8px;
+		}
+
+		:global(.menu-dropdown.user-menu) {
+			left: 8px;
+			right: 8px;
+		}
+
+		:global(.menu-item) {
+			min-height: 44px;
+			font-size: 14px;
+		}
 	}
 </style>

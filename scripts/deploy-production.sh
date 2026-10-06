@@ -24,7 +24,7 @@ BACKEND_DIR="$REPO_ROOT/desktop/backend-go"
 FRONTEND_DIR="$REPO_ROOT/frontend"
 
 GCP_REGION="${GCP_REGION:-us-central1}"
-CF_PROJECT_NAME="${CF_PROJECT_NAME:-businessos}"
+CF_PROJECT_NAME="${CF_PROJECT_NAME:-businessos-5}"
 
 TARGET="${1:-all}"
 
@@ -78,13 +78,13 @@ deploy_frontend() {
   cd "$FRONTEND_DIR"
 
   log "Installing dependencies..."
-  npm ci
+  corepack pnpm install --frozen-lockfile
 
   log "Building for Cloudflare Pages (static SPA)..."
   CLOUDFLARE_BUILD=true \
   VITE_API_URL="https://api.businessos.dev/api/v1" \
   VITE_BACKEND_URL="https://api.businessos.dev" \
-  npm run build
+  corepack pnpm run build
 
   log "Deploying to Cloudflare Pages (project: $CF_PROJECT_NAME)..."
   npx wrangler pages deploy build \

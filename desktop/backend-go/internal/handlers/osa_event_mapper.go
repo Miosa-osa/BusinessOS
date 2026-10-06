@@ -33,6 +33,28 @@ func mapSingleEvent(evt osa.Event, inThinking *bool) *streaming.StreamEvent {
 	text, _ := evt.Data["text"].(string)
 
 	switch evt.Type {
+	case "tool_call":
+		name, _ := evt.Data["name"].(string)
+		phase, _ := evt.Data["phase"].(string)
+		status := "calling"
+		kind := streaming.EventTypeToolCall
+		if phase == "end" {
+			kind = streaming.EventTypeToolResult
+			status = "success"
+			if success, ok := evt.Data["success"].(bool); ok && !success {
+				status = "error"
+			}
+		}
+		return &streaming.StreamEvent{Type: kind, Data: streaming.ToolCallEvent{ToolName: name, Status: status}}
+	case "system_event":
+		event, _ := evt.Data["event"].(string)
+		if event != "permission_required" {
+			return nil
+		}
+		return &streaming.StreamEvent{Type: streaming.EventTypeThinkingChunk, Data: streaming.ThinkingStep{Step: "status", Content: "Waiting for a tool permission decision", Agent: "osa"}}
+	case "permission_request":
+		return &streaming.StreamEvent{Type: streaming.EventTypeThinkingChunk, Data: streaming.ThinkingStep{Step: "status", Content: "Waiting for a tool permission decision", Agent: "osa"}}
+
 	case osa.EventThinking:
 		content, _ := evt.Data["content"].(string)
 		step, _ := evt.Data["step"].(string)
@@ -107,8 +129,8 @@ func mapSingleEvent(evt osa.Event, inThinking *bool) *streaming.StreamEvent {
 		*inThinking = false
 		return nil
 
-	default:
-		// Handle streaming_token, llm_request, system_event, and other OSA events.
+	case "streaming_token":
+		// Only answer tokens may become visible text. Diagnostic events are not answers.
 		// OSA's streaming_token events carry text in the "text" field.
 		if text == "" {
 			// Also try "content" for other event types
@@ -137,6 +159,8 @@ func mapSingleEvent(evt osa.Event, inThinking *bool) *streaming.StreamEvent {
 			Type:    streaming.EventTypeToken,
 			Content: text,
 		}
+	default:
+		return nil
 	}
 }
 

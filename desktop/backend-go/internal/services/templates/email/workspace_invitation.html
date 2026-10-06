@@ -2,7 +2,7 @@
 <p class="eyebrow">Workspace invitation</p>
 <h1>{{.InviterName}} invited you to {{.WorkspaceName}}.</h1>
 
-<p>You've been invited to join the <strong class="text-primary">{{.WorkspaceName}}</strong> workspace on BusinessOS &mdash; the shared operating system where the team works together.</p>
+<p>You've been invited to join the <strong class="text-primary">{{.WorkspaceName}}</strong> workspace on BusinessOS, the shared operating system where the team works together.</p>
 
 {{if .PersonalMessage}}
 <div class="info-box accent">
@@ -18,13 +18,13 @@
 
 <div class="details-list">
     <table cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
-        <td width="50%" valign="top">
-            <dt>Your role</dt>
-            <dd><span class="badge badge-accent" style="margin-top:4px;">{{.Role}}</span></dd>
+        <td class="detail-cell" width="50%" valign="top">
+            <p class="detail-label">Your role</p>
+            <p class="detail-value"><span class="badge badge-accent detail-role">{{.Role}}</span></p>
         </td>
-        <td width="50%" valign="top">
-            <dt>Invited by</dt>
-            <dd>{{.InviterEmail}}</dd>
+        <td class="detail-cell" width="50%" valign="top">
+            <p class="detail-label">Invited by</p>
+            <p class="detail-value">{{.InviterEmail}}</p>
         </td>
     </tr></table>
 </div>
@@ -33,7 +33,7 @@
     <a href="{{.InvitationLink}}" class="button">Accept invitation</a>
 </div>
 
-<p class="text-center text-small text-muted">This invitation expires in {{.ExpiresIn}}.</p>
+<p class="text-center text-small text-muted">This invitation expires {{.ExpiresAt}}.</p>
 
 <div class="link-fallback">
     <p>Button not working? Paste this link into your browser:</p>

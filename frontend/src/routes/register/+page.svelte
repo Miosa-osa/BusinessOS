@@ -62,7 +62,7 @@
 	}
 
 	function handleGoogleSignUp() {
-		initiateGoogleOAuth();
+		initiateGoogleOAuth(undefined, redirectTo);
 	}
 </script>
 

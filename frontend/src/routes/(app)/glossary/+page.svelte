@@ -101,7 +101,7 @@
 				<Search size={15} />
 				<input bind:value={query} oninput={onSearch} placeholder="Search terms…" />
 			</div>
-			<button class="btn btn--primary" onclick={openNew}><Plus size={16} strokeWidth={2.4} />New term</button>
+			<button class="btn btn--primary" aria-label="New term" title="New term" onclick={openNew}><Plus size={16} strokeWidth={2.4} /><span class="btn-label">New term</span></button>
 		</div>
 	</header>
 
@@ -176,6 +176,17 @@
 	.btn--primary { background: var(--dt); color: var(--dbg); }
 	.btn--ghost { background: transparent; border-color: var(--dbd); color: var(--dt2); }
 	.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+	@media (max-width: 640px) {
+		.topbar { display: grid; grid-template-columns: auto minmax(0, 1fr) 36px; gap: 10px; padding: 12px 14px; }
+		.tools { display: contents; }
+		.search { min-width: 0; padding: 7px 9px; }
+		.search input { width: 100%; min-width: 0; }
+		.btn--primary { width: 36px; height: 36px; padding: 0; justify-content: center; }
+		.btn-label { display: none; }
+		.groups { padding-left: 14px; padding-right: 14px; }
+		.grid { grid-template-columns: minmax(0, 1fr); }
+		.card-actions { opacity: 1; }
+	}
 	.loading, .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--dt3); text-align: center; padding: 0 24px; }
 	.empty p { max-width: 420px; line-height: 1.5; }
 	.banner { margin: 14px 24px 0; padding: 11px 14px; border-radius: 10px; font-size: 0.83rem; }
@@ -212,4 +223,9 @@
 	.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 	:global(.spin) { animation: spin 0.9s linear infinite; }
 	@keyframes spin { to { transform: rotate(360deg); } }
+	@media (max-width: 640px) {
+		.groups { padding: 16px 14px; }
+		.grid { grid-template-columns: minmax(0, 1fr); }
+		.card-actions { opacity: 1; }
+	}
 </style>

@@ -33,13 +33,27 @@ func resolveWorkspaceIDBySlug(ctx context.Context, pool *pgxpool.Pool, slug stri
 // CLOUD knowledge paths (the shared knowledge_documents / workspace_storage
 // copy). Local single-tenant file paths are intentionally NOT gated.
 func userIsWorkspaceMember(ctx context.Context, pool *pgxpool.Pool, wsID, userID string) bool {
+	return userIsWorkspaceMemberByIdentity(ctx, pool, wsID, userID, "")
+}
+
+// userIsWorkspaceMemberByIdentity also matches the authenticated email. Local
+// and cloud databases can assign different IDs to the same account, while the
+// verified email remains the stable identity across both projections.
+func userIsWorkspaceMemberByIdentity(ctx context.Context, pool *pgxpool.Pool, wsID, userID, email string) bool {
 	if pool == nil || strings.TrimSpace(wsID) == "" || strings.TrimSpace(userID) == "" {
 		return false
 	}
 	var ok bool
 	if err := pool.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_id = $2 AND status = 'active')`,
-		wsID, userID).Scan(&ok); err != nil {
+		`SELECT EXISTS(
+			SELECT 1
+			FROM workspace_members wm
+			JOIN "user" u ON u.id = wm.user_id
+			WHERE wm.workspace_id = $1
+			  AND wm.status = 'active'
+			  AND (wm.user_id = $2 OR ($3 <> '' AND lower(u.email) = lower($3)))
+		)`,
+		wsID, userID, strings.TrimSpace(email)).Scan(&ok); err != nil {
 		return false
 	}
 	return ok
@@ -58,7 +72,7 @@ func (h *KnowledgeHandler) callerMemberOfSlug(c *gin.Context, pool *pgxpool.Pool
 	if !ok {
 		return false
 	}
-	return userIsWorkspaceMember(c.Request.Context(), pool, wsID, user.ID)
+	return userIsWorkspaceMemberByIdentity(c.Request.Context(), pool, wsID, user.ID, user.Email)
 }
 
 // cloudPool returns the pool that backs the cloud copy for storage/activation
@@ -114,6 +128,10 @@ func (h *KnowledgeHandler) ActivateCloudSync(c *gin.Context) {
 	wsID, ok := resolveWorkspaceIDBySlug(ctx, pool, slug)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown workspace: " + slug})
+		return
+	}
+	if !userIsWorkspaceMemberByIdentity(ctx, pool, wsID, user.ID, user.Email) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not a member of this workspace"})
 		return
 	}
 

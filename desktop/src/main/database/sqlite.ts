@@ -86,29 +86,27 @@ function runMigrations(database: Database.Database): void {
     .all()
     .map((row: any) => row.name);
 
-  // Get migration files
-  const migrationsDir = path.join(__dirname, "migrations");
+  // Packaged apps ship SQL migrations as an extra resource because Vite does
+  // not copy files that are only discovered dynamically at runtime.
+  const migrationCandidates = [
+    path.join(process.resourcesPath, "migrations"),
+    path.join(__dirname, "migrations"),
+    path.join(app.getAppPath(), "src/main/database/migrations"),
+  ];
+  const migrationsDir = migrationCandidates.find((candidate) =>
+    fs.existsSync(candidate),
+  );
 
-  // In development, the migrations might be in a different location
   let migrationFiles: string[] = [];
-
-  if (fs.existsSync(migrationsDir)) {
+  if (migrationsDir) {
     migrationFiles = fs
       .readdirSync(migrationsDir)
       .filter((f) => f.endsWith(".sql"))
       .sort();
   } else {
-    // Try to find migrations in the source directory during development
-    const devMigrationsDir = path.join(
-      app.getAppPath(),
-      "src/main/database/migrations",
+    throw new Error(
+      `SQLite migrations are missing. Checked: ${migrationCandidates.join(", ")}`,
     );
-    if (fs.existsSync(devMigrationsDir)) {
-      migrationFiles = fs
-        .readdirSync(devMigrationsDir)
-        .filter((f) => f.endsWith(".sql"))
-        .sort();
-    }
   }
 
   // Apply pending migrations
@@ -116,9 +114,7 @@ function runMigrations(database: Database.Database): void {
     if (!appliedMigrations.includes(file)) {
       console.log(`Applying migration: ${file}`);
 
-      const migrationPath = fs.existsSync(migrationsDir)
-        ? path.join(migrationsDir, file)
-        : path.join(app.getAppPath(), "src/main/database/migrations", file);
+      const migrationPath = path.join(migrationsDir, file);
 
       const sql = fs.readFileSync(migrationPath, "utf-8");
 

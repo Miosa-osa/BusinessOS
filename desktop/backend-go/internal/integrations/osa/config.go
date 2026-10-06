@@ -2,6 +2,8 @@ package osa
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"time"
 )
 
@@ -26,10 +28,10 @@ type Config struct {
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
-		BaseURL:      "http://localhost:8089",
-		Timeout:      30 * time.Second,
-		MaxRetries:   3,
-		RetryDelay:   2 * time.Second,
+		BaseURL:    "http://localhost:8089",
+		Timeout:    30 * time.Second,
+		MaxRetries: 3,
+		RetryDelay: 2 * time.Second,
 	}
 }
 
@@ -39,8 +41,14 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("OSA base URL is required")
 	}
 
-	if c.SharedSecret == "" {
-		return fmt.Errorf("OSA shared secret is required")
+	u, err := url.Parse(c.BaseURL)
+	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return fmt.Errorf("OSA base URL must be an HTTP or HTTPS URL")
+	}
+	ip := net.ParseIP(u.Hostname())
+	loopback := u.Hostname() == "localhost" || (ip != nil && ip.IsLoopback())
+	if c.SharedSecret == "" && !loopback {
+		return fmt.Errorf("OSA shared secret is required for remote runtimes")
 	}
 
 	if c.Timeout <= 0 {

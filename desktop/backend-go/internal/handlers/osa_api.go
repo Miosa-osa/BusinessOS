@@ -1,12 +1,9 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -219,31 +216,11 @@ func (h *OSAAPIHandler) HandleOSAHealth(c *gin.Context) {
 		return
 	}
 
-	// Fetch model info directly from OSA (SDK HealthStatus doesn't include model)
-	model := ""
-	if osaBaseURL := os.Getenv("OSA_BASE_URL"); osaBaseURL != "" {
-		type rawHealth struct {
-			Model string `json:"model"`
-		}
-		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
-		defer cancel()
-		req, _ := http.NewRequestWithContext(ctx, "GET", osaBaseURL+"/health", nil)
-		if req != nil {
-			if resp, err := http.DefaultClient.Do(req); err == nil {
-				defer resp.Body.Close()
-				var rh rawHealth
-				if json.NewDecoder(resp.Body).Decode(&rh) == nil {
-					model = rh.Model
-				}
-			}
-		}
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"enabled":  true,
 		"status":   health.Status,
 		"version":  health.Version,
-		"model":    model,
+		"model":    health.Model,
 		"provider": health.Provider,
 	})
 }
@@ -283,63 +260,37 @@ func (h *OSAAPIHandler) HandleOSAConfig(c *gin.Context) {
 		return
 	}
 
-	// Forward config to OSA's /api/v1/config endpoint
-	osaBaseURL := os.Getenv("OSA_BASE_URL")
-	if osaBaseURL == "" {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "OSA not configured"})
+	if h.osaClient == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "OSA is not connected"})
 		return
-	}
-
-	configBody := map[string]string{
-		"provider": req.Provider,
-		"model":    req.Model,
 	}
 	if req.URL != "" {
-		configBody["url"] = req.URL
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Configure provider URLs in the OSA runtime"})
+		return
 	}
-
-	bodyBytes, _ := json.Marshal(configBody)
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", osaBaseURL+"/api/v1/config", bytes.NewReader(bodyBytes))
+	result, err := h.osaClient.UpdateModel(ctx, req.Provider, req.Model)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "OSA rejected the model change", "detail": err.Error()})
 		return
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	c.JSON(http.StatusOK, gin.H{"success": true, "applied": true, "provider": result.Provider, "model": result.Model})
+}
 
-	// Add shared secret auth
-	if secret := os.Getenv("OSA_SHARED_SECRET"); secret != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+secret)
+// HandleOSAModels returns provider readiness and models from the installed OSA runtime.
+func (h *OSAAPIHandler) HandleOSAModels(c *gin.Context) {
+	if h.osaClient == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "OSA is not connected"})
+		return
 	}
-
-	resp, err := http.DefaultClient.Do(httpReq)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+	catalog, err := h.osaClient.ModelCatalog(ctx)
 	if err != nil {
-		slog.Warn("OSA config update failed", "error", err)
-		// Still return success — local state was already updated on frontend
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"applied": false,
-			"message": "Config saved locally but OSA instance not reachable",
-		})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Could not load models from OSA"})
 		return
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		slog.Warn("OSA config rejected", "status", resp.StatusCode)
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"applied": false,
-			"message": "Config saved locally but OSA rejected the change",
-		})
-		return
-	}
-
-	slog.Info("OSA config updated", "provider", req.Provider, "model", req.Model)
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"applied": true,
-	})
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, catalog)
 }

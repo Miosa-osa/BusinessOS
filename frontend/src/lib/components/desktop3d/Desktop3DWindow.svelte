@@ -10,6 +10,7 @@
 		isNextWindow: boolean;
 		isPrevWindow: boolean;
 		isHovered: boolean;
+		compact?: boolean;
 		viewMode: ViewMode;
 		onClick?: () => void;
 		onResize?: (widthDelta: number, heightDelta: number) => void;
@@ -22,6 +23,7 @@
 		isNextWindow = false,
 		isPrevWindow = false,
 		isHovered = false,
+		compact = false,
 		viewMode = 'orb',
 		onClick,
 		onResize,
@@ -178,7 +180,7 @@
 
 	// Calculate target scale
 	function getTargetScale(): number {
-		if (isFocused) return 2.2; // Large focused window
+		if (isFocused) return compact ? 5 : 2.2;
 		if (isNextWindow || isPrevWindow) return 0.9; // Side previews visible
 		if (viewMode === 'focused') return 0.5; // Background windows much smaller
 		return 1;
@@ -353,17 +355,27 @@
 					</div>
 				</div>
 
-				<!-- LIVE Content - Always show iframe -->
+				<!-- Compact devices keep previews lightweight and load only the focused module. -->
 				<div class="window-content">
-					<iframe
-						bind:this={iframeElement}
-						src="{getModuleRoute(window.module)}?embed=true"
-						title={window.title}
-						class="window-iframe"
-						sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
-						loading="eager"
-						tabindex="0"
-					></iframe>
+					{#if !compact || isFocused}
+						<iframe
+							bind:this={iframeElement}
+							src="{getModuleRoute(window.module)}?embed=true"
+							title={window.title}
+							class="window-iframe"
+							sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+							loading={compact ? 'lazy' : 'eager'}
+							tabindex="0"
+						></iframe>
+					{:else}
+						<div class="compact-preview" aria-hidden="true">
+							<div class="compact-preview-mark" style="background: {window.color};">
+								{window.title.slice(0, 1).toUpperCase()}
+							</div>
+							<strong>{window.title}</strong>
+							<span>Tap to open</span>
+						</div>
+					{/if}
 				</div>
 			</div>
 
@@ -572,6 +584,38 @@
 		border: none;
 		pointer-events: none;
 		outline: none;
+	}
+
+	.compact-preview {
+		display: flex;
+		height: 100%;
+		align-items: center;
+		justify-content: center;
+		flex-direction: column;
+		gap: 18px;
+		background: var(--dbg);
+		color: var(--dt);
+		text-align: center;
+	}
+
+	.compact-preview-mark {
+		display: grid;
+		width: 112px;
+		height: 112px;
+		place-items: center;
+		border-radius: 8px;
+		color: white;
+		font-size: 48px;
+		font-weight: 750;
+	}
+
+	.compact-preview strong {
+		font-size: 34px;
+	}
+
+	.compact-preview span {
+		color: var(--dt3);
+		font-size: 22px;
 	}
 
 	.window-wrapper.focused .window-iframe {

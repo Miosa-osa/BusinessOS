@@ -183,6 +183,10 @@ func isValidRedirectURL(redirectURL string) bool {
 		return true
 	}
 
+	if isDevelopmentDesktopRelayURL(redirectURL) {
+		return true
+	}
+
 	// Allow absolute URLs to known frontend origins (for dev + production)
 	allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
 	for _, origin := range allowedOrigins {
@@ -193,6 +197,26 @@ func isValidRedirectURL(redirectURL string) bool {
 	}
 
 	return false
+}
+
+func isDevelopmentDesktopRelayURL(redirectURL string) bool {
+	if os.Getenv("ENVIRONMENT") != "development" {
+		return false
+	}
+	parsed, err := url.Parse(redirectURL)
+	if err != nil {
+		return false
+	}
+	return parsed.Scheme == "http" &&
+		parsed.Host == "127.0.0.1:43821" &&
+		parsed.Path == "/auth/callback" &&
+		parsed.RawQuery == "" &&
+		parsed.Fragment == ""
+}
+
+func isDesktopSessionHandoff(redirectURL string) bool {
+	return strings.HasPrefix(redirectURL, "businessos://") ||
+		isDevelopmentDesktopRelayURL(redirectURL)
 }
 
 // InitiateGoogleLogin starts the Google OAuth flow for login
@@ -233,7 +257,10 @@ func (h *GoogleAuthHandler) InitiateGoogleLogin(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("oauth_state", state, 600, "/", cookieDomain, isProduction, true)
 	c.SetCookie("oauth_redirect", redirectAfter, 600, "/", cookieDomain, isProduction, true)
-	if strings.HasPrefix(redirectAfter, "businessos://") {
+	// Remove any legacy host-only session cookie before leaving app.businessos.dev.
+	// Otherwise it can coexist with the parent-domain cookie created on callback.
+	clearHostOnlySessionCookie(c)
+	if isDesktopSessionHandoff(redirectAfter) {
 		desktopGoogleOAuthStates.store(state, redirectAfter, 10*time.Minute)
 	}
 
@@ -345,23 +372,11 @@ func (h *GoogleAuthHandler) HandleGoogleLoginCallback(c *gin.Context) {
 	}
 	c.SetCookie("oauth_state", "", -1, "/", cookieDomain, isProduction, true)
 	c.SetCookie("oauth_redirect", "", -1, "/", cookieDomain, isProduction, true)
-	domain := os.Getenv("COOKIE_DOMAIN")
-	if domain == "" {
-		domain = "" // Current domain
+	sessionCookieValue, err := setSessionCookie(c, sessionToken)
+	if err != nil {
+		utils.RespondInternalError(c, slog.Default(), "sign session cookie", err)
+		return
 	}
-
-	sameSite := sessionCookieSameSite(isProduction)
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "better-auth.session_token",
-		Value:    sessionToken,
-		Path:     "/",
-		Domain:   domain,
-		MaxAge:   60 * 60 * 24 * 7, // 7 days
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
 
 	// Desktop deep-link: the Electron app launched from the system browser can
 	// not read the cookie we just set (different process / no shared cookie jar),
@@ -373,7 +388,7 @@ func (h *GoogleAuthHandler) HandleGoogleLoginCallback(c *gin.Context) {
 		if strings.Contains(redirectAfter, "?") {
 			sep = "&"
 		}
-		redirectAfter = redirectAfter + sep + "token=" + url.QueryEscape(sessionToken)
+		redirectAfter = redirectAfter + sep + "token=" + url.QueryEscape(sessionCookieValue)
 
 		// A browser can't navigate to a custom scheme via a redirect (the tab just
 		// hangs "loading"). Return a tiny page that fires the deep link to open the
@@ -381,6 +396,15 @@ func (h *GoogleAuthHandler) HandleGoogleLoginCallback(c *gin.Context) {
 		c.Header("Content-Type", "text/html; charset=utf-8")
 		c.Header("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; navigate-to businessos:; base-uri 'none'; form-action 'none'")
 		c.String(http.StatusOK, desktopAuthCompletePage(redirectAfter))
+		return
+	}
+
+	if isDevelopmentDesktopRelayURL(redirectAfter) {
+		sep := "?"
+		if strings.Contains(redirectAfter, "?") {
+			sep = "&"
+		}
+		c.Redirect(http.StatusTemporaryRedirect, redirectAfter+sep+"token="+url.QueryEscape(sessionCookieValue))
 		return
 	}
 
@@ -532,33 +556,13 @@ func (h *GoogleAuthHandler) createSession(ctx context.Context, userID string) (s
 
 // GetCurrentSession returns the current user session
 func (h *GoogleAuthHandler) GetCurrentSession(c *gin.Context) {
-	sessionCookie, err := c.Cookie("better-auth.session_token")
-	if err != nil || sessionCookie == "" {
+	sessionTokens := middleware.SessionTokenCandidates(c.Request)
+	if len(sessionTokens) == 0 {
 		c.JSON(http.StatusOK, gin.H{
 			"user":    nil,
 			"session": nil,
 		})
 		return
-	}
-
-	// SECURITY: Never log session tokens, even masked versions in debug mode
-	// Session tokens are sensitive credentials that can be used for account takeover
-
-	// URL-decode the cookie (consistent with auth middleware)
-	sessionCookie, err = url.QueryUnescape(sessionCookie)
-	if err != nil {
-		slog.Warn("get_session: URL decode failed", "error", err)
-		c.JSON(http.StatusOK, gin.H{
-			"user":    nil,
-			"session": nil,
-		})
-		return
-	}
-
-	// Strip signature part if present (consistent with auth middleware)
-	sessionToken := sessionCookie
-	if idx := strings.Index(sessionCookie, "."); idx != -1 {
-		sessionToken = sessionCookie[:idx]
 	}
 
 	// Look up session
@@ -571,12 +575,14 @@ func (h *GoogleAuthHandler) GetCurrentSession(c *gin.Context) {
 	var sessionExpiresAt time.Time
 	var userCreatedAt time.Time
 
-	err = h.pool.QueryRow(ctx, `
+	err := h.pool.QueryRow(ctx, `
 		SELECT u.id, u.name, u.email, u."emailVerified", u.image, u."createdAt", COALESCE(u.platform_role, 'user'), s.id, s."expiresAt"
 		FROM session s
 		JOIN "user" u ON s."userId" = u.id
-		WHERE s.token = $1 AND s."expiresAt" > NOW()
-	`, sessionToken).Scan(
+		WHERE s.token = ANY($1) AND s."expiresAt" > NOW()
+		ORDER BY s."createdAt" DESC
+		LIMIT 1
+	`, sessionTokens).Scan(
 		&userID, &userName, &userEmail, &emailVerified, &userImage, &userCreatedAt, &platformRole, &sessionID, &sessionExpiresAt,
 	)
 
@@ -681,31 +687,24 @@ func isTrustedGoogleAvatarURL(rawURL string) bool {
 
 // Logout clears the current session
 func (h *GoogleAuthHandler) Logout(c *gin.Context) {
-	sessionCookie, err := c.Cookie("better-auth.session_token")
-	if err == nil && sessionCookie != "" {
-		// URL decode the cookie
-		sessionCookie, _ = url.QueryUnescape(sessionCookie)
-
-		// Extract token (before HMAC signature dot)
-		sessionToken := sessionCookie
-		if idx := strings.Index(sessionCookie, "."); idx != -1 {
-			sessionToken = sessionCookie[:idx]
-		}
-
+	sessionTokens := middleware.SessionTokenCandidates(c.Request)
+	if len(sessionTokens) > 0 {
 		// Invalidate Redis cache first (if available)
 		cacheInvalidated := false
 		if h.sessionCache != nil {
-			if err := h.sessionCache.Invalidate(c.Request.Context(), sessionToken); err != nil {
-				slog.Warn("Logout: cache invalidation error", "error", err)
-			} else {
-				cacheInvalidated = true
+			cacheInvalidated = true
+			for _, token := range sessionTokens {
+				if err := h.sessionCache.Invalidate(c.Request.Context(), token); err != nil {
+					slog.Warn("Logout: cache invalidation error", "error", err)
+					cacheInvalidated = false
+				}
 			}
 		}
 
 		// Delete session from database
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 		defer cancel()
-		_, err := h.pool.Exec(ctx, `DELETE FROM session WHERE token = $1`, sessionToken)
+		_, err := h.pool.Exec(ctx, `DELETE FROM session WHERE token = ANY($1)`, sessionTokens)
 		if err != nil {
 			slog.Error("Logout: database session deletion failed", "error", err)
 			// SECURITY: If DB delete fails but cache was invalidated, session is partially logged out
@@ -718,25 +717,7 @@ func (h *GoogleAuthHandler) Logout(c *gin.Context) {
 		}
 	}
 
-	// Clear cookie with strict security configuration (must match how it was set)
-	isProduction := os.Getenv("ENVIRONMENT") == "production"
-	domain := os.Getenv("COOKIE_DOMAIN")
-	if domain == "" {
-		domain = "" // Current domain
-	}
-
-	sameSite := sessionCookieSameSite(isProduction)
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "better-auth.session_token",
-		Value:    "",
-		Path:     "/",
-		Domain:   domain,
-		MaxAge:   -1, // Delete cookie
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
+	clearSessionCookies(c)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out"})
 }
@@ -782,25 +763,7 @@ func (h *GoogleAuthHandler) LogoutAllSessions(c *gin.Context) {
 	rowsAffected := result.RowsAffected()
 	slog.Info("LogoutAllSessions: sessions invalidated", "sessions_deleted", rowsAffected, "user_id", user.ID)
 
-	// Clear current session cookie with strict security configuration (must match how it was set)
-	isProduction := os.Getenv("ENVIRONMENT") == "production"
-	domain := os.Getenv("COOKIE_DOMAIN")
-	if domain == "" {
-		domain = "" // Current domain
-	}
-
-	sameSite := sessionCookieSameSite(isProduction)
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "better-auth.session_token",
-		Value:    "",
-		Path:     "/",
-		Domain:   domain,
-		MaxAge:   -1, // Delete cookie
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
+	clearSessionCookies(c)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":          "All sessions invalidated",

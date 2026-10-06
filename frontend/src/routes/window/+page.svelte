@@ -87,6 +87,10 @@
 				'http://127.0.0.1:5273'
 			]);
 			if (!allowedOrigins.has(event.origin)) return;
+			if (event.data?.type === 'businessos:session-required') {
+				goto('/login?redirect=%2Fwindow', { replaceState: true });
+				return;
+			}
 			const data = event.data as {
 				type?: string;
 				app?: {
@@ -197,12 +201,18 @@
 		}
 	});
 
+	type SavedCanvasView = {
+		zoom?: unknown;
+		pan?: { x?: unknown; y?: unknown };
+		compact?: unknown;
+	};
+
 	function readSavedCanvasViews() {
 		if (!browser) return {};
 		try {
 			const parsed = JSON.parse(localStorage.getItem(CANVAS_VIEW_STORAGE_KEY) || '{}');
 			if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-			return parsed as Record<string, { zoom?: unknown; pan?: { x?: unknown; y?: unknown } }>;
+			return parsed as Record<string, SavedCanvasView>;
 		} catch {
 			return {};
 		}
@@ -213,7 +223,8 @@
 		const views = readSavedCanvasViews();
 		views[$windowStore.activeDesktopId] = {
 			zoom: infinityZoom,
-			pan: { x: infinityPan.x, y: infinityPan.y }
+			pan: { x: infinityPan.x, y: infinityPan.y },
+			compact: isCompactCanvas
 		};
 		localStorage.setItem(CANVAS_VIEW_STORAGE_KEY, JSON.stringify(views));
 	}
@@ -232,9 +243,15 @@
 		const saved = readSavedCanvasViews()[desktopId];
 		if (!saved) {
 			resetInfinityView(false);
+			pendingCompactCanvasFit = isCompactCanvas;
 			return;
 		}
 		const zoom = typeof saved.zoom === 'number' ? saved.zoom : 1;
+		if (isCompactCanvas && (saved.compact !== true || zoom < CANVAS_COMPACT_MIN_FIT_ZOOM)) {
+			resetInfinityView(false);
+			pendingCompactCanvasFit = true;
+			return;
+		}
 		const panX = typeof saved.pan?.x === 'number' ? saved.pan.x : 0;
 		const panY = typeof saved.pan?.y === 'number' ? saved.pan.y : 0;
 		infinityZoom = Number(clampCanvasZoom(zoom).toFixed(3));
@@ -322,6 +339,7 @@
 	const CANVAS_FIT_PADDING = 96;
 	const CANVAS_DEFAULT_CONTENT_WIDTH = 1400;
 	const CANVAS_DEFAULT_CONTENT_HEIGHT = 900;
+	const CANVAS_COMPACT_MIN_FIT_ZOOM = 0.35;
 	const CANVAS_MIN_CURSOR_SCALE = 0.72;
 	const CANVAS_MAX_CURSOR_SCALE = 24;
 	const CANVAS_VIEW_STORAGE_KEY = 'businessos-canvas-views';
@@ -350,13 +368,33 @@
 	let isPanningInfinity = $state(false);
 	let isSpacePanningCanvas = $state(false);
 	let infinityPanStart = $state({ x: 0, y: 0, panX: 0, panY: 0 });
+	let canvasPointers = new Map<number, { x: number; y: number }>();
+	let canvasPinchStart: {
+		distance: number;
+		zoom: number;
+		anchorCanvasX: number;
+		anchorCanvasY: number;
+	} | null = null;
 	let dismissedDesktopStarters = $state<string[]>([]);
 	let lastCanvasViewDesktopId = $state('');
+	let pendingCompactCanvasFit = $state(false);
+	const isCompactCanvas = $derived(workspaceWidth > 0 && workspaceWidth <= 768);
 	const canvasCursorScale = $derived(
 		isCanvasDesktop && infinityZoom < CANVAS_MIN_CURSOR_SCALE
 			? Number(Math.min(CANVAS_MAX_CURSOR_SCALE, CANVAS_MIN_CURSOR_SCALE / infinityZoom).toFixed(2))
 			: 1
 	);
+
+	$effect(() => {
+		if (!browser || !isCanvasDesktop || !isCompactCanvas || workspaceWidth <= 0 || workspaceHeight <= 0) return;
+		const saved = readSavedCanvasViews()[$windowStore.activeDesktopId];
+		const needsReadableMobileView =
+			pendingCompactCanvasFit || saved?.compact !== true || infinityZoom < CANVAS_COMPACT_MIN_FIT_ZOOM;
+		if (!needsReadableMobileView) return;
+		pendingCompactCanvasFit = false;
+		const frame = requestAnimationFrame(() => fitInfinityView());
+		return () => cancelAnimationFrame(frame);
+	});
 
 	// Track icon positions (pixel-based for dragging)
 	let iconPositions = $state<Record<string, { x: number; y: number }>>({});
@@ -617,7 +655,7 @@
 
 	$effect(() => {
 		if (!$session.isPending && !$session.data) {
-			goto('/login');
+			goto('/login?redirect=%2Fwindow', { replaceState: true });
 		}
 	});
 
@@ -1052,6 +1090,111 @@
 		return true;
 	}
 
+	function isCanvasControl(target: EventTarget | null) {
+		return target instanceof HTMLElement && Boolean(
+			target.closest('button, input, textarea, select, a, .window, .desktop-icon, .desktop-starter, .infinity-toolbar')
+		);
+	}
+
+	function canvasPointerPair() {
+		const points = [...canvasPointers.values()];
+		if (points.length < 2) return null;
+		const [first, second] = points;
+		return {
+			midpointX: (first.x + second.x) / 2,
+			midpointY: (first.y + second.y) / 2,
+			distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y))
+		};
+	}
+
+	function beginCanvasPinch() {
+		const pair = canvasPointerPair();
+		if (!pair) return;
+		const anchor = canvasPointFromClient(pair.midpointX, pair.midpointY);
+		canvasPinchStart = {
+			distance: pair.distance,
+			zoom: infinityZoom,
+			anchorCanvasX: anchor.canvasX,
+			anchorCanvasY: anchor.canvasY
+		};
+	}
+
+	function handleCanvasPointerDown(event: PointerEvent) {
+		if (!isCanvasDesktop || event.pointerType === 'mouse' || isCanvasControl(event.target)) return;
+		event.preventDefault();
+		workspaceElement?.setPointerCapture(event.pointerId);
+		canvasPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+		isPanningInfinity = true;
+		if (canvasPointers.size === 1) {
+			infinityPanStart = {
+				x: event.clientX,
+				y: event.clientY,
+				panX: infinityPan.x,
+				panY: infinityPan.y
+			};
+			canvasPinchStart = null;
+		} else if (canvasPointers.size === 2) {
+			beginCanvasPinch();
+		}
+	}
+
+	function handleCanvasPointerMove(event: PointerEvent) {
+		if (!canvasPointers.has(event.pointerId)) return;
+		event.preventDefault();
+		canvasPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+		if (canvasPointers.size >= 2 && canvasPinchStart) {
+			const pair = canvasPointerPair();
+			if (!pair) return;
+			const rect = workspaceElement?.getBoundingClientRect();
+			const viewportX = rect ? pair.midpointX - rect.left : pair.midpointX;
+			const viewportY = rect ? pair.midpointY - rect.top : pair.midpointY;
+			const nextZoom = Number(clampCanvasZoom(
+				canvasPinchStart.zoom * (pair.distance / canvasPinchStart.distance)
+			).toFixed(3));
+			infinityZoom = nextZoom;
+			infinityPan = {
+				x: viewportX - canvasPinchStart.anchorCanvasX * nextZoom,
+				y: viewportY - canvasPinchStart.anchorCanvasY * nextZoom
+			};
+			didSelectionDrag = true;
+			scheduleCanvasViewSave();
+			return;
+		}
+
+		const pointer = canvasPointers.values().next().value as { x: number; y: number } | undefined;
+		if (!pointer) return;
+		const movedX = pointer.x - infinityPanStart.x;
+		const movedY = pointer.y - infinityPanStart.y;
+		infinityPan = {
+			x: infinityPanStart.panX + movedX,
+			y: infinityPanStart.panY + movedY
+		};
+		if (Math.abs(movedX) > 3 || Math.abs(movedY) > 3) didSelectionDrag = true;
+		scheduleCanvasViewSave();
+	}
+
+	function handleCanvasPointerEnd(event: PointerEvent) {
+		if (!canvasPointers.has(event.pointerId)) return;
+		canvasPointers.delete(event.pointerId);
+		if (workspaceElement?.hasPointerCapture(event.pointerId)) {
+			workspaceElement.releasePointerCapture(event.pointerId);
+		}
+		canvasPinchStart = null;
+		const remaining = canvasPointers.values().next().value as { x: number; y: number } | undefined;
+		if (remaining) {
+			infinityPanStart = {
+				x: remaining.x,
+				y: remaining.y,
+				panX: infinityPan.x,
+				panY: infinityPan.y
+			};
+		} else {
+			isPanningInfinity = false;
+			saveCanvasView();
+		}
+	}
+
 	function stopInfinityPan() {
 		isPanningInfinity = false;
 		isSpacePanningCanvas = false;
@@ -1076,12 +1219,26 @@
 	}
 
 	function fitInfinityView() {
-		const bounds = getCanvasContentBounds();
+		const focusedCanvasWindow = isCompactCanvas && $focusedWindow && !$focusedWindow.minimized
+			? $focusedWindow
+			: null;
+		const bounds = focusedCanvasWindow
+			? {
+				minX: focusedCanvasWindow.x,
+				minY: focusedCanvasWindow.y,
+				maxX: focusedCanvasWindow.x + focusedCanvasWindow.width,
+				maxY: focusedCanvasWindow.y + focusedCanvasWindow.height
+			}
+			: getCanvasContentBounds();
 		const contentWidth = Math.max(1, bounds.maxX - bounds.minX);
 		const contentHeight = Math.max(1, bounds.maxY - bounds.minY);
-		const availableWidth = Math.max(320, workspaceWidth - CANVAS_FIT_PADDING * 2);
-		const availableHeight = Math.max(240, workspaceHeight - CANVAS_FIT_PADDING * 2);
-		const nextZoom = clampCanvasZoom(Math.min(availableWidth / contentWidth, availableHeight / contentHeight, 1));
+		const fitPadding = isCompactCanvas ? 16 : CANVAS_FIT_PADDING;
+		const availableWidth = Math.max(1, workspaceWidth - fitPadding * 2);
+		const availableHeight = Math.max(1, workspaceHeight - fitPadding * 2);
+		const calculatedZoom = Math.min(availableWidth / contentWidth, availableHeight / contentHeight, 1);
+		const nextZoom = clampCanvasZoom(
+			isCompactCanvas ? Math.max(CANVAS_COMPACT_MIN_FIT_ZOOM, calculatedZoom) : calculatedZoom
+		);
 		infinityZoom = Number(nextZoom.toFixed(3));
 		infinityPan = {
 			x: Math.round((workspaceWidth - contentWidth * infinityZoom) / 2 - bounds.minX * infinityZoom),
@@ -1547,6 +1704,10 @@
 					onclick={handleDesktopClick}
 					onmousedown={handleDesktopMouseDown}
 					onmousemove={handleDesktopMouseMove}
+					onpointerdown={handleCanvasPointerDown}
+					onpointermove={handleCanvasPointerMove}
+					onpointerup={handleCanvasPointerEnd}
+					onpointercancel={handleCanvasPointerEnd}
 					onwheel={handleInfinityWheel}
 					oncontextmenu={handleContextMenu}
 					role="application"
@@ -1570,7 +1731,9 @@
 									<h1>{isInfinityDesktop ? 'Infinity Desktop' : activeDesktopName}</h1>
 									<p>
 										{isInfinityDesktop
-											? 'Open modules, arrange windows, pan the canvas with the trackpad, and zoom with Command-scroll.'
+											? isCompactCanvas
+												? 'Tap a module to open it. Drag empty space to move around and pinch to zoom.'
+												: 'Open modules, arrange windows, pan the canvas with the trackpad, and zoom with Command-scroll.'
 											: 'This shared desktop is a team canvas. Add modules and apps, arrange windows, and follow teammates as they work.'}
 									</p>
 								<div class="starter-actions">
@@ -1580,9 +1743,15 @@
 								</div>
 								{#if isCanvasDesktop}
 									<div class="starter-shortcuts">
-										<span>Scroll pans</span>
-										<span>Command-scroll zooms</span>
-										<span>Middle-drag moves canvas</span>
+										{#if isCompactCanvas}
+											<span>Drag to pan</span>
+											<span>Pinch to zoom</span>
+											<span>Tap to open</span>
+										{:else}
+											<span>Scroll pans</span>
+											<span>Command-scroll zooms</span>
+											<span>Middle-drag moves canvas</span>
+										{/if}
 									</div>
 								{/if}
 							</div>
@@ -1837,6 +2006,8 @@
 		.desktop-workspace.infinity-workspace {
 			cursor: grab;
 			background: transparent;
+			touch-action: none;
+			overscroll-behavior: none;
 		}
 
 		.desktop-workspace.infinity-workspace:active {
@@ -2016,20 +2187,100 @@
 			font-size: 12px;
 			font-weight: 800;
 			cursor: pointer;
+			touch-action: manipulation;
 		}
 
 		.infinity-toolbar button:hover {
 			background: rgba(255, 255, 255, 0.2);
 		}
 
-		@media (max-width: 768px) {
+		@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
 		.desktop-environment {
 			/* Ensure no horizontal overflow on mobile */
 			overflow: hidden;
-			touch-action: none;
+			touch-action: manipulation;
 		}
 		.desktop-workspace {
-			bottom: 72px;
+			top: 44px !important;
+			bottom: 70px;
+		}
+
+		.desktop-workspace.infinity-workspace {
+			top: 98px !important;
+		}
+
+		.desktop-starter {
+			top: 46%;
+			width: calc(100vw - 24px);
+			padding: 18px;
+			border-radius: 8px;
+		}
+
+		.starter-close {
+			top: 8px;
+			right: 8px;
+			width: 36px;
+			height: 36px;
+			border-radius: 6px;
+		}
+
+		.infinity-toolbar {
+			left: 8px;
+			right: 8px;
+			top: 50px !important;
+			bottom: auto;
+			box-sizing: border-box;
+			width: auto;
+			max-width: none;
+			height: 40px;
+			min-height: 40px;
+			padding: 0 6px;
+			gap: 4px;
+			overflow-x: auto;
+			border-radius: 8px;
+			transform: none;
+			scrollbar-width: none;
+		}
+
+		.infinity-toolbar::-webkit-scrollbar {
+			display: none;
+		}
+
+		.infinity-toolbar span {
+			display: none;
+		}
+
+		.infinity-toolbar button {
+			height: 30px;
+			min-width: 30px;
+			padding: 0 10px;
+			border-radius: 6px;
+		}
+
+		.infinity-toolbar strong {
+			min-width: 40px;
+		}
+
+		.desktop-workspace:not(.infinity-workspace) .infinity-canvas-layer {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+			grid-auto-rows: max-content;
+			align-content: start;
+			gap: 8px 4px;
+			box-sizing: border-box;
+			padding: 12px 8px 28px;
+			overflow-y: auto;
+			overscroll-behavior: contain;
+			-webkit-overflow-scrolling: touch;
+		}
+
+		.desktop-workspace:not(.infinity-workspace) .desktop-icon-wrapper {
+			position: relative !important;
+			left: auto !important;
+			top: auto !important;
+			display: flex;
+			justify-content: center;
+			min-width: 0;
 		}
 	}
 

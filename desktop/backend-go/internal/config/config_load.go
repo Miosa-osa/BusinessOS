@@ -103,6 +103,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("OSA_ENABLED", false)
 	viper.SetDefault("OSA_BASE_URL", "http://localhost:8089")
 	viper.SetDefault("OSA_SHARED_SECRET", "")
+	viper.SetDefault("OSA_WEBHOOK_SECRET", "")
 	viper.SetDefault("OSA_TIMEOUT", 30) // seconds
 	viper.SetDefault("OSA_MAX_RETRIES", 3)
 	viper.SetDefault("OSA_RETRY_DELAY", 2) // seconds

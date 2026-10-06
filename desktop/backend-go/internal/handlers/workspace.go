@@ -56,6 +56,11 @@ func NewWorkspaceHandler(
 // outside the workspace-scoped group (no role context injection needed).
 func RegisterWorkspaceRoutes(api *gin.RouterGroup, h *WorkspaceHandler, auth gin.HandlerFunc) {
 	workspaces := api.Group("/workspaces")
+
+	// Invite recipients need to inspect the workspace and invited email before
+	// signing in. Validation is read-only and still protected by CSRF middleware.
+	workspaces.POST("/invites/validate", h.ValidateWorkspaceInvite)
+
 	workspaces.Use(auth, middleware.RequireAuth())
 	{
 		// Workspace CRUD - no role context needed for create/list
@@ -121,8 +126,7 @@ func RegisterWorkspaceRoutes(api *gin.RouterGroup, h *WorkspaceHandler, auth gin
 			workspaceScoped.POST("/restore/:version", middleware.RequireWorkspaceAdmin(), h.RestoreWorkspaceVersion)
 		}
 
-		// Public invite endpoints - no workspace context required
-		workspaces.POST("/invites/validate", h.ValidateWorkspaceInvite)
+		// Acceptance requires an authenticated user whose email matches the invite.
 		workspaces.POST("/invites/accept", h.AcceptWorkspaceInvite)
 	}
 }

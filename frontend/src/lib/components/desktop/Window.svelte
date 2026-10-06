@@ -265,6 +265,7 @@
 	class:maximized={isEffectivelyMaximized}
 	class:dragging={isDragging}
 	class:resizing={isResizing}
+	class:unbounded
 	style="
 		left: {bounds().x}px;
 		top: {bounds().y}px;
@@ -868,5 +869,74 @@
 
 	:global(.dark) .window-placeholder {
 		color: #6e6e73;
+	}
+
+	@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+		.window:not(.unbounded) {
+			left: 0 !important;
+			top: 0 !important;
+			width: 100% !important;
+			height: 100% !important;
+			transform: none !important;
+			border: 0;
+			border-radius: 0;
+			box-shadow: none;
+			transition: none;
+		}
+
+		.window.unbounded {
+			transition: box-shadow 0.2s ease;
+		}
+
+		.title-bar {
+			height: 44px;
+			padding: 0 6px;
+			cursor: default;
+			background: rgba(248, 248, 248, 0.96);
+		}
+
+		.window-controls {
+			gap: 0;
+		}
+
+		.control-button {
+			position: relative;
+			width: 40px;
+			height: 40px;
+			background: transparent !important;
+			border-radius: 6px;
+		}
+
+		.control-button::before {
+			content: '';
+			position: absolute;
+			width: 12px;
+			height: 12px;
+			border-radius: 50%;
+		}
+
+		.control-button.close::before { background: #ff5f57; }
+		.control-button.minimize::before { background: #ffbd2e; }
+		.control-button.maximize { display: none; }
+
+		.control-icon {
+			position: relative;
+			z-index: 1;
+		}
+
+		.title-text {
+			padding: 0 8px;
+			font-size: 14px;
+			font-weight: 650;
+		}
+
+		.title-spacer { width: 80px; }
+
+		.window-content {
+			overscroll-behavior: contain;
+			-webkit-overflow-scrolling: touch;
+		}
+
+		.resize-handle { display: none; }
 	}
 </style>

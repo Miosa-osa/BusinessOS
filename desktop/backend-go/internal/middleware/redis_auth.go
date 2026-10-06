@@ -250,33 +250,13 @@ func (sc *SessionCache) InvalidateUserSessions(ctx context.Context, userID strin
 // CachedAuthMiddleware provides Redis-cached session validation with PostgreSQL fallback
 func CachedAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Extract session token
-		sessionCookie, err := c.Cookie(SessionCookieName)
-		if err != nil || sessionCookie == "" {
-			slog.Debug("cached_auth: no session cookie found", "error", err)
+		sessionTokens := SessionTokenCandidates(c.Request)
+		if len(sessionTokens) == 0 {
+			slog.Debug("cached_auth: no valid session cookie found")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
 			return
 		}
-
-		slog.Debug("cached_auth: processing session cookie", "masked_token", maskToken(sessionCookie))
-
-		sessionCookie, err = url.QueryUnescape(sessionCookie)
-		if err != nil {
-			slog.Warn("cached_auth: URL decode failed", "error", err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid session cookie"})
-			return
-		}
-
-		slog.Debug("cached_auth: decoded session cookie", "masked_token", maskToken(sessionCookie))
-
-		sessionToken, valid := verifySessionCookie(sessionCookie)
-		if !valid {
-			slog.Debug("cached_auth: invalid session cookie signature")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid session signature"})
-			return
-		}
-
-		slog.Debug("cached_auth: extracted session token", "masked_token", maskToken(sessionToken))
+		sessionToken := sessionTokens[0]
 
 		ctx := c.Request.Context()
 
@@ -311,7 +291,7 @@ func CachedAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.HandlerFu
 		defer cancel()
 
 		var user BetterAuthUser
-		err = pool.QueryRow(dbCtx, `
+		err := pool.QueryRow(dbCtx, `
 			SELECT u.id, u.name, u.email, u."emailVerified", u.image, u."createdAt", u."updatedAt"
 			FROM session s
 			JOIN "user" u ON s."userId" = u.id
@@ -351,24 +331,12 @@ func CachedAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.HandlerFu
 // CachedOptionalAuthMiddleware allows unauthenticated requests with Redis caching
 func CachedOptionalAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		sessionCookie, err := c.Cookie(SessionCookieName)
-		if err != nil || sessionCookie == "" {
+		sessionTokens := SessionTokenCandidates(c.Request)
+		if len(sessionTokens) == 0 {
 			c.Next()
 			return
 		}
-
-		sessionCookie, err = url.QueryUnescape(sessionCookie)
-		if err != nil {
-			c.Next()
-			return
-		}
-
-		sessionToken, valid := verifySessionCookie(sessionCookie)
-		if !valid {
-			slog.Debug("CachedOptionalAuthMiddleware: invalid session cookie signature")
-			c.Next()
-			return
-		}
+		sessionToken := sessionTokens[0]
 
 		ctx := c.Request.Context()
 
@@ -397,7 +365,7 @@ func CachedOptionalAuthMiddleware(pool *pgxpool.Pool, cache *SessionCache) gin.H
 		defer cancel()
 
 		var user BetterAuthUser
-		err = pool.QueryRow(dbCtx, `
+		err := pool.QueryRow(dbCtx, `
 			SELECT u.id, u.name, u.email, u."emailVerified", u.image, u."createdAt", u."updatedAt"
 			FROM session s
 			JOIN "user" u ON s."userId" = u.id

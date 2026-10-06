@@ -647,7 +647,11 @@ func bootstrap(ctx context.Context) (*AppServices, error) {
 			slog.Info("OSA build event bus initialized")
 
 			osaWorkflowsHandler = handlers.NewOSAWorkflowsHandler(app.pool, osaFileSyncService)
-			osaWebhooksHandler, err = handlers.NewOSAWebhooksHandler(app.pool, cfg.OSA.SharedSecret, osaBuildEventBus, cfg.IsProduction())
+			webhookSecret := cfg.OSAWebhookSecret
+			if webhookSecret == "" {
+				webhookSecret = cfg.OSA.SharedSecret
+			}
+			osaWebhooksHandler, err = handlers.NewOSAWebhooksHandler(app.pool, webhookSecret, osaBuildEventBus, cfg.IsProduction())
 			if err != nil {
 				return nil, fmt.Errorf("failed to initialize OSA webhooks handler: %w", err)
 			}

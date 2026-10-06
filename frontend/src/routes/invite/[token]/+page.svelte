@@ -1,244 +1,209 @@
 <script lang="ts">
-	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import { Building2, Check, Loader2, Mail, ShieldCheck, X } from 'lucide-svelte';
+	import { initCSRF } from '$lib/api/base';
+	import { acceptWorkspaceInvite, validateWorkspaceInvite } from '$lib/api/workspaces';
 	import { useSession } from '$lib/auth-client';
-	import { acceptWorkspaceInvite } from '$lib/api/workspaces';
 	import { switchWorkspace } from '$lib/stores/workspaces';
-	import { Check, X, Loader2, Mail, Building2, LogIn } from 'lucide-svelte';
-	import { fade, fly } from 'svelte/transition';
+
+	type Status = 'validating' | 'ready' | 'accepting' | 'success' | 'error';
 
 	const session = useSession();
-	
-	type Status = 'idle' | 'accepting' | 'success' | 'error';
-	
-	let status = $state<Status>('idle');
-	let errorMessage = $state('');
-	let workspaceName = $state('');
-
 	const token = $derived($page.params.token);
-	const isLoggedIn = $derived(!$session.isPending && $session.data?.user);
-	const loginUrl = $derived(`/login?redirect=/invite/${token}`);
+	const returnPath = $derived(`/invite/${token}?accept=1`);
+	const loginUrl = $derived(`/login?redirect=${encodeURIComponent(returnPath)}`);
+	const isLoggedIn = $derived(!$session.isPending && Boolean($session.data?.user));
+
+	let status = $state<Status>('validating');
+	let workspaceName = $state('this workspace');
+	let invitedEmail = $state('');
+	let role = $state('member');
+	let expiresAt = $state('');
+	let errorMessage = $state('');
+	let autoAcceptStarted = $state(false);
+	let joinedWorkspaceId = $state('');
+
+	onMount(async () => {
+		if (!token) return showError('This invitation link is incomplete.');
+		try {
+			await initCSRF();
+			const invite = await validateWorkspaceInvite(token);
+			if (!invite.valid) return showError(invite.error || 'This invitation is no longer available.');
+			workspaceName = invite.workspace_name || 'this workspace';
+			invitedEmail = invite.email || '';
+			role = invite.role || 'member';
+			expiresAt = invite.expires_at || '';
+			status = 'ready';
+		} catch (error) {
+			showError(error instanceof Error ? error.message : 'We could not verify this invitation.');
+		}
+	});
+
+	$effect(() => {
+		const shouldAccept = $page.url.searchParams.get('accept') === '1';
+		if (status === 'ready' && isLoggedIn && shouldAccept && !autoAcceptStarted) {
+			autoAcceptStarted = true;
+			void handleAccept();
+		}
+	});
+
+	function showError(message: string) {
+		status = 'error';
+		errorMessage = message;
+	}
 
 	async function handleAccept() {
-		if (!isLoggedIn) {
-			goto(loginUrl);
-			return;
-		}
-
+		if (!isLoggedIn) return void goto(loginUrl);
+		if (!token) return showError('This invitation link is incomplete.');
 		status = 'accepting';
 		errorMessage = '';
-
-		if (!token) {
-			status = 'error';
-			errorMessage = 'Invalid invitation link';
-			return;
-		}
-
 		try {
-			const res = await acceptWorkspaceInvite(token);
-			// Make the workspace they just joined the ACTIVE one, so they land in it
-			// (not their auto-created personal workspace). Best-effort - never block
-			// the success state on the switch.
-			if (res?.workspace_id) {
-				try {
-					await switchWorkspace(res.workspace_id);
-				} catch {
-					/* switch is best-effort; the membership is already created */
-				}
+			await initCSRF();
+			const result = await acceptWorkspaceInvite(token);
+			if (result?.workspace_id) {
+				joinedWorkspaceId = result.workspace_id;
+				await switchWorkspace(result.workspace_id);
 			}
 			status = 'success';
-
-			// Redirect to dashboard after short delay
-			setTimeout(() => {
-				goto('/dashboard');
-			}, 2000);
-		} catch (err) {
-			status = 'error';
-			errorMessage = err instanceof Error ? err.message : 'Failed to accept invitation';
+		} catch (error) {
+			showError(error instanceof Error ? error.message : 'We could not accept this invitation.');
 		}
+	}
+
+	async function openWorkspace() {
+		if (joinedWorkspaceId) await switchWorkspace(joinedWorkspaceId);
+		await goto('/dashboard');
+	}
+
+	function formatRole(value: string) {
+		return value.split(/[_-]/).filter(Boolean).map((part) => part[0].toUpperCase() + part.slice(1)).join(' ');
+	}
+
+	function formatDate(value: string) {
+		if (!value) return '';
+		const date = new Date(`${value}T12:00:00`);
+		return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('en-US', {
+			month: 'long', day: 'numeric', year: 'numeric'
+		}).format(date);
 	}
 </script>
 
 <svelte:head>
-	<title>Accept Invitation | BusinessOS</title>
+	<title>Workspace invitation | BusinessOS</title>
 </svelte:head>
 
-<div class="invite-shell min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[var(--bos-background-primary-color)] p-4">
-	<div
-		class="invite-card bg-white dark:bg-[var(--bos-background-secondary-color)] rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
-		in:fly={{ y: 20, duration: 400 }}
-	>
-		<!-- Header -->
-		<div class="invite-header bg-gradient-to-br from-blue-500 to-blue-600 px-8 py-10 text-center text-white">
-			<div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-				<Building2 class="w-8 h-8" />
-			</div>
-			<h1 class="text-2xl font-bold mb-1">You're Invited!</h1>
-			<p class="text-blue-100 text-sm">You've been invited to join a workspace</p>
-		</div>
+<div class="page-shell">
+	<header class="brand-bar">
+		<a class="brand" href="/" aria-label="BusinessOS home">
+			<span class="brand-mark"><Building2 size={17} /></span>
+			<span>BUSINESS<span class="muted">OS</span></span>
+		</a>
+	</header>
 
-		<!-- Content -->
-		<div class="invite-content px-8 py-8">
-			{#if status === 'idle'}
-				<div in:fade={{ duration: 200 }}>
-					{#if $session.isPending}
-						<div class="flex items-center justify-center py-8">
-							<Loader2 class="w-6 h-6 animate-spin text-gray-400" />
-						</div>
-					{:else if !isLoggedIn}
-						<!-- Not logged in state -->
-						<div class="text-center">
-							<div class="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-								<LogIn class="w-6 h-6 text-amber-600 dark:text-amber-400" />
-							</div>
-							<h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-								Sign in to Continue
-							</h2>
-							<p class="text-gray-500 dark:text-gray-400 text-sm mb-6">
-								Please sign in or create an account to accept this invitation.
-							</p>
-							<button
-								onclick={() => goto(loginUrl)}
-								class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors"
-							>
-								Sign In to Accept
-							</button>
-							<p class="mt-4 text-xs text-gray-400 dark:text-gray-500">
-								Don't have an account? You can create one after clicking above.
-							</p>
-						</div>
-					{:else}
-						<!-- Logged in state -->
-						<div class="text-center">
-							<div class="flex items-center justify-center gap-3 mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
-								<Mail class="w-5 h-5 text-gray-400" />
-								<span class="text-sm text-gray-600 dark:text-gray-300">
-									Signed in as <strong>{$session.data?.user?.email}</strong>
-								</span>
-							</div>
-							<p class="text-gray-500 dark:text-gray-400 text-sm mb-6">
-								Click below to accept the invitation and join the workspace.
-							</p>
-							<button
-								onclick={handleAccept}
-								class="btn-pill btn-pill-primary w-full flex items-center justify-center gap-2"
-							>
-								<Check class="w-5 h-5" />
-								Accept Invitation
-							</button>
-						</div>
-					{/if}
+	<main>
+		<section class="invite-panel" aria-live="polite">
+			{#if status === 'validating'}
+				<div class="center-state">
+					<Loader2 class="spinner" size={28} />
+					<h1>Checking your invitation</h1>
+					<p>One moment while BusinessOS verifies the link.</p>
 				</div>
-
-			{:else if status === 'accepting'}
-				<div class="text-center py-8" in:fade={{ duration: 200 }}>
-					<Loader2 class="w-10 h-10 animate-spin text-blue-500 mx-auto mb-4" />
-					<p class="text-gray-600 dark:text-gray-300">Accepting invitation...</p>
-				</div>
-
-			{:else if status === 'success'}
-				<div class="text-center py-4" in:fade={{ duration: 200 }}>
-					<div class="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-						<Check class="w-8 h-8 text-green-600 dark:text-green-400" />
-					</div>
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-						Welcome to the Team!
-					</h2>
-					<p class="text-gray-500 dark:text-gray-400 text-sm mb-4">
-						You've successfully joined the workspace.
-					</p>
-					<p class="text-gray-400 dark:text-gray-500 text-xs">
-						Redirecting to dashboard...
-					</p>
-				</div>
-
 			{:else if status === 'error'}
-				<div class="text-center py-4" in:fade={{ duration: 200 }}>
-					<div class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-						<X class="w-8 h-8 text-red-600 dark:text-red-400" />
-					</div>
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-						Unable to Accept
-					</h2>
-					<p class="text-gray-500 dark:text-gray-400 text-sm mb-6">
-						{errorMessage || 'This invitation may have expired or already been used.'}
-					</p>
-					<div class="flex flex-col gap-3">
-						<button
-							onclick={() => status = 'idle'}
-							class="w-full py-3 px-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-xl transition-colors"
-						>
-							Try Again
-						</button>
-						<a
-							href="/login"
-							class="w-full py-3 px-4 text-blue-600 dark:text-blue-400 font-medium text-center hover:underline"
-						>
-							Go to Login
-						</a>
-					</div>
+				<div class="center-state">
+					<span class="status-icon error"><X size={24} /></span>
+					<p class="eyebrow">Workspace invitation</p>
+					<h1>Invitation unavailable</h1>
+					<p>{errorMessage}</p>
+					<a class="secondary-button" href="/login">Go to BusinessOS sign in</a>
 				</div>
-			{/if}
-		</div>
+			{:else if status === 'success'}
+				<div class="center-state">
+					<span class="status-icon success"><Check size={25} /></span>
+					<p class="eyebrow">Invitation accepted</p>
+					<h1>You joined {workspaceName}</h1>
+					<p>Your BusinessOS workspace is ready.</p>
+					<div class="success-details">
+						<span><small>Workspace</small>{workspaceName}</span>
+						<span><small>Signed in as</small>{$session.data?.user?.email}</span>
+					</div>
+					<button class="primary-button" onclick={openWorkspace}>Open {workspaceName}</button>
+				</div>
+			{:else}
+				<div class="center-state">
+					<span class="workspace-icon"><Building2 size={22} /></span>
+					<p class="eyebrow">BusinessOS workspace invitation</p>
+					<h1>Join {workspaceName}</h1>
+					<p>You have been invited to work with the {workspaceName} team in BusinessOS.</p>
+				</div>
 
-		<!-- Footer -->
-		<div class="invite-footer px-8 py-4 bg-gray-50 dark:bg-[#252527] border-t border-gray-100 dark:border-gray-700">
-			<p class="text-xs text-center text-gray-400 dark:text-gray-500">
-				By accepting, you agree to the workspace's terms and conditions.
-			</p>
-		</div>
-	</div>
+				<div class="invite-details">
+					<div><Mail size={17} /><span><small>Invited account</small>{invitedEmail || 'Your invited email address'}</span></div>
+					<div><ShieldCheck size={17} /><span><small>Workspace role</small>{formatRole(role)}</span></div>
+				</div>
+
+				{#if status === 'accepting'}
+					<button class="primary-button" disabled><Loader2 class="spinner" size={18} />Joining {workspaceName}</button>
+				{:else if isLoggedIn}
+					<p class="helper">Signed in as <strong>{$session.data?.user?.email}</strong></p>
+					{#if invitedEmail && $session.data?.user?.email?.toLowerCase() !== invitedEmail.toLowerCase()}
+						<p class="account-warning">This invitation is for {invitedEmail}. Sign in with that account to accept it.</p>
+					{/if}
+					<button class="primary-button" onclick={handleAccept}>Accept and join workspace</button>
+				{:else}
+					<a class="primary-button" href={loginUrl}>Sign in to accept</a>
+					<p class="helper">Use {invitedEmail || 'the email address that received this invitation'} when you sign in or create your account.</p>
+				{/if}
+				{#if expiresAt}<p class="expiry">Invitation expires {formatDate(expiresAt)}</p>{/if}
+			{/if}
+		</section>
+	</main>
+	<footer>BusinessOS by MIOSA</footer>
 </div>
 
 <style>
-	@media (max-width: 480px) {
-		.invite-shell {
-			padding: 0.75rem;
-			align-items: flex-start;
-			padding-top: 2rem;
-		}
-
-		.invite-card {
-			border-radius: 1rem;
-		}
-
-		.invite-header {
-			padding-left: 1.25rem;
-			padding-right: 1.25rem;
-			padding-top: 2rem;
-			padding-bottom: 2rem;
-		}
-
-		.invite-content {
-			padding-left: 1.25rem;
-			padding-right: 1.25rem;
-		}
-
-		.invite-footer {
-			padding-left: 1.25rem;
-			padding-right: 1.25rem;
-		}
-	}
-
-	@media (max-width: 320px) {
-		.invite-shell {
-			padding: 0;
-			align-items: flex-start;
-		}
-
-		.invite-card {
-			border-radius: 0;
-			box-shadow: none;
-		}
-
-		.invite-header {
-			padding-left: 1rem;
-			padding-right: 1rem;
-		}
-
-		.invite-content {
-			padding-left: 1rem;
-			padding-right: 1rem;
-		}
+	:global(body) { margin: 0; background: #f5f6f7; color: #111318; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+	.page-shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+	.brand-bar { height: 64px; display: flex; align-items: center; border-bottom: 1px solid #dedfe2; background: white; padding: 0 32px; }
+	.brand { display: inline-flex; align-items: center; gap: 10px; color: #111318; font-size: 14px; font-weight: 750; letter-spacing: 0; text-decoration: none; }
+	.brand-mark, .workspace-icon, .status-icon { display: inline-grid; place-items: center; border-radius: 6px; background: #111318; color: white; }
+	.brand-mark { width: 30px; height: 30px; }
+	.muted { color: #8b8e95; font-weight: 650; }
+	main { display: grid; place-items: center; padding: 48px 20px; }
+	.invite-panel { width: min(100%, 560px); box-sizing: border-box; border: 1px solid #d9dadd; border-radius: 8px; background: white; padding: 40px; box-shadow: 0 16px 48px rgba(17,19,24,.08); }
+	.center-state { text-align: center; }
+	.workspace-icon, .status-icon { width: 48px; height: 48px; margin-bottom: 20px; }
+	.status-icon.success { background: #e6f4ea; color: #217a3c; }
+	.status-icon.error { background: #fce8e8; color: #b42318; }
+	.eyebrow { margin: 0 0 10px; color: #6c7078; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+	h1 { margin: 0; font-size: clamp(26px, 5vw, 34px); line-height: 1.15; letter-spacing: 0; }
+	.center-state > p:not(.eyebrow) { margin: 14px auto 0; max-width: 420px; color: #646871; font-size: 15px; line-height: 1.6; }
+	.invite-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 30px 0 24px; }
+	.invite-details > div { min-width: 0; display: flex; align-items: flex-start; gap: 10px; border: 1px solid #e2e3e6; border-radius: 6px; background: #fafafa; padding: 14px; font-size: 13px; font-weight: 600; }
+	.invite-details svg { flex: 0 0 auto; color: #6c7078; }
+	.invite-details span { min-width: 0; overflow-wrap: anywhere; }
+	.invite-details small { display: block; margin-bottom: 4px; color: #7a7e86; font-size: 11px; font-weight: 600; }
+	.success-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 28px 0 18px; text-align: left; }
+	.success-details span { min-width: 0; border: 1px solid #e2e3e6; border-radius: 6px; background: #fafafa; padding: 13px 14px; font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+	.success-details small { display: block; margin-bottom: 4px; color: #7a7e86; font-size: 11px; font-weight: 600; }
+	.primary-button, .secondary-button { width: 100%; min-height: 46px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 9px; border: 1px solid #111318; border-radius: 6px; padding: 11px 16px; font: inherit; font-size: 14px; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer; }
+	.primary-button { background: #111318; color: white; }
+	.primary-button:hover:not(:disabled) { background: #2b2e34; }
+	.primary-button:disabled { cursor: wait; opacity: .72; }
+	.secondary-button { width: auto; margin-top: 26px; background: white; color: #111318; }
+	.helper, .expiry, .account-warning { margin: 12px 0; color: #6c7078; font-size: 12px; line-height: 1.5; text-align: center; overflow-wrap: anywhere; }
+	.account-warning { border-left: 3px solid #bd7b00; background: #fff8e8; color: #694500; padding: 10px 12px; text-align: left; }
+	.expiry { margin-top: 20px; }
+	.spinner { animation: spin .8s linear infinite; }
+	.center-state .spinner { margin-bottom: 18px; color: #555a63; }
+	footer { padding: 0 20px 24px; color: #8b8e95; font-size: 11px; text-align: center; }
+	@keyframes spin { to { transform: rotate(360deg); } }
+	@media (max-width: 560px) {
+		.brand-bar { padding: 0 18px; }
+		main { align-items: start; padding: 24px 12px; }
+		.invite-panel { padding: 28px 20px; }
+		.invite-details { grid-template-columns: 1fr; }
+		.success-details { grid-template-columns: 1fr; }
 	}
 </style>

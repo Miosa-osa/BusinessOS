@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -9,27 +10,29 @@ import (
 
 // Message response transformation
 type MessageResponse struct {
-	ID             string `json:"id"`
-	ConversationID string `json:"conversation_id"`
-	Role           string `json:"role"`
-	Content        string `json:"content"`
-	CreatedAt      string `json:"created_at"`
+	Metadata       json.RawMessage `json:"metadata,omitempty"`
+	ID             string          `json:"id"`
+	ConversationID string          `json:"conversation_id"`
+	Role           string          `json:"role"`
+	Content        string          `json:"content"`
+	CreatedAt      string          `json:"created_at"`
 }
 
-func TransformMessage(m sqlc.Message) MessageResponse {
+func TransformMessage(m sqlc.Message, location ...*time.Location) MessageResponse {
 	return MessageResponse{
 		ID:             pgtypeUUIDToStringRequired(m.ID),
+		Metadata:       m.MessageMetadata,
 		ConversationID: pgtypeUUIDToStringRequired(m.ConversationID),
 		Role:           strings.ToLower(string(m.Role)),
 		Content:        m.Content,
-		CreatedAt:      m.CreatedAt.Time.Format(time.RFC3339),
+		CreatedAt:      formatConversationTime(m.CreatedAt.Time, location...),
 	}
 }
 
-func TransformMessages(messages []sqlc.Message) []MessageResponse {
+func TransformMessages(messages []sqlc.Message, location ...*time.Location) []MessageResponse {
 	result := make([]MessageResponse, len(messages))
 	for i, m := range messages {
-		result[i] = TransformMessage(m)
+		result[i] = TransformMessage(m, location...)
 	}
 	return result
 }
@@ -45,7 +48,7 @@ type ConversationResponse struct {
 	MessageCount int64   `json:"message_count"`
 }
 
-func TransformConversation(c sqlc.Conversation) ConversationResponse {
+func TransformConversation(c sqlc.Conversation, location ...*time.Location) ConversationResponse {
 	title := "New Conversation"
 	if c.Title != nil {
 		title = *c.Title
@@ -56,12 +59,12 @@ func TransformConversation(c sqlc.Conversation) ConversationResponse {
 		UserID:    c.UserID,
 		Title:     title,
 		ContextID: pgtypeUUIDToString(c.ContextID),
-		CreatedAt: c.CreatedAt.Time.Format(time.RFC3339),
-		UpdatedAt: c.UpdatedAt.Time.Format(time.RFC3339),
+		CreatedAt: formatConversationTime(c.CreatedAt.Time, location...),
+		UpdatedAt: formatConversationTime(c.UpdatedAt.Time, location...),
 	}
 }
 
-func TransformConversationListRow(c sqlc.ListConversationsRow) ConversationResponse {
+func TransformConversationListRow(c sqlc.ListConversationsRow, location ...*time.Location) ConversationResponse {
 	title := "New Conversation"
 	if c.Title != nil {
 		title = *c.Title
@@ -72,21 +75,21 @@ func TransformConversationListRow(c sqlc.ListConversationsRow) ConversationRespo
 		UserID:       c.UserID,
 		Title:        title,
 		ContextID:    pgtypeUUIDToString(c.ContextID),
-		CreatedAt:    c.CreatedAt.Time.Format(time.RFC3339),
-		UpdatedAt:    c.UpdatedAt.Time.Format(time.RFC3339),
+		CreatedAt:    formatConversationTime(c.CreatedAt.Time, location...),
+		UpdatedAt:    formatConversationTime(c.UpdatedAt.Time, location...),
 		MessageCount: c.MessageCount,
 	}
 }
 
-func TransformConversationListRows(conversations []sqlc.ListConversationsRow) []ConversationResponse {
+func TransformConversationListRows(conversations []sqlc.ListConversationsRow, location ...*time.Location) []ConversationResponse {
 	result := make([]ConversationResponse, len(conversations))
 	for i, c := range conversations {
-		result[i] = TransformConversationListRow(c)
+		result[i] = TransformConversationListRow(c, location...)
 	}
 	return result
 }
 
-func TransformConversationByContextRow(c sqlc.ListConversationsByContextRow) ConversationResponse {
+func TransformConversationByContextRow(c sqlc.ListConversationsByContextRow, location ...*time.Location) ConversationResponse {
 	title := "New Conversation"
 	if c.Title != nil {
 		title = *c.Title
@@ -97,16 +100,25 @@ func TransformConversationByContextRow(c sqlc.ListConversationsByContextRow) Con
 		UserID:       c.UserID,
 		Title:        title,
 		ContextID:    pgtypeUUIDToString(c.ContextID),
-		CreatedAt:    c.CreatedAt.Time.Format(time.RFC3339),
-		UpdatedAt:    c.UpdatedAt.Time.Format(time.RFC3339),
+		CreatedAt:    formatConversationTime(c.CreatedAt.Time, location...),
+		UpdatedAt:    formatConversationTime(c.UpdatedAt.Time, location...),
 		MessageCount: c.MessageCount,
 	}
 }
 
-func TransformConversationsByContextRows(conversations []sqlc.ListConversationsByContextRow) []ConversationResponse {
+func TransformConversationsByContextRows(conversations []sqlc.ListConversationsByContextRow, location ...*time.Location) []ConversationResponse {
 	result := make([]ConversationResponse, len(conversations))
 	for i, c := range conversations {
-		result[i] = TransformConversationByContextRow(c)
+		result[i] = TransformConversationByContextRow(c, location...)
 	}
 	return result
+}
+
+// These columns are timestamp without time zone. PostgreSQL writes NOW() in
+// the connection time zone, while pgx decodes the wall clock as UTC by default.
+func formatConversationTime(value time.Time, locations ...*time.Location) string {
+	if len(locations) > 0 && locations[0] != nil {
+		value = time.Date(value.Year(), value.Month(), value.Day(), value.Hour(), value.Minute(), value.Second(), value.Nanosecond(), locations[0])
+	}
+	return value.Format(time.RFC3339)
 }

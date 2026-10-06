@@ -37,7 +37,7 @@ export const moduleDefaults: Record<
     minHeight: 400,
   },
   chat: {
-    title: "Chat",
+    title: "Conversations",
     width: 900,
     height: 650,
     minWidth: 400,

@@ -1,17 +1,30 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import { Building2, RefreshCw } from "lucide-svelte";
   import { crm, formatCurrency } from "$lib/stores/crm";
+  import { currentWorkspace } from "$lib/stores/workspaces";
+  import { getClients } from "$lib/api/clients/clients";
   import type { Pipeline } from "$lib/api/crm";
+
+  let accountCount = $state(0);
+  let workspaceId = $state<string | null | undefined>(undefined);
 
   const openDeals = $derived($crm.deals.filter((deal) => deal.status !== "won" && deal.status !== "lost"));
   const openValue = $derived(openDeals.reduce((sum, deal) => sum + (deal.amount ?? 0), 0));
   const weightedValue = $derived(openDeals.reduce((sum, deal) => sum + ((deal.amount ?? 0) * (deal.probability ?? 0) / 100), 0));
 
-  onMount(async () => {
-    await Promise.all([crm.loadPipelines(), crm.loadCompanies()]);
+  $effect(() => {
+    const id = $currentWorkspace?.id ?? null;
+    if (id !== workspaceId) {
+      workspaceId = id;
+      void loadCRM();
+    }
   });
+
+  async function loadCRM() {
+    const [, accounts] = await Promise.all([crm.loadPipelines(), getClients()]);
+    accountCount = accounts.length;
+  }
 
   function selectPipeline(pipeline: Pipeline) {
     crm.selectPipeline(pipeline);
@@ -31,11 +44,11 @@
       <p>Companies, deals, pipeline stages, and sales activity for this workspace.</p>
     </div>
     <div class="header-actions">
-      <button class="secondary-button" type="button" onclick={() => goto("/crm/companies")}>
+      <button class="secondary-button" type="button" onclick={() => goto("/clients")}>
         <Building2 size={16} />
-        Companies
+        Accounts
       </button>
-      <button class="icon-button" type="button" aria-label="Refresh CRM" title="Refresh CRM" onclick={() => crm.loadPipelines()}>
+      <button class="icon-button" type="button" aria-label="Refresh CRM" title="Refresh CRM" onclick={loadCRM}>
         <RefreshCw size={16} class={$crm.loading ? "spinning" : ""} />
       </button>
     </div>
@@ -45,7 +58,7 @@
     <div><strong>{openDeals.length}</strong><span>Open deals</span></div>
     <div><strong>{formatCurrency(openValue)}</strong><span>Open value</span></div>
     <div><strong>{formatCurrency(weightedValue)}</strong><span>Weighted value</span></div>
-    <div><strong>{$crm.companies.length}</strong><span>Companies</span></div>
+    <div><strong>{accountCount}</strong><span>Accounts</span></div>
   </section>
 
   <div class="pipeline-toolbar">
@@ -144,7 +157,11 @@
   .spinning { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (max-width: 760px) {
-    .page-header { align-items: flex-start; padding: 16px; }
+    .page-header { align-items: flex-start; padding: 16px; gap: 12px; }
+    .page-header > div:first-child { min-width: 0; }
+    .page-header p { font-size: 12px; line-height: 1.4; }
+    .header-actions { flex: 0 0 auto; }
+    .secondary-button { width: 36px; padding: 0; font-size: 0; gap: 0; }
     .metrics { grid-template-columns: repeat(2, 1fr); }
     .metrics div:nth-child(2) { border-right: 0; }
     .metrics div:nth-child(-n+2) { border-bottom: 1px solid var(--dbd, #e5e5e5); }

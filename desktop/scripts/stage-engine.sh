@@ -45,4 +45,29 @@ rsync -a \
   "$ENGINE_REL"/ "$DEST"/
 # Belt-and-suspenders: drop any FIFO/socket that slipped through.
 find "$DEST" \( -type p -o -type s \) -delete 2>/dev/null || true
+
+# Native NIFs built by Homebrew retain absolute references to Homebrew dylibs.
+# A hardened app cannot load those external files because they are signed by a
+# different team. Copy each dependency beside its consumer and rewrite the load
+# command so the release is self-contained.
+if [ "$(uname -s)" = "Darwin" ]; then
+  while IFS= read -r binary; do
+    while IFS= read -r dependency; do
+      [ -n "$dependency" ] || continue
+      dependency_name="$(basename "$dependency")"
+      bundled_dependency="$(dirname "$binary")/$dependency_name"
+      if [ ! -f "$bundled_dependency" ]; then
+        cp "$dependency" "$bundled_dependency"
+        chmod u+w "$bundled_dependency"
+        install_name_tool -id "@loader_path/$dependency_name" "$bundled_dependency" 2>/dev/null || true
+      fi
+      install_name_tool -change "$dependency" "@loader_path/$dependency_name" "$binary"
+    done < <(
+      otool -L "$binary" 2>/dev/null \
+        | tail -n +2 \
+        | awk '{print $1}' \
+        | grep -E '^(/opt/homebrew|/usr/local)/' || true
+    )
+  done < <(find "$DEST" -type f \( -name '*.so' -o -name '*.dylib' \))
+fi
 echo "Staged $(du -sh "$DEST" | awk '{print $1}') to resources/engine/${PLATFORM}-${ARCH}"

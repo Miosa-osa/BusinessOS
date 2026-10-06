@@ -1,18 +1,6 @@
-<!--
-	VoiceControlPanel — thin wrapper around shared OsaOrb for the 3D Desktop.
-	All behavior lives in OsaOrb.svelte.
--->
-
 <script lang="ts">
-	import OsaOrb from '$lib/components/osa/OsaOrb.svelte';
-
-	interface Props {
-		isListening: boolean;
-		isSpeaking: boolean;
-		onToggleListening: () => void;
-	}
-
-	let { isListening, isSpeaking, onToggleListening }: Props = $props();
+  import OsaOrb from '$lib/components/osa/OsaOrb.svelte';
 </script>
 
-<OsaOrb {isListening} {isSpeaking} {onToggleListening} />
+<!-- All desktop orbs share the same saved OSA voice conversation. -->
+<OsaOrb />

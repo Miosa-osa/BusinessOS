@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rhl/businessos-backend/internal/knowledgefilter"
 	"github.com/rhl/businessos-backend/internal/middleware"
 	"github.com/rhl/businessos-backend/internal/services"
 )
@@ -53,10 +54,11 @@ const defaultStorageLimitBytes int64 = 1073741824
 
 // kbDoc is one collected markdown document.
 type kbDoc struct {
-	Path    string
-	Title   string
-	Body    string
-	Section string
+	Path     string
+	Title    string
+	Body     string
+	Section  string
+	Modified time.Time
 }
 
 // sectionOf derives the module section (top-level folder) from a relative path.
@@ -70,6 +72,7 @@ func sectionOf(rel string) string {
 // collectLocalDocs walks a workspace dir and returns every .md file (skipping dotdirs).
 func (h *KnowledgeHandler) collectLocalDocs(dir string) []kbDoc {
 	var docs []kbDoc
+	ignoreRules := knowledgefilter.Load(dir)
 	_ = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -88,11 +91,22 @@ func (h *KnowledgeHandler) collectLocalDocs(dir string) []kbDoc {
 			return nil
 		}
 		rel = filepath.ToSlash(rel)
+		if knowledgefilter.Ignored(rel, ignoreRules) {
+			return nil
+		}
+		lowerName := strings.ToLower(d.Name())
+		if strings.HasSuffix(lowerName, ".abstract.md") || strings.HasSuffix(lowerName, ".overview.md") {
+			return nil
+		}
 		data, e := os.ReadFile(p)
 		if e != nil {
 			return nil
 		}
-		docs = append(docs, kbDoc{Path: rel, Title: titleFromName(d.Name()), Body: string(data), Section: sectionOf(rel)})
+		var modified time.Time
+		if info, infoErr := d.Info(); infoErr == nil {
+			modified = info.ModTime()
+		}
+		docs = append(docs, kbDoc{Path: rel, Title: titleFromName(d.Name()), Body: string(data), Section: sectionOf(rel), Modified: modified})
 		return nil
 	})
 	return docs
@@ -157,17 +171,13 @@ func (h *KnowledgeHandler) SyncToCloud(c *gin.Context) {
 		return
 	}
 
-	// Resolve the workspace UUID (storage + activation are keyed by it) and the
-	// quota that applies. A sync fully replaces this workspace's docs, so the
-	// incoming payload size IS the new bytes_used -> we can enforce the limit up
-	// front, before the expensive delete/re-insert. Prefer the id the client
-	// supplied; fall back to resolving it from the workspaces table by slug so
-	// activation can be checked even before anything has ever synced.
-	wsIDStr := strings.TrimSpace(req.WorkspaceID)
-	if wsIDStr == "" {
-		if resolved, ok := resolveWorkspaceIDBySlug(ctx, cloud, req.Workspace); ok {
-			wsIDStr = resolved
-		}
+	// Resolve the workspace UUID in the cloud database. A local desktop and the
+	// cloud can assign different UUIDs to the same workspace slug, so a client-
+	// supplied local UUID must never drive cloud membership or storage checks.
+	wsIDStr, workspaceFound := resolveWorkspaceIDBySlug(ctx, cloud, req.Workspace)
+	if !workspaceFound {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "workspace does not exist in cloud"})
+		return
 	}
 	var wsID interface{}
 	if wsIDStr != "" {
@@ -176,7 +186,7 @@ func (h *KnowledgeHandler) SyncToCloud(c *gin.Context) {
 
 	// MULTI-TENANT GATE: only a member of this workspace may push its knowledge
 	// to the shared cloud copy. Requires the slug to resolve to a workspace_id.
-	if wsIDStr == "" || !userIsWorkspaceMember(ctx, cloud, wsIDStr, user.ID) {
+	if wsIDStr == "" || !userIsWorkspaceMemberByIdentity(ctx, cloud, wsIDStr, user.ID, user.Email) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "not a member of this workspace"})
 		return
 	}
@@ -473,7 +483,7 @@ func (h *KnowledgeHandler) GetStorage(c *gin.Context) {
 		}
 		// Multi-tenant gate: never report another workspace's usage to a
 		// non-member. Leaves the safe defaults in place if not a member.
-		if !userIsWorkspaceMember(ctx, pool, wsID, user.ID) {
+		if !userIsWorkspaceMemberByIdentity(ctx, pool, wsID, user.ID, user.Email) {
 			return
 		}
 		var bu, bl int64
@@ -531,7 +541,7 @@ func (h *KnowledgeHandler) dbTree(ctx context.Context, slug string) ([]kbNode, b
 	if h.pool == nil {
 		return nil, false
 	}
-	rows, err := h.pool.Query(ctx, `SELECT path, title FROM knowledge_documents WHERE workspace_slug=$1 ORDER BY path`, slug)
+	rows, err := h.pool.Query(ctx, `SELECT path, title, updated_at FROM knowledge_documents WHERE workspace_slug=$1 ORDER BY path`, slug)
 	if err != nil {
 		return nil, false
 	}
@@ -539,8 +549,9 @@ func (h *KnowledgeHandler) dbTree(ctx context.Context, slug string) ([]kbNode, b
 	var items []kbDoc
 	for rows.Next() {
 		var p, t string
-		if rows.Scan(&p, &t) == nil {
-			items = append(items, kbDoc{Path: p, Title: t})
+		var modified time.Time
+		if rows.Scan(&p, &t, &modified) == nil {
+			items = append(items, kbDoc{Path: p, Title: t, Modified: modified})
 		}
 	}
 	if len(items) == 0 {
@@ -550,16 +561,17 @@ func (h *KnowledgeHandler) dbTree(ctx context.Context, slug string) ([]kbNode, b
 }
 
 // dbFile returns the raw markdown for one document from the synced cloud copy.
-func (h *KnowledgeHandler) dbFile(ctx context.Context, slug, path string) (string, bool) {
+func (h *KnowledgeHandler) dbFile(ctx context.Context, slug, path string) (string, time.Time, bool) {
 	if h.pool == nil || path == "" {
-		return "", false
+		return "", time.Time{}, false
 	}
 	var body string
-	err := h.pool.QueryRow(ctx, `SELECT body FROM knowledge_documents WHERE workspace_slug=$1 AND path=$2`, slug, path).Scan(&body)
+	var modified time.Time
+	err := h.pool.QueryRow(ctx, `SELECT body, updated_at FROM knowledge_documents WHERE workspace_slug=$1 AND path=$2`, slug, path).Scan(&body, &modified)
 	if err != nil {
-		return "", false
+		return "", time.Time{}, false
 	}
-	return body, true
+	return body, modified, true
 }
 
 // treeFromPaths assembles a nested kbNode tree from flat document paths,
@@ -567,6 +579,7 @@ func (h *KnowledgeHandler) dbFile(ctx context.Context, slug, path string) (strin
 func treeFromPaths(items []kbDoc) []kbNode {
 	type tnode struct {
 		name, path, typ, title string
+		modified               *time.Time
 		children               map[string]*tnode
 		order                  []string
 	}
@@ -584,6 +597,10 @@ func treeFromPaths(items []kbDoc) []kbNode {
 				if i == len(parts)-1 {
 					child.typ = "file"
 					child.title = it.Title
+					if !it.Modified.IsZero() {
+						value := it.Modified
+						child.modified = &value
+					}
 				} else {
 					child.typ = "dir"
 				}
@@ -598,7 +615,7 @@ func treeFromPaths(items []kbDoc) []kbNode {
 		var nodes []kbNode
 		for _, k := range n.order {
 			ch := n.children[k]
-			kn := kbNode{Name: ch.name, Path: ch.path, Type: ch.typ, Title: ch.title}
+			kn := kbNode{Name: ch.name, Path: ch.path, Type: ch.typ, Title: ch.title, Modified: ch.modified}
 			if ch.typ == "dir" {
 				kn.Children = conv(ch)
 			}

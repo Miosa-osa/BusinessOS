@@ -7336,6 +7336,7 @@ CREATE TABLE IF NOT EXISTS workspace_agents (
     name          TEXT NOT NULL,
     role          TEXT NOT NULL DEFAULT '',
     description   TEXT NOT NULL DEFAULT '',
+    runtime       TEXT NOT NULL DEFAULT 'osa',
     model         TEXT NOT NULL DEFAULT 'claude-sonnet-4-5-20250929',
     system_prompt TEXT NOT NULL DEFAULT '',
     status        TEXT NOT NULL DEFAULT 'active',
@@ -7349,6 +7350,7 @@ CREATE TABLE IF NOT EXISTS workspace_agent_runs (
     agent_id      UUID NOT NULL REFERENCES workspace_agents(id) ON DELETE CASCADE,
     input         TEXT NOT NULL DEFAULT '',
     output        TEXT NOT NULL DEFAULT '',
+    runtime       TEXT NOT NULL DEFAULT 'osa',
     model         TEXT NOT NULL DEFAULT '',
     status        TEXT NOT NULL DEFAULT 'done',
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()

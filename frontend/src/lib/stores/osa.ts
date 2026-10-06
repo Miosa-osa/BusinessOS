@@ -1,6 +1,30 @@
+import {
+  getSavedConversation,
+  createSavedConversation,
+  appendSavedMessage,
+} from "$lib/services/savedConversations";
+import { runDesktopAgent } from "$lib/services/desktopAgent";
+export interface OsaModelCatalog {
+  provider: string;
+  current: string;
+  providers: {
+    slug: string;
+    name: string;
+    configured: boolean;
+    connected: boolean;
+    type?: string;
+  }[];
+  models: { name: string; provider: string; context_window?: number }[];
+}
+
 import { writable, get } from "svelte/store";
 import { browser } from "$app/environment";
-import { getApiBaseUrl, getCSRFToken, initCSRF } from "$lib/api/base";
+import {
+  getApiBaseUrl,
+  getCSRFToken,
+  initCSRF,
+  getActiveWorkspaceHeaders,
+} from "$lib/api/base";
 import { currentWorkspaceId } from "$lib/stores/workspaces";
 import type { SkillExecution } from "$lib/types/skills";
 import type { AttachedFile } from "$lib/stores/chat/types";
@@ -58,6 +82,8 @@ export interface OsaState {
   conversationId: string | null;
   isStreaming: boolean;
   streamingContent: string;
+  activity: string;
+  permissionMode: string | null;
   isExpanded: boolean;
   error: string | null;
   /** Signal Theory genre classification from the last signal_classified event */
@@ -70,6 +96,7 @@ export interface OsaState {
   attachments: AttachedFile[];
   /** Active OSA model name (from health check) */
   activeModel: string | null;
+  localModel: string | null;
   /** Active OSA provider (from health check) */
   activeProvider: string | null;
   /** Active orchestrator runtime - 'osa' uses LLM API, others use CLI agent in terminal */
@@ -147,6 +174,14 @@ function getInitialRuntime(): AgentRuntime {
   }
 }
 
+function getInitialLocalModel(): string | null {
+  try {
+    return browser ? localStorage.getItem("osa_local_model") : null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Store ───────────────────────────────────────────────────────────────────
 
 function createOsaStore() {
@@ -157,6 +192,8 @@ function createOsaStore() {
     modesLoaded: false,
     conversation: [],
     conversationId: null,
+    activity: "",
+    permissionMode: null,
     isStreaming: false,
     streamingContent: "",
     isExpanded: false,
@@ -166,6 +203,7 @@ function createOsaStore() {
     signalWeight: null,
     attachments: [],
     activeModel: null,
+    localModel: getInitialLocalModel(),
     activeProvider: null,
     activeRuntime: getInitialRuntime(),
     osaAvailable: null,
@@ -182,6 +220,18 @@ function createOsaStore() {
 
   // Active stream controller - abort to cancel in-flight requests
   let activeStreamController: AbortController | null = null;
+  let conversationEpoch = 0;
+
+  function rememberConversation(id: string | null) {
+    if (!browser) return;
+    const key = `osa_conversation_${get(currentWorkspaceId) ?? "default"}`;
+    try {
+      if (id) localStorage.setItem(key, id);
+      else localStorage.removeItem(key);
+    } catch {
+      /* History remains available from the server. */
+    }
+  }
 
   // Internal helper to get current state synchronously
   function getState(): OsaState {
@@ -191,7 +241,7 @@ function createOsaStore() {
     return current;
   }
 
-  return {
+  const store = {
     subscribe,
 
     setMode(mode: OsaMode) {
@@ -207,31 +257,71 @@ function createOsaStore() {
       });
     },
 
-    /** Update active model + provider locally, then POST to config endpoint (fails gracefully) */
-    async setModel(provider: string, model: string, url?: string) {
-      update((s) => ({ ...s, activeProvider: provider, activeModel: model }));
+    async loadModelCatalog(): Promise<OsaModelCatalog> {
+      const response = await fetch(`${getApiBaseUrl()}/osa/models`, {
+        credentials: "include",
+        headers: getActiveWorkspaceHeaders(),
+        signal: AbortSignal.timeout(12000),
+      });
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(data.error || "Could not load models from OSA");
+      if (!Array.isArray(data.providers) || !Array.isArray(data.models))
+        throw new Error("OSA returned an invalid model catalog");
+      update((s) => ({
+        ...s,
+        activeModel: data.current || null,
+        activeProvider: data.provider || null,
+        osaAvailable: true,
+      }));
+      return data;
+    },
 
-      if (!browser) return;
+    setLocalModel(model: string) {
+      if (!model.trim() || model.startsWith("-"))
+        throw new Error("Choose a valid Ollama model.");
+      update((s) => ({ ...s, localModel: model.trim() }));
       try {
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
-        };
-        const csrfToken = getCSRFToken();
-        if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
-
-        const body: Record<string, string> = { provider, model };
-        if (url) body.url = url;
-
-        await fetch(`${getApiBaseUrl()}/osa/config`, {
-          method: "POST",
-          headers,
-          credentials: "include",
-          signal: AbortSignal.timeout(4000),
-          body: JSON.stringify(body),
-        });
+        if (browser) localStorage.setItem("osa_local_model", model.trim());
       } catch {
-        // Endpoint may not exist yet - local state is already updated, so silently continue
+        /* Optional local preference. */
       }
+    },
+
+    /** Change the runtime model only after OSA confirms it. */
+    async setModel(provider: string, model: string, url?: string) {
+      if (!browser) return;
+      await initCSRF();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...getActiveWorkspaceHeaders(),
+      };
+      const csrf = getCSRFToken();
+      if (csrf) headers["X-CSRF-Token"] = csrf;
+      const res = await fetch(`${getApiBaseUrl()}/osa/config`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        signal: AbortSignal.timeout(8000),
+        body: JSON.stringify({ provider, model, ...(url ? { url } : {}) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (
+        !res.ok ||
+        data.applied !== true ||
+        data.provider !== provider ||
+        data.model !== model
+      ) {
+        throw new Error(
+          data.error || data.message || "OSA did not confirm the model change",
+        );
+      }
+      update((s) => ({
+        ...s,
+        activeProvider: provider,
+        activeModel: model,
+        osaAvailable: true,
+      }));
     },
 
     /** Fetch modes from OSA API. Falls back silently to hardcoded list. */
@@ -292,10 +382,11 @@ function createOsaStore() {
           return;
         }
         const data = await res.json();
-        osaKnownUnavailable = false;
+        osaKnownUnavailable =
+          data.enabled === false || !["ok", "healthy"].includes(data.status);
         update((s) => ({
           ...s,
-          osaAvailable: true,
+          osaAvailable: !osaKnownUnavailable,
           activeModel: data.model || data.osa_model || null,
           activeProvider: data.provider || data.osa_provider || null,
         }));
@@ -308,6 +399,10 @@ function createOsaStore() {
 
     setExpanded(expanded: boolean) {
       update((s) => ({ ...s, isExpanded: expanded }));
+    },
+
+    setError(error: string) {
+      update((s) => ({ ...s, error, isExpanded: true }));
     },
 
     clearError() {
@@ -374,7 +469,57 @@ function createOsaStore() {
       }));
     },
 
+    async loadConversation(id: string) {
+      this.cancelStream();
+      const epoch = ++conversationEpoch;
+      const saved = await getSavedConversation(id);
+      if (epoch !== conversationEpoch) return;
+      const runtime = [...saved.messages]
+        .reverse()
+        .find((message) =>
+          VALID_RUNTIMES.includes(message.metadata?.runtime as AgentRuntime),
+        )?.metadata?.runtime as AgentRuntime | undefined;
+      update((s) => ({
+        ...s,
+        conversationId: id,
+        activeRuntime: runtime ?? "osa",
+        conversation: saved.messages.map((message) => ({
+          id: message.id,
+          role: message.role === "user" ? "user" : "osa",
+          content: message.content,
+          timestamp: new Date(message.created_at),
+          model: message.metadata?.model,
+          mode: "ASSIST",
+        })),
+        error: null,
+        isStreaming: false,
+        streamingContent: "",
+      }));
+      rememberConversation(id);
+    },
+
+    async restoreConversation() {
+      if (!browser || getState().conversationId) return;
+      const workspace = get(currentWorkspaceId);
+      let id: string | null;
+      try {
+        id = localStorage.getItem(`osa_conversation_${workspace ?? "default"}`);
+      } catch {
+        return;
+      }
+      if (id) {
+        try {
+          await this.loadConversation(id);
+        } catch {
+          if (workspace === get(currentWorkspaceId)) rememberConversation(null);
+        }
+      }
+    },
+
     clearConversation() {
+      ++conversationEpoch;
+      this.cancelStream();
+      rememberConversation(null);
       update((s) => ({
         ...s,
         conversation: [],
@@ -392,6 +537,7 @@ function createOsaStore() {
         activeStreamController.abort();
         activeStreamController = null;
       }
+      update((s) => ({ ...s, isStreaming: false, streamingContent: "" }));
     },
 
     /** Full cleanup - cancel streams and reset state. Call on unmount if needed. */
@@ -415,13 +561,18 @@ function createOsaStore() {
       update((s) => ({ ...s, attachments: [] }));
     },
 
-    async sendMessage(content: string) {
+    async sendMessage(
+      content: string,
+      options: { voice?: boolean; suppressPopup?: boolean } = {},
+    ) {
       // Cancel any in-flight stream before starting a new one
       this.cancelStream();
-      activeStreamController = new AbortController();
+      const controller = new AbortController();
+      activeStreamController = controller;
 
       const startTime = performance.now();
       const state = getState();
+      ++conversationEpoch;
       const workspaceId = get(currentWorkspaceId);
 
       // Map OSA mode to focus_mode for the chat backend
@@ -446,8 +597,13 @@ function createOsaStore() {
         ...s,
         conversation: [...s.conversation, userMessage],
         isStreaming: true,
+        activity:
+          "Connecting to " +
+          (AGENT_RUNTIME_OPTIONS.find((r) => r.id === state.activeRuntime)
+            ?.label ?? "agent") +
+          "…",
         streamingContent: "",
-        isExpanded: true,
+        isExpanded: !(options.voice || options.suppressPopup),
         error: null,
       }));
 
@@ -455,6 +611,7 @@ function createOsaStore() {
         // Build request headers - ensure CSRF is available
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
+          ...getActiveWorkspaceHeaders(),
         };
         let csrfToken = getCSRFToken();
         if (!csrfToken) {
@@ -470,19 +627,27 @@ function createOsaStore() {
         try {
           const searchRes = await fetch(`${getApiBaseUrl()}/optimal/search`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
+            signal: AbortSignal.any([
+              controller.signal,
+              AbortSignal.timeout(3000),
+            ]),
             credentials: "include",
             body: JSON.stringify({ query: content, limit: 3 }),
           });
           if (searchRes.ok) {
             const searchData = await searchRes.json();
-            const results: Array<{ abstract?: string; path?: string }> =
-              searchData?.results ?? [];
+            const results: Array<{
+              abstract?: string;
+              path?: string;
+              l0_abstract?: string;
+              uri?: string;
+            }> = searchData?.results ?? [];
             if (results.length > 0) {
               const contextLines = results
                 .map(
                   (r, i) =>
-                    `- Result ${i + 1}: ${r.abstract ?? "(no abstract)"} (path: ${r.path ?? "unknown"})`,
+                    `- Result ${i + 1}: ${r.l0_abstract ?? r.abstract ?? "(no abstract)"} (path: ${r.uri ?? r.path ?? "unknown"})`,
                 )
                 .join("\n");
               enrichedContent = `[OptimalOS Context]\n${contextLines}\n\nUser message: ${content}`;
@@ -492,9 +657,94 @@ function createOsaStore() {
           // Graceful degradation - proceed with original message if search fails
         }
 
+        controller.signal.throwIfAborted();
+
+        if (state.activeRuntime !== "osa") {
+          let savedId = state.conversationId;
+          if (!savedId) {
+            const saved = await createSavedConversation(content.slice(0, 80));
+            controller.signal.throwIfAborted();
+            savedId = saved.id;
+            update((s) => ({ ...s, conversationId: savedId }));
+            rememberConversation(savedId);
+          }
+          await appendSavedMessage(savedId, {
+            role: "user",
+            content,
+            runtime: state.activeRuntime,
+            workspace_id: workspaceId,
+          });
+          controller.signal.throwIfAborted();
+          const history = state.conversation
+            .slice(-30)
+            .map(
+              (message) =>
+                `${message.role === "user" ? "User" : "Assistant"}: ${message.content}`,
+            )
+            .join("\n\n");
+          const prompt = history
+            ? `Previous conversation for context:\n${history}\n\nCurrent user request:\n${enrichedContent}`
+            : enrichedContent;
+          const answer = await runDesktopAgent(
+            state.activeRuntime,
+            prompt,
+            ["ollama", "hermes"].includes(state.activeRuntime)
+              ? (state.localModel ??
+                  (state.activeProvider === "ollama"
+                    ? state.activeModel
+                    : undefined) ??
+                  undefined)
+              : undefined,
+            controller.signal,
+            (text) => {
+              if (!controller.signal.aborted)
+                update((s) => ({ ...s, streamingContent: text }));
+            },
+          );
+          controller.signal.throwIfAborted();
+          const message: OsaMessage = {
+            id: crypto.randomUUID(),
+            role: "osa",
+            content: answer,
+            mode: state.activeMode,
+            timestamp: new Date(),
+            durationMs: Math.round(performance.now() - startTime),
+            model: AGENT_RUNTIME_OPTIONS.find(
+              (r) => r.id === state.activeRuntime,
+            )?.label,
+          };
+          let saveError: unknown;
+          try {
+            await appendSavedMessage(savedId, {
+              role: "assistant",
+              content: answer,
+              runtime: state.activeRuntime,
+              workspace_id: workspaceId,
+              model: message.model,
+            });
+          } catch (error) {
+            saveError = error;
+          }
+          controller.signal.throwIfAborted();
+          update((s) => ({
+            ...s,
+            conversation: [...s.conversation, message],
+            isStreaming: false,
+            streamingContent: "",
+            attachments: [],
+          }));
+          if (saveError)
+            throw new Error(
+              "The answer is shown, but could not be saved. Please copy it before leaving this conversation.",
+            );
+          return message;
+        }
+
         // Build full request body matching ChatStreamManager pattern
         const requestBody: Record<string, unknown> = {
+          runtime: state.activeRuntime,
           message: enrichedContent,
+          original_message: content,
           conversation_id: state.conversationId,
           workspace_id: workspaceId,
           focus_mode: FOCUS_MODE_MAP[state.activeMode] ?? "general",
@@ -515,7 +765,7 @@ function createOsaStore() {
           method: "POST",
           headers,
           credentials: "include",
-          signal: activeStreamController?.signal,
+          signal: controller.signal,
           body: JSON.stringify(requestBody),
         });
 
@@ -524,13 +774,32 @@ function createOsaStore() {
             .json()
             .catch(() => ({ detail: "Chat failed" }));
           throw new Error(
-            errorData.detail || `Chat failed (HTTP ${response.status})`,
+            errorData.error ||
+              errorData.detail ||
+              `Chat failed (HTTP ${response.status})`,
           );
         }
+
+        if (
+          state.activeRuntime === "osa" &&
+          response.headers.get("X-OSA-Routing") !== "true"
+        ) {
+          await response.body?.cancel();
+          throw new Error(
+            "This backend did not route the request to OSA. Restart it with OSA enabled.",
+          );
+        }
+
+        update((s) => ({
+          ...s,
+          permissionMode: response.headers.get("X-OSA-Permission-Mode"),
+          activity: "OSA is working…",
+        }));
 
         // Extract conversation ID from backend for multi-turn continuity
         const newConvId = response.headers.get("X-Conversation-Id");
         if (newConvId) {
+          rememberConversation(newConvId);
           update((s) => ({ ...s, conversationId: newConvId }));
         }
 
@@ -549,21 +818,27 @@ function createOsaStore() {
         const firstChunk = firstRead.done
           ? ""
           : new TextDecoder().decode(firstRead.value);
-        const streamIsSSE = !firstRead.done && isSSEStream(firstChunk);
+        const streamIsSSE =
+          response.headers.get("Content-Type")?.includes("text/event-stream") ||
+          (!firstRead.done && isSSEStream(firstChunk));
 
         if (streamIsSSE) {
           // SSE path: replay first chunk + delegate to parseChatSSEStream
           const firstValue = firstRead.value!;
           const replayStream = new ReadableStream<Uint8Array>({
             async start(controller) {
-              controller.enqueue(firstValue);
-              while (true) {
-                const { done, value } = await rawReader.read();
-                if (done) {
-                  controller.close();
-                  break;
+              try {
+                if (firstValue) controller.enqueue(firstValue);
+                while (true) {
+                  const { done, value } = await rawReader.read();
+                  if (done) {
+                    controller.close();
+                    break;
+                  }
+                  controller.enqueue(value);
                 }
-                controller.enqueue(value);
+              } catch (error) {
+                controller.error(error);
               }
             },
             cancel() {
@@ -574,7 +849,31 @@ function createOsaStore() {
             replayStream.getReader() as ReadableStreamDefaultReader<Uint8Array>;
 
           for await (const event of parseChatSSEStream(typedReader)) {
+            controller.signal.throwIfAborted();
             switch (event.type) {
+              case "tool_call":
+                update((s) => ({
+                  ...s,
+                  activity: "Using " + event.toolName.replace(/_/g, " ") + "…",
+                }));
+                break;
+              case "tool_result":
+                update((s) => ({
+                  ...s,
+                  activity:
+                    event.status === "error"
+                      ? "Tool failed: " +
+                        event.toolName.replace(/_/g, " ") +
+                        ". OSA is handling it…"
+                      : "Finished " +
+                        event.toolName.replace(/_/g, " ") +
+                        ". OSA is continuing…",
+                }));
+                break;
+              case "thinking_chunk":
+                if (event.step === "status")
+                  update((s) => ({ ...s, activity: event.content }));
+                break;
               case "token":
                 if (event.content) {
                   fullContent += event.content;
@@ -594,15 +893,9 @@ function createOsaStore() {
                 }));
                 break;
               case "error":
-                console.error("[OSA Store] SSE error event:", event.message);
-                // Only show error if no content was received yet
-                if (!fullContent.trim()) {
-                  fullContent += event.message
-                    ? `⚠️ ${event.message}`
-                    : "⚠️ An error occurred while generating a response.";
-                  update((s) => ({ ...s, streamingContent: fullContent }));
-                }
-                break;
+                throw new Error(
+                  event.message || "OSA could not complete the request",
+                );
               case "done":
                 break;
             }
@@ -621,6 +914,10 @@ function createOsaStore() {
             update((s) => ({ ...s, streamingContent: fullContent }));
           }
         }
+
+        controller.signal.throwIfAborted();
+        if (!fullContent.trim())
+          throw new Error("OSA ended the turn without a response");
 
         // Finalize: add OSA response to conversation
         const durationMs = Math.round(performance.now() - startTime);
@@ -647,13 +944,16 @@ function createOsaStore() {
         // Fire-and-forget: ingest the original user message into OptimalOS
         fetch(`${getApiBaseUrl()}/optimal/ingest`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
+          signal: AbortSignal.timeout(5000),
           credentials: "include",
           body: JSON.stringify({ text: content, genre: "note" }),
         }).catch(() => {
           // Intentionally ignored - ingest is best-effort
         });
+        return osaMessage;
       } catch (err) {
+        if (activeStreamController !== controller) return;
         // AbortError is expected when user cancels - don't show as error
         if (err instanceof DOMException && err.name === "AbortError") {
           update((s) => ({
@@ -675,6 +975,24 @@ function createOsaStore() {
       }
     },
   };
+  if (browser) {
+    let workspace = get(currentWorkspaceId);
+    currentWorkspaceId.subscribe((next) => {
+      if (next === workspace) return;
+      workspace = next;
+      ++conversationEpoch;
+      store.cancelStream();
+      update((s) => ({
+        ...s,
+        conversation: [],
+        conversationId: null,
+        error: null,
+        attachments: [],
+      }));
+      void store.restoreConversation();
+    });
+  }
+  return store;
 }
 
 export const osaStore = createOsaStore();

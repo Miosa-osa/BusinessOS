@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/rhl/businessos-backend/internal/database/sqlc"
 	"github.com/rhl/businessos-backend/internal/middleware"
@@ -223,6 +224,7 @@ func (h *DashboardItemHandler) CreateTask(c *gin.Context) {
 	}
 
 	// Invalidate dashboard caches when task is created
+	wsID := stampWorkspaceOnCreate(c, h.pool, "tasks", task.ID, user.ID, "tasks")
 	h.invalidateDashboardCache(c, user.ID)
 
 	// Mirror into the OptimalEngine knowledge graph so tasks appear in
@@ -241,14 +243,15 @@ func (h *DashboardItemHandler) CreateTask(c *gin.Context) {
 		taskMeta["assignee_id"] = *req.AssigneeID
 	}
 	h.enqueue(c.Request.Context(), services.Signal{
-		Module:     services.ModuleTasks,
-		ID:         "task-" + uuidString(task.ID.Bytes),
-		AuthorID:   user.ID,
-		Title:      req.Title,
-		Body:       optString(req.Description),
-		Genre:      "task",
-		ModifiedAt: pgPlainTimestampToTime(task.UpdatedAt),
-		Metadata:   taskMeta,
+		Module:      services.ModuleTasks,
+		WorkspaceID: wsID,
+		ID:          "task-" + uuidString(task.ID.Bytes),
+		AuthorID:    user.ID,
+		Title:       req.Title,
+		Body:        optString(req.Description),
+		Genre:       "task",
+		ModifiedAt:  pgPlainTimestampToTime(task.UpdatedAt),
+		Metadata:    taskMeta,
 	})
 
 	// Trigger notification if task was assigned to someone else
@@ -273,6 +276,36 @@ func (h *DashboardItemHandler) CreateTask(c *gin.Context) {
 }
 
 // UpdateTask updates a task
+// mutableTask resolves shared work through active editor membership, rather
+// than confusing the task's creator with its only authorized editor.
+func (h *DashboardItemHandler) mutableTask(c *gin.Context, id uuid.UUID, userID string) (sqlc.Task, error) {
+	var workspaceID pgtype.UUID
+	if header := c.GetHeader("X-Workspace-ID"); header != "" {
+		parsed, err := uuid.Parse(header)
+		if err != nil {
+			return sqlc.Task{}, pgx.ErrNoRows
+		}
+		workspaceID = pgtype.UUID{Bytes: parsed, Valid: true}
+	}
+	var ownerID string
+	err := h.pool.QueryRow(c.Request.Context(), `
+		SELECT t.user_id FROM tasks t
+		WHERE t.id=$1 AND (
+		  ($3::uuid IS NULL AND t.workspace_id IS NULL AND t.user_id=$2)
+		  OR (t.workspace_id=$3 AND EXISTS (
+		    SELECT 1 FROM workspace_members m
+		    WHERE m.workspace_id=t.workspace_id AND m.user_id=$2
+		      AND m.status='active' AND m.role IN ('owner','admin','manager','member')
+		  ))
+		)`, id, userID, workspaceID).Scan(&ownerID)
+	if err != nil {
+		return sqlc.Task{}, err
+	}
+	return sqlc.New(h.pool).GetTask(c.Request.Context(), sqlc.GetTaskParams{
+		ID: pgtype.UUID{Bytes: id, Valid: true}, UserID: ownerID,
+	})
+}
+
 func (h *DashboardItemHandler) UpdateTask(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	if user == nil {
@@ -304,10 +337,7 @@ func (h *DashboardItemHandler) UpdateTask(c *gin.Context) {
 	queries := sqlc.New(h.pool)
 
 	// Get existing task (for comparison and ownership verification)
-	existingTask, err := queries.GetTask(c.Request.Context(), sqlc.GetTaskParams{
-		ID:     pgtype.UUID{Bytes: id, Valid: true},
-		UserID: user.ID,
-	})
+	existingTask, err := h.mutableTask(c, id, user.ID)
 	if err != nil {
 		utils.RespondNotFound(c, slog.Default(), "Task")
 		return
@@ -446,10 +476,7 @@ func (h *DashboardItemHandler) ToggleTask(c *gin.Context) {
 	queries := sqlc.New(h.pool)
 
 	// Get existing task for ownership verification and to check old status
-	existingTask, err := queries.GetTask(c.Request.Context(), sqlc.GetTaskParams{
-		ID:     pgtype.UUID{Bytes: id, Valid: true},
-		UserID: user.ID,
-	})
+	existingTask, err := h.mutableTask(c, id, user.ID)
 	if err != nil {
 		utils.RespondNotFound(c, slog.Default(), "Task")
 		return
@@ -505,9 +532,14 @@ func (h *DashboardItemHandler) DeleteTask(c *gin.Context) {
 	}
 
 	queries := sqlc.New(h.pool)
+	existingTask, err := h.mutableTask(c, id, user.ID)
+	if err != nil {
+		utils.RespondNotFound(c, slog.Default(), "Task")
+		return
+	}
 	err = queries.DeleteTask(c.Request.Context(), sqlc.DeleteTaskParams{
 		ID:     pgtype.UUID{Bytes: id, Valid: true},
-		UserID: user.ID,
+		UserID: existingTask.UserID,
 	})
 	if err != nil {
 		utils.RespondInternalError(c, slog.Default(), "delete task", err)

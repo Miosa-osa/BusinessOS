@@ -3,6 +3,7 @@
 	import { api } from '$lib/api';
 	import { currentWorkspace } from '$lib/stores/workspaces';
 	import type { Project } from '$lib/api/projects/types';
+	import ProjectWorkspace from '$lib/components/projects/ProjectWorkspace.svelte';
 	import {
 		getProjectTemplates,
 		createProjectFromTemplate,
@@ -34,6 +35,8 @@
 	let busyId = $state<string | null>(null);
 	let draggedProject = $state<Project | null>(null);
 	let dragOverCol = $state<string | null>(null);
+	let selectedProjectId = $state<string | null>(null);
+	const selectedProject = $derived(projects.find(p => p.id === selectedProjectId));
 
 	// Create modal
 	let showCreate = $state(false);
@@ -67,16 +70,18 @@
 	let wsId = $state<string | null | undefined>(null);
 	$effect(() => {
 		const id = $currentWorkspace?.id ?? null;
-		if (id !== wsId) { wsId = id; load(); }
+		if (id !== wsId) { selectedProjectId = null; wsId = id; load(); }
 	});
 
 	onMount(load);
+	let loadRequest = 0;
 
 	async function load() {
+		const request = ++loadRequest;
 		loading = true; error = null;
-		try { projects = await api.getProjects(undefined, undefined, wsId ?? undefined); }
-		catch (e) { error = e instanceof Error ? e.message : 'Failed to load projects'; }
-		finally { loading = false; }
+		try { const items = await api.getProjects(undefined, undefined, wsId ?? undefined); if (request === loadRequest) projects = items; }
+		catch (e) { if (request === loadRequest) error = e instanceof Error ? e.message : 'Failed to load projects'; }
+		finally { if (request === loadRequest) loading = false; }
 	}
 
 	const filtered = $derived.by(() => {
@@ -182,6 +187,11 @@
 	}
 </script>
 
+{#if selectedProject}
+	{#key selectedProject.id}
+		<ProjectWorkspace project={selectedProject} onback={() => selectedProjectId = null} onupdate={updated => { projects = projects.map(p => p.id === updated.id ? updated : p); }} />
+	{/key}
+{:else}
 <div class="proj-root">
 	<header class="topbar">
 		<div class="title-wrap">
@@ -238,7 +248,7 @@
 							<div class="card" draggable="true" ondragstart={() => (draggedProject = p)} ondragend={() => { draggedProject = null; dragOverCol = null; }}>
 								<div class="card-top">
 									<span class="prio-dot" style="background:{PRIORITY_COLOR[(p.priority ?? 'low') as Priority]}" title={p.priority}></span>
-									<span class="card-name">{p.name}</span>
+									<button class="card-name project-open" onclick={() => selectedProjectId = p.id}>{p.name}</button>
 									<button class="card-x" title="Delete" onclick={() => remove(p)} disabled={busyId === p.id}><Trash2 size={13} /></button>
 								</div>
 								{#if p.description}<p class="card-desc">{p.description}</p>{/if}
@@ -263,7 +273,7 @@
 			</div>
 			{#each filtered as p (p.id)}
 				<div class="lrow">
-					<span class="lr-name"><span class="prio-dot" style="background:{PRIORITY_COLOR[(p.priority ?? 'low') as Priority]}"></span>{p.name}</span>
+					<span class="lr-name"><span class="prio-dot" style="background:{PRIORITY_COLOR[(p.priority ?? 'low') as Priority]}"></span><button class="project-open" onclick={() => selectedProjectId = p.id}>{p.name}</button></span>
 					<span class="lr-col">
 						<select class="status-sel" value={p.status} disabled={busyId === p.id} onchange={(e) => setStatus(p, (e.target as HTMLSelectElement).value as Status)} aria-label="Status">
 							{#each STATUSES as s}<option value={s.id}>{s.label}</option>{/each}
@@ -278,6 +288,7 @@
 		</div>
 	{/if}
 </div>
+{/if}
 
 {#if showCreate}
 	<div class="overlay" role="button" tabindex="0" onclick={() => (showCreate = false)} onkeydown={(e) => e.key === 'Escape' && (showCreate = false)}>
@@ -417,6 +428,9 @@
 	.card-top { display: flex; align-items: center; gap: 8px; }
 	.prio-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 	.card-name { font-size: 0.88rem; font-weight: 580; flex: 1; min-width: 0; }
+	.project-open { background: transparent; border: 0; padding: 4px 0; text-align: left; color: inherit; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+	.project-open:hover { text-decoration: underline; }
+	.project-open:focus-visible { outline: 2px solid var(--accent, #279c77); outline-offset: 3px; }
 	.card-x { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; border: none; background: transparent; color: var(--dt3); cursor: pointer; flex-shrink: 0; }
 	.card-x:hover { background: color-mix(in srgb, #ef4444 12%, transparent); color: #ef4444; }
 	.card-desc { font-size: 0.78rem; color: var(--dt3); margin: 0; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

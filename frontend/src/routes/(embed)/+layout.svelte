@@ -8,7 +8,11 @@
 
 	$effect(() => {
 		if (!$session.isPending && !$session.data) {
-			goto('/login');
+			if (window.self !== window.top && window.parent) {
+				window.parent.postMessage({ type: 'businessos:session-required' }, window.location.origin);
+			} else {
+				goto('/login?redirect=%2Fwindow', { replaceState: true });
+			}
 		}
 	});
 </script>

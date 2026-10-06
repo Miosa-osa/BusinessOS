@@ -152,13 +152,14 @@ type Config struct {
 	MicrosoftRedirectURI  string `mapstructure:"MICROSOFT_REDIRECT_URI"`
 
 	// OSA (Open Source Agent) Integration
-	OSAEnabled      bool        `mapstructure:"OSA_ENABLED"`
-	OSABaseURL      string      `mapstructure:"OSA_BASE_URL"`
-	OSASharedSecret string      `mapstructure:"OSA_SHARED_SECRET"`
-	OSATimeout      int         `mapstructure:"OSA_TIMEOUT"` // seconds
-	OSAMaxRetries   int         `mapstructure:"OSA_MAX_RETRIES"`
-	OSARetryDelay   int         `mapstructure:"OSA_RETRY_DELAY"` // seconds
-	OSA             *osa.Config // Built from above fields in Load()
+	OSAEnabled       bool        `mapstructure:"OSA_ENABLED"`
+	OSABaseURL       string      `mapstructure:"OSA_BASE_URL"`
+	OSAWebhookSecret string      `mapstructure:"OSA_WEBHOOK_SECRET"`
+	OSASharedSecret  string      `mapstructure:"OSA_SHARED_SECRET"`
+	OSATimeout       int         `mapstructure:"OSA_TIMEOUT"` // seconds
+	OSAMaxRetries    int         `mapstructure:"OSA_MAX_RETRIES"`
+	OSARetryDelay    int         `mapstructure:"OSA_RETRY_DELAY"` // seconds
+	OSA              *osa.Config // Built from above fields in Load()
 
 	// Internal API Security
 	// CRITICAL: INTERNAL_API_SECRET must be set in production for internal endpoint authentication

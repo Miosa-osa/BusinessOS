@@ -85,9 +85,9 @@
 			<span class="terminal-prompt">&gt;_</span>
 		{:else if icon.isFinder}
 			<svg class="dock-icon-svg finder-face" viewBox="0 0 24 24" fill="none">
-				<rect x="6" y="7" width="4" height="6" rx="2" fill="white"/>
-				<rect x="14" y="7" width="4" height="6" rx="2" fill="white"/>
-				<path d="M6 17 C8 20, 16 20, 18 17" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+				<rect x="6" y="7" width="4" height="6" rx="2" fill="currentColor"/>
+				<rect x="14" y="7" width="4" height="6" rx="2" fill="currentColor"/>
+				<path d="M6 17 C8 20, 16 20, 18 17" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
 			</svg>
 		{:else if icon.imageUrl}
 			<img class="dock-icon-image" src={icon.imageUrl} alt="" />
@@ -521,5 +521,39 @@
 	:global(.dark) .dock-item.style-paper .dock-icon {
 		background: #3a3a3c !important;
 		border-color: rgba(255, 255, 255, 0.12);
+	}
+
+	/* Finder must keep contrast when a theme overrides icon backgrounds. */
+	.dock-item .dock-icon.finder {
+		background: #dbeafe !important;
+	}
+
+	.dock-item .finder-face {
+		color: #163b70 !important;
+	}
+
+	@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+		.dock-item {
+			flex: 0 0 44px;
+			width: 44px;
+			height: 46px;
+			padding: 3px;
+			justify-content: center;
+			transform: none !important;
+		}
+
+		.dock-icon {
+			width: 34px;
+			height: 34px;
+			border-radius: 8px;
+		}
+
+		.dock-indicator {
+			position: absolute;
+			bottom: 0;
+			margin: 0;
+		}
+
+		.dock-tooltip { display: none; }
 	}
 </style>

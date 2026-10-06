@@ -5,6 +5,7 @@
 	Dropdown: opens upward, glassmorphism — mirrors ModelSelector exactly.
 -->
 <script lang="ts">
+	import { agentBridge } from '$lib/services/desktopAgent';
 	import { osaStore, AGENT_RUNTIME_OPTIONS, type AgentRuntime } from '$lib/stores/osa';
 
 	interface Props {
@@ -17,6 +18,10 @@
 	// ─── State ───────────────────────────────────────────────────────────────────
 
 	let isOpen = $state(false);
+	let installed = $state<Record<string,boolean>>({});
+	let loading = $state(false);
+	async function refreshRuntimes(){loading=true;try{installed=await agentBridge()?.detect() ?? {};}catch{installed={};}finally{loading=false;}}
+	$effect(()=>{if(isOpen)void refreshRuntimes();});
 	let dropdownElement: HTMLDivElement | undefined = $state(undefined);
 
 	// ─── Derived ─────────────────────────────────────────────────────────────────
@@ -62,6 +67,7 @@
 
 	<!-- Trigger chip -->
 	<button
+        type="button"
 		class="ars-trigger"
 		class:has-runtime={true}
 		role="combobox"
@@ -119,6 +125,7 @@
 						role="option"
 						aria-selected={activeRuntime === option.id}
 						type="button"
+                        disabled={option.id !== 'osa' && (loading || !installed[option.id])}
 						onclick={() => selectRuntime(option.id)}
 					>
 						<!-- Colored runtime dot -->
@@ -133,9 +140,9 @@
 
 						<!-- Badge: Built-in vs CLI -->
 						{#if option.id === 'osa'}
-							<span class="ars-badge builtin">Built-in</span>
+							<span class="ars-badge builtin">{$osaStore.osaAvailable ? 'Connected' : 'Offline'}</span>
 						{:else}
-							<span class="ars-badge cli">CLI</span>
+							<span class="ars-badge cli">{loading ? 'Checking' : installed[option.id] ? 'Installed' : 'Not installed'}</span>
 						{/if}
 
 						<!-- Active checkmark -->
@@ -159,6 +166,7 @@
 </div>
 
 <style>
+  .ars-option:disabled { opacity: .5; cursor: default; }
 	.ars-selector {
 		position: relative;
 		flex-shrink: 0;
@@ -247,7 +255,7 @@
 		z-index: 10100;
 		min-width: 220px;
 		padding: 10px 8px 8px;
-		background: rgba(255, 255, 255, 0.85);
+		background: #fff;
 		backdrop-filter: blur(32px) saturate(1.6);
 		-webkit-backdrop-filter: blur(32px) saturate(1.6);
 		border: 1px solid rgba(255, 255, 255, 0.7);
@@ -263,7 +271,7 @@
 	}
 
 	:global(.dark) .ars-dropdown {
-		background: rgba(36, 36, 38, 0.9);
+		background: #242426;
 		border-color: rgba(255, 255, 255, 0.1);
 		box-shadow:
 			0 16px 48px rgba(0, 0, 0, 0.5),

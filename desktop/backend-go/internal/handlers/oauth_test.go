@@ -112,6 +112,20 @@ func TestGoogleLoginCallback_DesktopStateSurvivesMissingBrowserCookie(t *testing
 	assert.Contains(t, replay.Body.String(), "Invalid state parameter")
 }
 
+func TestIsValidRedirectURL_DevelopmentDesktopRelay(t *testing.T) {
+	t.Setenv("ENVIRONMENT", "development")
+
+	assert.True(t, isValidRedirectURL("http://127.0.0.1:43821/auth/callback"))
+	assert.False(t, isValidRedirectURL("http://127.0.0.1:43821/other"))
+	assert.False(t, isValidRedirectURL("http://127.0.0.1:43822/auth/callback"))
+}
+
+func TestIsValidRedirectURL_RejectsDesktopRelayInProduction(t *testing.T) {
+	t.Setenv("ENVIRONMENT", "production")
+
+	assert.False(t, isValidRedirectURL("http://127.0.0.1:43821/auth/callback"))
+}
+
 // buildOAuthConfigAll creates a config with all providers configured.
 func buildOAuthConfigAll() *config.Config {
 	return &config.Config{

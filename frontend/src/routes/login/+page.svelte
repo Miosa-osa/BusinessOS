@@ -104,7 +104,7 @@
 	}
 
 	function handleGoogleSignIn() {
-		initiateGoogleOAuth();
+		initiateGoogleOAuth(undefined, redirectTo);
 	}
 </script>
 

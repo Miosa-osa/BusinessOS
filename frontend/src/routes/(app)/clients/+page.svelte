@@ -28,7 +28,10 @@
     }),
   );
   const activeCount = $derived($clients.clients.filter((client) => client.status === "active").length);
-  const pipelineValue = $derived($clients.clients.reduce((total, client) => total + client.active_deals_value, 0));
+  const pipelineValue = $derived($clients.clients.reduce((total, client) => {
+    const value = Number(client.active_deals_value);
+    return total + (Number.isFinite(value) ? value : 0);
+  }, 0));
 
   onMount(() => {
     clients.loadClients();
@@ -59,9 +62,9 @@
       <button class="icon-button" type="button" aria-label="Refresh clients" title="Refresh clients" onclick={() => clients.loadClients()}>
         <RefreshCw size={16} class={$clients.loading ? "spinning" : ""} />
       </button>
-      <button class="primary-button" type="button" onclick={() => addClientOpen = true}>
+      <button class="primary-button" type="button" aria-label="Add client" title="Add client" onclick={() => addClientOpen = true}>
         <Plus size={16} />
-        Add client
+        <span>Add client</span>
       </button>
     </div>
   </header>
@@ -130,9 +133,18 @@
   .spinning { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (max-width: 720px) {
-    .page-header { align-items: flex-start; padding: 16px; }
+    .page-header { align-items: flex-start; padding: 16px; gap: 12px; }
+    .page-header > div:first-child { min-width: 0; }
     .page-header p { max-width: 320px; }
-    .metrics { grid-template-columns: 1fr; }
-    .metrics div { border-right: 0; border-bottom: 1px solid var(--dbd, #e5e5e5); padding: 11px 16px; }
+    .header-actions { flex: 0 0 auto; }
+    .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .metrics div { min-width: 0; min-height: 58px; padding: 10px 8px; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; border-right: 1px solid var(--dbd, #e5e5e5); }
+    .metrics strong { max-width: 100%; font-size: 15px; overflow-wrap: anywhere; }
+    .metrics span { line-height: 1.25; }
+  }
+  @media (max-width: 480px) {
+    .page-header p { font-size: 12px; line-height: 1.4; }
+    .primary-button { width: 36px; padding: 0; }
+    .primary-button span { display: none; }
   }
 </style>

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"strings"
 
@@ -114,13 +115,28 @@ func (h *ChatHandler) prepareStream(
 			return nil, false
 		}
 		conversationID = pgtype.UUID{Bytes: parsed, Valid: true}
+		if _, err := queries.GetConversation(ctx, sqlc.GetConversationParams{ID: conversationID, UserID: userID}); err != nil {
+			c.JSON(404, gin.H{"error": "Conversation not found"})
+			return nil, false
+		}
 		convUUID = &parsed
 	} else {
 		var ctxID pgtype.UUID
 		if contextID != nil {
 			ctxID = pgtype.UUID{Bytes: *contextID, Valid: true}
 		}
-		defaultTitle := "New Conversation"
+		titleSource := req.OriginalMessage
+		if titleSource == "" {
+			titleSource = req.Message
+		}
+		titleRunes := []rune(strings.TrimSpace(titleSource))
+		if len(titleRunes) > 80 {
+			titleRunes = titleRunes[:80]
+		}
+		defaultTitle := string(titleRunes)
+		if defaultTitle == "" {
+			defaultTitle = "New Conversation"
+		}
 		conv, err := queries.CreateConversation(ctx, sqlc.CreateConversationParams{
 			UserID:    userID,
 			Title:     &defaultTitle,
@@ -137,12 +153,18 @@ func (h *ChatHandler) prepareStream(
 	res.conversationID = conversationID
 	res.convUUID = convUUID
 
+	// Preserve the original text separately from injected retrieval context.
+	savedContent := req.OriginalMessage
+	if savedContent == "" {
+		savedContent = req.Message
+	}
+	messageMetadata, _ := json.Marshal(map[string]interface{}{"runtime": req.Runtime, "workspace_id": req.WorkspaceID})
 	// Save user message
 	if _, err := queries.CreateMessage(ctx, sqlc.CreateMessageParams{
 		ConversationID:  conversationID,
 		Role:            sqlc.MessageroleUSER,
-		Content:         req.Message,
-		MessageMetadata: nil,
+		Content:         savedContent,
+		MessageMetadata: messageMetadata,
 	}); err != nil {
 		utils.RespondInternalError(c, slog.Default(), "save user message", err)
 		return nil, false

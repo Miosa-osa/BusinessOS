@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ConversationsModule from '$lib/components/conversations/ConversationsModule.svelte';
 	import { TerminalApp } from '$lib/components/terminal';
 	import DesktopSettingsContent from '$lib/components/desktop/DesktopSettingsContent.svelte';
 	import FolderWindow from '$lib/components/desktop/FolderWindow.svelte';
@@ -164,7 +165,9 @@
 </script>
 
 <div class="window-module-content">
-	{#if isTerminal}
+	{#if module === 'chat' || module === 'conversations'}
+        <ConversationsModule />
+    {:else if isTerminal}
 		<TerminalApp />
 	{:else if isDesktopSettings}
 		<DesktopSettingsContent />

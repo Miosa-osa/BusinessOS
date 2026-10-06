@@ -48,7 +48,12 @@ const config: ForgeConfig = {
       const srcNM = path.join(process.cwd(), "node_modules");
       const destNM = path.join(String(buildPath), "node_modules");
       fs.mkdirSync(destNM, { recursive: true });
-      for (const m of ["better-sqlite3", "electron-store", "node-pty"]) {
+      for (const m of [
+        "better-sqlite3",
+        "electron-store",
+        "electron-updater",
+        "node-pty",
+      ]) {
         copyModuleTree(m, srcNM, destNM);
       }
     },
@@ -68,7 +73,10 @@ const config: ForgeConfig = {
     },
   },
   packagerConfig: {
-    asar: true,
+    // node-pty executes its adjacent spawn-helper binary at runtime. Unpacking
+    // only the .node file leaves that helper trapped inside app.asar, which
+    // makes every local shell fail with `posix_spawn failed` on macOS.
+    asar: { unpackDir: "node_modules/node-pty" },
     icon: "./resources/icons/icon",
     appBundleId: "com.businessos.desktop",
     appCopyright: "Copyright © 2025 BusinessOS",
@@ -76,6 +84,7 @@ const config: ForgeConfig = {
       "./resources/bin",
       "./resources/engine",
       "./resources/icons",
+      "./src/main/database/migrations",
     ],
     // Register the businessos:// deep-link scheme so the OS routes OAuth
     // callbacks (and other deep links) back into the packaged app.

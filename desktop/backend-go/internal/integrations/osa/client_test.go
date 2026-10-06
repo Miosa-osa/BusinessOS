@@ -38,9 +38,9 @@ func TestNewClient(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "missing shared secret",
+			name: "missing remote shared secret",
 			config: &Config{
-				BaseURL: "http://localhost:8089",
+				BaseURL: "https://osa.example.com",
 				Timeout: 30 * time.Second,
 			},
 			wantErr: true,

@@ -6,7 +6,8 @@ export interface ModuleWindowDefinition {
 export const MODULE_WINDOWS: Record<string, ModuleWindowDefinition> = {
   platform: { url: "/dashboard", title: "Business OS" },
   dashboard: { url: "/dashboard", title: "Dashboard" },
-  chat: { url: "/chat", title: "Chat" },
+  chat: { url: "/conversations", title: "Conversations" },
+  conversations: { url: "/conversations", title: "Conversations" },
   tasks: { url: "/tasks", title: "Tasks" },
   projects: { url: "/projects", title: "Projects" },
   team: { url: "/team", title: "Team" },

@@ -9,11 +9,16 @@
 		runAgent,
 		listRuns,
 		AGENT_MODELS,
+		AGENT_RUNTIMES,
 		DEFAULT_AGENT_MODEL,
+		DEFAULT_AGENT_RUNTIME,
 		modelLabel,
+		runtimeLabel,
+		runtimeOption,
 		type WorkspaceAgent,
 		type WorkspaceAgentRun,
-		type AgentInput
+		type AgentInput,
+		type AgentRuntime
 	} from '$lib/api/workspaceAgents';
 	import {
 		Bot,
@@ -75,6 +80,7 @@
 			name: '',
 			role: 'Researcher',
 			description: '',
+			runtime: DEFAULT_AGENT_RUNTIME,
 			model: DEFAULT_AGENT_MODEL,
 			system_prompt: '',
 			status: 'active'
@@ -94,6 +100,7 @@
 			name: a.name,
 			role: a.role,
 			description: a.description,
+			runtime: a.runtime,
 			model: a.model,
 			system_prompt: a.system_prompt,
 			status: a.status
@@ -152,6 +159,7 @@
 	let runs = $state<WorkspaceAgentRun[]>([]);
 
 	const selected = $derived(agents.find((a) => a.id === selectedId) ?? null);
+	const selectedRuntime = $derived(selected ? runtimeOption(selected.runtime) : null);
 
 	async function selectAgent(id: string) {
 		selectedId = id;
@@ -212,10 +220,16 @@
 		<div class="page-icon"><Bot size={22} strokeWidth={1.8} /></div>
 		<div class="head-text">
 			<h1 class="page-title">Agents</h1>
-			<p class="page-desc">Your workspace's AI agents — define a role and prompt, then run them.</p>
+			<p class="page-desc">Workspace agents with controlled prompts, explicit execution harnesses, shared context, and recorded runs.</p>
 		</div>
 		<button class="btn btn-primary" onclick={openCreate}><Plus size={15} /> New agent</button>
 	</header>
+	<div class="runtime-strip" aria-label="Agent runtime controls">
+		<span><strong>4</strong> harnesses</span>
+		<span>Workspace context</span>
+		<span>Human review</span>
+		<span>Run history</span>
+	</div>
 
 	{#if error}<div class="error-bar">{error}</div>{/if}
 
@@ -226,8 +240,8 @@
 			<Bot size={40} strokeWidth={1.4} class="empty-icon" />
 			<p class="empty-title">No agents yet</p>
 			<p class="empty-body">
-				Agents are your workspace's AI workers. Give one a role and a system prompt, pick a Claude
-				model, and run it against any input.
+				Agents are your workspace's AI workers. Give one a role and system prompt, then choose the
+				execution harness that should power it.
 			</p>
 			<button class="btn btn-primary" onclick={openCreate}><Plus size={15} /> Create your first agent</button>
 		</div>
@@ -286,6 +300,9 @@
 							<div class="a-name">{a.name}</div>
 							<div class="a-meta">
 								<span class="role-badge {roleClass(a.role)}">{a.role || 'Agent'}</span>
+								<span class="runtime-badge" class:runtime-ready={runtimeOption(a.runtime).hosted}>
+									{runtimeLabel(a.runtime)}
+								</span>
 								<span class="model-badge"><Cpu size={11} /> {modelLabel(a.model)}</span>
 							</div>
 							{#if a.description}<p class="a-desc">{a.description}</p>{/if}
@@ -305,6 +322,9 @@
 								<div class="run-name">{selected.name}</div>
 								<div class="a-meta">
 									<span class="role-badge {roleClass(selected.role)}">{selected.role || 'Agent'}</span>
+									<span class="runtime-badge" class:runtime-ready={selectedRuntime?.hosted}>
+										{runtimeLabel(selected.runtime)}
+									</span>
 									<span class="model-badge"><Cpu size={11} /> {modelLabel(selected.model)}</span>
 								</div>
 							</div>
@@ -318,13 +338,15 @@
 						></textarea>
 
 						<div class="run-bar">
-							{#if !aiAvailable}
+							{#if selectedRuntime && !selectedRuntime.hosted}
+								<span class="ai-note">Connect a {selectedRuntime.label} machine runtime to run this agent.</span>
+							{:else if !aiAvailable}
 								<span class="ai-note">AI is not configured for this workspace.</span>
 							{/if}
 							<button
 								class="btn btn-primary"
 								onclick={run}
-								disabled={running || !input.trim() || !aiAvailable}
+								disabled={running || !input.trim() || !aiAvailable || !selectedRuntime?.hosted}
 							>
 								{#if running}<Loader2 size={15} class="spin" /> Running…{:else}<Send size={15} /> Run agent{/if}
 							</button>
@@ -401,6 +423,25 @@
 					<input class="field-input" type="text" placeholder="e.g. Market Researcher" bind:value={form.name} />
 				</label>
 
+				<label class="field">
+					<span class="field-label">Execution harness</span>
+					<div class="harness-options" role="radiogroup" aria-label="Execution harness">
+						{#each AGENT_RUNTIMES as runtime}
+							<button
+								type="button"
+								class="harness-option"
+								class:is-selected={form.runtime === runtime.id}
+								role="radio"
+								aria-checked={form.runtime === runtime.id}
+								onclick={() => (form.runtime = runtime.id as AgentRuntime)}
+							>
+								<span>{runtime.label}</span>
+								<small>{runtime.hosted ? 'Ready' : 'Connection required'}</small>
+							</button>
+						{/each}
+					</div>
+				</label>
+
 				<div class="field-row">
 					<label class="field">
 						<span class="field-label">Role</span>
@@ -410,10 +451,10 @@
 						</datalist>
 					</label>
 					<label class="field">
-						<span class="field-label">Model</span>
-						<select class="field-input" bind:value={form.model}>
+						<span class="field-label">OSA model</span>
+						<select class="field-input" bind:value={form.model} disabled={form.runtime !== 'osa'}>
 							{#each AGENT_MODELS as m}
-								<option value={m.id}>{m.label} — {m.hint}</option>
+								<option value={m.id}>{m.label} - {m.hint}</option>
 							{/each}
 						</select>
 					</label>
@@ -487,6 +528,9 @@
 	.role-badge.r-strategist { background: color-mix(in srgb, #f59e0b 18%, transparent); color: #d97706; }
 	.role-badge.r-triage { background: color-mix(in srgb, #ef4444 15%, transparent); color: #ef4444; }
 	.model-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; color: var(--dt3); border: 1px solid var(--dbd); border-radius: 5px; padding: 2px 6px; }
+	.runtime-badge { display: inline-flex; align-items: center; min-height: 20px; padding: 2px 7px; border: 1px solid var(--dbd); border-radius: 5px; color: var(--dt3); font-size: 0.68rem; font-weight: 650; }
+	.runtime-badge::before { content: ''; width: 5px; height: 5px; margin-right: 5px; border-radius: 50%; background: #f59e0b; }
+	.runtime-badge.runtime-ready::before { background: #16a34a; }
 	.a-desc { font-size: 0.8rem; color: var(--dt3); margin: 0; line-height: 1.4; }
 
 	.run-card { border: 1px solid var(--dbd); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px; background: color-mix(in srgb, var(--dt) 2%, transparent); }
@@ -529,10 +573,34 @@
 	.field { display: flex; flex-direction: column; gap: 6px; }
 	.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 	.field-label { font-size: 0.76rem; font-weight: 600; color: var(--dt2); }
+	.harness-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+	.harness-option { min-height: 58px; padding: 9px 11px; border: 1px solid var(--dbd); border-radius: 8px; background: color-mix(in srgb, var(--dt) 2%, transparent); color: var(--dt); text-align: left; cursor: pointer; }
+	.harness-option:hover { border-color: color-mix(in srgb, var(--dt) 30%, var(--dbd)); }
+	.harness-option.is-selected { border-color: var(--dt); box-shadow: 0 0 0 1px var(--dt) inset; }
+	.harness-option span, .harness-option small { display: block; }
+	.harness-option span { font-size: 0.8rem; font-weight: 650; }
+	.harness-option small { margin-top: 3px; color: var(--dt3); font-size: 0.68rem; line-height: 1.25; }
+	.field-input:disabled { opacity: 0.55; cursor: not-allowed; }
 	.modal-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--dbd); }
 
 	:global(.spin) { animation: spin 0.8s linear infinite; }
 	@keyframes spin { to { transform: rotate(360deg); } }
+	.runtime-strip { display: flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--dbd); border-radius: 8px; background: color-mix(in srgb, var(--dt) 2%, transparent); }
+	.runtime-strip span { padding: 7px 11px; border-right: 1px solid var(--dbd); color: var(--dt3); font-size: 0.72rem; }
+	.runtime-strip span:last-child { border-right: 0; }
+	.runtime-strip strong { color: var(--dt2); font-weight: 650; }
 	@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
-	@media (max-width: 768px) { .page { padding: 16px 18px; } .cards { grid-template-columns: 1fr; } .field-row { grid-template-columns: 1fr; } }
+	@media (max-width: 768px) {
+		.page { padding: 16px 18px; }
+		.page-header { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+		.page-header > .btn { grid-column: 2; justify-self: start; }
+		.cards { grid-template-columns: 1fr; }
+		.field-row { grid-template-columns: 1fr; }
+		.harness-options { grid-template-columns: 1fr; }
+		.harness-option { min-height: 52px; }
+		.runtime-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		.runtime-strip span { border-bottom: 1px solid var(--dbd); }
+		.runtime-strip span:nth-child(2) { border-right: 0; }
+		.runtime-strip span:nth-last-child(-n+2) { border-bottom: 0; }
+	}
 </style>

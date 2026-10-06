@@ -38,7 +38,15 @@
 		missedContent
 	} from '$lib/modules/content/calendarProjection';
 	import { getPreferences, updatePreferences, type WorkspacePreferences } from '$lib/api/preferences';
-	import { Plus, Loader2, X, RefreshCw, ChevronLeft, ChevronRight, Trash2, MapPin, Clock, Link2, Check, Settings } from 'lucide-svelte';
+	import { Plus, Loader2, X, RefreshCw, ChevronLeft, ChevronRight, Trash2, MapPin, Clock, Link2, Check, Settings, FileText, ListChecks } from 'lucide-svelte';
+
+	type EventActionItem = CalendarEvent['action_items'][number] & {
+		action?: string;
+		owner?: string;
+		due?: string;
+		confidence?: number;
+		source?: string;
+	};
 
 	let view = $state<ViewMode>('month');
 	let calendarMode = $state<'appointments' | 'content'>('appointments');
@@ -76,6 +84,7 @@
 	const PALETTE = ['#6366f1', '#34d399', '#f59e0b', '#ec4899', '#06b6d4', '#f43f5e', '#8b5cf6', '#14b8a6', '#eab308', '#3b82f6'];
 	let members = $state<WorkspaceMember[]>([]);
 	let selectedMembers = $state<Set<string>>(new Set());
+	let memberWorkspaceId = '';
 	const memberColors = $derived.by(() => {
 		const m: Record<string, string> = {};
 		members.forEach((mem, i) => { m[mem.user_id] = PALETTE[i % PALETTE.length]; });
@@ -89,6 +98,16 @@
 		const s = new Set(selectedMembers);
 		if (s.has(uid)) s.delete(uid); else s.add(uid);
 		selectedMembers = s;
+	}
+	async function loadMembers(workspaceId: string) {
+		try {
+			const res = await listMembers(workspaceId);
+			members = Array.isArray(res) ? res : ((res as { members?: WorkspaceMember[] })?.members ?? []);
+			selectedMembers = new Set(members.map((member) => member.user_id));
+		} catch {
+			members = [];
+			selectedMembers = new Set();
+		}
 	}
 	// Events filtered to the picked members (all picked by default).
 	const visibleEvents = $derived(
@@ -181,6 +200,20 @@
 	let savingContent = $state(false);
 	let deletingContent = $state(false);
 
+	function actionText(item: EventActionItem | string): string {
+		if (typeof item === 'string') return item || 'Untitled action';
+		return item.text || item.action || 'Untitled action';
+	}
+
+	function actionDueDate(item: EventActionItem): string {
+		return item.due_date || item.due || '';
+	}
+
+	function actionConfidence(item: EventActionItem): string {
+		if (typeof item.confidence !== 'number') return '';
+		return `${Math.round(item.confidence * 100)}% confidence`;
+	}
+
 	// Day preview popover: clicking a day in Month shows that whole day's events.
 	let previewDay = $state<Date | null>(null);
 	const previewEvents = $derived.by(() =>
@@ -196,6 +229,14 @@
 		const r = dateRange;
 		const key = `${$currentWorkspace?.id ?? ''}|${view}|${calendarMode}|${r.start.toISOString()}|${r.end.toISOString()}`;
 		if (key !== lastKey) { lastKey = key; load(); }
+	});
+
+	$effect(() => {
+		const id = $currentWorkspace?.id ?? '';
+		if (id && id !== memberWorkspaceId) {
+			memberWorkspaceId = id;
+			void loadMembers(id);
+		}
 	});
 
 	onMount(async () => {
@@ -214,11 +255,6 @@
 			googleStatusLoaded = true;
 		}
 		await load();
-		try {
-			const res = await listMembers($currentWorkspace?.id ?? '');
-			members = Array.isArray(res) ? res : ((res as { members?: WorkspaceMember[] })?.members ?? []);
-			selectedMembers = new Set(members.map((m) => m.user_id));
-		} catch { members = []; }
 	});
 
 	async function load() {
@@ -612,18 +648,18 @@
 		<div class="tools">
 			{#if calendarMode === 'appointments' && googleConnected && googleAuthorized && syncedLabel}
 				<button class="sync-status" onclick={syncGoogle} disabled={syncing} title="Auto-syncs with Google. Click to refresh now.">
-					<RefreshCw size={12} class={syncing ? 'spin' : ''} />{syncedLabel}
+					<RefreshCw size={12} class={syncing ? 'spin' : ''} /><span>{syncedLabel}</span>
 				</button>
 			{:else if calendarMode === 'appointments'}
 				<button class="sync-status" onclick={connectGoogle} disabled={connecting} title={googleConnected ? 'Reconnect Google Calendar permissions' : 'Connect Google Calendar'}>
-					<Link2 size={12} />{connecting ? 'Connecting...' : googleConnected ? 'Reconnect Google' : 'Connect Google'}
+					<Link2 size={12} /><span>{connecting ? 'Connecting...' : googleConnected ? 'Reconnect Google' : 'Connect Google'}</span>
 				</button>
 			{/if}
 			<button class="icon-btn" onclick={() => { loadPrefs(); showSettings = true; }} aria-label="Calendar settings" title="Calendar settings"><Settings size={17} /></button>
 			{#if calendarMode === 'appointments'}
-				<button class="btn btn--primary" onclick={() => openCreate()}><Plus size={16} strokeWidth={2.4} />New event</button>
+				<button class="btn btn--primary new-event-btn" onclick={() => openCreate()} aria-label="New event" title="New event"><Plus size={16} strokeWidth={2.4} /><span>New event</span></button>
 			{:else}
-				<a class="btn btn--primary" href="/content"><Plus size={16} strokeWidth={2.4} />Open ContentOS</a>
+				<a class="btn btn--primary new-event-btn" href="/content" aria-label="Open ContentOS" title="Open ContentOS"><Plus size={16} strokeWidth={2.4} /><span>Open ContentOS</span></a>
 			{/if}
 		</div>
 	</header>
@@ -771,7 +807,7 @@
 <!-- Create modal -->
 {#if showCreate}
 	<div class="overlay" role="button" tabindex="0" onclick={() => (showCreate = false)} onkeydown={(e) => e.key === 'Escape' && (showCreate = false)}>
-		<div class="modal" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
+		<div class="modal modal--detail" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
 			<div class="modal-head"><h2>New event</h2><button class="card-x" onclick={() => (showCreate = false)} aria-label="Close"><X size={18} /></button></div>
 			<form onsubmit={create}>
 				<label class="field"><span>Title</span><input bind:value={form.title} placeholder="Event title" required /></label>
@@ -909,10 +945,39 @@
 			<div class="detail">
 				<div class="detail-row"><Clock size={15} /><span>{fmtDayLabel(selectedEvent.start_time)} · {fmtTime(selectedEvent.start_time)} – {fmtTime(selectedEvent.end_time)}</span></div>
 				{#if selectedEvent.location}<div class="detail-row"><MapPin size={15} /><span>{selectedEvent.location}</span></div>{/if}
+				<div class="event-meta">
+					{#if selectedEvent.meeting_type && selectedEvent.meeting_type !== 'other'}<span>{selectedEvent.meeting_type.replaceAll('_', ' ')}</span>{/if}
+					{#if selectedEvent.status}<span>{selectedEvent.status}</span>{/if}
+				</div>
 				{#if isContentEvent(selectedEvent)}
 					<div class="detail-row"><span class="src">ContentOS</span><span>This date comes from the ContentOS card.</span></div>
 				{:else if selectedEvent.source === 'google'}<div class="detail-row"><span class="src">Google</span></div>{/if}
 				{#if selectedEvent.description}<div class="detail-desc">{@html sanitizeHtml(selectedEvent.description)}</div>{/if}
+				{#if selectedEvent.meeting_notes}
+					<section class="evidence-section">
+						<h3><FileText size={15} /> Meeting evidence</h3>
+						<p>{selectedEvent.meeting_notes}</p>
+					</section>
+				{/if}
+				{#if selectedEvent.action_items?.length}
+					<section class="evidence-section">
+						<h3><ListChecks size={15} /> Extracted actions <span>{selectedEvent.action_items.length}</span></h3>
+						<div class="action-list">
+							{#each selectedEvent.action_items as rawItem}
+								{@const item = rawItem as EventActionItem}
+								<div class="action-item">
+									<strong>{actionText(item)}</strong>
+									<div>
+										{#if item.owner}<span>Owner: {item.owner}</span>{/if}
+										{#if actionDueDate(item)}<span>Due: {actionDueDate(item)}</span>{/if}
+										{#if actionConfidence(item)}<span>{actionConfidence(item)}</span>{/if}
+										{#if item.source}<span>Source: {item.source}</span>{/if}
+									</div>
+								</div>
+							{/each}
+						</div>
+					</section>
+				{/if}
 			</div>
 			<div class="modal-actions">
 				{#if isContentEvent(selectedEvent)}
@@ -1041,6 +1106,7 @@
 	.ag-src { font-size: 0.66rem; color: var(--dt3); background: color-mix(in srgb, var(--dt) 6%, transparent); padding: 1px 6px; border-radius: 5px; flex-shrink: 0; }
 	.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
 	.modal { width: 100%; max-width: 440px; background: var(--dbg); border: 1px solid var(--dbd); border-radius: 16px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+	.modal--detail { max-width: 620px; max-height: min(82vh, 760px); overflow-y: auto; }
 	.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 12px; }
 	.modal-head h2 { font-size: 1.05rem; font-weight: 640; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.modal-head p { margin: 4px 0 0; color: var(--dt3); font-size: 0.8rem; line-height: 1.35; }
@@ -1067,8 +1133,32 @@
 	.detail-desc :global(h1), .detail-desc :global(h2), .detail-desc :global(h3) { font-size: 0.9rem; font-weight: 650; color: var(--dt); margin: 10px 0 4px; }
 	.detail-desc :global(strong) { color: var(--dt); font-weight: 600; }
 	.detail-desc :global(a) { color: var(--bos-accent, #6aa3ff); text-decoration: underline; }
+	.event-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+	.event-meta span { padding: 3px 7px; border: 1px solid var(--dbd); border-radius: 5px; color: var(--dt3); font-size: 0.68rem; font-weight: 700; text-transform: capitalize; }
+	.evidence-section { padding-top: 13px; border-top: 1px solid var(--dbd); }
+	.evidence-section h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 8px; color: var(--dt); font-size: 0.8rem; }
+	.evidence-section h3 span { margin-left: auto; color: var(--dt3); font-size: 0.72rem; }
+	.evidence-section p { margin: 0; color: var(--dt2); font-size: 0.82rem; line-height: 1.55; white-space: pre-wrap; }
+	.action-list { display: grid; gap: 7px; }
+	.action-item { padding: 9px 10px; border: 1px solid var(--dbd); border-radius: 7px; background: color-mix(in srgb, var(--dt) 2%, var(--dbg)); }
+	.action-item strong { display: block; color: var(--dt); font-size: 0.79rem; line-height: 1.4; }
+	.action-item > div { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; }
+	.action-item span { color: var(--dt3); font-size: 0.69rem; }
 	.src { font-size: 0.7rem; color: var(--dt3); background: color-mix(in srgb, var(--dt) 6%, transparent); padding: 2px 8px; border-radius: 6px; }
 	:global(.spin) { animation: spin 0.9s linear infinite; }
 	@keyframes spin { to { transform: rotate(360deg); } }
-	@media (max-width: 760px) { .center { display: none; } .left h1 { min-width: 0; font-size: 1rem; } }
+	@media (max-width: 760px) {
+		.topbar { gap: 8px; padding: 10px 12px; }
+		.left { gap: 8px; min-width: 0; }
+		.left h1 { min-width: 0; font-size: 1rem; }
+		.center { display: none; }
+		.tools { gap: 4px; flex-shrink: 0; }
+		.sync-status { width: 30px; height: 30px; justify-content: center; padding: 0; }
+		.sync-status span { display: none; }
+		.new-event-btn { width: 30px; height: 30px; justify-content: center; padding: 0; border-radius: 8px; }
+		.new-event-btn span { display: none; }
+		.overlay { padding: 10px; }
+		.modal { padding: 16px; border-radius: 12px; }
+		.modal-head h2 { white-space: normal; }
+	}
 </style>

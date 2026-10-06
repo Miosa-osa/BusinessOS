@@ -215,15 +215,39 @@ type WorkspaceInvitationData struct {
 	WorkspaceName   string
 	Role            string
 	InvitationLink  string
-	ExpiresIn       string
+	ExpiresAt       string
 	PersonalMessage string
 }
 
 // SendWorkspaceInvitation sends a workspace invitation email
 func (s *EmailTemplateService) SendWorkspaceInvitation(ctx context.Context, to string, data WorkspaceInvitationData) error {
+	data, subject := s.prepareWorkspaceInvitation(data)
+	return s.sendTemplate(ctx, to, subject, "workspace_invitation.html", data)
+}
+
+// RenderWorkspaceInvitation renders the production invitation without sending it.
+// It is used by visual QA and keeps previews on the same path as delivered email.
+func (s *EmailTemplateService) RenderWorkspaceInvitation(data WorkspaceInvitationData) (string, string, error) {
+	data, _ = s.prepareWorkspaceInvitation(data)
+	return s.renderTemplate("workspace_invitation.html", data)
+}
+
+func (s *EmailTemplateService) prepareWorkspaceInvitation(data WorkspaceInvitationData) (WorkspaceInvitationData, string) {
+	if strings.TrimSpace(data.InviterName) == "" {
+		data.InviterName = data.InviterEmail
+	}
+	if strings.TrimSpace(data.WorkspaceName) == "" {
+		data.WorkspaceName = "your BusinessOS workspace"
+	}
+	if strings.TrimSpace(data.Role) == "" {
+		data.Role = "member"
+	}
+	if strings.TrimSpace(data.ExpiresAt) == "" {
+		data.ExpiresAt = "soon"
+	}
 	subject := fmt.Sprintf("%s invited you to %s", data.InviterName, data.WorkspaceName)
 	data.BaseEmailData = s.newBaseData(subject)
-	return s.sendTemplate(ctx, to, subject, "workspace_invitation.html", data)
+	return data, subject
 }
 
 // RoleChangedData for role change notification
@@ -481,36 +505,16 @@ func (s *EmailTemplateService) sendTemplate(ctx context.Context, to, subject, te
 		return nil
 	}
 
-	// Parse base + THIS email's content into a fresh set. Every content file
-	// defines its own "content"/"footer" blocks, so parsing them all at once (the
-	// global s.templates) collapses them to whichever file parsed last — every
-	// email would render the same wrong body. Parsing per-send isolates the
-	// correct content/footer for this template.
-	tmpl, err := template.ParseFS(emailTemplates, "email/base.html", "email/"+templateName)
+	htmlBody, plainText, err := s.renderTemplate(templateName, data)
 	if err != nil {
-		slog.Info("Failed to parse email template", "id", templateName, "error", err)
-		return fmt.Errorf("failed to parse email template: %w", err)
+		return err
 	}
-
-	// Render the full email (base pulls in this template's content + footer).
-	var htmlBuf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&htmlBuf, "base.html", data); err != nil {
-		slog.Info("Failed to render base template", "error", err)
-		return fmt.Errorf("failed to render base email template: %w", err)
-	}
-
-	// Render the content block alone for the plain-text fallback.
-	var contentBuf bytes.Buffer
-	_ = tmpl.ExecuteTemplate(&contentBuf, "content", data)
-
-	// Generate plain text version
-	plainText := s.htmlToPlainText(contentBuf.String())
 
 	params := &resend.SendEmailRequest{
 		From:    fmt.Sprintf("%s <%s>", s.fromName, s.fromEmail),
 		To:      []string{to},
 		Subject: subject,
-		Html:    htmlBuf.String(),
+		Html:    htmlBody,
 		Text:    plainText,
 	}
 
@@ -522,6 +526,30 @@ func (s *EmailTemplateService) sendTemplate(ctx context.Context, to, subject, te
 
 	slog.Info("Email sent:,,", "template", templateName, "template", to, "template", sent.Id)
 	return nil
+}
+
+func (s *EmailTemplateService) renderTemplate(templateName string, data interface{}) (string, string, error) {
+	// Parse base + one content template in isolation. Every content file defines
+	// the same content/footer blocks, so parsing the full directory would select
+	// whichever definitions happened to be parsed last.
+	tmpl, err := template.ParseFS(emailTemplates, "email/base.html", "email/"+templateName)
+	if err != nil {
+		slog.Info("Failed to parse email template", "id", templateName, "error", err)
+		return "", "", fmt.Errorf("failed to parse email template: %w", err)
+	}
+
+	var htmlBuf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&htmlBuf, "base.html", data); err != nil {
+		slog.Info("Failed to render base template", "error", err)
+		return "", "", fmt.Errorf("failed to render base email template: %w", err)
+	}
+
+	var contentBuf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&contentBuf, "content", data); err != nil {
+		return "", "", fmt.Errorf("failed to render plain-text email content: %w", err)
+	}
+
+	return htmlBuf.String(), s.htmlToPlainText(contentBuf.String()), nil
 }
 
 // htmlToPlainText converts HTML to plain text (basic implementation)

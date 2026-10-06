@@ -1,7 +1,6 @@
-// Workspace Agents API client — the new agent system (replaces Dalya). Defines
-// AI agents (name, role, model, system prompt) per workspace and runs them
-// against a Claude model. Goes through request<T>() (base url, cookie, CSRF,
-// X-Workspace-ID header).
+// Workspace Agents API client. Defines agents and their execution harnesses per
+// workspace. Hosted OSA runs execute through BusinessOS, while connected-machine
+// harnesses remain explicit until that runtime is available.
 import { request } from "./base";
 
 export interface WorkspaceAgent {
@@ -9,6 +8,7 @@ export interface WorkspaceAgent {
   name: string;
   role: string;
   description: string;
+  runtime: AgentRuntime;
   model: string;
   system_prompt: string;
   status: string;
@@ -22,6 +22,7 @@ export interface WorkspaceAgentRun {
   agent_id: string;
   input: string;
   output: string;
+  runtime: AgentRuntime;
   model: string;
   status: string; // "done" | "error"
   created_at: string;
@@ -33,11 +34,37 @@ export interface AgentModel {
   hint: string;
 }
 
+export type AgentRuntime = "osa" | "claude-code" | "codex" | "hermes";
+
+export interface AgentRuntimeOption {
+  id: AgentRuntime;
+  label: string;
+  hint: string;
+  hosted: boolean;
+}
+
+export const AGENT_RUNTIMES: AgentRuntimeOption[] = [
+  { id: "osa", label: "OSA", hint: "Hosted BusinessOS harness", hosted: true },
+  { id: "claude-code", label: "Claude Code", hint: "Connected machine runtime", hosted: false },
+  { id: "codex", label: "Codex", hint: "Connected machine runtime", hosted: false },
+  { id: "hermes", label: "Hermes", hint: "Connected machine runtime", hosted: false },
+];
+
+export const DEFAULT_AGENT_RUNTIME: AgentRuntime = "osa";
+
+export function runtimeOption(id: AgentRuntime): AgentRuntimeOption {
+  return AGENT_RUNTIMES.find((runtime) => runtime.id === id) ?? AGENT_RUNTIMES[0];
+}
+
+export function runtimeLabel(id: AgentRuntime): string {
+  return runtimeOption(id).label;
+}
+
 // The Claude models an agent can be configured with (mirrors the backend allow-list).
 export const AGENT_MODELS: AgentModel[] = [
   { id: "claude-sonnet-4-5-20250929", label: "Sonnet 4.5", hint: "Balanced (default)" },
   { id: "claude-opus-4-1-20250805", label: "Opus 4", hint: "Most capable" },
-  { id: "claude-haiku-4-5-20251001", label: "Haiku 3.5", hint: "Fast & cheap" },
+  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5", hint: "Fast and economical" },
 ];
 
 export const DEFAULT_AGENT_MODEL = "claude-sonnet-4-5-20250929";
@@ -50,6 +77,7 @@ export interface AgentInput {
   name: string;
   role?: string;
   description?: string;
+  runtime?: AgentRuntime;
   model?: string;
   system_prompt?: string;
   status?: string;
@@ -57,6 +85,7 @@ export interface AgentInput {
 
 export interface RunResult {
   output: string;
+  runtime: AgentRuntime;
   model: string;
   status: string;
   run_id: string;

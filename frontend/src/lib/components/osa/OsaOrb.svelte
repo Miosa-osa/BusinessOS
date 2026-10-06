@@ -1,10 +1,10 @@
 <!--
 	OsaOrb.svelte
-	Shared OSA video orb — used on both regular desktop and 3D desktop.
+	Shared OSA video orb - used on both regular desktop and 3D desktop.
 
 	- Always playing, never static — looks like a continuous animation
 	- Idle: full video loops naturally (no fade, no crossfade)
-	- Active (listening/speaking): loops last ~0.75s with blue glow
+	- Active (listening/speaking): steady video loop with blue glow
 	- Draggable anywhere, position saved to localStorage
 	- Live captions: shows user speech (blue) and OSA responses (purple)
 -->
@@ -12,7 +12,9 @@
 <script lang="ts">
 	import { fly, fade } from 'svelte/transition';
 	import { browser } from '$app/environment';
-	import { voiceTranscription } from '$lib/services/voiceTranscriptionService';
+	import { onMount, onDestroy } from 'svelte';
+	import { OsaOrbVoice, type OrbVoicePhase } from '$lib/services/osaOrbVoice';
+	
 
 	interface CaptionMessage {
 		id: number;
@@ -32,20 +34,25 @@
 
 	let {
 		isListening: externalListening = false,
-		isSpeaking = false,
+		isSpeaking: externalSpeaking = false,
 		onToggleListening = null,
 		transcript: externalTranscript = '',
 		osaMessage: externalOsaMessage = ''
 	}: Props = $props();
 
-	// Internal voice state (used when no external handler is provided)
-	let internalListening = $state(false);
-	let internalTranscript = $state('');
-	let transcriptFadeTimer: ReturnType<typeof setTimeout> | null = null;
-
-	// Use external state if handler provided, otherwise internal
-	let isListening = $derived(onToggleListening ? externalListening : internalListening);
-	let currentTranscript = $derived(onToggleListening ? externalTranscript : internalTranscript);
+	let phase = $state<OrbVoicePhase>('idle');
+	let voiceError = $state('');
+	let isListening = $derived(onToggleListening ? externalListening : phase === 'listening');
+	let isSpeaking = $derived(onToggleListening ? externalSpeaking : phase === 'speaking');
+	let liveTranscript = $state('');
+	let currentTranscript = $derived(onToggleListening ? externalTranscript : liveTranscript);
+	const captionTimers = new Set<ReturnType<typeof setTimeout>>();
+	const voice = new OsaOrbVoice({
+		phase: value => { phase = value; if (value !== 'error') voiceError = ''; },
+		caption: (sender, text) => addCaption(sender, text),
+        transcript: text => { liveTranscript = text; },
+		error: message => { voiceError = message; }
+	});
 
 	// Conversation captions
 	let captions = $state<CaptionMessage[]>([]);
@@ -55,10 +62,12 @@
 		if (!text.trim()) return;
 		const id = ++captionIdCounter;
 		captions = [...captions.slice(-4), { id, sender, text: text.trim() }];
-		// Auto-remove after 8s
-		setTimeout(() => {
+		// Keep the voice transcript readable after the spoken answer.
+		const timer = setTimeout(() => {
 			captions = captions.filter(c => c.id !== id);
-		}, 8000);
+			captionTimers.delete(timer);
+		}, 60000);
+		captionTimers.add(timer);
 	}
 
 	// Track external OSA messages
@@ -68,49 +77,9 @@
 		}
 	});
 
-	// Guard against rapid clicks — cooldown-based
-	let lastToggleTime = 0;
-	const TOGGLE_COOLDOWN = 600; // ms
-
-	// Self-contained voice toggle (when no external handler)
-	async function selfToggleListening() {
-		const now = Date.now();
-		if (now - lastToggleTime < TOGGLE_COOLDOWN) return;
-		lastToggleTime = now;
-
-		if (internalListening) {
-			voiceTranscription.stop();
-			internalListening = false;
-			// Fade transcript after 3s
-			if (transcriptFadeTimer) clearTimeout(transcriptFadeTimer);
-			transcriptFadeTimer = setTimeout(() => { internalTranscript = ''; }, 3000);
-		} else {
-			internalTranscript = '';
-			const started = await voiceTranscription.start(
-				(text, isFinal) => {
-					internalTranscript = text;
-					if (isFinal && text.trim()) {
-						addCaption('user', text);
-					}
-					if (import.meta.env.DEV) console.log(`[OSA Voice] ${isFinal ? 'FINAL' : 'interim'}: ${text}`);
-				},
-				() => {
-					// Voice service stopped unexpectedly (network error, etc.)
-					internalListening = false;
-				}
-			);
-			if (started) {
-				internalListening = true;
-			}
-		}
-	}
-
 	function handleToggle() {
-		if (onToggleListening) {
-			onToggleListening();
-		} else {
-			selfToggleListening();
-		}
+		if (onToggleListening) onToggleListening();
+		else void voice.toggle();
 	}
 
 	let video: HTMLVideoElement | null = $state(null);
@@ -122,14 +91,7 @@
 
 	function handleVideoError() {
 		videoFailed = true;
-		stopSegmentLoop();
 	}
-
-	// Single video, rAF-driven segment loop for the last 0.75s
-	const VIDEO_DURATION = 11.9;
-	const LOOP_START = VIDEO_DURATION - 0.75;
-	const LOOP_RESET = VIDEO_DURATION - 0.05; // reset 50ms before end
-	let rafId: number | null = null;
 
 	// Drag state
 	let isDragging = $state(false);
@@ -139,83 +101,26 @@
 	let position = $state({ x: 0, y: 0 });
 	let useCustomPosition = $state(false);
 
-	// Derived: is active
-	let isActive = $derived(isListening || isSpeaking);
-
-	// Load saved position
-	$effect(() => {
-		if (browser) {
-			const saved = localStorage.getItem('osaOrbPosition');
-			if (saved) {
-				try {
-					position = JSON.parse(saved);
-					useCustomPosition = true;
-				} catch {
-					// ignore
-				}
+	function clampPosition(value: {x:number;y:number}) {
+		return {
+			x: Math.max(8, Math.min(value.x, Math.max(8, window.innerWidth - 96))),
+			y: Math.max(8, Math.min(value.y, Math.max(8, window.innerHeight - 120)))
+		};
+	}
+	function keepInBounds() { if (useCustomPosition) position = clampPosition(position); }
+	onMount(() => {
+		try {
+			const saved = JSON.parse(localStorage.getItem('osaOrbPosition') || 'null');
+			if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+				position = clampPosition(saved);
+				useCustomPosition = true;
 			}
-		}
+		} catch { /* Invalid saved positions fall back to the default corner. */ }
 	});
-
-	function seekVideo(t: number) {
-		if (!video) return;
-		if ('fastSeek' in video && typeof video.fastSeek === 'function') {
-			video.fastSeek(t);
-		} else {
-			video.currentTime = t;
-		}
-	}
-
-	// Track whether segment loop should run (non-reactive, for use in rAF)
-	let segmentLoopActive = false;
-
-	function startSegmentLoop() {
-		stopSegmentLoop();
-		segmentLoopActive = true;
-		if (video) {
-			seekVideo(LOOP_START);
-			video.loop = false;
-			video.play().catch(() => {});
-		}
-		function tick() {
-			if (!video || !segmentLoopActive) return;
-			if (video.currentTime >= LOOP_RESET) {
-				seekVideo(LOOP_START);
-			}
-			rafId = requestAnimationFrame(tick);
-		}
-		rafId = requestAnimationFrame(tick);
-	}
-
-	function stopSegmentLoop() {
-		segmentLoopActive = false;
-		if (rafId !== null) {
-			cancelAnimationFrame(rafId);
-			rafId = null;
-		}
-	}
-
-	// Handle state transitions
-	$effect(() => {
-		const v = video;
-		if (!v) return;
-
-		if (isActive) {
-			startSegmentLoop();
-		} else {
-			stopSegmentLoop();
-			v.loop = true;
-			if (v.paused) v.play().catch(() => {});
-		}
-
-		return () => stopSegmentLoop();
-	});
-
-	// Auto-play on load
-	function handleCanPlay() {
-		if (!video || !video.paused) return;
-		video.play().catch(() => {});
-	}
+	onDestroy(() => { voice.destroy(); captionTimers.forEach(clearTimeout); });
+	function handleCanPlay() { video?.play().catch(() => {}); }
+	let suppressClick = false;
+	let dragPointer: number | null = null;
 
 	// Drag handlers
 	function savePosition() {
@@ -224,41 +129,40 @@
 		}
 	}
 
-	function handleDragStart(e: MouseEvent) {
-		if ((e.target as HTMLElement).closest('.reset-position')) return;
+	function handleDragStart(e: PointerEvent) {
+		if (e.button !== 0 || !e.isPrimary) return;
+        e.preventDefault();
+		const target = e.currentTarget as HTMLButtonElement;
+		const rect = target.parentElement!.getBoundingClientRect();
 		isDragging = true;
 		hasMoved = false;
-		startPos = { x: e.clientX, y: e.clientY };
-		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-		dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-		e.preventDefault();
+		dragPointer = e.pointerId;
+		startPos = {x:e.clientX,y:e.clientY};
+		dragOffset = {x:e.clientX-rect.left,y:e.clientY-rect.top};
+		target.setPointerCapture(e.pointerId);
 	}
-
-	function handleDragMove(e: MouseEvent) {
-		if (!isDragging) return;
-		if (Math.abs(e.clientX - startPos.x) > 5 || Math.abs(e.clientY - startPos.y) > 5) {
-			hasMoved = true;
-		}
+	function handleDragMove(e: PointerEvent) {
+		if (!isDragging || dragPointer !== e.pointerId) return;
+		if (Math.hypot(e.clientX-startPos.x,e.clientY-startPos.y) > 5) hasMoved = true;
 		if (!hasMoved) return;
-
-		position = {
-			x: Math.max(0, Math.min(e.clientX - dragOffset.x, window.innerWidth - 170)),
-			y: Math.max(0, Math.min(e.clientY - dragOffset.y, window.innerHeight - 170))
-		};
+		position = clampPosition({x:e.clientX-dragOffset.x,y:e.clientY-dragOffset.y});
 		useCustomPosition = true;
 	}
-
-	function handleDragEnd() {
-		if (!isDragging) return;
+	function handleDragEnd(e: PointerEvent) {
+		if (dragPointer !== e.pointerId) return;
+		suppressClick = hasMoved;
+		if (hasMoved) savePosition();
 		isDragging = false;
-		if (hasMoved) {
-			savePosition();
-		} else {
-			handleToggle();
-		}
-		hasMoved = false;
+		dragPointer = null;
+		const target = e.currentTarget as HTMLButtonElement;
+		if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
 	}
-
+	function cancelDrag() { isDragging = false; dragPointer = null; suppressClick = true; }
+	function handleClick(e: MouseEvent) {
+		if (suppressClick && e.detail !== 0) { suppressClick = false; return; }
+		suppressClick = false;
+		handleToggle();
+	}
 	function resetPosition() {
 		useCustomPosition = false;
 		position = { x: 0, y: 0 };
@@ -266,14 +170,15 @@
 	}
 </script>
 
-<svelte:window onmousemove={handleDragMove} onmouseup={handleDragEnd} />
+<svelte:window onresize={keepInBounds} onblur={cancelDrag} />
 
 <div
 	class="osa-orb"
 	class:dragging={isDragging}
 	class:custom-position={useCustomPosition}
+	class:captions-below={useCustomPosition && position.y < 220}
+	class:captions-left={useCustomPosition && position.x < 300}
 	style={useCustomPosition ? `left: ${position.x}px; top: ${position.y}px;` : ''}
-	onmousedown={handleDragStart}
 >
 	{#if useCustomPosition}
 		<button class="reset-position" onclick={resetPosition} title="Reset position">
@@ -288,14 +193,22 @@
 		class="orb-button"
 		class:listening={isListening}
 		class:speaking={isSpeaking}
-		title={isListening ? 'Stop listening' : 'Tap to speak'}
+		title={isListening ? 'Stop recording and send to OSA' : phase === 'idle' || phase === 'error' ? 'Tap to speak' : 'Cancel voice request'}
+		aria-label={isListening ? 'Stop recording and send to OSA' : phase === 'idle' || phase === 'error' ? 'Talk to OSA' : 'Cancel voice request'}
+		aria-pressed={isListening}
+		onpointerdown={handleDragStart}
+		onpointermove={handleDragMove}
+		onpointerup={handleDragEnd}
+		onpointercancel={cancelDrag}
+		onlostpointercapture={() => { if (isDragging) cancelDrag(); }}
+		onclick={handleClick}
 	>
 		<div class="orb-video-wrap">
 			{#if videoFailed}
 				<!-- Static decorative fallback when the video can't load -->
 				<div class="orb-fallback" aria-hidden="true"></div>
 			{:else}
-				<!-- svelte-ignore a11y-media-has-caption -->
+				<!-- svelte-ignore a11y_media_has_caption -->
 				<video
 					bind:this={video}
 					src="/OSAFinalNOBG.mp4"
@@ -313,8 +226,11 @@
 	</button>
 
 	<!-- Live captions — conversation bubbles near orb -->
-	{#if captions.length > 0 || currentTranscript}
-		<div class="captions-panel">
+	{#if captions.length > 0 || currentTranscript || voiceError || isListening || phase === 'transcribing' || phase === 'thinking'}
+		<div class="captions-panel" aria-live="polite">
+            {#if isListening && !currentTranscript}<div class="caption-bubble caption-user"><span class="caption-label">Voice conversation</span><span class="caption-text">Listening. Tap the orb when you’re done.</span></div>{/if}
+            {#if phase === 'transcribing'}<div class="caption-bubble caption-user"><span class="caption-text">Finishing transcript…</span></div>{/if}
+			{#if voiceError}<div class="caption-bubble caption-error" role="alert">{voiceError}</div>{/if}
 			{#each captions as msg (msg.id)}
 				<div
 					class="caption-bubble"
@@ -335,11 +251,15 @@
 		</div>
 	{/if}
 
-	<div class="status-label">
+	<div class="status-label" aria-live="polite">
 		{#if isListening}
 			<span class="status-listening">Listening...</span>
 		{:else if isSpeaking}
-			<span class="status-speaking">OSA speaking...</span>
+			<span class="status-speaking">Speaking</span>
+		{:else if phase === 'starting'}<span>Microphone...</span>
+		{:else if phase === 'transcribing'}<span>Transcribing...</span>
+		{:else if phase === 'thinking'}<span>OSA thinking...</span>
+		{:else if phase === 'error'}<span>Try again</span>
 		{:else}
 			<span class="status-idle">OSA</span>
 		{/if}
@@ -349,6 +269,8 @@
 <style>
 	.osa-orb {
 		position: fixed;
+		width: 88px;
+		height: 112px;
 		bottom: 100px;
 		right: 30px;
 		z-index: 9999;
@@ -414,12 +336,13 @@
 		border-radius: 0;
 		cursor: grab;
 		transition: transform 0.2s ease;
-		outline: none;
+		touch-action: none;
+		outline-offset: 4px;
 	}
 
 	.osa-orb.dragging .orb-button {
 		cursor: grabbing;
-		pointer-events: none;
+
 	}
 
 	.orb-button:hover {
@@ -432,6 +355,8 @@
 
 	/* Video wrapper — circle clip hides the black MP4 background */
 	.orb-video-wrap {
+        pointer-events: none;
+        user-select: none;
 		position: relative;
 		width: 100%;
 		height: 100%;
@@ -480,7 +405,7 @@
 	}
 
 	.orb-button.speaking .orb-video-wrap {
-		animation: speak-float 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+		animation: listen-breathe 3s ease-in-out infinite;
 	}
 
 	@keyframes listen-breathe {
@@ -548,6 +473,12 @@
 
 	/* ===== CAPTIONS PANEL ===== */
 	.captions-panel {
+		position: absolute;
+		bottom: calc(100% + 12px);
+		right: 0;
+		width: min(280px, calc(100vw - 24px));
+		max-height: min(300px, 45vh);
+		overflow-y: auto;
 		display: flex;
 		flex-direction: column;
 		align-items: flex-end;
@@ -556,6 +487,11 @@
 		pointer-events: none;
 	}
 
+	.osa-orb.captions-below .captions-panel { bottom: auto; top: calc(100% + 12px); }
+	.osa-orb.captions-left .captions-panel { right: auto; left: 0; }
+	.caption-error { background: #7f1d1d; color: white; font-size: 13px; }
+	.orb-button:focus-visible { outline: 2px solid #60a5fa; }
+	@media (prefers-reduced-motion: reduce) { .orb-video-wrap { animation: none !important; } }
 	.caption-bubble {
 		padding: 6px 12px;
 		border-radius: 12px;
@@ -618,13 +554,23 @@
 	/* Responsive */
 	@media (max-width: 768px) {
 		.osa-orb {
-			bottom: 80px;
-			right: 20px;
+            width: 58px;
+            height: 58px;
+			bottom: max(13px, env(safe-area-inset-bottom));
+			right: 12px;
+			gap: 0;
 		}
 
 		.orb-button {
-			width: 60px;
-			height: 60px;
+			width: 42px;
+			height: 42px;
 		}
+
+		.status-label,
+		.reset-position { display: none; }
+	}
+
+	@media (max-height: 500px) and (pointer: coarse) {
+		.osa-orb { display: none; }
 	}
 </style>

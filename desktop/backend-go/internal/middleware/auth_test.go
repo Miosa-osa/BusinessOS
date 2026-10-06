@@ -3,12 +3,47 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestSignSessionCookieValueMatchesProductionVerifier(t *testing.T) {
+	t.Setenv("ENVIRONMENT", "production")
+	t.Setenv("SECRET_KEY", "test-session-secret")
+
+	value, err := SignSessionCookieValue("fresh-token")
+	assert.NoError(t, err)
+	assert.True(t, strings.HasPrefix(value, "fresh-token."))
+
+	token, valid := verifySessionCookie(value)
+	assert.True(t, valid)
+	assert.Equal(t, "fresh-token", token)
+}
+
+func TestSessionTokenCandidatesSkipsStaleDuplicateCookie(t *testing.T) {
+	t.Setenv("ENVIRONMENT", "production")
+	t.Setenv("SECRET_KEY", "test-session-secret")
+
+	freshCookie, err := SignSessionCookieValue("fresh-token")
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/auth/session", nil)
+	req.Header.Set("Cookie", SessionCookieName+"=stale-unsigned-token; "+SessionCookieName+"="+freshCookie)
+
+	assert.Equal(t, []string{"fresh-token"}, SessionTokenCandidates(req))
+}
+
+func TestSignSessionCookieValueRefusesProductionWithoutSecret(t *testing.T) {
+	t.Setenv("ENVIRONMENT", "production")
+	t.Setenv("SECRET_KEY", "")
+
+	_, err := SignSessionCookieValue("fresh-token")
+	assert.Error(t, err)
+}
 
 // setupTestContext creates a Gin test context for middleware testing
 func setupTestContext() (*gin.Context, *httptest.ResponseRecorder) {

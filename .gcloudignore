@@ -1,0 +1,17 @@
+# Backend Cloud Build submissions use the repository root because cloudbuild.yaml
+# keeps its Docker build directory at desktop/backend-go. Upload only that tree.
+/*
+!.gcloudignore
+!desktop/
+desktop/*
+!desktop/backend-go/
+!desktop/backend-go/**
+
+# Local and generated backend artifacts are never build inputs.
+desktop/backend-go/.env*
+!desktop/backend-go/.env.example
+!desktop/backend-go/.env.production.example
+desktop/backend-go/server
+desktop/backend-go/bin/
+desktop/backend-go/coverage/
+desktop/backend-go/**/*.log

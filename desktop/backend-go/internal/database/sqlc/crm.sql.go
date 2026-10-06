@@ -650,12 +650,13 @@ FROM deals d
 JOIN pipeline_stages ps ON d.stage_id = ps.id
 JOIN pipelines p ON d.pipeline_id = p.id
 LEFT JOIN companies c ON d.company_id = c.id
-WHERE d.id = $1 AND d.user_id = $2
+WHERE d.id = $1::uuid
+  AND p.workspace_id = $2::uuid
 `
 
 type GetCRMDealParams struct {
-	ID     pgtype.UUID `json:"id"`
-	UserID string      `json:"user_id"`
+	ID          pgtype.UUID `json:"id"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
 }
 
 type GetCRMDealRow struct {
@@ -689,7 +690,7 @@ type GetCRMDealRow struct {
 }
 
 func (q *Queries) GetCRMDeal(ctx context.Context, arg GetCRMDealParams) (GetCRMDealRow, error) {
-	row := q.db.QueryRow(ctx, getCRMDeal, arg.ID, arg.UserID)
+	row := q.db.QueryRow(ctx, getCRMDeal, arg.ID, arg.WorkspaceID)
 	var i GetCRMDealRow
 	err := row.Scan(
 		&i.ID,
@@ -732,14 +733,15 @@ SELECT
     COALESCE(SUM(amount) FILTER (WHERE status = 'open'), 0) as open_value,
     COALESCE(SUM(amount) FILTER (WHERE status = 'won'), 0) as won_value,
     COALESCE(SUM(amount) FILTER (WHERE status = 'lost'), 0) as lost_value
-FROM deals
-WHERE user_id = $1
-  AND ($2::uuid IS NULL OR pipeline_id = $2)
+FROM deals d
+JOIN pipelines p ON p.id = d.pipeline_id
+WHERE p.workspace_id = $1::uuid
+  AND ($2::uuid IS NULL OR d.pipeline_id = $2)
 `
 
 type GetCRMDealStatsParams struct {
-	UserID     string      `json:"user_id"`
-	PipelineID pgtype.UUID `json:"pipeline_id"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	PipelineID  pgtype.UUID `json:"pipeline_id"`
 }
 
 type GetCRMDealStatsRow struct {
@@ -753,7 +755,7 @@ type GetCRMDealStatsRow struct {
 }
 
 func (q *Queries) GetCRMDealStats(ctx context.Context, arg GetCRMDealStatsParams) (GetCRMDealStatsRow, error) {
-	row := q.db.QueryRow(ctx, getCRMDealStats, arg.UserID, arg.PipelineID)
+	row := q.db.QueryRow(ctx, getCRMDealStats, arg.WorkspaceID, arg.PipelineID)
 	var i GetCRMDealStatsRow
 	err := row.Scan(
 		&i.TotalDeals,
@@ -1118,7 +1120,7 @@ FROM deals d
 JOIN pipeline_stages ps ON d.stage_id = ps.id
 JOIN pipelines p ON d.pipeline_id = p.id
 LEFT JOIN companies c ON d.company_id = c.id
-WHERE d.user_id = $1
+WHERE p.workspace_id = $1::uuid
   AND ($2::uuid IS NULL OR d.pipeline_id = $2)
   AND ($3::uuid IS NULL OR d.stage_id = $3)
   AND ($4::varchar IS NULL OR d.status = $4)
@@ -1128,13 +1130,13 @@ LIMIT $7::int OFFSET $6::int
 `
 
 type ListCRMDealsParams struct {
-	UserID     string      `json:"user_id"`
-	PipelineID pgtype.UUID `json:"pipeline_id"`
-	StageID    pgtype.UUID `json:"stage_id"`
-	Status     *string     `json:"status"`
-	OwnerID    *string     `json:"owner_id"`
-	OffsetVal  int32       `json:"offset_val"`
-	LimitVal   int32       `json:"limit_val"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	PipelineID  pgtype.UUID `json:"pipeline_id"`
+	StageID     pgtype.UUID `json:"stage_id"`
+	Status      *string     `json:"status"`
+	OwnerID     *string     `json:"owner_id"`
+	OffsetVal   int32       `json:"offset_val"`
+	LimitVal    int32       `json:"limit_val"`
 }
 
 type ListCRMDealsRow struct {
@@ -1172,7 +1174,7 @@ type ListCRMDealsRow struct {
 // ============================================================================
 func (q *Queries) ListCRMDeals(ctx context.Context, arg ListCRMDealsParams) ([]ListCRMDealsRow, error) {
 	rows, err := q.db.Query(ctx, listCRMDeals,
-		arg.UserID,
+		arg.WorkspaceID,
 		arg.PipelineID,
 		arg.StageID,
 		arg.Status,

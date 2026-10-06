@@ -177,6 +177,16 @@
 		soundStore.playSound('click');
 
 		if (clickCount === 1) {
+			if (window.matchMedia('(max-width: 768px), (pointer: coarse)').matches) {
+				clickCount = 0;
+				onSelect?.(id, false);
+				if (iconType === 'folder' && folderId) {
+					windowStore.openFolder(folderId);
+				} else {
+					onOpen?.(module);
+				}
+				return;
+			}
 			// Single click - select
 			onSelect?.(id, event.metaKey || event.ctrlKey);
 			clickTimer = setTimeout(() => {

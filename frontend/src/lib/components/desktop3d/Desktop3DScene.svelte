@@ -17,6 +17,7 @@
 		cameraDistance: number; // Camera distance for zoom control
 		cameraRotationDelta?: { x: number; y: number }; // NEW: Gesture rotation delta
 		gestureDragging?: boolean; // NEW: Is gesture dragging active
+		compact?: boolean;
 		orbitControlsRef?: any; // Bindable ref to OrbitControls for gesture control
 		onWindowClick?: (id: string) => void;
 		onBackgroundClick?: () => void;
@@ -33,6 +34,7 @@
 		cameraDistance = 400,
 		cameraRotationDelta = { x: 0, y: 0 }, // NEW: Default rotation delta
 		gestureDragging = false, // NEW: Default not dragging
+		compact = false,
 		orbitControlsRef = $bindable(), // BINDABLE: Expose OrbitControls ref to parent
 		onWindowClick,
 		onBackgroundClick,
@@ -181,6 +183,7 @@
 		isPrevWindow={focusedWindowId !== null && index === prevIndex}
 		isNextWindow={focusedWindowId !== null && index === nextIndex}
 		isHovered={window.id === hoveredWindowId}
+		{compact}
 		viewMode={viewMode}
 		onClick={() => onWindowClick?.(window.id)}
 		onResize={onResize}

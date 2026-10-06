@@ -10,30 +10,34 @@ import (
 
 // Client response transformation
 type ClientResponse struct {
-	ID              string                 `json:"id"`
-	UserID          string                 `json:"user_id"`
-	Name            string                 `json:"name"`
-	Type            string                 `json:"type"`
-	Email           *string                `json:"email"`
-	Phone           *string                `json:"phone"`
-	Website         *string                `json:"website"`
-	Industry        *string                `json:"industry"`
-	CompanySize     *string                `json:"company_size"`
-	Address         *string                `json:"address"`
-	City            *string                `json:"city"`
-	State           *string                `json:"state"`
-	ZipCode         *string                `json:"zip_code"`
-	Country         *string                `json:"country"`
-	Status          string                 `json:"status"`
-	Source          *string                `json:"source"`
-	AssignedTo      *string                `json:"assigned_to"`
-	LifetimeValue   *float64               `json:"lifetime_value"`
-	Tags            []string               `json:"tags"`
-	CustomFields    map[string]interface{} `json:"custom_fields"`
-	Notes           *string                `json:"notes"`
-	CreatedAt       string                 `json:"created_at"`
-	UpdatedAt       string                 `json:"updated_at"`
-	LastContactedAt *string                `json:"last_contacted_at"`
+	ID                string                 `json:"id"`
+	UserID            string                 `json:"user_id"`
+	Name              string                 `json:"name"`
+	Type              string                 `json:"type"`
+	Email             *string                `json:"email"`
+	Phone             *string                `json:"phone"`
+	Website           *string                `json:"website"`
+	Industry          *string                `json:"industry"`
+	CompanySize       *string                `json:"company_size"`
+	Address           *string                `json:"address"`
+	City              *string                `json:"city"`
+	State             *string                `json:"state"`
+	ZipCode           *string                `json:"zip_code"`
+	Country           *string                `json:"country"`
+	Status            string                 `json:"status"`
+	Source            *string                `json:"source"`
+	AssignedTo        *string                `json:"assigned_to"`
+	LifetimeValue     *float64               `json:"lifetime_value"`
+	Tags              []string               `json:"tags"`
+	CustomFields      map[string]interface{} `json:"custom_fields"`
+	Notes             *string                `json:"notes"`
+	CreatedAt         string                 `json:"created_at"`
+	UpdatedAt         string                 `json:"updated_at"`
+	LastContactedAt   *string                `json:"last_contacted_at"`
+	ContactsCount     int64                  `json:"contacts_count"`
+	InteractionsCount int64                  `json:"interactions_count"`
+	DealsCount        int64                  `json:"deals_count"`
+	ActiveDealsValue  float64                `json:"active_deals_value"`
 }
 
 func TransformClient(c sqlc.Client) ClientResponse {
@@ -203,7 +207,7 @@ type CalendarEventResponse struct {
 	MeetingLink   *string          `json:"meeting_link"`
 	ExternalLinks []string         `json:"external_links"`
 	MeetingNotes  *string          `json:"meeting_notes"`
-	ActionItems   []string         `json:"action_items"`
+	ActionItems   []any            `json:"action_items"`
 	SyncedAt      string           `json:"synced_at"`
 	CreatedAt     string           `json:"created_at"`
 	UpdatedAt     string           `json:"updated_at"`
@@ -236,12 +240,12 @@ func TransformCalendarEvent(e sqlc.CalendarEvent) CalendarEventResponse {
 		externalLinks = []string{}
 	}
 
-	var actionItems []string
+	var actionItems []any
 	if e.ActionItems != nil {
 		json.Unmarshal(e.ActionItems, &actionItems)
 	}
 	if actionItems == nil {
-		actionItems = []string{}
+		actionItems = []any{}
 	}
 
 	return CalendarEventResponse{

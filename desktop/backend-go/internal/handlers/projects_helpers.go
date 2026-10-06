@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -42,10 +43,10 @@ func TransformProjectRows(rows []sqlc.ListProjectsRow) []map[string]interface{} 
 	result := make([]map[string]interface{}, len(rows))
 	for i, row := range rows {
 		result[i] = map[string]interface{}{
-			"id":                  projectUUIDToString(row.ID),
-			"user_id":             row.UserID,
-			"name":                row.Name,
-			"description":         row.Description,
+			"id":          projectUUIDToString(row.ID),
+			"user_id":     row.UserID,
+			"name":        row.Name,
+			"description": row.Description,
 			// Enums are stored UPPERCASE (ACTIVE/MEDIUM) but the frontend's
 			// Project type expects lowercase ('active'|'paused'|...). Return the
 			// lowercase form so the kanban columns match — otherwise every project
@@ -56,7 +57,7 @@ func TransformProjectRows(rows []sqlc.ListProjectsRow) []map[string]interface{} 
 			"client_id":           projectUUIDToString(row.ClientID),
 			"client_company_name": row.ClientCompanyName,
 			"project_type":        row.ProjectType,
-			"project_metadata":    row.ProjectMetadata,
+			"project_metadata":    json.RawMessage(row.ProjectMetadata),
 			"start_date":          dateToString(row.StartDate),
 			"due_date":            dateToString(row.DueDate),
 			"completed_at":        projectTimestamptzToString(row.CompletedAt),

@@ -3,6 +3,7 @@ package handlers
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -92,6 +93,7 @@ func RegisterChatRoutes(api *gin.RouterGroup, h *ChatHandler, auth gin.HandlerFu
 		chat.GET("/conversations", h.ListConversations)
 		chat.POST("/conversations", h.CreateConversation)
 		chat.GET("/conversations/:id", h.GetConversation)
+		chat.POST("/conversations/:id/messages", h.SaveClientMessage)
 		chat.PUT("/conversations/:id", h.UpdateConversation)
 		chat.DELETE("/conversations/:id", h.DeleteConversation)
 		chat.POST("/message", h.SendMessage)    // Primary endpoint (streaming SSE + artifacts)
@@ -107,23 +109,25 @@ func RegisterChatRoutes(api *gin.RouterGroup, h *ChatHandler, auth gin.HandlerFu
 
 // SendMessageRequest represents the request body for sending a message
 type SendMessageRequest struct {
-	Message        string            `json:"message" binding:"required"`
-	ConversationID *string           `json:"conversation_id"`
-	ContextID      *string           `json:"context_id"`  // Legacy: single context ID
-	ContextIDs     []string          `json:"context_ids"` // NEW: Multiple context IDs for tiered context
-	ProjectID      *string           `json:"project_id"`
-	NodeID         *string           `json:"node_id"`      // NEW: Business node context
-	WorkspaceID    *string           `json:"workspace_id"` // NEW (Feature 1): Workspace context for role-based permissions
-	DocumentIDs    []string          `json:"document_ids"` // NEW: Attached document IDs for RAG
-	Model          *string           `json:"model"`
-	AgentType      *string           `json:"agent_type"`    // orchestrator, document, analysis, planning
-	FocusMode      *string           `json:"focus_mode"`    // research, analyze, write, build, general
-	FocusOptions   map[string]string `json:"focus_options"` // depth, output, searchScope, etc.
-	Command        *string           `json:"command"`       // slash command: analyze, summarize, explain, etc.
-	Temperature    *float64          `json:"temperature"`
-	MaxTokens      *int              `json:"max_tokens"`
-	TopP           *float64          `json:"top_p"`
-	UseCOT         *bool             `json:"use_cot"` // Enable Chain of Thought with multi-agent coordination
+	OriginalMessage string            `json:"original_message,omitempty"`
+	Runtime         string            `json:"runtime,omitempty"`
+	Message         string            `json:"message" binding:"required"`
+	ConversationID  *string           `json:"conversation_id"`
+	ContextID       *string           `json:"context_id"`  // Legacy: single context ID
+	ContextIDs      []string          `json:"context_ids"` // NEW: Multiple context IDs for tiered context
+	ProjectID       *string           `json:"project_id"`
+	NodeID          *string           `json:"node_id"`      // NEW: Business node context
+	WorkspaceID     *string           `json:"workspace_id"` // NEW (Feature 1): Workspace context for role-based permissions
+	DocumentIDs     []string          `json:"document_ids"` // NEW: Attached document IDs for RAG
+	Model           *string           `json:"model"`
+	AgentType       *string           `json:"agent_type"`    // orchestrator, document, analysis, planning
+	FocusMode       *string           `json:"focus_mode"`    // research, analyze, write, build, general
+	FocusOptions    map[string]string `json:"focus_options"` // depth, output, searchScope, etc.
+	Command         *string           `json:"command"`       // slash command: analyze, summarize, explain, etc.
+	Temperature     *float64          `json:"temperature"`
+	MaxTokens       *int              `json:"max_tokens"`
+	TopP            *float64          `json:"top_p"`
+	UseCOT          *bool             `json:"use_cot"` // Enable Chain of Thought with multi-agent coordination
 	// Thinking/COT settings
 	ThinkingEnabled     *bool   `json:"thinking_enabled"`      // Enable thinking/reasoning display
 	ReasoningTemplateID *string `json:"reasoning_template_id"` // Custom reasoning template to use
@@ -163,7 +167,7 @@ func (h *ChatHandler) ListConversations(c *gin.Context) {
 			utils.RespondInternalError(c, slog.Default(), "list conversations", err)
 			return
 		}
-		c.JSON(http.StatusOK, TransformConversationsByContextRows(conversations))
+		c.JSON(http.StatusOK, TransformConversationsByContextRows(conversations, h.conversationLocation(c)))
 		return
 	}
 
@@ -176,7 +180,7 @@ func (h *ChatHandler) ListConversations(c *gin.Context) {
 		return
 	}
 
-	all := TransformConversationListRows(conversations)
+	all := TransformConversationListRows(conversations, h.conversationLocation(c))
 	total := int64(len(all))
 	start := int(pg.Offset)
 	end := start + int(pg.Limit)
@@ -245,7 +249,7 @@ func (h *ChatHandler) CreateConversation(c *gin.Context) {
 		ModifiedAt: pgPlainTimestampToTime(conversation.UpdatedAt),
 	})
 
-	c.JSON(http.StatusCreated, TransformConversation(conversation))
+	c.JSON(http.StatusCreated, TransformConversation(conversation, h.conversationLocation(c)))
 }
 
 // GetConversation returns a single conversation with messages
@@ -280,8 +284,8 @@ func (h *ChatHandler) GetConversation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"conversation": TransformConversation(conversation),
-		"messages":     TransformMessages(messages),
+		"conversation": TransformConversation(conversation, h.conversationLocation(c)),
+		"messages":     TransformMessages(messages, h.conversationLocation(c)),
 	})
 }
 
@@ -384,7 +388,7 @@ func (h *ChatHandler) UpdateConversation(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, TransformConversation(conversation))
+	c.JSON(http.StatusOK, TransformConversation(conversation, h.conversationLocation(c)))
 }
 
 // SearchConversations searches across conversations
@@ -420,4 +424,17 @@ func uuidToString(u pgtype.UUID) string {
 		return ""
 	}
 	return uuid.UUID(u.Bytes).String()
+}
+
+// Resolve the database's wall-clock zone when exposing legacy timestamp columns.
+func (h *ChatHandler) conversationLocation(c *gin.Context) *time.Location {
+	var name string
+	if err := h.pool.QueryRow(c.Request.Context(), "SELECT current_setting('TimeZone')").Scan(&name); err != nil {
+		return time.UTC
+	}
+	location, err := time.LoadLocation(name)
+	if err != nil {
+		return time.UTC
+	}
+	return location
 }

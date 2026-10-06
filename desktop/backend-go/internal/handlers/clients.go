@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -14,6 +15,55 @@ import (
 	"github.com/rhl/businessos-backend/internal/services"
 	"github.com/rhl/businessos-backend/internal/utils"
 )
+
+func (h *ClientHandler) enrichClientAggregates(ctx context.Context, clients []ClientResponse) {
+	if len(clients) == 0 {
+		return
+	}
+
+	ids := make([]string, 0, len(clients))
+	positions := make(map[uuid.UUID]int, len(clients))
+	for i := range clients {
+		id, err := uuid.Parse(clients[i].ID)
+		if err != nil {
+			continue
+		}
+		ids = append(ids, id.String())
+		positions[id] = i
+	}
+
+	rows, err := h.pool.Query(ctx, `
+		SELECT c.id,
+		       (SELECT COUNT(*) FROM client_contacts cc WHERE cc.client_id=c.id),
+		       (SELECT COUNT(*) FROM client_interactions ci WHERE ci.client_id=c.id),
+		       (SELECT COUNT(*) FROM deals d WHERE d.client_id=c.id),
+		       COALESCE((SELECT SUM(d.amount) FROM deals d
+		                 WHERE d.client_id=c.id AND COALESCE(d.status, 'open') NOT IN ('won','lost')), 0)
+		FROM clients c
+		WHERE c.id::text = ANY($1::text[])
+	`, ids)
+	if err != nil {
+		slog.Warn("Could not enrich client aggregates", "error", err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id uuid.UUID
+		var contacts, interactions, deals int64
+		var openValue pgtype.Numeric
+		if err := rows.Scan(&id, &contacts, &interactions, &deals, &openValue); err != nil {
+			slog.Warn("Could not scan client aggregates", "error", err, "client_id", id)
+			continue
+		}
+		if i, ok := positions[id]; ok {
+			clients[i].ContactsCount = contacts
+			clients[i].InteractionsCount = interactions
+			clients[i].DealsCount = deals
+			clients[i].ActiveDealsValue = crmNumericToFloat(openValue)
+		}
+	}
+}
 
 // ClientHandler handles client management operations
 type ClientHandler struct {
@@ -190,6 +240,7 @@ func (h *ClientHandler) ListClients(c *gin.Context) {
 		}
 
 		all := TransformClients(wsClients)
+		h.enrichClientAggregates(c.Request.Context(), all)
 		total := int64(len(all))
 		start := int(pg.Offset)
 		end := start + int(pg.Limit)
@@ -217,6 +268,7 @@ func (h *ClientHandler) ListClients(c *gin.Context) {
 
 	// Apply in-memory pagination (SQL query has no LIMIT/OFFSET; all matching rows fetched)
 	all := TransformClients(clients)
+	h.enrichClientAggregates(c.Request.Context(), all)
 	total := int64(len(all))
 	start := int(pg.Offset)
 	end := start + int(pg.Limit)

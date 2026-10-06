@@ -348,6 +348,7 @@
 			items: [
 				{ href: '/dashboard', label: 'Command', icon: 'command' },
 				{ href: '/agents', label: 'Agents', icon: 'agents' },
+				{ href: '/conversations', label: 'Conversations', icon: 'communication' },
 				{ href: '/knowledge', label: 'Knowledge', icon: 'knowledge' },
 				{ href: '/glossary', label: 'Glossary', icon: 'glossary' },
 				{ href: '/intelligence', label: 'Intelligence', icon: 'intelligence' },

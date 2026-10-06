@@ -30,7 +30,10 @@ require_file desktop/scripts/upload-updater-metadata.mjs
 require_file frontend/src/lib/stores/workspaces.ts
 
 require_grep 'node-pty' desktop/forge.config.ts "node-pty package copy/rebuild"
+require_grep 'unpackDir: "node_modules/node-pty"' desktop/forge.config.ts "node-pty spawn-helper unpacking"
 require_grep 'better-sqlite3' desktop/forge.config.ts "better-sqlite3 package copy/rebuild"
+require_grep 'electron-updater' desktop/forge.config.ts "electron-updater package copy"
+require_grep 'src/main/database/migrations' desktop/forge.config.ts "SQLite migration resources"
 require_grep 'Miosa-osa' desktop/forge.config.ts "real GitHub release owner"
 require_grep 'businessos-5' desktop/forge.config.ts "real GitHub release repo"
 require_grep 'latest-mac.yml' desktop/scripts/generate-updater-metadata.mjs "mac updater metadata generator"
@@ -44,6 +47,8 @@ require_grep '/bin/bash' desktop/src/main/terminal/env.ts "macOS bash fallback"
 require_grep 'diagnostics:collect' desktop/src/main/ipc/index.ts "diagnostics IPC handler"
 require_grep 'diagnostics:collect' desktop/src/preload/index.ts "diagnostics preload bridge"
 require_grep 'setFeedURL' desktop/src/main/updater/auto-update.ts "auto-updater feed configuration"
+require_grep 'provider: "generic"' desktop/src/main/updater/auto-update.ts "public generic updater provider"
+require_grep 'storage.googleapis.com/businessos-downloads' desktop/src/main/updater/auto-update.ts "public updater asset URL"
 require_grep 'BUSINESSOS_MIN_SUPPORTED_VERSION' desktop/src/main/updater/auto-update.ts "minimum supported desktop version"
 require_grep 'updates:get-info' desktop/src/main/ipc/index.ts "update runtime info IPC handler"
 require_grep 'updates:get-info' desktop/src/preload/index.ts "update runtime info preload bridge"
@@ -65,7 +70,7 @@ if command -v node >/dev/null 2>&1; then
 const fs = require("node:fs");
 const path = require("node:path");
 const pkg = JSON.parse(fs.readFileSync(path.join("desktop", "package.json"), "utf8"));
-for (const dep of ["node-pty", "better-sqlite3", "electron-store"]) {
+for (const dep of ["node-pty", "better-sqlite3", "electron-store", "electron-updater"]) {
   if (!pkg.dependencies || !pkg.dependencies[dep]) {
     console.error(`missing desktop runtime dependency: ${dep}`);
     process.exit(1);

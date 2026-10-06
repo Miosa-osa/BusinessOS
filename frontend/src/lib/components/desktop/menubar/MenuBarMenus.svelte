@@ -85,6 +85,7 @@
 <style>
 	.menu-bar-item-wrapper {
 		position: relative;
+		flex: 0 0 auto;
 	}
 
 	.menu-bar-item {
@@ -96,6 +97,7 @@
 		font-size: 13px;
 		font-weight: 500;
 		color: #333;
+		white-space: nowrap;
 	}
 
 	.menu-bar-item:hover,

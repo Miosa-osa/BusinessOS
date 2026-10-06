@@ -208,11 +208,7 @@ defmodule OptimalEngine.Pipeline.Indexer do
       |> Enum.flat_map(fn batch ->
         contexts =
           batch
-          |> Enum.map(fn path ->
-            ws_id = workspace_from_path(path, root)
-            ctx = build_context(path, known_entities, workspace: ws_id)
-            if ctx, do: stamp_scope(ctx, workspace: ws_id), else: nil
-          end)
+          |> Enum.map(&build_context(&1, known_entities, []))
           |> Enum.reject(&is_nil/1)
           |> Enum.map(&maybe_semantic_process/1)
 
@@ -497,20 +493,6 @@ defmodule OptimalEngine.Pipeline.Indexer do
       |> List.first("")
 
     folder_to_node(relative)
-  end
-
-  defp workspace_from_path(path, root) do
-    relative =
-      path
-      |> String.replace_prefix(root <> "/", "")
-      |> String.split("/")
-      |> List.first("")
-
-    if relative != "" and relative != nil do
-      "default:" <> relative
-    else
-      "default"
-    end
   end
 
   defp folder_to_node("entity-company"), do: "entity-company"

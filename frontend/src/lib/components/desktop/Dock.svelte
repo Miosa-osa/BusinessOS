@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { windowStore } from '$lib/stores/windowStore';
+	import { windowStore, focusedWindow } from '$lib/stores/windowStore';
 	import { desktopSettings } from '$lib/stores/desktopStore';
 	import OsaPill from './osa/OsaPill.svelte';
 	import DockItem from './DockItem.svelte';
@@ -10,6 +10,14 @@
 
 	let osaPillRef: OsaPill | undefined = $state(undefined);
 	let viewportWidth = $state(1440);
+	let embeddedConversationCount = $state(0);
+	const embeddedConversations = new Set<MessageEventSource>();
+	const conversationOpen = $derived(['chat', 'conversations'].includes($focusedWindow?.module ?? '') || embeddedConversationCount > 0);
+	function handleConversationView(event: MessageEvent) {
+		if (event.origin !== window.location.origin || event.data?.type !== 'businessos:conversation-view' || !event.source) return;
+		if (event.data.active) embeddedConversations.add(event.source); else embeddedConversations.delete(event.source);
+		embeddedConversationCount = embeddedConversations.size;
+	}
 
 	function measureViewport() {
 		if (browser) viewportWidth = window.innerWidth;
@@ -52,13 +60,15 @@
 	function handleGlobalKeydown(e: KeyboardEvent) {
 		if (e.ctrlKey && e.key === 'k') {
 			e.preventDefault();
-			osaPillRef?.focusInput();
+			if (conversationOpen) document.querySelector<HTMLTextAreaElement>('[aria-label="Message in conversation"]')?.focus();
+			else osaPillRef?.focusInput();
 		}
 	}
 
 	onMount(() => {
 		if (browser) {
 			window.addEventListener('keydown', handleGlobalKeydown);
+			window.addEventListener('message', handleConversationView);
 			measureViewport();
 			window.addEventListener('resize', measureViewport);
 		}
@@ -67,6 +77,7 @@
 	onDestroy(() => {
 		if (browser) {
 			window.removeEventListener('keydown', handleGlobalKeydown);
+			window.removeEventListener('message', handleConversationView);
 			window.removeEventListener('resize', measureViewport);
 		}
 	});
@@ -191,7 +202,7 @@
 		platform: 'Business OS',
 		terminal: 'Terminal',
 		dashboard: 'Command',
-		chat: 'Chat',
+		chat: 'Conversations',
 		agents: 'Agents',
 		knowledge: 'Knowledge',
 		intelligence: 'Intelligence',
@@ -432,8 +443,10 @@
 </script>
 
 <div class="dock-container">
-	<!-- OSA Interface - always visible above dock -->
-	<OsaPill bind:this={osaPillRef} />
+	<!-- Conversations already provides a composer; avoid two overlapping inputs. -->
+	{#if !conversationOpen}
+		<div class="dock-osa"><OsaPill bind:this={osaPillRef} /></div>
+	{/if}
 
 	<div
 		class="dock"
@@ -541,5 +554,35 @@
 
 	:global(.dark) .dock-separator {
 		background: rgba(255, 255, 255, 0.15);
+	}
+
+	@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+		.dock-container {
+			bottom: max(8px, env(safe-area-inset-bottom));
+			width: calc(100vw - 16px);
+			gap: 8px;
+		}
+
+		.dock-osa { display: none; }
+
+		.dock {
+			box-sizing: border-box;
+			width: 100%;
+			align-items: center;
+			gap: 2px;
+			padding: 5px 56px 5px 8px;
+			overflow-x: auto;
+			overflow-y: hidden;
+			scrollbar-width: none;
+			overscroll-behavior-x: contain;
+			-webkit-overflow-scrolling: touch;
+		}
+
+		.dock::-webkit-scrollbar { display: none; }
+
+		.dock-separator {
+			flex: 0 0 1px;
+			height: 32px;
+		}
 	}
 </style>

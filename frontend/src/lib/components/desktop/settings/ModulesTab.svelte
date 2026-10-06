@@ -13,6 +13,7 @@
 
 	const moduleOptions: ModuleOption[] = [
 		{ group: 'Operate', module: 'dashboard', label: 'Command' },
+        {group:'Operate',module:'chat',label:'Conversations'},
 		{ group: 'Operate', module: 'knowledge', label: 'Knowledge' },
 		{ group: 'Operate', module: 'intelligence', label: 'Intelligence' },
 		{ group: 'Operate', module: 'inbox', label: 'Inbox' },

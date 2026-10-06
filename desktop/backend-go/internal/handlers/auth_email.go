@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -239,30 +238,10 @@ func (h *EmailAuthHandler) SignUp(c *gin.Context) {
 		return
 	}
 
-	// Set session cookie with strict security configuration
-	isProduction := os.Getenv("ENVIRONMENT") == "production"
-
-	// IMPORTANT: In development, DO NOT set Domain attribute to avoid browser security
-	// issues with cross-origin requests (localhost:5173 -> localhost:8001)
-	// The browser will handle cookie scope automatically for same hostname
-	var domain string
-	if isProduction {
-		domain = os.Getenv("COOKIE_DOMAIN")
+	if _, err := setSessionCookie(c, sessionToken); err != nil {
+		utils.RespondInternalError(c, slog.Default(), "sign session cookie", err)
+		return
 	}
-	// In development, leave domain empty so browser handles it
-
-	sameSite := sessionCookieSameSite(isProduction)
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "better-auth.session_token",
-		Value:    sessionToken,
-		Path:     "/",
-		Domain:   domain,
-		MaxAge:   60 * 60 * 24 * 7, // 7 days
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
 
 	// Send welcome notification
 	if h.notificationTriggers != nil {
@@ -389,36 +368,10 @@ func (h *EmailAuthHandler) SignIn(c *gin.Context) {
 		return
 	}
 
-	// Set session cookie with strict security configuration
-	isProduction := os.Getenv("ENVIRONMENT") == "production"
-
-	// IMPORTANT: In development, DO NOT set Domain attribute to avoid browser security
-	// issues with cross-origin requests (localhost:5173 -> localhost:8001)
-	// The browser will handle cookie scope automatically for same hostname
-	var domain string
-	if isProduction {
-		domain = os.Getenv("COOKIE_DOMAIN")
+	if _, err := setSessionCookie(c, sessionToken); err != nil {
+		utils.RespondInternalError(c, slog.Default(), "sign session cookie", err)
+		return
 	}
-	// In development, leave domain empty so browser handles it
-
-	slog.Debug("auth: setting session cookie",
-		"domain", domain,
-		"isProduction", isProduction)
-
-	sameSite := sessionCookieSameSite(isProduction)
-
-	cookie := &http.Cookie{
-		Name:     "better-auth.session_token",
-		Value:    sessionToken,
-		Path:     "/",
-		Domain:   domain,
-		MaxAge:   60 * 60 * 24 * 7, // 7 days
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	}
-
-	http.SetCookie(c.Writer, cookie)
 
 	c.JSON(http.StatusOK, gin.H{
 		"user": gin.H{

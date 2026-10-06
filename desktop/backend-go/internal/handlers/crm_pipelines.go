@@ -51,14 +51,14 @@ func (h *CRMHandler) crmWorkspaceScope(c *gin.Context, userID string) (uuid.UUID
 	return wsID, err == nil && member
 }
 
-func (h *CRMHandler) pipelineInWorkspace(c *gin.Context, pipelineID, workspaceID uuid.UUID, userID string) bool {
+func (h *CRMHandler) pipelineInWorkspace(c *gin.Context, pipelineID, workspaceID uuid.UUID) bool {
 	var exists bool
 	err := h.pool.QueryRow(c.Request.Context(), `
 		SELECT EXISTS(
 			SELECT 1 FROM pipelines
-			WHERE id=$1 AND workspace_id=$2 AND user_id=$3
+			WHERE id=$1 AND workspace_id=$2
 		)
-	`, pipelineID, workspaceID, userID).Scan(&exists)
+	`, pipelineID, workspaceID).Scan(&exists)
 	return err == nil && exists
 }
 
@@ -73,7 +73,7 @@ func (h *CRMHandler) requirePipelineInActiveWorkspace(c *gin.Context, userID str
 		c.JSON(http.StatusForbidden, gin.H{"error": "select a workspace first"})
 		return uuid.Nil, false
 	}
-	if !h.pipelineInWorkspace(c, pipelineID, workspaceID, userID) {
+	if !h.pipelineInWorkspace(c, pipelineID, workspaceID) {
 		utils.RespondNotFound(c, slog.Default(), "Pipeline")
 		return uuid.Nil, false
 	}
@@ -121,9 +121,9 @@ func (h *CRMHandler) ListPipelines(c *gin.Context) {
 		SELECT id, workspace_id, user_id, name, description, pipeline_type, currency,
 		       is_default, is_active, color, icon, created_at, updated_at
 		FROM pipelines
-		WHERE workspace_id=$1 AND user_id=$2 AND is_active=TRUE
+		WHERE workspace_id=$1 AND is_active=TRUE
 		ORDER BY is_default DESC, name ASC
-	`, wsID, user.ID)
+	`, wsID)
 	if err != nil {
 		slog.Error("Failed to list pipelines", "error", err, "user_id", user.ID, "workspace_id", wsID)
 		utils.RespondInternalError(c, slog.Default(), "list pipelines", nil)
@@ -173,8 +173,8 @@ func (h *CRMHandler) GetPipeline(c *gin.Context) {
 		SELECT id, workspace_id, user_id, name, description, pipeline_type, currency,
 		       is_default, is_active, color, icon, created_at, updated_at
 		FROM pipelines
-		WHERE id=$1 AND workspace_id=$2 AND user_id=$3
-	`, id, wsID, user.ID))
+		WHERE id=$1 AND workspace_id=$2
+	`, id, wsID))
 	if err != nil {
 		utils.RespondNotFound(c, slog.Default(), "Pipeline")
 		return

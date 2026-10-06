@@ -105,6 +105,16 @@ export interface WorkspaceInvite {
   created_at: string;
 }
 
+export interface WorkspaceInviteValidation {
+  valid: boolean;
+  workspace_name?: string;
+  workspace_id?: string;
+  role?: string;
+  email?: string;
+  expires_at?: string;
+  error?: string;
+}
+
 export interface CreateInviteData {
   email: string;
   role: string;

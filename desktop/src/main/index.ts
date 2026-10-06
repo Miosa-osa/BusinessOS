@@ -34,6 +34,10 @@ import { initializeMeetingRecorder } from "./audio/meeting-recorder";
 import { closeDatabase } from "./database/sqlite";
 import { killAllTerminals } from "./terminal/pty-manager";
 import { pathToFileURL } from "url";
+import {
+  startDevelopmentOAuthRelay,
+  type DevelopmentOAuthRelay,
+} from "./auth/development-oauth-relay";
 
 // Handle Squirrel events for Windows installer (only on Windows)
 if (process.platform === "win32") {
@@ -71,6 +75,7 @@ if (!gotTheLock) {
 // Global references
 let backendManager: BackendManager | null = null;
 let engineManager: EngineManager | null = null;
+let developmentOAuthRelay: DevelopmentOAuthRelay | null = null;
 
 // Cloud backend the desktop app authenticates against. Must be a *.businessos.dev
 // host so the session cookie (Domain=.businessos.dev) attaches. Overridable for
@@ -654,6 +659,17 @@ async function initialize(): Promise<void> {
   // Create the main window (so the UI is up even if the backend is slow).
   await createMainWindow();
 
+  if (!app.isPackaged) {
+    developmentOAuthRelay = await startDevelopmentOAuthRelay(async (token) => {
+      await handleDeepLink(
+        `businessos://auth/callback?token=${encodeURIComponent(token)}`,
+      );
+    });
+    console.log(
+      `[auth] development OAuth relay listening at ${developmentOAuthRelay.url}`,
+    );
+  }
+
   // Start the bundled OptimalEngine BEFORE the Go backend, so the backend can be
   // pointed at it via OPTIMAL_ENGINE_URL. Non-fatal: if it can't start, the app
   // continues (cloud mode / external engine). Only meaningful when packaged (in
@@ -695,14 +711,21 @@ async function initialize(): Promise<void> {
   // here must NEVER crash the app - previously a throw in packaged mode took the
   // whole app down on any machine where the sidecar couldn't bind or run,
   // which is what broke fresh DMG installs.
-  try {
-    await backendManager.start();
-    console.log("Local backend sidecar started");
-  } catch (error) {
-    console.error(
-      "Local backend sidecar failed (app continues in cloud mode):",
-      error,
-    );
+  if (
+    !app.isPackaged ||
+    process.env.BUSINESSOS_ENABLE_LOCAL_BACKEND === "1"
+  ) {
+    try {
+      await backendManager.start();
+      console.log("Local backend sidecar started");
+    } catch (error) {
+      console.error(
+        "Local backend sidecar failed (app continues in cloud mode):",
+        error,
+      );
+    }
+  } else {
+    console.log("Cloud mode active; local backend sidecar not started");
   }
 
   // Initialize popup chat system (includes tray and global shortcuts)
@@ -770,6 +793,11 @@ app.on("before-quit", async () => {
     await session.defaultSession.cookies.flushStore();
   } catch (e) {
     console.error("cookie flush failed", e);
+  }
+
+  if (developmentOAuthRelay) {
+    await developmentOAuthRelay.close();
+    developmentOAuthRelay = null;
   }
 
   // Stop sync engine

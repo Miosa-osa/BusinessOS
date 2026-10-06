@@ -201,6 +201,17 @@ describe('Auth Client', () => {
 	});
 
 	describe('Google OAuth', () => {
+		it('preserves an invite return path through web Google OAuth', () => {
+			const result = initiateGoogleOAuth(undefined, '/invite/northstar-token?accept=1');
+
+			expect(result).toBe(true);
+			const authUrl = new URL(mockLocation.href, mockLocation.origin);
+			expect(authUrl.pathname).toBe('/api/auth/google');
+			expect(authUrl.searchParams.get('redirect')).toBe(
+				'http://localhost:5174/auth/callback?redirect=%2Finvite%2Fnorthstar-token%3Faccept%3D1'
+			);
+		});
+
 		it('initiates web Google OAuth through the same-origin proxy', () => {
 			const result = initiateGoogleOAuth('https://api.example.com');
 
@@ -243,8 +254,40 @@ describe('Auth Client', () => {
 			expect(mockOpenExternal).toHaveBeenCalledWith(
 				expect.stringContaining('https://api.example.com/api/auth/google')
 			);
+			const authUrl = new URL(mockOpenExternal.mock.calls[0][0]);
+			expect(authUrl.searchParams.get('redirect')).toBe(
+				'http://127.0.0.1:43821/auth/callback'
+			);
 			expect(mockLocation.href).toBe('');
 
+			(window as any).electron = originalElectron;
+		});
+
+		it('detects an Electron module iframe from its user agent without a preload bridge', async () => {
+			const originalElectron = (window as any).electron;
+			const originalUserAgent = navigator.userAgent;
+			const originalProtocol = (mockLocation as any).protocol;
+			delete (window as any).electron;
+			(mockLocation as any).protocol = 'app:';
+			Object.defineProperty(navigator, 'userAgent', {
+				configurable: true,
+				value: 'Mozilla/5.0 Electron/39.0.0 Chrome/138.0.0.0'
+			});
+			cloudServerUrl.set('https://app.businessos.dev');
+			mockFetch.mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) });
+
+			await getSession();
+
+			expect(mockFetch).toHaveBeenCalledWith(
+				'https://app.businessos.dev/api/auth/session',
+				expect.objectContaining({ credentials: 'include' })
+			);
+
+			Object.defineProperty(navigator, 'userAgent', {
+				configurable: true,
+				value: originalUserAgent
+			});
+			(mockLocation as any).protocol = originalProtocol;
 			(window as any).electron = originalElectron;
 		});
 	});

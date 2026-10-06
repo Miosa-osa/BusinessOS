@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestSectionOf(t *testing.T) {
@@ -21,9 +22,10 @@ func TestSectionOf(t *testing.T) {
 }
 
 func TestTreeFromPaths(t *testing.T) {
+	modified := time.Date(2026, time.August, 31, 18, 30, 0, 0, time.UTC)
 	items := []kbDoc{
 		{Path: "readme.md", Title: "Readme"},
-		{Path: "inbox/signals/a.md", Title: "A"},
+		{Path: "inbox/signals/a.md", Title: "A", Modified: modified},
 		{Path: "inbox/signals/b.md", Title: "B"},
 		{Path: "inbox/note.md", Title: "Note"},
 	}
@@ -55,6 +57,9 @@ func TestTreeFromPaths(t *testing.T) {
 	if sig.Children[0].Title != "A" {
 		t.Errorf("title not carried: %+v", sig.Children[0])
 	}
+	if sig.Children[0].Modified == nil || !sig.Children[0].Modified.Equal(modified) {
+		t.Errorf("modified time not carried: %+v", sig.Children[0])
+	}
 }
 
 func TestCollectLocalDocs(t *testing.T) {
@@ -81,11 +86,37 @@ func TestCollectLocalDocs(t *testing.T) {
 	found := map[string]string{}
 	for _, d := range docs {
 		found[d.Path] = d.Section
+		if d.Modified.IsZero() {
+			t.Errorf("%s has no modified time", d.Path)
+		}
 	}
 	if found["top.md"] != "docs" {
 		t.Errorf("top.md section = %q, want docs", found["top.md"])
 	}
 	if found["nodes/one.md"] != "nodes" {
 		t.Errorf("nodes/one.md section = %q, want nodes", found["nodes/one.md"])
+	}
+}
+
+func TestCollectLocalDocsHonorsBusinessOSIgnore(t *testing.T) {
+	dir := t.TempDir()
+	must := func(p, body string) {
+		full := filepath.Join(dir, p)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(".businessosignore", "private/\nexact.md\n")
+	must("shared.md", "shared")
+	must("exact.md", "private")
+	must("private/nested.md", "private")
+
+	h := &KnowledgeHandler{}
+	docs := h.collectLocalDocs(dir)
+	if len(docs) != 1 || docs[0].Path != "shared.md" {
+		t.Fatalf("documents = %#v, want only shared.md", docs)
 	}
 }

@@ -181,6 +181,7 @@
 						{#if streamingContent}
 							{@html renderMarkdown(streamingContent, { simple: true })}
 						{/if}
+						<span role="status" class="text-xs text-gray-500">{$osaStore.activity || "Working…"}</span>
 						<span class="streaming-cursor inline-block animate-pulse text-gray-400" aria-hidden="true">|</span>
 					</div>
 				</div>

@@ -177,6 +177,8 @@ func registerRoutes(app *AppServices, skillsHandler *handlers.SkillsHandler, osa
 	router.GET("/api/v1/osa/health", osaHealthH.HandleOSAHealth)
 	router.GET("/api/osa/modes", osaHealthH.HandleOSAModes)
 	router.GET("/api/v1/osa/modes", osaHealthH.HandleOSAModes)
+	router.GET("/api/osa/models", auth, middleware.RequireAuth(), osaHealthH.HandleOSAModels)
+	router.GET("/api/v1/osa/models", auth, middleware.RequireAuth(), osaHealthH.HandleOSAModels)
 	router.POST("/api/osa/config", auth, middleware.RequireAuth(), osaHealthH.HandleOSAConfig)
 	router.POST("/api/v1/osa/config", auth, middleware.RequireAuth(), osaHealthH.HandleOSAConfig)
 }

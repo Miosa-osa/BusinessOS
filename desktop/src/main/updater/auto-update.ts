@@ -10,6 +10,9 @@ let interactiveCheckInFlight = false;
 
 const UPDATE_OWNER = process.env.BUSINESSOS_UPDATE_OWNER || "Miosa-osa";
 const UPDATE_REPO = process.env.BUSINESSOS_UPDATE_REPO || "businessos-5";
+const UPDATE_URL =
+  process.env.BUSINESSOS_UPDATE_URL ||
+  "https://storage.googleapis.com/businessos-downloads";
 const UPDATE_CHANNEL = process.env.BUSINESSOS_UPDATE_CHANNEL || "stable";
 const MIN_SUPPORTED_VERSION =
   process.env.BUSINESSOS_MIN_SUPPORTED_VERSION || "";
@@ -67,12 +70,10 @@ function getAutoUpdater() {
     // because it is a main-process dialog, not a renderer banner.
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
-    autoUpdater.setFeedURL({
-      provider: "github",
-      owner: UPDATE_OWNER,
-      repo: UPDATE_REPO,
-      private: process.env.BUSINESSOS_UPDATES_PRIVATE === "true",
-    });
+    // Release assets must be anonymously downloadable. The source repository is
+    // private, so GitHub's provider cannot serve updates to installed apps
+    // without embedding a credential. The public GCS bucket is the release feed.
+    autoUpdater.setFeedURL({ provider: "generic", url: UPDATE_URL });
     autoUpdater.channel = UPDATE_CHANNEL;
   }
   return autoUpdater;

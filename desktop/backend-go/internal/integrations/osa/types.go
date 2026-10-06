@@ -41,16 +41,19 @@ type AppStatusResponse struct {
 
 // OrchestrateRequest represents a request to run the full 21-agent orchestration
 type OrchestrateRequest struct {
-	UserID      uuid.UUID              `json:"user_id"`
-	Input       string                 `json:"input"`
-	SessionID   string                 `json:"session_id,omitempty"` // Correlates with Stream() for real-time events
-	Phase       string                 `json:"phase,omitempty"`      // "analysis", "strategy", "development", etc.
-	Context     map[string]interface{} `json:"context,omitempty"`
-	WorkspaceID uuid.UUID              `json:"workspace_id,omitempty"`
+	PermissionMode string                 `json:"-"` // Applied to the session before dispatch.
+	UserID         uuid.UUID              `json:"user_id"`
+	Input          string                 `json:"input"`
+	SessionID      string                 `json:"session_id,omitempty"` // Correlates with Stream() for real-time events
+	Phase          string                 `json:"phase,omitempty"`      // "analysis", "strategy", "development", etc.
+	Context        map[string]interface{} `json:"context,omitempty"`
+	WorkspaceID    uuid.UUID              `json:"workspace_id,omitempty"`
 }
 
 // OrchestrateResponse represents the response from orchestration
 type OrchestrateResponse struct {
+	Status        string                 `json:"status,omitempty"`
+	Prompt        string                 `json:"prompt,omitempty"`
 	Success       bool                   `json:"success"`
 	Output        string                 `json:"output"`
 	AgentsUsed    []string               `json:"agents_used,omitempty"`

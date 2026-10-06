@@ -1,7 +1,7 @@
 {
   "name": "businessos-desktop",
   "productName": "BusinessOS",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "BusinessOS Desktop Application - Your business command center",
   "main": ".vite/build/index.js",
   "engines": {

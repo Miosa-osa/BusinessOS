@@ -54,7 +54,9 @@ function isLocalhost(): boolean {
 }
 
 function isElectron(): boolean {
-  return isBrowser() && "electron" in window;
+  if (!isBrowser()) return false;
+  if ("electron" in window) return true;
+  return navigator.userAgent.toLowerCase().includes("electron");
 }
 
 function getStoredMode(): string | null {

@@ -21,6 +21,7 @@ import {
   startSync,
   stopSync,
 } from "./database";
+import { setupAgentHandlers } from "../agents/ipc";
 import { setupTerminalHandlers } from "../terminal/pty-manager";
 import { promises as fs } from "fs";
 import { existsSync, mkdirSync } from "fs";
@@ -291,6 +292,7 @@ async function collectDiagnostics(backendManager: BackendManager | null) {
  * Set up all IPC handlers for communication with the renderer process
  */
 export function setupIpcHandlers(backendManager: BackendManager | null): void {
+  setupAgentHandlers(resolveBusinessOSHomeDir);
   // Resilient registration: a failure in one subsystem (e.g. the node-pty
   // native module failing to load in a dev Electron, or the local SQLite setup)
   // must NOT abort registration of every handler that follows it. Before, a
@@ -860,7 +862,7 @@ export function setupIpcHandlers(backendManager: BackendManager | null): void {
   // in parallel. PATH is augmented with common install dirs because a
   // GUI-launched app does not inherit the login shell's full PATH.
   ipcMain.handle("agents:detect", async () => {
-    const bins = ["claude", "codex", "osa", "ollama"] as const;
+    const bins = ["claude", "codex", "osa", "ollama", "hermes"] as const;
     const isWin = process.platform === "win32";
     const extraDirs = isWin
       ? []

@@ -102,8 +102,9 @@ export function createPopupWindow(): BrowserWindow {
     const devUrl = process.env.BUSINESSOS_DEV_URL || "http://localhost:5273";
     popupWindow.loadURL(`${devUrl}/popup-chat`);
   } else {
-    const indexPath = path.join(__dirname, "../renderer/popup-chat.html");
-    popupWindow.loadFile(indexPath);
+    // The packaged renderer is a single SvelteKit SPA served by app://. There
+    // is no standalone popup-chat.html file in the Vite output.
+    popupWindow.loadURL("app://localhost/popup-chat");
   }
 
   // Hide instead of close

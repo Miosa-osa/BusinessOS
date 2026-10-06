@@ -60,6 +60,7 @@ interface SidebarLayoutSection {
 const MODULES: WorkspaceModuleDefinition[] = [
   { id: "dashboard", href: "/dashboard", label: "Command", icon: "command", group: "Operate" },
   { id: "agents", href: "/agents", label: "Agents", icon: "agents", group: "Operate" },
+  {id:"conversations",href:"/conversations",label:"Conversations",icon:"communication",group:"Operate",desktopId:"chat"},
   { id: "knowledge", href: "/knowledge", label: "Knowledge", icon: "knowledge", group: "Operate" },
   { id: "glossary", href: "/glossary", label: "Glossary", icon: "glossary", group: "Operate" },
   { id: "intelligence", href: "/intelligence", label: "Intelligence", icon: "intelligence", group: "Operate" },
@@ -98,7 +99,7 @@ const MODULES: WorkspaceModuleDefinition[] = [
 ];
 
 const PRIMITIVE_MODULES = [
-  "dashboard", "agents", "knowledge", "glossary", "inbox", "calendar",
+  "dashboard", "agents", "conversations", "knowledge", "glossary", "inbox", "calendar",
   "communications", "relationships", "projects", "tasks", "rhythm", "team",
   "connectors", "help",
 ];

@@ -565,11 +565,11 @@ func scanCalendarEvent(row scanRow) (CalendarEventResponse, error) {
 			r.ExternalLinks = []string{}
 		}
 	}
-	r.ActionItems = []string{}
+	r.ActionItems = []any{}
 	if len(actionItems) > 0 {
 		_ = json.Unmarshal(actionItems, &r.ActionItems)
 		if r.ActionItems == nil {
-			r.ActionItems = []string{}
+			r.ActionItems = []any{}
 		}
 	}
 	return r, nil

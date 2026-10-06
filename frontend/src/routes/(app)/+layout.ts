@@ -29,7 +29,7 @@ export const load: LayoutLoad = async ({ fetch, url }) => {
     if (!response.ok) {
       // No valid session — send to login, preserving the intended destination.
       const returnTo = encodeURIComponent(url.pathname + url.search);
-      throw redirect(302, `/login?next=${returnTo}`);
+      throw redirect(302, `/login?redirect=${returnTo}`);
     }
 
     const contentType = response.headers.get("content-type") || "";

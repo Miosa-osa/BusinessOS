@@ -213,7 +213,7 @@ FROM deals d
 JOIN pipeline_stages ps ON d.stage_id = ps.id
 JOIN pipelines p ON d.pipeline_id = p.id
 LEFT JOIN companies c ON d.company_id = c.id
-WHERE d.user_id = $1
+WHERE p.workspace_id = sqlc.arg(workspace_id)::uuid
   AND (sqlc.narg(pipeline_id)::uuid IS NULL OR d.pipeline_id = sqlc.narg(pipeline_id))
   AND (sqlc.narg(stage_id)::uuid IS NULL OR d.stage_id = sqlc.narg(stage_id))
   AND (sqlc.narg(status)::varchar IS NULL OR d.status = sqlc.narg(status))
@@ -234,7 +234,8 @@ FROM deals d
 JOIN pipeline_stages ps ON d.stage_id = ps.id
 JOIN pipelines p ON d.pipeline_id = p.id
 LEFT JOIN companies c ON d.company_id = c.id
-WHERE d.id = $1 AND d.user_id = $2;
+WHERE d.id = sqlc.arg(id)::uuid
+  AND p.workspace_id = sqlc.arg(workspace_id)::uuid;
 
 -- name: CreateCRMDeal :one
 INSERT INTO deals (
@@ -286,8 +287,9 @@ SELECT
     COALESCE(SUM(amount) FILTER (WHERE status = 'open'), 0) as open_value,
     COALESCE(SUM(amount) FILTER (WHERE status = 'won'), 0) as won_value,
     COALESCE(SUM(amount) FILTER (WHERE status = 'lost'), 0) as lost_value
-FROM deals
-WHERE user_id = $1
+FROM deals d
+JOIN pipelines p ON p.id = d.pipeline_id
+WHERE p.workspace_id = sqlc.arg(workspace_id)::uuid
   AND (sqlc.narg(pipeline_id)::uuid IS NULL OR pipeline_id = sqlc.narg(pipeline_id));
 
 -- name: GetCRMDealsByCompany :many

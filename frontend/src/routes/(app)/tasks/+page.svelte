@@ -1,11 +1,15 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { api } from '$lib/api';
 	import { currentWorkspace } from '$lib/stores/workspaces';
 	import { useSession } from '$lib/auth-client';
+	import { marked } from 'marked';
+	import DOMPurify from 'dompurify';
+	import { fetchFile } from '$lib/kb/client';
+	import { resolveDocumentLink } from '$lib/kb/document-links';
 	import type { Task } from '$lib/api/dashboard/types';
 	import type { TeamMemberListResponse } from '$lib/api/team';
-	import { LayoutGrid, List, Plus, Loader2, X, Calendar, Trash2, Search, CheckCircle2, Circle, UserRound } from 'lucide-svelte';
+	import { LayoutGrid, List, Plus, Loader2, X, Calendar, Trash2, Search, CheckCircle2, Circle, UserRound, ArrowLeft, FileText } from 'lucide-svelte';
 
 	type Status = 'todo' | 'in_progress' | 'done' | 'cancelled';
 	type Priority = 'critical' | 'high' | 'medium' | 'low';
@@ -39,6 +43,53 @@
 	let projects = $state<{ id: string; name: string; client_name: string | null }[]>([]);
 	let draggedTask = $state<Task | null>(null);
 	let dragOverCol = $state<string | null>(null);
+	let detailId = $state<string | null>(null);
+	let detailDialog = $state<HTMLDialogElement>();
+	const detailTask = $derived(tasks.find((task) => task.id === detailId));
+	let sourcePath = $state('');
+	let sourceBody = $state('');
+	let sourceLoading = $state(false);
+	let sourceError = $state('');
+	let sourceRequest = 0;
+	const detailHtml = $derived(detailTask ? DOMPurify.sanitize(marked.parse(sourcePath ? sourceBody : (detailTask.description ?? ''), { async: false }), { FORBID_TAGS: ['style'], FORBID_ATTR: ['style'] }) : '');
+	function openDetails(id: string) {
+		sourceRequest++; sourcePath = ''; sourceBody = ''; sourceError = ''; sourceLoading = false; detailId = id;
+		detailDialog?.scrollTo({ top: 0 });
+	}
+	function taskPreview(description: string): string {
+		const paragraph = marked.lexer(description).find((token) => token.type === 'paragraph');
+		return paragraph && 'text' in paragraph ? paragraph.text : description;
+	}
+	function sourceLinks(node: HTMLElement) {
+		const click = async (event: MouseEvent) => {
+			const link = (event.target as Element).closest('a');
+			if (!link || !node.contains(link)) return;
+			const target = resolveDocumentLink(link.getAttribute('href') ?? '', sourcePath || 'task.md');
+			if (target === null) return;
+			event.preventDefault();
+			if (target === 'blocked') { sourceError = 'This document link is outside the workspace.'; return; }
+			const workspace = $currentWorkspace?.slug;
+			if (!workspace) { sourceError = 'Select the task workspace before opening its source document.'; return; }
+			const request = ++sourceRequest;
+			sourcePath = target.path; sourceLoading = true; sourceError = ''; sourceBody = '';
+			try {
+				const file = await fetchFile(workspace, target.path);
+				if (request === sourceRequest) sourceBody = file.content;
+			} catch { if (request === sourceRequest) sourceError = 'Could not load this source document. Return to the task and try again.'; }
+			finally {
+				if (request === sourceRequest) {
+					sourceLoading = false;
+					await tick();
+					if (request === sourceRequest) detailDialog?.scrollTo({ top: 0 });
+				}
+			}
+		};
+		node.addEventListener('click', click);
+		return { destroy() { node.removeEventListener('click', click); } };
+	}
+	$effect(() => {
+		if (detailTask && detailDialog && !detailDialog.open) detailDialog.showModal();
+	});
 
 	let showCreate = $state(false);
 	let creating = $state(false);
@@ -48,7 +99,7 @@
 	let wsId = $state<string | null | undefined>(null);
 	$effect(() => {
 		const id = $currentWorkspace?.id ?? null;
-		if (id !== wsId) { wsId = id; load(); }
+		if (id !== wsId) { wsId = id; detailId = null; projectFilter = 'all'; load(); }
 	});
 
 	onMount(load);
@@ -78,7 +129,7 @@
 		return t.assignee_id ? (memberById.get(t.assignee_id) ?? null) : null;
 	}
 	function dayOf(iso: string): number | null {
-		const d = new Date(iso);
+		const d = taskDate(iso);
 		if (isNaN(d.getTime())) return null;
 		return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 	}
@@ -165,8 +216,10 @@
 	}
 	function fmtDate(d?: string | null): string {
 		if (!d) return '';
-		try { return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); } catch { return ''; }
+		try { return taskDate(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); } catch { return ''; }
 	}
+	// Task deadlines are calendar dates, not instants to shift into a timezone.
+	function taskDate(value: string): Date { return new Date(value.slice(0, 10) + 'T12:00:00'); }
 </script>
 
 <div class="proj-root">
@@ -235,13 +288,13 @@
 					<div class="col-head"><span>{col.label}</span><span class="col-count">{col.tasks.length}</span></div>
 					<div class="col-body">
 						{#each col.tasks as t (t.id)}
-							<div class="card" draggable="true" ondragstart={() => (draggedTask = t)} ondragend={() => { draggedTask = null; dragOverCol = null; }}>
+							<div class="card" role="group" aria-label={t.title} draggable="true" ondragstart={() => (draggedTask = t)} ondragend={() => { draggedTask = null; dragOverCol = null; }}>
 								<div class="card-top">
 									<span class="prio-dot" style="background:{PRIORITY_COLOR[(t.priority ?? 'low') as Priority]}" title={t.priority}></span>
-									<span class="card-name" class:done={t.status === 'done'}>{t.title}</span>
+									<button class="card-name task-open" class:done={t.status === 'done'} onclick={() => openDetails(t.id)}>{t.title}</button>
 									<button class="card-x" title="Delete" onclick={() => remove(t)} disabled={busyId === t.id}><Trash2 size={13} /></button>
 								</div>
-								{#if t.description}<p class="card-desc">{t.description}</p>{/if}
+								{#if t.description}<p class="card-desc">{taskPreview(t.description)}</p>{/if}
 								{#if t.due_date || assigneeName(t)}
 									<div class="card-meta">
 										{#if t.due_date}<span class="chip" class:due-over={isOverdue(t)}><Calendar size={11} />{fmtDate(t.due_date)}</span>{/if}
@@ -266,7 +319,7 @@
 						<button class="check" onclick={() => toggleDone(t)} aria-label="Toggle done">
 							{#if t.status === 'done'}<CheckCircle2 size={16} />{:else}<Circle size={16} />{/if}
 						</button>
-						<span class:done={t.status === 'done'}>{t.title}</span>
+						<button class="task-open" class:done={t.status === 'done'} onclick={() => openDetails(t.id)}>{t.title}</button>
 					</span>
 					<span class="lr-col">
 						<select class="status-sel" value={t.status} disabled={busyId === t.id} onchange={(e) => setStatus(t, (e.target as HTMLSelectElement).value as Status)} aria-label="Status">
@@ -282,6 +335,35 @@
 		</div>
 	{/if}
 </div>
+
+{#if detailTask}
+	<dialog bind:this={detailDialog} class="task-detail" aria-labelledby="task-detail-title" onclose={() => { sourceRequest++; detailId = null; }}>
+		<header class="detail-head">
+			<div><p class="detail-project">{projects.find((p) => p.id === detailTask.project_id)?.name ?? 'No project'}</p><h2 id="task-detail-title">{detailTask.title}</h2></div>
+			<button class="card-x" onclick={() => detailDialog?.close()} aria-label="Close task details"><X size={20} /></button>
+		</header>
+		<div class="detail-layout">
+		<aside aria-label="Task properties">
+		<dl class="detail-meta">
+			<div><dt>Project</dt><dd>{projects.find((p) => p.id === detailTask.project_id)?.name ?? 'No project'}</dd></div>
+			<div><dt>Assignee</dt><dd>{assigneeName(detailTask) ?? 'Unassigned'}</dd></div>
+			<div><dt>Status</dt><dd><select class="detail-status" aria-label="Task status" value={detailTask.status} disabled={busyId === detailTask.id} onchange={(e) => setStatus(detailTask, e.currentTarget.value as Status)}>{#each STATUSES as s}<option value={s.id}>{s.label}</option>{/each}</select></dd></div>
+			<div><dt>Priority</dt><dd class="cap">{detailTask.priority ?? 'low'}</dd></div>
+			<div><dt>Due date</dt><dd>{detailTask.due_date ? taskDate(detailTask.due_date).toLocaleDateString(undefined, {month:'long',day:'numeric',year:'numeric'}) : 'No due date'}</dd></div>
+			{#if detailTask.start_date}<div><dt>Start date</dt><dd>{fmtDate(detailTask.start_date)}</dd></div>{/if}
+			{#if detailTask.created_at}<div><dt>Created</dt><dd>{fmtDate(detailTask.created_at)}</dd></div>{/if}
+			{#if detailTask.updated_at}<div><dt>Last updated</dt><dd>{fmtDate(detailTask.updated_at)}</dd></div>{/if}
+		</dl>
+		</aside>
+		<section class="detail-content" aria-label="Task description">
+			{#if sourcePath}<button class="source-back" onclick={() => openDetails(detailTask.id)}><ArrowLeft size={16} />Back to task</button>{:else}<h3 class="detail-section-label"><FileText size={16} />Task brief</h3>{/if}
+			{#if sourceError}<p role="alert" class="detail-error">{sourceError}</p>{/if}
+			{#if error}<p role="alert" class="detail-error">{error}</p>{/if}
+			{#if sourceLoading}<p role="status">Loading source document...</p>{:else}<div class="detail-prose" use:sourceLinks>{@html detailHtml || '<p>No description added.</p>'}</div>{/if}
+		</section>
+		</div>
+	</dialog>
+{/if}
 
 {#if showCreate}
 	<div class="overlay" role="button" tabindex="0" onclick={() => (showCreate = false)} onkeydown={(e) => e.key === 'Escape' && (showCreate = false)}>
@@ -314,6 +396,39 @@
 {/if}
 
 <style>
+	.task-open { border: 0; background: transparent; color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer; min-width: 0; overflow-wrap: anywhere; }
+	.task-open:hover { text-decoration: underline; }
+	.task-open:focus-visible { outline: 2px solid #2563eb; outline-offset: 4px; }
+	.task-detail { box-sizing: border-box; margin: auto; width: min(1040px, calc(100vw - 32px)); height: min(820px, calc(100dvh - 48px)); overflow: auto; border: 1px solid #d4d4d4; border-radius: 8px; padding: 0; background: #fff; color: #171717; }
+	.task-detail::backdrop { background: rgb(0 0 0 / 35%); }
+	.detail-head { display: flex; align-items: flex-start; gap: 16px; justify-content: space-between; padding: 24px 28px; border-bottom: 1px solid #e5e5e5; }
+	.detail-project { color: #737373; font-size: 12px; margin: 0 0 8px; }
+	.detail-head h2 { font-size: 22px; line-height: 1.3; letter-spacing: 0; margin: 0; overflow-wrap: anywhere; }
+	.detail-head .card-x { color: #525252; }
+	.detail-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); }
+	.detail-layout aside { padding: 24px; background: #fafafa; border-right: 1px solid #e5e5e5; }
+	.detail-meta { display: grid; gap: 22px; margin: 0; }
+	.detail-meta dt { color: #737373; font-size: 12px; margin-bottom: 4px; }
+	.detail-meta dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+	.detail-status { border: 1px solid #d4d4d4; border-radius: 6px; padding: 6px 8px; background: white; width: 100%; }
+	.detail-content { padding: 24px 28px 40px; min-width: 0; }
+	.detail-section-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #737373; margin: 0 0 22px; }
+	.source-back { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; color: #1d4ed8; cursor: pointer; padding: 0; margin-bottom: 24px; font-size: 13px; }
+	.detail-error { color: #b91c1c; font-size: 14px; }
+	.detail-prose { overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; }
+	.detail-prose :global(h1) { font-size: 22px; line-height: 1.35; margin: 0 0 20px; letter-spacing: 0; }
+	.detail-prose :global(h2) { font-size: 17px; font-weight: 650; margin: 26px 0 10px; line-height: 1.4; letter-spacing: 0; }
+	.detail-prose :global(h3) { font-size: 15px; margin: 20px 0 8px; letter-spacing: 0; }
+	.detail-prose :global(p) { margin: 0 0 14px; }
+	.detail-prose :global(ul), .detail-prose :global(ol) { padding-left: 22px; margin: 10px 0 18px; }
+	.detail-prose :global(li) { margin-bottom: 7px; }
+	.detail-prose :global(ul) { list-style: disc; }
+	.detail-prose :global(ol) { list-style: decimal; }
+	.detail-prose :global(a) { color: #1d4ed8; text-decoration: underline; text-underline-offset: 3px; }
+	.detail-prose :global(blockquote) { border-left: 3px solid #0d9488; padding-left: 16px; color: #525252; margin: 16px 0; }
+	.detail-prose :global(table) { display: block; overflow-x: auto; border-collapse: collapse; margin: 16px 0; }
+	.detail-prose :global(td), .detail-prose :global(th) { padding: 8px 10px; border: 1px solid #e5e5e5; text-align: left; min-width: 110px; }
+	@media (max-width: 640px) { .detail-layout { grid-template-columns: 1fr; } .detail-layout aside { border-right: 0; border-bottom: 1px solid #e5e5e5; padding: 20px; } .detail-meta { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; } .detail-head, .detail-content { padding: 20px; } }
 	.proj-root { height: 100%; display: flex; flex-direction: column; background: var(--dbg); color: var(--dt); overflow: hidden; }
 	.topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 24px; border-bottom: 1px solid var(--dbd); flex-shrink: 0; }
 	.title-wrap { display: flex; align-items: center; gap: 10px; }

@@ -10,6 +10,9 @@ import { defineConfig, devices } from '@playwright/test';
  * - Screenshots and videos on failure
  * - 30-second timeout per test
  */
+// Must match the dev server port in vite.config.ts (FRONTEND_PORT, default 5173).
+const E2E_PORT = process.env.FRONTEND_PORT || '5173';
+
 export default defineConfig({
 	testDir: './tests/e2e',
 
@@ -43,7 +46,7 @@ export default defineConfig({
 	// Shared settings for all projects
 	use: {
 		// Base URL for navigation
-		baseURL: 'http://localhost:5173',
+		baseURL: `http://localhost:${E2E_PORT}`,
 
 		// Collect trace on first retry of a failed test
 		trace: 'on-first-retry',
@@ -99,7 +102,7 @@ export default defineConfig({
 	// Run your local dev server before starting the tests
 	webServer: {
 		command: 'npm run dev',
-		url: 'http://localhost:5173',
+		url: `http://localhost:${E2E_PORT}`,
 		reuseExistingServer: !process.env.CI,
 		timeout: 120 * 1000,
 		stdout: 'ignore',
