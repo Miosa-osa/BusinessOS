@@ -127,12 +127,6 @@ export function setupIpcHandlers(backendManager: BackendManager | null): void {
     };
   });
 
-  ipcMain.handle('sync:trigger', async () => {
-    // Trigger manual sync
-    console.log('Manual sync triggered');
-    return true;
-  });
-
   // Update operations (to be implemented with auto-updater)
   ipcMain.handle('updates:check', async () => {
     // Check for updates

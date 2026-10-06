@@ -102,21 +102,23 @@ func (m *Manager) CreateSession(userID string, cols, rows int, shell, workingDir
 		return nil, fmt.Errorf("maximum global session limit reached")
 	}
 
-	// Determine working directory
-	if workingDir == "" {
-		if m.useContainers {
-			workingDir = "/workspace"
-		} else {
-			workingDir = getDefaultWorkingDir()
-		}
-	}
-
-	// Determine environment mode
+	// Determine environment mode FIRST so we can pick the right working dir.
 	if environmentMode == "" {
 		if m.useContainers {
 			environmentMode = "sandbox"
 		} else {
 			environmentMode = "local"
+		}
+	}
+
+	// Determine working directory based on mode, not just container availability.
+	if workingDir == "" {
+		if environmentMode == "local" {
+			workingDir = getDefaultWorkingDir()
+		} else if m.useContainers {
+			workingDir = "/workspace"
+		} else {
+			workingDir = getDefaultWorkingDir()
 		}
 	}
 
@@ -157,12 +159,22 @@ func (m *Manager) CreateSession(userID string, cols, rows int, shell, workingDir
 		ExpiresAt:       expiresAt,
 	}
 
-	// Start container or PTY based on configuration
-	if m.useContainers && m.containerMgr != nil {
+	// Start container or PTY based on user-selected environment mode.
+	// "local" always runs a native PTY on the host machine (user's real $HOME,
+	// /Users/* paths, etc.) even if container support is available — otherwise
+	// the LCL toggle in the UI is a no-op and the shell boots into /workspace
+	// with /home/workspace as $HOME, which breaks commands like `cd ~/code/...`.
+	useContainer := m.useContainers && m.containerMgr != nil && session.EnvironmentMode != "local"
+	if useContainer {
 		if err := m.startContainer(session); err != nil {
 			return nil, fmt.Errorf("failed to start container: %w", err)
 		}
 	} else {
+		// Make sure the PTY starts in the real host home when running locally,
+		// instead of the container's /workspace default that was set above.
+		if session.EnvironmentMode == "local" && (session.WorkingDir == "" || session.WorkingDir == "/workspace") {
+			session.WorkingDir = getDefaultWorkingDir()
+		}
 		if err := startPTY(session); err != nil {
 			return nil, fmt.Errorf("failed to start PTY: %w", err)
 		}

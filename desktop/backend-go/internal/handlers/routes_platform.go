@@ -13,6 +13,9 @@ import (
 // /api/desktop3d, /api/signal/health, /api/sorx,
 // and the Pedro-owned task routes (documents, learning, app-profiler, intelligence).
 func (h *Handlers) registerPlatformRoutes(api *gin.RouterGroup, auth gin.HandlerFunc) {
+	// Communications is the workspace-governed operating surface over connector data.
+	RegisterCommunicationsRoutes(api, NewCommunicationsHandler(h.pool), auth)
+
 	// Dashboard routes - /api/dashboard (aggregate dashboard items)
 	RegisterDashboardItemRoutes(api, NewDashboardItemHandler(h.pool, h.queryCache, h.notificationTriggers), auth)
 

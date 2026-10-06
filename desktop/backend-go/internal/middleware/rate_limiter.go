@@ -33,13 +33,18 @@ type RateLimiterConfig struct {
 	ExcludePaths []string
 }
 
-// DefaultRateLimiterConfig returns production-safe defaults
+// DefaultRateLimiterConfig returns production-safe defaults.
+// For a single-user local desktop app (Electron on loopback), the stock 20 rps/IP
+// is far too tight — opening the 3D desktop fans out >50 module fetches in one tick
+// and trips the limiter, producing cascading HTTP 429s. Bumped to values that still
+// catch real abuse (e.g. a misbehaving client in a tight loop) but never bite under
+// normal panel/dashboard loads.
 func DefaultRateLimiterConfig() *RateLimiterConfig {
 	return &RateLimiterConfig{
-		RequestsPerSecond:     20,   // 20 requests/sec per IP
-		BurstSize:             40,   // Allow burst of 40 requests
-		UserRequestsPerSecond: 1000, // Authenticated users get higher limit
-		UserBurstSize:         200,  // Larger burst for authenticated users
+		RequestsPerSecond:     2000, // per-IP ceiling (localhost fan-out is fine)
+		BurstSize:             4000, // absorb the 3D-desktop module fan-out
+		UserRequestsPerSecond: 5000, // authenticated users: effectively unlimited
+		UserBurstSize:         10000,
 		CleanupInterval:       10 * time.Minute,
 		ExcludePaths: []string{
 			"/health",

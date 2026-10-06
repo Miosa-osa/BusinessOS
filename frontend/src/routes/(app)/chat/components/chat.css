@@ -486,22 +486,24 @@
 	border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-/* Chat input containers - match BusinessOS2 styling */
+/* Chat input containers — sit on the secondary surface with a subtle inset rim
+   so the box reads as part of the page in dark mode rather than a floating panel. */
 .dark .chat-input-box {
-	background: #2c2c2e !important;
-	border-color: rgba(255, 255, 255, 0.15) !important;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+	background: var(--dbg2) !important;
+	border-color: var(--dbd) !important;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.02) !important;
 }
 
 .dark .chat-input-box:focus-within {
-	border-color: rgba(255, 255, 255, 0.25) !important;
+	border-color: color-mix(in srgb, var(--dbd) 100%, white 10%) !important;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
 }
 
 .dark .rounded-3xl.bg-white,
 .dark .rounded-2xl.bg-white {
-	background: #2c2c2e !important;
-	border-color: rgba(255, 255, 255, 0.15) !important;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+	background: var(--dbg2) !important;
+	border-color: var(--dbd) !important;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.02) !important;
 }
 
 /* Recording indicator - pulsing red dot */

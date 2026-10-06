@@ -13,7 +13,7 @@ import type { AgentRuntime } from "$lib/stores/osa";
 /** CLI agent runtimes and their launch commands */
 type CliRuntime = Exclude<AgentRuntime, "osa">;
 
-const BOS_DIR = "~/Desktop/OptimalOS/businessos";
+const BOS_DIR = "~/code/OptimalOS/businessos";
 
 const AGENT_COMMANDS: Record<CliRuntime, string> = {
   claude: `cd ${BOS_DIR} && claude --dangerously-skip-permissions`,

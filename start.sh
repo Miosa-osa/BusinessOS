@@ -21,14 +21,15 @@ start_backend() {
 start_frontend() {
   echo "Starting SvelteKit frontend on port 5173..."
   cd "$DIR/frontend"
-  nohup npx vite dev --port 5173 > /tmp/bos-frontend.log 2>&1 &
+  nohup npm run dev -- --port 5173 > /tmp/bos-frontend.log 2>&1 &
   echo "  PID: $! → log: /tmp/bos-frontend.log"
 }
 
 start_desktop() {
   echo "Starting Electron desktop..."
   cd "$DIR/desktop"
-  npm start &
+  (nohup npm start > /tmp/bos-electron.log 2>&1 < /dev/null &)
+  echo "  → log: /tmp/bos-electron.log"
 }
 
 wait_for_port() {

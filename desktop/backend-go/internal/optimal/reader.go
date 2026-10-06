@@ -170,7 +170,7 @@ func GetNodeFileTree(nodesRoot, slug string) ([]FileEntry, error) {
 	if _, err := os.Stat(nodeDir); err != nil {
 		return nil, fmt.Errorf("optimal: node %q not found: %w", slug, err)
 	}
-	return readDirRecursive(nodeDir, slug)
+	return readDirRecursive(nodeDir, "")
 }
 
 // GetNodeFile reads a single file from inside a node. filePath is relative to the node folder.

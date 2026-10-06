@@ -128,7 +128,7 @@
 	}
 
 	// Agent launch commands — cd into businessos/ first so agents read CLAUDE.md
-	const BOS_DIR = '~/Desktop/OptimalOS/businessos';
+	const BOS_DIR = '~/code/OptimalOS/businessos';
 	const AGENT_COMMANDS: Record<string, string> = {
 		claude: `cd ${BOS_DIR} && claude --dangerously-skip-permissions\n`,
 		codex: `cd ${BOS_DIR} && codex --full-auto\n`,

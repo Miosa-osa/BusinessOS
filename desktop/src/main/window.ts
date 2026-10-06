@@ -78,6 +78,25 @@ export async function createMainWindow(): Promise<BrowserWindow> {
     // DevTools can be opened manually via View menu (Cmd+Option+I)
   });
 
+  // Pipe renderer console into main stdout so gesture/getUserMedia errors
+  // surface in bos-electron-direct.log without needing DevTools open.
+  mainWindow.webContents.on(
+    "console-message",
+    (_event, level, message, line, sourceId) => {
+      if (
+        message.includes("[SimpleGesture]") ||
+        message.includes("[useGestureControl]") ||
+        message.includes("getUserMedia") ||
+        message.includes("NotAllowedError") ||
+        message.includes("NotFoundError") ||
+        message.includes("OverconstrainedError") ||
+        message.includes("permissions.query")
+      ) {
+        console.log(`[renderer L${level}] ${message} (${sourceId}:${line})`);
+      }
+    },
+  );
+
   // Handle external links
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     // Allow opening external URLs in the default browser

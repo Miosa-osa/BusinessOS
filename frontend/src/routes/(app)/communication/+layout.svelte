@@ -5,13 +5,16 @@
 	let { children } = $props();
 
 	const tabs = [
+		{ href: '/communication', label: 'Triage', icon: MessageSquare },
 		{ href: '/communication/calendar', label: 'Calendar', icon: Calendar },
 		{ href: '/communication/email', label: 'Email', icon: Mail },
-		{ href: '/communication/channels', label: 'Channels', icon: MessageSquare },
+		{ href: '/communication/channels', label: 'Slack', icon: MessageSquare },
 	];
 
 	const isActiveTab = (tabHref: string) => {
-		return $page.url.pathname.startsWith(tabHref);
+		return tabHref === '/communication'
+			? $page.url.pathname === tabHref
+			: $page.url.pathname.startsWith(tabHref);
 	};
 </script>
 
@@ -19,7 +22,7 @@
 	<!-- Header with Tabs -->
 	<div class="ch-layout__header">
 		<div class="ch-layout__header-inner">
-			<h1 class="ch-layout__title">Communication Hub</h1>
+			<h1 class="ch-layout__title">Communications</h1>
 			<nav class="ch-layout__tabs">
 				{#each tabs as tab}
 					<a
