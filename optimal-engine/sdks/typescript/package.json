@@ -2,7 +2,7 @@
   "name": "@optimal-engine/client",
   "version": "0.2.0",
   "description": "TypeScript client for the Optimal Engine — open-source memory infrastructure",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": "",
   "type": "module",
   "exports": {

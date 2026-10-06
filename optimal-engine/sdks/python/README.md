@@ -176,4 +176,4 @@ except OptimalEngineError as e:
 
 ## License
 
-MIT.
+Apache 2.0.

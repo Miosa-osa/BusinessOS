@@ -104,7 +104,7 @@
   <div class="hero__grid"></div>
   <div class="container hero__inner">
     <div class="hero__copy">
-      <span class="eyebrow">Open source · Elixir · MIT · Local-first</span>
+      <span class="eyebrow">Open source · Elixir · Apache 2.0 · Local-first</span>
       <h1 class="hero__title">
         The second brain<br />
         <span class="hero__title-em">of your company.</span>

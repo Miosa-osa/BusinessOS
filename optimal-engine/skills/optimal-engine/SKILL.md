@@ -12,7 +12,7 @@ description: |
   execution. Architectural commitments: source-first evidence, workspace/Node
   scope, Signal = Mode + Genre + Type + Format + Structure, Claim -> Fact gate,
   Memory Core lineage, Context Packages, Active Memory Pools, Skill Packages,
-  and projection surfaces over canonical runtime state. Self-hosted, MIT, runs
+  and projection surfaces over canonical runtime state. Self-hosted, Apache 2.0, runs
   locally first.
 triggers:
   - persistent memory

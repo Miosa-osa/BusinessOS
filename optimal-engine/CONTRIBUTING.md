@@ -1,6 +1,6 @@
 # Contributing to the Optimal Engine
 
-The Optimal Engine is open-source (MIT). Contributions are welcome — bug fixes, new connectors, SDK improvements, and documentation. Read this before opening a PR.
+The Optimal Engine is open-source (Apache 2.0). Contributions are welcome — bug fixes, new connectors, SDK improvements, and documentation. Read this before opening a PR.
 
 ---
 

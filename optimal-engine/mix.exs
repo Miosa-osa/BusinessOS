@@ -106,7 +106,7 @@ defmodule OptimalEngine.MixProject do
 
   defp package do
     [
-      licenses: ["MIT"],
+      licenses: ["Apache-2.0"],
       links: %{"GitHub" => "https://github.com/Miosa-osa/OptimalEngine"},
       files:
         ~w(bin lib priv config docs mix.exs README.md LICENSE AGENTS.md CLAUDE.md BOOT.md SYSTEM.md OPTIONS.md MISSION.md RESOURCES.md NOTES.md OPINIONS.md)

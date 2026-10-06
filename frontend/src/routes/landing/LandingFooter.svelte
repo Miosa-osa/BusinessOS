@@ -156,7 +156,7 @@
 			</a>
 		</div>
 		<div class="mt-12 flex flex-wrap justify-center gap-8 font-mono text-xs text-gray-500">
-			{#each ['Self-hosted', 'End-to-end encrypted', 'Open source', 'MIT Licensed'] as badge}
+			{#each ['Self-hosted', 'End-to-end encrypted', 'Open source', 'Apache 2.0 Licensed'] as badge}
 				<div class="flex items-center gap-2">
 					<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -187,7 +187,7 @@
 		</div>
 		<div class="mt-8 text-center md:text-left">
 			<p class="font-mono text-xs text-gray-400">
-				Open Source · MIT Licensed · v0.0.1
+				Open Source · Apache 2.0 Licensed · v0.0.1
 			</p>
 		</div>
 	</div>

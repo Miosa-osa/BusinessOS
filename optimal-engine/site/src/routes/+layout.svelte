@@ -52,7 +52,7 @@
     </div>
     <div class="site-footer__col">
       <div class="eyebrow">License</div>
-      <span class="site-footer__muted">MIT</span>
+      <span class="site-footer__muted">Apache 2.0</span>
     </div>
   </div>
 </footer>

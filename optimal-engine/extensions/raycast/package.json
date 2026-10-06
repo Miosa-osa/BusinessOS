@@ -4,7 +4,7 @@
   "description": "Search, ask, and submit context to Optimal Engine from Raycast",
   "icon": "icon.png",
   "author": "robertolhuna",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "categories": [
     "Productivity",
     "Developer Tools"
