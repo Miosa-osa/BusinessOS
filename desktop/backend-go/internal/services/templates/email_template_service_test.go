@@ -10,7 +10,7 @@ func renderWorkspaceInvitationForTest(t *testing.T, data WorkspaceInvitationData
 
 	service := &EmailTemplateService{
 		appURL:       "https://app.businessos.dev",
-		logoURL:      "https://storage.googleapis.com/businessos-downloads/email-icon.png",
+		logoURL:      "https://downloads.businessos.dev/email-icon.png",
 		supportEmail: "roberto@miosa.ai",
 	}
 	html, plainText, err := service.RenderWorkspaceInvitation(data)

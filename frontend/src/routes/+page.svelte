@@ -181,7 +181,7 @@
 			<a href="https://github.com/Miosa-osa/BusinessOS" target="_blank" rel="noopener" class="lp-nav__link">GitHub</a>
 		</nav>
 		<div class="lp-nav__actions">
-			<a href="https://storage.googleapis.com/businessos-downloads/BusinessOS-arm64.dmg" download class="lp-btn lp-btn--ghost">Download the Desktop App</a>
+			<a href="https://downloads.businessos.dev/BusinessOS-arm64.dmg" download class="lp-btn lp-btn--ghost">Download the Desktop App</a>
 			<a href="/login" class="lp-btn lp-btn--ghost">Sign in</a>
 			<a href="/register" class="lp-btn lp-btn--primary">Get Started</a>
 		</div>
@@ -222,7 +222,7 @@
 				Proactive agents that run in your cloud computer. Automations that learn your workflows. A system that gets smarter with every decision you make.
 			</p>
 			<div class="lp-hero__ctas">
-				<a href="https://storage.googleapis.com/businessos-downloads/BusinessOS-arm64.dmg" download class="lp-btn lp-btn--primary lp-btn--lg">
+				<a href="https://downloads.businessos.dev/BusinessOS-arm64.dmg" download class="lp-btn lp-btn--primary lp-btn--lg">
 					Download the Desktop App
 				</a>
 				<a href="/register" class="lp-btn lp-btn--ghost lp-btn--lg">
@@ -234,10 +234,10 @@
 			</div>
 			<div class="lp-hero__dl-note" style="margin-top:0.5rem;font-size:0.8rem;opacity:0.65;">
 				Free download for
-				<a href="https://storage.googleapis.com/businessos-downloads/BusinessOS-arm64.dmg" download style="color:inherit;text-decoration:underline;">macOS</a>
+				<a href="https://downloads.businessos.dev/BusinessOS-arm64.dmg" download style="color:inherit;text-decoration:underline;">macOS</a>
 				and
-				<a href="https://storage.googleapis.com/businessos-downloads/BusinessOS-linux-x64.deb" download style="color:inherit;text-decoration:underline;">Linux</a>
-				(<a href="https://storage.googleapis.com/businessos-downloads/BusinessOS-linux-x64.rpm" download style="color:inherit;text-decoration:underline;">.rpm</a>).
+				<a href="https://downloads.businessos.dev/BusinessOS-linux-x64.deb" download style="color:inherit;text-decoration:underline;">Linux</a>
+				(<a href="https://downloads.businessos.dev/BusinessOS-linux-x64.rpm" download style="color:inherit;text-decoration:underline;">.rpm</a>).
 				Windows coming soon.
 			</div>
 			<div class="lp-hero__pills">

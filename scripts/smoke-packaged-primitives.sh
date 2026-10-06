@@ -48,7 +48,7 @@ require_grep 'diagnostics:collect' desktop/src/main/ipc/index.ts "diagnostics IP
 require_grep 'diagnostics:collect' desktop/src/preload/index.ts "diagnostics preload bridge"
 require_grep 'setFeedURL' desktop/src/main/updater/auto-update.ts "auto-updater feed configuration"
 require_grep 'provider: "generic"' desktop/src/main/updater/auto-update.ts "public generic updater provider"
-require_grep 'storage.googleapis.com/businessos-downloads' desktop/src/main/updater/auto-update.ts "public updater asset URL"
+require_grep 'downloads.businessos.dev' desktop/src/main/updater/auto-update.ts "public updater asset URL"
 require_grep 'BUSINESSOS_MIN_SUPPORTED_VERSION' desktop/src/main/updater/auto-update.ts "minimum supported desktop version"
 require_grep 'updates:get-info' desktop/src/main/ipc/index.ts "update runtime info IPC handler"
 require_grep 'updates:get-info' desktop/src/preload/index.ts "update runtime info preload bridge"

@@ -12,7 +12,7 @@ const UPDATE_OWNER = process.env.BUSINESSOS_UPDATE_OWNER || "Miosa-osa";
 const UPDATE_REPO = process.env.BUSINESSOS_UPDATE_REPO || "businessos-5";
 const UPDATE_URL =
   process.env.BUSINESSOS_UPDATE_URL ||
-  "https://storage.googleapis.com/businessos-downloads";
+  "https://downloads.businessos.dev";
 const UPDATE_CHANNEL = process.env.BUSINESSOS_UPDATE_CHANNEL || "stable";
 const MIN_SUPPORTED_VERSION =
   process.env.BUSINESSOS_MIN_SUPPORTED_VERSION || "";

@@ -7,8 +7,8 @@
 # Trigger: push a version tag (v1.0.1) or run manually.
 #
 # REQUIRED GitHub secrets (Settings > Secrets and variables > Actions):
-#   GCP_SA_KEY            - service-account JSON with objectAdmin on gs://businessos-downloads
-#   GCP_PROJECT_ID        - business-os-481523
+#   CLOUDFLARE_API_TOKEN  - Cloudflare API token with R2 write access on the businessos-downloads bucket
+#   CLOUDFLARE_ACCOUNT_ID - Cloudflare account ID owning the R2 bucket (already a repo secret)
 #   Mac signing:  APPLE_ID, APPLE_PASSWORD (app-specific), APPLE_TEAM_ID (5UL79JP67U),
 #                 APPLE_IDENTITY ("Developer ID Application: MIOSA LLC (5UL79JP67U)"),
 #                 APPLE_CERT_P12_BASE64 + APPLE_CERT_PASSWORD (the Developer ID cert)
@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       upload:
-        description: "Upload installers to gs://businessos-downloads"
+        description: "Upload installers to the businessos-downloads R2 bucket"
         type: boolean
         default: true
 
@@ -107,23 +107,30 @@ jobs:
         run: |
           npx electron-forge make --arch=${{ matrix.arch }}
 
-      - name: Authenticate to GCP
-        if: ${{ inputs.upload != false }}
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Upload installers
-        if: ${{ inputs.upload != false }}
-        uses: google-github-actions/setup-gcloud@v2
-      - name: Push to download bucket
+      - name: Push to download bucket (Cloudflare R2)
         if: ${{ inputs.upload != false }}
         shell: bash
         working-directory: desktop
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          # Upload whatever installers forge produced for this OS (dmg/exe/deb/rpm/AppImage).
-          find out/make -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.zip" \) -print0 \
-            | xargs -0 -I{} gsutil cp "{}" gs://businessos-downloads/
+          # Upload whatever installers forge produced for this OS to the R2 bucket,
+          # keyed by filename (which is what the landing page and updater fetch).
+          while IFS= read -r -d '' f; do
+            name="$(basename "$f")"
+            case "$f" in
+              *.dmg) ct="application/x-apple-diskimage" ;;
+              *.exe) ct="application/vnd.microsoft.portable-executable" ;;
+              *.deb) ct="application/vnd.debian.binary-package" ;;
+              *.rpm) ct="application/x-rpm" ;;
+              *.zip) ct="application/zip" ;;
+              *)     ct="application/octet-stream" ;;
+            esac
+            npx --yes wrangler r2 object put "businessos-downloads/$name" \
+              --file "$f" --content-type "$ct" --remote
+          done < <(find out/make -type f \
+            \( -name "*.dmg" -o -name "*.exe" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.zip" \) -print0)
 
       - name: Upload build artifacts (always, for inspection)
         uses: actions/upload-artifact@v4

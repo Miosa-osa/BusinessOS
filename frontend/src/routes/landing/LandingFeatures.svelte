@@ -61,7 +61,7 @@
 				</div>
 				<div class="flex gap-2">
 					<a
-						href="https://storage.googleapis.com/businessos-downloads/BusinessOS-arm64.dmg"
+						href="https://downloads.businessos.dev/BusinessOS-arm64.dmg"
 						download
 						class="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-medium hover:bg-gray-800 transition-colors font-mono flex items-center justify-center gap-1.5"
 					>
@@ -110,7 +110,7 @@
 				</div>
 				<div class="flex gap-2">
 					<a
-						href="https://storage.googleapis.com/businessos-downloads/BusinessOS-linux-x64.deb"
+						href="https://downloads.businessos.dev/BusinessOS-linux-x64.deb"
 						download
 						class="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-medium hover:bg-gray-800 transition-colors font-mono flex items-center justify-center gap-1.5"
 					>
@@ -120,7 +120,7 @@
 						.deb
 					</a>
 					<a
-						href="https://storage.googleapis.com/businessos-downloads/BusinessOS-linux-x64.rpm"
+						href="https://downloads.businessos.dev/BusinessOS-linux-x64.rpm"
 						download
 						class="flex-1 bg-gray-100 text-black py-2.5 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors font-mono flex items-center justify-center gap-1.5"
 					>
