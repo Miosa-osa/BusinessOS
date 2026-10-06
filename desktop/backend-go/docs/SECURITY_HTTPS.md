@@ -10,9 +10,9 @@ BusinessOS **REQUIRES HTTPS** in production to protect against:
 
 ## Deployment Options
 
-### Option 1: GCP Cloud Run (Recommended - Automatic TLS)
+### Option 1: Railway (Recommended - Automatic TLS)
 
-Cloud Run provides automatic TLS termination:
+Railway provides automatic TLS termination on the service domain:
 
 - HTTPS is enforced by default
 - Certificates are managed automatically
@@ -21,14 +21,13 @@ Cloud Run provides automatic TLS termination:
 
 **Deploy command:**
 ```bash
-gcloud run deploy businessos-backend \
-  --source . \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated
+STAGE="$(mktemp -d)/businessos-backend"
+mkdir -p "$STAGE" && cp -R desktop/backend-go/. "$STAGE"/
+railway up "$STAGE" --path-as-root --no-gitignore --service businessos-api --ci
 ```
 
-Cloud Run handles all HTTPS enforcement automatically. Your application receives traffic over HTTP internally, but all external traffic is HTTPS-only.
+Railway terminates TLS at its edge. Your application receives traffic over HTTP internally
+on `SERVER_PORT`, but all external traffic is HTTPS-only.
 
 ### Option 2: Reverse Proxy (nginx, Caddy, Traefik)
 

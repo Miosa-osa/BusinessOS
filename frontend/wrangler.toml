@@ -1,14 +1,17 @@
 # Cloudflare Pages configuration for BusinessOS frontend
-# Deploy: npx wrangler pages deploy build --project-name=businessos
+# Deploy: npx wrangler pages deploy build --project-name=businessos-5 --branch=main --commit-dirty=true
 #
 # Build command (set in Cloudflare Pages dashboard or CI):
 #   CLOUDFLARE_BUILD=true npm run build
 #
-# Environment variables to set in Cloudflare Pages dashboard:
-#   VITE_API_URL = https://api.businessos.dev/api/v1
-#   VITE_BACKEND_URL = https://api.businessos.dev
+# Environment variables to set in the Cloudflare Pages dashboard:
+#   BUSINESSOS_BACKEND_URL = https://businessos-api-production.up.railway.app
+#   PUBLIC_ENVIRONMENT     = production
+# Leave VITE_API_URL and VITE_BACKEND_URL UNSET: the app calls same-origin
+# /api/*, which the Pages Function proxies to the Railway backend. api.businessos.dev
+# is not routed.
 
-name = "businessos"
+name = "businessos-5"
 compatibility_date = "2024-01-01"
 
 # Pages-specific config
@@ -18,6 +21,6 @@ pages_build_output_dir = "build"
 # Non-secret build-time vars (secrets go in the Cloudflare Pages dashboard)
 vars = { PUBLIC_ENVIRONMENT = "production" }
 
-# Custom domain: app.businessos.dev
+# Custom domains: businessos.dev and app.businessos.dev
 # Set via: Cloudflare Pages dashboard > Custom domains > Add custom domain
-# DNS: CNAME app -> businessos.pages.dev (Cloudflare manages the cert)
+# DNS: CNAME @ / app -> businessos-5.pages.dev (Cloudflare manages the cert)

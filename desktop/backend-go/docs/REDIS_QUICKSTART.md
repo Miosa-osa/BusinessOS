@@ -37,34 +37,19 @@ go run cmd/server/main.go
 
 ## Production (Cloud)
 
-### Option 1: Google Cloud Memorystore
+### Option 1: Railway Redis
 
-1. **Create Redis instance**:
+1. **Add a Redis service** in the Railway project (`BusinessOS` > New > Database > Redis).
+
+2. **Reference its variables** on the `businessos-api` service (`REDIS_URL`, `REDIS_PASSWORD`):
 ```bash
-gcloud redis instances create businessos-redis \
-  --size=1 \
-  --region=us-central1 \
-  --redis-version=redis_7_0 \
-  --auth-enabled \
-  --transit-encryption-mode=SERVER_AUTHENTICATION
-```
-
-2. **Get credentials**:
-```bash
-# Get host
-HOST=$(gcloud redis instances describe businessos-redis --region=us-central1 --format="get(host)")
-
-# Get password
-PASSWORD=$(gcloud redis instances get-auth-string businessos-redis --region=us-central1)
-
-echo "REDIS_URL=rediss://${HOST}:6378/0"
-echo "REDIS_PASSWORD=${PASSWORD}"
+railway variables --service businessos-api --environment production | grep REDIS
 ```
 
 3. **Configure .env.production**:
 ```env
-REDIS_URL=rediss://10.0.0.3:6378/0
-REDIS_PASSWORD=your-memorystore-auth-string
+REDIS_URL=rediss://your-redis-host:6379/0
+REDIS_PASSWORD=your-redis-auth-string
 REDIS_TLS_ENABLED=true
 
 # Generate with: openssl rand -base64 48

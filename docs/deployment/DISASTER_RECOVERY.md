@@ -4,6 +4,9 @@
 
 This document outlines the disaster recovery procedures for BusinessOS, including backup strategies, restore procedures, incident response, and recovery time objectives (RTO/RPO).
 
+BusinessOS production runs on Railway (backend + Postgres) and Cloudflare (Pages frontend,
+R2 downloads).
+
 ## Table of Contents
 
 1. [Recovery Objectives](#recovery-objectives)
@@ -37,205 +40,95 @@ This document outlines the disaster recovery procedures for BusinessOS, includin
 
 ## Backup Strategy
 
-### 1. Database Backups (Cloud SQL / Supabase)
+### 1. Database Backups (Railway Postgres)
 
-#### Automated Backups
-
-**Cloud SQL Configuration:**
+Railway's managed Postgres provides automated backups, and point-in-time recovery (PITR) on
+eligible plans. Confirm the current backup settings in the Railway dashboard
+(project `BusinessOS` > Postgres service > Backups).
 
 ```bash
-# Enable automated backups
-gcloud sql instances patch businessos-db \
-  --backup-start-time=03:00 \
-  --enable-bin-log \
-  --retained-backups-count=7 \
-  --retained-transaction-log-days=7
+# Confirm Postgres service status
+railway status --service Postgres
+
+# Take a manual logical backup and store it encrypted off-platform
+railway connect Postgres --environment production
+#   inside psql:  \! pg_dump "$DATABASE_URL" -Fc -f backup-$(date +%Y%m%d).dump
+# or, from a shell with DATABASE_URL exported:
+pg_dump "$DATABASE_URL" -Fc -f businessos-$(date +%Y%m%d).dump
 ```
 
-**Supabase Configuration:**
-- Supabase automatically performs daily backups
-- Point-in-time recovery (PITR) available for up to 7 days
-- Backups retained for 30 days on Pro plan
-
-#### Backup Schedule
-
-| Backup Type | Frequency | Retention | Storage |
-|-------------|-----------|-----------|---------|
-| Automated snapshot | Daily @ 3 AM UTC | 7 days | Cloud SQL / Supabase |
-| Transaction logs | Continuous | 7 days | Cloud SQL / Supabase |
-| Manual snapshot | Weekly (Sunday) | 30 days | Cloud Storage |
-| Full export | Monthly | 90 days | Cloud Storage (off-site) |
-
-#### Manual Backup Commands
-
-**Cloud SQL:**
+Store manual dumps encrypted in Cloudflare R2 (see "Backup Storage Locations"):
 
 ```bash
-# Create manual backup
-gcloud sql backups create \
-  --instance=businessos-db \
-  --description="Manual backup $(date +%Y%m%d)"
-
-# Export to Cloud Storage
-gcloud sql export sql businessos-db \
-  gs://businessos-backups/manual/businessos-$(date +%Y%m%d).sql \
-  --database=businessos
-```
-
-**Supabase:**
-
-```bash
-# Export via pg_dump (requires database credentials)
-pg_dump "postgresql://user:pass@db.supabase.co:5432/postgres" \
-  --format=custom \
-  --file=businessos-backup-$(date +%Y%m%d).dump
-
-# Upload to Cloud Storage
-gsutil cp businessos-backup-$(date +%Y%m%d).dump \
-  gs://businessos-backups/supabase/
+gpg --symmetric --cipher-algo AES256 businessos-$(date +%Y%m%d).dump
+npx wrangler r2 object put businessos-backups/db/businessos-$(date +%Y%m%d).dump.gpg \
+  --file businessos-$(date +%Y%m%d).dump.gpg --remote
 ```
 
 ### 2. Redis Backups
 
-**Redis Persistence Configuration:**
-
-```yaml
-# docker-compose.yml or redis.conf
-command: >
-  redis-server
-  --appendonly yes              # Enable AOF
-  --appendfsync everysec        # Fsync every second
-  --save 900 1                  # Snapshot after 900s if 1 key changed
-  --save 300 10                 # Snapshot after 300s if 10 keys changed
-  --save 60 10000               # Snapshot after 60s if 10000 keys changed
-```
-
-**Backup Redis Data:**
-
-```bash
-# Trigger manual save
-redis-cli BGSAVE
-
-# Copy RDB file
-cp /var/lib/redis/dump.rdb \
-   /backups/redis/dump-$(date +%Y%m%d).rdb
-
-# Upload to Cloud Storage
-gsutil cp /backups/redis/dump-$(date +%Y%m%d).rdb \
-  gs://businessos-backups/redis/
-```
-
-**Recovery Note:** Redis cache is ephemeral. In disaster recovery, start with empty Redis - sessions will rebuild from database.
+Redis is optional and used for cache/rate limits; losing it is a non-event (RPO: none).
+If a Railway Redis service is in use, enable persistence in its settings and verify with
+`redis-cli INFO persistence`.
 
 ### 3. Application Configuration Backups
 
-**Backup Environment Variables:**
-
 ```bash
-# Export secrets from GitHub
-gh secret list --repo businessos/main > secrets-list.txt
+# Export the service variables (review before storing; contains secrets)
+railway variables --service businessos-api --environment production
 
-# Backup GCP secrets
-gcloud secrets versions access latest \
-  --secret="DATABASE_URL" > backup-secrets/DATABASE_URL.txt
-
-# Store encrypted in Cloud Storage
-gpg --encrypt --recipient ops@businessos.com backup-secrets/
-gsutil cp backup-secrets/*.gpg gs://businessos-backups/secrets/
+# Backup GitHub Actions secrets inventory (names only) from the repo settings
+# Backup Railway project settings (service config, domains) from the dashboard
 ```
 
-**Backup Infrastructure Configuration:**
-
-```bash
-# Backup Terraform state
-gsutil cp terraform.tfstate \
-  gs://businessos-backups/terraform/terraform-$(date +%Y%m%d).tfstate
-
-# Backup Kubernetes manifests (if using)
-kubectl get all --all-namespaces -o yaml > k8s-state-$(date +%Y%m%d).yaml
-gsutil cp k8s-state-$(date +%Y%m%d).yaml gs://businessos-backups/k8s/
-```
+Store secret material encrypted in R2, never in the repo.
 
 ---
 
 ## Database Recovery
 
-### Scenario 1: Restore from Automated Backup
-
-**Cloud SQL:**
+### Scenario 1: Restore from a Railway Backup
 
 ```bash
-# List available backups
-gcloud sql backups list --instance=businessos-db
+# 1. Open the Railway dashboard > project BusinessOS > Postgres > Backups.
+# 2. Choose a backup / PITR point and restore it, OR clone the database.
 
-# Restore from backup
-gcloud sql backups restore BACKUP_ID \
-  --backup-instance=businessos-db \
-  --backup-project=PROJECT_ID
-
-# Alternatively, create new instance from backup
-gcloud sql instances create businessos-db-restored \
-  --backup=BACKUP_ID \
-  --backup-instance=businessos-db
+# Alternatively, restore a manual dump into a fresh database:
+pg_restore --clean --if-exists -d "$DATABASE_URL" businessos-YYYYMMDD.dump
 ```
-
-**Supabase:**
-
-1. Go to [Supabase Dashboard](https://app.supabase.com)
-2. Navigate to **Database** > **Backups**
-3. Select backup date/time
-4. Click **Restore**
-5. Confirm restoration
-
-**Estimated Time:** 15-30 minutes (depending on database size)
 
 ### Scenario 2: Point-in-Time Recovery
 
-Recover database to specific timestamp (within last 7 days):
+Use Railway Postgres PITR (dashboard > Postgres > Backups > Point-in-time recovery) to roll
+forward to a timestamp before the data-loss event.
 
 ```bash
-# Cloud SQL PITR
-gcloud sql instances clone businessos-db \
-  businessos-db-pitr \
-  --point-in-time=2026-01-15T10:30:00Z
+# Confirm PITR availability
+railway postgres --help
 ```
 
-**Supabase PITR:**
-- Available on Pro plan
-- Use dashboard to select exact recovery point
-
-**Estimated Time:** 20-40 minutes
-
-### Scenario 3: Restore from Manual Export
+### Scenario 3: Restore from a Manual Export (R2)
 
 ```bash
-# Download backup from Cloud Storage
-gsutil cp gs://businessos-backups/manual/businessos-20260115.sql ./
+# 1. Download the encrypted dump from R2
+npx wrangler r2 object get businessos-backups/db/businessos-YYYYMMDD.dump.gpg \
+  --file businessos-YYYYMMDD.dump.gpg --remote
 
-# Restore to Cloud SQL
-gcloud sql import sql businessos-db \
-  gs://businessos-backups/manual/businessos-20260115.sql \
-  --database=businessos
+# 2. Decrypt
+gpg --output businessos-YYYYMMDD.dump --decrypt businessos-YYYYMMDD.dump.gpg
 
-# Or restore to Supabase
-psql "postgresql://user:pass@db.supabase.co:5432/postgres" \
-  < businessos-20260115.sql
+# 3. Restore into the target database
+pg_restore --clean --if-exists -d "$DATABASE_URL" businessos-YYYYMMDD.dump
 ```
-
-**Estimated Time:** 30-60 minutes (depending on size)
 
 ### Database Recovery Checklist
 
-- [ ] Identify backup to restore (date/time)
-- [ ] Verify backup integrity
-- [ ] Stop application traffic (set maintenance mode)
-- [ ] Create database snapshot before restore (safety)
-- [ ] Execute restore command
-- [ ] Verify data integrity post-restore
-- [ ] Test database connectivity
-- [ ] Run smoke tests (verify critical data)
-- [ ] Resume application traffic
-- [ ] Monitor logs for errors
+- [ ] Backup or PITR point identified
+- [ ] Restore completed without errors
+- [ ] Row counts match expectations (users, workspaces, module records)
+- [ ] `pgvector` extension present
+- [ ] Backend reconnects (`/health/detailed` reports `database: connected`)
+- [ ] Read/write smoke test passes
 
 ---
 
@@ -243,107 +136,53 @@ psql "postgresql://user:pass@db.supabase.co:5432/postgres" \
 
 ### Scenario 1: Backend Service Down
 
-**Symptoms:**
-- Health checks failing
-- 5xx errors
-- Cloud Run instances crashing
+```bash
+# 1. Check service and recent deployments
+railway status --service businessos-api
+railway deployment list --service businessos-api
+railway logs --service businessos-api
 
-**Recovery Steps:**
+# 2. Roll back to the previous good deployment
+railway down -y --service businessos-api
+# or: Railway dashboard > Deployments > select a good deployment > Redeploy
 
-1. **Identify Issue:**
-   ```bash
-   # Check Cloud Run logs
-   gcloud logging read "resource.type=cloud_run_revision" \
-     --limit=100 \
-     --format=json
+# 3. If the service will not build at all, redeploy from a known-good commit:
+STAGE="$(mktemp -d)/businessos-backend"
+mkdir -p "$STAGE" && cp -R desktop/backend-go/. "$STAGE"/
+railway up "$STAGE" --path-as-root --no-gitignore --service businessos-api --ci
 
-   # Check service status
-   gcloud run services describe businessos-backend \
-     --region=us-central1
-   ```
-
-2. **Rollback to Previous Version:**
-   ```bash
-   # List revisions
-   gcloud run revisions list \
-     --service=businessos-backend \
-     --region=us-central1
-
-   # Rollback to previous revision
-   gcloud run services update-traffic businessos-backend \
-     --region=us-central1 \
-     --to-revisions=PREVIOUS_REVISION=100
-   ```
-
-3. **If Rollback Fails, Redeploy Last Known Good Version:**
-   ```bash
-   # Get last successful commit from GitHub
-   LAST_GOOD_SHA=$(git log --grep="Deployment: SUCCESS" -1 --format=%H)
-
-   # Checkout and deploy
-   git checkout $LAST_GOOD_SHA
-   ./deploy-backend.sh
-   ```
-
-**Estimated Time:** 10-15 minutes
+# 4. Verify
+curl -fsS https://businessos-api-production.up.railway.app/health
+curl -fsS https://businessos-api-production.up.railway.app/health/detailed
+```
 
 ### Scenario 2: Frontend Service Down
 
-**Recovery Steps:**
+```bash
+# 1. Check the Pages deployment
+npx wrangler pages deployment list --project-name=businessos-5
 
-1. **Vercel Rollback:**
-   ```bash
-   # List deployments
-   vercel ls
+# 2. Roll back in the Cloudflare Pages dashboard
+#    Workers & Pages > businessos-5 > Deployments > Rollback to a good deployment
 
-   # Rollback to previous deployment
-   vercel rollback [DEPLOYMENT_URL]
-   ```
-
-2. **Redeploy from Git:**
-   ```bash
-   # Trigger deployment from last good commit
-   git checkout main
-   git reset --hard LAST_GOOD_COMMIT
-   git push origin main --force
-
-   # Or manually trigger deployment
-   vercel --prod
-   ```
-
-**Estimated Time:** 5-10 minutes
+# 3. Or rebuild and redeploy
+cd frontend && CLOUDFLARE_BUILD=true npm run build
+npx wrangler pages deploy build --project-name=businessos-5 --branch=main --commit-dirty=true
+```
 
 ### Scenario 3: Complete Regional Outage
 
-**Multi-Region Failover:**
+Railway deploys into a single region per service; Cloudflare Pages is globally distributed.
 
-1. **Update DNS to Secondary Region:**
-   ```bash
-   # Point traffic to backup region
-   gcloud dns record-sets transaction start --zone=businessos-zone
-
-   gcloud dns record-sets transaction add \
-     --name=api.businessos.com. \
-     --type=A \
-     --zone=businessos-zone \
-     --ttl=300 \
-     --rrdatas=BACKUP_IP
-
-   gcloud dns record-sets transaction execute --zone=businessos-zone
-   ```
-
-2. **Activate Standby Infrastructure:**
-   ```bash
-   # Scale up standby Cloud Run service
-   gcloud run services update businessos-backend-standby \
-     --region=us-east1 \
-     --min-instances=3
-
-   # Update database replica to primary
-   gcloud sql instances promote-replica businessos-db-replica
-   ```
-
-**Estimated Time:** 30-60 minutes
+```bash
+# 1. Confirm the outage scope at https://status.railway.app and https://www.cloudflarestatus.com
+# 2. If Railway is degraded globally, stand the backend up in another Railway
+#    region/workspace from the same staged source and DATABASE_URL, then point the
+#    Cloudflare Pages Function at it via the BUSINESSOS_BACKEND_URL env var
+#    (Pages > Settings > Environment variables).
+# 3. Frontend stays up (Cloudflare Pages), so users get the app shell with a clear error
+#    from the API proxy while the backend is unavailable.
+```
 
 ---
 
@@ -436,6 +275,8 @@ Recommended setup:
 - Slack for incident coordination
 - Statuspage.io for customer communication
 
+See also `docs/operations/INCIDENT-RESPONSE-PLAYBOOK.md`.
+
 ---
 
 ## Testing & Validation
@@ -445,49 +286,33 @@ Recommended setup:
 **Test 1: Database Restore (Q1, Q3)**
 
 ```bash
-# 1. Create test database
-gcloud sql instances create businessos-test-restore \
-  --tier=db-f1-micro \
-  --region=us-central1
-
-# 2. Restore from backup
-gcloud sql backups restore LATEST_BACKUP_ID \
-  --backup-instance=businessos-db \
-  --instance=businessos-test-restore
-
+# 1. Create a scratch database (Railway dashboard, or a throwaway Postgres)
+# 2. Restore the latest backup / dump into it
+pg_restore --clean --if-exists -d "$SCRATCH_DATABASE_URL" businessos-YYYYMMDD.dump
 # 3. Validate data
-psql -h TEST_DB_IP -U postgres -d businessos \
-  -c "SELECT COUNT(*) FROM users;"
-
+psql "$SCRATCH_DATABASE_URL" -c "SELECT COUNT(*) FROM users;"
 # 4. Cleanup
-gcloud sql instances delete businessos-test-restore
+#    Remove the scratch database in the Railway dashboard
 ```
 
 **Test 2: Application Rollback (Q2, Q4)**
 
 ```bash
-# 1. Deploy test revision
-gcloud run deploy businessos-backend-test \
-  --image=gcr.io/PROJECT_ID/businessos-backend:v1.0.0
-
-# 2. Simulate failure (manual trigger)
-
-# 3. Execute rollback procedure
-gcloud run services update-traffic businessos-backend-test \
-  --to-revisions=PREVIOUS_REVISION=100
-
-# 4. Measure rollback time
-# Target: < 5 minutes
-
-# 5. Cleanup
-gcloud run services delete businessos-backend-test
+# 1. Note the current good deployment
+railway deployment list --service businessos-api
+# 2. Trigger a deploy (any small change) so there is a "newest" deployment
+# 3. Execute rollback
+railway down -y --service businessos-api
+# 4. Measure rollback time (target: < 5 minutes)
+# 5. Verify health
+curl -fsS https://businessos-api-production.up.railway.app/health
 ```
 
 **Test 3: Regional Failover (Annual)**
 
-Full simulation of regional outage:
-- Switch DNS to backup region
-- Promote database replica
+Full simulation of a regional outage:
+- Stand the backend up in an alternate region from the same source + database
+- Point the Pages Function at it (`BUSINESSOS_BACKEND_URL`)
 - Verify application functionality
 - Measure total recovery time
 - Document lessons learned
@@ -518,22 +343,19 @@ After any recovery:
 | Primary On-Call | on-call@businessos.com | L1 |
 | Engineering Manager | manager@businessos.com | L2 |
 | CTO | cto@businessos.com | L3 |
-| External Support | Supabase, GCP, Vercel support | L3 |
+| External Support | Railway, Cloudflare support | L3 |
 
 ### Vendor Support
 
-**Supabase:**
-- Support: support@supabase.com
-- Status: https://status.supabase.com
-- Docs: https://supabase.com/docs
+**Railway:**
+- Support: https://station.railway.com/
+- Status: https://status.railway.app
+- Docs: https://docs.railway.com
 
-**Google Cloud Platform:**
-- Support: https://cloud.google.com/support
-- Status: https://status.cloud.google.com
-
-**Vercel:**
-- Support: support@vercel.com
-- Status: https://www.vercel-status.com
+**Cloudflare:**
+- Support: https://dash.cloudflare.com (Support > Help)
+- Status: https://www.cloudflarestatus.com
+- Docs: https://developers.cloudflare.com
 
 ---
 
@@ -543,14 +365,14 @@ After any recovery:
 
 | Backup Type | Primary Storage | Secondary Storage | Retention |
 |-------------|-----------------|-------------------|-----------|
-| Database snapshots | Cloud SQL / Supabase | Cloud Storage | 7 days |
-| Manual exports | Cloud Storage (us-central1) | Cloud Storage (eu-west1) | 90 days |
-| Application configs | GitHub repo | Cloud Storage | Indefinite |
-| Infrastructure state | GCS (us) | GCS (eu) | 1 year |
+| Database snapshots | Railway Postgres backups | R2 (`businessos-backups/db/`) | 7 days |
+| Manual exports | R2 (`businessos-backups/db/`) | Local + offsite copy | 90 days |
+| Application configs | GitHub repo (names only) | R2 (`businessos-backups/config/`, encrypted) | Indefinite |
+| Downloads (installers) | R2 (`businessos-downloads`) | n/a (rebuildable from source) | Indefinite |
 
 ### Recovery Time Estimates
 
-Based on production data size (as of 2026-01):
+Based on production data size:
 
 | Database Size | Backup Time | Restore Time |
 |---------------|-------------|--------------|
@@ -562,23 +384,19 @@ Based on production data size (as of 2026-01):
 ### Useful Commands Reference
 
 ```bash
-# Cloud SQL
-gcloud sql backups list --instance=businessos-db
-gcloud sql instances describe businessos-db
-gcloud sql operations list --instance=businessos-db
+# Railway (backend + Postgres)
+railway status --service businessos-api
+railway deployment list --service businessos-api
+railway logs --service businessos-api
+railway down -y --service businessos-api
+railway variables --service businessos-api --environment production
+railway connect Postgres --environment production
 
-# Cloud Run
-gcloud run revisions list --service=businessos-backend
-gcloud run services describe businessos-backend
-gcloud run logs read businessos-backend
-
-# Monitoring
-gcloud monitoring policies list
-gcloud monitoring uptime-checks list
-
-# Storage
-gsutil ls gs://businessos-backups/
-gsutil du -s gs://businessos-backups/
+# Cloudflare (frontend + downloads)
+npx wrangler pages deployment list --project-name=businessos-5
+npx wrangler pages deploy build --project-name=businessos-5 --branch=main
+npx wrangler r2 object list businessos-backups
+npx wrangler r2 object list businessos-downloads
 ```
 
 ---
@@ -590,6 +408,6 @@ This document should be reviewed and updated:
 - **After incidents:** Update based on lessons learned
 - **Annually:** Full review of all procedures
 
-**Last Reviewed:** 2026-01-18
-**Next Review:** 2026-04-18
+**Last Reviewed:** 2026-10-06
+**Next Review:** 2027-01-06
 **Owner:** DevOps Team

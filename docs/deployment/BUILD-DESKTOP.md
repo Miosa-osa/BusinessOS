@@ -18,7 +18,7 @@ All three flows share the same shape:
 2. Build the OptimalEngine prod release (`MIX_ENV=prod mix release optimal`).
 3. Stage it into `desktop/resources/engine/<platform>-<arch>/`.
 4. `npm ci && npm run build:all` in `desktop/`, then `electron-forge make`.
-5. Optionally upload the artifacts to `gs://businessos-downloads`.
+5. Optionally upload the artifacts to the `businessos-downloads` Cloudflare R2 bucket.
 
 ---
 
@@ -27,7 +27,7 @@ All three flows share the same shape:
 The Mac build runs on Roberto's machine and is the day-to-day path.
 
 - **Needs:** Erlang + Elixir + Node (via Homebrew or asdf), Xcode command line
-  tools. Google Cloud SDK if uploading.
+  tools. An authenticated Wrangler (`npx wrangler whoami`) if uploading.
 - **Command:**
   1. Build + stage the engine for the host arch (Apple Silicon = `arm64`):
      ```bash
@@ -43,8 +43,9 @@ The Mac build runs on Roberto's machine and is the day-to-day path.
      ```
 - **Output:** the packaged `.app` under `desktop/out/`, and the `.dmg` produced by
   the `hdiutil` step. The DMG is currently **unsigned**.
-- **Upload:** `gsutil cp <path>.dmg gs://businessos-downloads/` (needs
-  `gcloud auth login`).
+- **Upload:** `npx wrangler r2 object put businessos-downloads/<name>.dmg
+  --file <path>.dmg --content-type application/x-apple-diskimage --remote`
+  (needs `npx wrangler login`).
 
 ---
 
@@ -54,15 +55,15 @@ Run `scripts/build-linux.sh` on an Ubuntu or Debian box.
 
 - **Needs:** the script installs `erlang elixir nodejs npm rpm fakeroot dpkg
   rsync curl` via `apt-get`. If the distro's Elixir/Erlang are too old, use asdf
-  or the Erlang Solutions repo. Google Cloud SDK if uploading.
+  or the Erlang Solutions repo. An authenticated Wrangler if uploading.
 - **Command** (from the repo root):
   ```bash
   ./scripts/build-linux.sh            # build only
-  ./scripts/build-linux.sh --upload   # build + upload (needs: gcloud already logged in)
+  ./scripts/build-linux.sh --upload   # build + upload (needs: wrangler already logged in)
   ```
 - **Output:** `.deb`, `.rpm`, and `.AppImage` installers in `desktop/out/make/`.
-- **Upload:** pass `--upload`; it copies the artifacts to
-  `gs://businessos-downloads` with `gsutil`.
+- **Upload:** pass `--upload`; it copies the artifacts to the
+  `businessos-downloads` R2 bucket with `wrangler r2 object put`.
 
 ---
 
@@ -79,21 +80,24 @@ Administrator so the toolchain install can succeed).
     `desktop/scripts/*.sh` helper scripts.
   - **Go** (https://go.dev/dl), because the backend step cross-compiles the Go
     server.
-  Google Cloud SDK (`gsutil`) is needed only for `-Upload`.
+  Wrangler is needed only for `-Upload`.
 - **Command** (from the repo root):
   ```powershell
   .\scripts\build-windows.ps1            # build only
-  .\scripts\build-windows.ps1 -Upload    # build + upload (needs: gcloud already logged in)
+  .\scripts\build-windows.ps1 -Upload    # build + upload (needs: wrangler already logged in)
   ```
 - **Output:** a Squirrel installer (`BusinessOS ... Setup.exe`) plus its `.nupkg`
   in `desktop\out\make\`.
-- **Upload:** pass `-Upload`; it copies the `.exe`/`.nupkg` to
-  `gs://businessos-downloads` with `gsutil`.
+- **Upload:** pass `-Upload`; it copies the `.exe`/`.nupkg` to the
+  `businessos-downloads` R2 bucket with `wrangler r2 object put`.
 
 ---
 
 ## The download bucket
 
-All platforms publish to the same place: **`gs://businessos-downloads`**. Uploads
-require an authenticated Google Cloud SDK (`gcloud auth login`) with write access
-to that bucket. Objects there are what the public download page serves.
+All platforms publish to the same place: the **`businessos-downloads`** Cloudflare
+R2 bucket, served publicly at `https://downloads.businessos.dev`. Uploads require
+an authenticated Wrangler (`npx wrangler login`) with write access to that bucket.
+Objects there are what the public download page serves. The bucket and the
+`downloads.businessos.dev` custom domain are provisioned once (enable R2, create
+the bucket, attach the domain).

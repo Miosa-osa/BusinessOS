@@ -211,11 +211,13 @@ No `.env` is required for local development (Vite proxy handles API routing).
 For production deployments, set the following:
 
 ```env
-# Backend API URL (Cloud Run service)
-VITE_API_URL=https://businessos-api-xxxxx.run.app/api
+# The web app calls same-origin /api/*; the Cloudflare Pages Function
+# (frontend/functions/api/[[path]].js) proxies it to the Railway backend.
+# Leave VITE_API_URL and VITE_BACKEND_URL UNSET for the Pages build.
+BUSINESSOS_BACKEND_URL=https://businessos-api-production.up.railway.app
 
 # Public URL (your deployment domain)
-PUBLIC_URL=https://your-app.vercel.app
+PUBLIC_URL=https://app.businessos.dev
 ```
 
 Copy `.env.production.example` as a reference for production configuration.

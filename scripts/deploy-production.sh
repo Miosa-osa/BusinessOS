@@ -1,16 +1,15 @@
 #!/bin/bash
 # =============================================================================
-# BusinessOS — Production Deploy Script
+# BusinessOS - Production Deploy Script
 # =============================================================================
 # Deploys:
-#   Backend  → GCP Cloud Run (api.businessos.dev)
-#   Frontend → Cloudflare Pages (app.businessos.dev)
+#   Backend  -> Railway (service businessos-api)
+#   Frontend -> Cloudflare Pages (app.businessos.dev), which proxies /api to Railway
 #
 # Prerequisites:
-#   - gcloud CLI authenticated: gcloud auth login
-#   - GCP project set: gcloud config set project YOUR_PROJECT_ID
+#   - railway CLI authenticated: railway login
 #   - wrangler authenticated: npx wrangler login
-#   - Secrets already loaded in GCP Secret Manager (run once: ./desktop/backend-go/deploy.sh secrets)
+#   - Backend runtime variables already set on the Railway service (Variables tab)
 #
 # Usage:
 #   ./scripts/deploy-production.sh              # deploy both
@@ -23,7 +22,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$REPO_ROOT/desktop/backend-go"
 FRONTEND_DIR="$REPO_ROOT/frontend"
 
-GCP_REGION="${GCP_REGION:-us-central1}"
+RAILWAY_SERVICE="${RAILWAY_SERVICE:-businessos-api}"
+RAILWAY_ENVIRONMENT="${RAILWAY_ENVIRONMENT:-production}"
 CF_PROJECT_NAME="${CF_PROJECT_NAME:-businessos-5}"
 
 TARGET="${1:-all}"
@@ -32,37 +32,31 @@ log()  { echo "[$(date '+%H:%M:%S')] $*"; }
 fail() { echo "[ERROR] $*" >&2; exit 1; }
 
 # =============================================================================
-# Backend: GCP Cloud Run via Cloud Build
+# Backend: Railway (railway up from a copy staged outside the git tree)
 # =============================================================================
 deploy_backend() {
-  log "=== Deploying Go backend to Cloud Run ==="
+  log "=== Deploying Go backend to Railway ($RAILWAY_SERVICE) ==="
 
-  if ! command -v gcloud &>/dev/null; then
-    fail "gcloud CLI not found. Install: https://cloud.google.com/sdk/docs/install"
+  if ! command -v railway &>/dev/null; then
+    fail "railway CLI not found. Install: npm install --global @railway/cli"
   fi
 
-  PROJECT_ID=$(gcloud config get-value project 2>/dev/null)
-  if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "(unset)" ]; then
-    fail "GCP project not set. Run: gcloud config set project YOUR_PROJECT_ID"
-  fi
+  # Stage a copy outside the repo. Railway prunes uploads with the repository-root
+  # .gitignore, which drops cmd/server from the backend; staging outside git (and
+  # --no-gitignore) keeps the archive complete.
+  STAGE="$(mktemp -d)/businessos-backend"
+  mkdir -p "$STAGE"
+  cp -R "$BACKEND_DIR/." "$STAGE"/
 
-  log "GCP project: $PROJECT_ID | Region: $GCP_REGION"
-  log "Submitting Cloud Build job..."
+  log "Uploading $STAGE to Railway..."
+  railway up "$STAGE" \
+    --path-as-root \
+    --no-gitignore \
+    --service "$RAILWAY_SERVICE" \
+    --environment "$RAILWAY_ENVIRONMENT" \
+    --ci
 
-  # Cloud Build runs from the repo root; cloudbuild.yaml specifies dir: backend-go
-  cd "$REPO_ROOT"
-  gcloud builds submit \
-    --config="$BACKEND_DIR/cloudbuild.yaml" \
-    --substitutions="_REGION=$GCP_REGION" \
-    .
-
-  SERVICE_URL=$(gcloud run services describe businessos-api \
-    --platform=managed \
-    --region="$GCP_REGION" \
-    --format='value(status.url)' 2>/dev/null || echo "unknown")
-
-  log "Backend deployed: $SERVICE_URL"
-  log "Custom domain: https://api.businessos.dev (configure in Cloud Run console)"
+  log "Backend deployed: https://businessos-api-production.up.railway.app"
 }
 
 # =============================================================================
@@ -80,16 +74,16 @@ deploy_frontend() {
   log "Installing dependencies..."
   corepack pnpm install --frozen-lockfile
 
+  # VITE_BACKEND_URL / VITE_API_URL stay UNSET: the web app calls same-origin
+  # /api/*, which the Pages Function proxies to Railway.
   log "Building for Cloudflare Pages (static SPA)..."
-  CLOUDFLARE_BUILD=true \
-  VITE_API_URL="https://api.businessos.dev/api/v1" \
-  VITE_BACKEND_URL="https://api.businessos.dev" \
-  corepack pnpm run build
+  CLOUDFLARE_BUILD=true corepack pnpm run build
 
   log "Deploying to Cloudflare Pages (project: $CF_PROJECT_NAME)..."
   npx wrangler pages deploy build \
     --project-name="$CF_PROJECT_NAME" \
-    --branch=main
+    --branch=main \
+    --commit-dirty=true
 
   log "Frontend deployed: https://app.businessos.dev"
 }
@@ -108,8 +102,8 @@ case "$TARGET" in
     deploy_backend
     deploy_frontend
     log "=== All deployments complete ==="
-    log "  API:     https://api.businessos.dev"
-    log "  App:     https://app.businessos.dev"
+    log "  API (Railway): https://businessos-api-production.up.railway.app"
+    log "  App:           https://app.businessos.dev"
     ;;
   *)
     echo "Usage: $0 [all|backend|frontend]"

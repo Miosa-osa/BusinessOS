@@ -56,32 +56,21 @@ docker exec -it businessos-redis redis-cli -a changeme_insecure_dev_password pin
 
 ## Production Setup
 
-### Google Cloud Memorystore (Redis)
+### Railway Redis
 
-1. **Create Memorystore instance with AUTH enabled**:
+1. **Add a Redis service with AUTH enabled**: Railway provisioned Redis uses a generated
+   password by default (`BusinessOS` > New > Database > Redis).
+
+2. **Get connection details** from the service variables:
 ```bash
-gcloud redis instances create businessos-redis \
-  --size=1 \
-  --region=us-central1 \
-  --redis-version=redis_7_0 \
-  --auth-enabled \
-  --transit-encryption-mode=SERVER_AUTHENTICATION
-```
-
-2. **Get connection details**:
-```bash
-# Get Redis host
-gcloud redis instances describe businessos-redis --region=us-central1 --format="get(host)"
-
-# Get AUTH string (password)
-gcloud redis instances get-auth-string businessos-redis --region=us-central1
+railway variables --service businessos-api --environment production | grep REDIS
 ```
 
 3. **Configure application (.env.production)**:
 ```env
-# Use rediss:// for TLS (GCP Memorystore supports TLS)
-REDIS_URL=rediss://10.0.0.3:6378/0
-REDIS_PASSWORD=your-memorystore-auth-string
+# Use rediss:// for TLS
+REDIS_URL=rediss://your-redis-host:6379/0
+REDIS_PASSWORD=your-redis-auth-string
 REDIS_TLS_ENABLED=true
 
 # CRITICAL: Generate strong HMAC secret

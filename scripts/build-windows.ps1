@@ -13,17 +13,17 @@
     1. toolchains (Erlang + Elixir + Node)
     2. build + stage the native Windows OptimalEngine release
     3. build the app + make the installer
-    4. optional upload to gs://businessos-downloads
+    4. optional upload to the businessos-downloads R2 bucket
 
 .PARAMETER Upload
-  After a successful build, upload the installer(s) to gs://businessos-downloads.
-  You must already be `gcloud auth login`'d.
+  After a successful build, upload the installer(s) to the businessos-downloads
+  R2 bucket. You must already be `wrangler login`'d.
 
 .EXAMPLE
   .\scripts\build-windows.ps1            # build only
 
 .EXAMPLE
-  .\scripts\build-windows.ps1 -Upload    # build + upload (needs: gcloud already logged in)
+  .\scripts\build-windows.ps1 -Upload    # build + upload (needs: wrangler already logged in)
 
 .NOTES
   Run from an elevated (Administrator) PowerShell if you want the automatic
@@ -152,17 +152,18 @@ Write-Host "==> Done. Installer(s) are in: $MAKE"
 Get-ChildItem -Path $MAKE -Recurse -Include *.exe, *.nupkg -File -ErrorAction SilentlyContinue |
   ForEach-Object { Write-Host "    $($_.FullName)" }
 
-# 4. Optional upload to the download bucket (you must already be `gcloud auth login`'d).
+# 4. Optional upload to the download bucket (you must already be `wrangler login`'d).
 if ($Upload) {
-  if (-not (Have "gsutil")) {
-    throw "gsutil not found - install the Google Cloud SDK (https://cloud.google.com/sdk) and run 'gcloud auth login' before -Upload."
+  if (-not (Have "npx")) {
+    throw "npx not found - install Node.js and run 'npx wrangler login' before -Upload."
   }
-  Write-Host "==> Uploading installer(s) to gs://businessos-downloads ..."
+  Write-Host "==> Uploading installer(s) to the businessos-downloads R2 bucket ..."
   Get-ChildItem -Path $MAKE -Recurse -Include *.exe, *.nupkg -File |
     ForEach-Object {
       Write-Host "    uploading $($_.Name)"
-      & gsutil cp $_.FullName "gs://businessos-downloads/"
-      if ($LASTEXITCODE -ne 0) { throw "gsutil upload failed for $($_.Name) (exit $LASTEXITCODE)" }
+      $ct = if ($_.Extension -eq ".exe") { "application/vnd.microsoft.portable-executable" } else { "application/octet-stream" }
+      & npx wrangler r2 object put "businessos-downloads/$($_.Name)" --file $_.FullName --content-type $ct --remote
+      if ($LASTEXITCODE -ne 0) { throw "wrangler upload failed for $($_.Name) (exit $LASTEXITCODE)" }
     }
   Write-Host "==> Uploaded. They are now downloadable."
 }

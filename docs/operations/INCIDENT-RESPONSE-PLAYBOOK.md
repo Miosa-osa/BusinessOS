@@ -41,7 +41,7 @@ SEV-4: Create issue → Backlog
 ## Incident Response Steps
 
 ### 1. Detect
-- Cloud Run health check fails
+- Railway health check fails
 - Sentry alert fires
 - User reports issue
 - Monitoring dashboard shows anomaly
@@ -60,7 +60,7 @@ SEV-4: Create issue → Backlog
 ### 4. Mitigate
 - If deployment-related: **rollback immediately** (see rollback procedures below)
 - If DB-related: check connection pool, run `EXPLAIN ANALYZE` on slow queries
-- If memory/CPU: scale up Cloud Run instances
+- If memory/CPU: scale up the Railway service (Settings > Resources)
 
 ### 5. Resolve
 - Fix root cause
@@ -77,22 +77,19 @@ SEV-4: Create issue → Backlog
 ### Backend Rollback
 
 ```bash
-# List recent revisions
-gcloud run revisions list --service=businessos-backend --region=us-central1
+# List recent deployments
+railway deployment list --service businessos-api
 
-# Route 100% traffic to previous revision
-gcloud run services update-traffic businessos-backend \
-  --region=us-central1 \
-  --to-revisions=PREVIOUS_REVISION=100
+# Roll back by redeploying a known-good deployment (dashboard > Deployments >
+# Redeploy), or remove the newest one to fall back to the previous:
+railway down -y --service businessos-api
 ```
 
 ### Frontend Rollback
 
-```bash
-gcloud run services update-traffic businessos-frontend \
-  --region=us-central1 \
-  --to-revisions=PREVIOUS_REVISION=100
-```
+Roll back in the Cloudflare Pages dashboard (project `businessos-5` >
+Deployments > select a previous production deployment > Rollback), or redeploy
+the previous build with Wrangler.
 
 ### Database Rollback
 
@@ -100,9 +97,9 @@ gcloud run services update-traffic businessos-frontend \
 # Option A: Apply rollback migration
 psql "$DATABASE_URL" -f supabase/migrations/XXX_rollback.sql
 
-# Option B: Restore from backup
-gcloud sql backups list --instance=businessos-db
-gcloud sql backups restore BACKUP_ID --restore-instance=businessos-db
+# Option B: Restore from a Railway Postgres backup
+# Project BusinessOS > Postgres service > Backups > restore, or use
+# point-in-time recovery (railway postgres --help) if enabled.
 ```
 
 ## Common Scenarios
@@ -110,10 +107,10 @@ gcloud sql backups restore BACKUP_ID --restore-instance=businessos-db
 ### Backend Returns 500
 
 ```
-1. Check logs: gcloud run services logs read businessos-backend --limit=50
+1. Check logs: railway logs --service businessos-api
 2. Look for: panic, nil pointer, connection refused, timeout
 3. If panic: check recent deployment, rollback if needed
-4. If connection refused: check Cloud SQL / Redis connectivity
+4. If connection refused: check Railway Postgres / Redis connectivity
 5. If timeout: check for slow queries, increase timeout or optimize
 ```
 
@@ -122,7 +119,7 @@ gcloud sql backups restore BACKUP_ID --restore-instance=businessos-db
 ```
 1. Check current connections: SELECT count(*) FROM pg_stat_activity;
 2. Kill idle connections: SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'idle' AND query_start < now() - interval '10 minutes';
-3. If persistent: increase pool size in backend config or scale Cloud SQL
+3. If persistent: increase pool size in backend config or scale Railway Postgres
 ```
 
 ### SSE Stream Not Connecting
@@ -131,7 +128,7 @@ gcloud sql backups restore BACKUP_ID --restore-instance=businessos-db
 1. Check if backend is running: curl $BACKEND_URL/health
 2. Check CORS headers: curl -I $BACKEND_URL/api/osa/apps/generate/1/stream
 3. Check if EventSource URL is correct (queueItemId, not appId)
-4. Check Cloud Run timeout (SSE needs long-lived connections)
+4. Check the Railway service / proxy timeout (SSE needs long-lived connections)
 ```
 
 ### Auth Not Working
@@ -177,10 +174,10 @@ gcloud sql backups restore BACKUP_ID --restore-instance=businessos-db
 
 | Dashboard | URL |
 |-----------|-----|
-| Cloud Run Console | https://console.cloud.google.com/run?project=miosa-460433 |
-| Cloud SQL Console | https://console.cloud.google.com/sql?project=miosa-460433 |
+| Railway dashboard | https://railway.com/dashboard (project BusinessOS) |
+| Railway logs | `railway logs --service businessos-api` |
+| Cloudflare Pages | https://dash.cloudflare.com (project `businessos-5`) |
 | Sentry | Set up after Sprint 1 deployment (see [SENTRY_SETUP.md](../deployment/SENTRY_SETUP.md)) |
-| GCP Logging | https://console.cloud.google.com/logs?project=miosa-460433 |
 
 **Note:** A public status page will be set up as a Sprint 2 deliverable once the production domain is finalized.
 

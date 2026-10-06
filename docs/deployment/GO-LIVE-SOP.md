@@ -7,7 +7,7 @@ The whole point of this document is that nothing gets forgotten - especially the
 ## The golden rule
 
 A release is not "live" until ALL FOUR are shipped and verified:
-1. Backend (Cloud Run)
+1. Backend (Railway)
 2. Frontend (Cloudflare Pages)
 3. Desktop app (DMG rebuilt + uploaded)
 4. Code pushed to all repos (origin + both agency mirrors, on `main`)
@@ -20,12 +20,12 @@ If you shipped the web and not the DMG, you are not done.
 Auth expires constantly - check it before you start, not mid-deploy.
 
 ```
-gcloud auth list --filter=status:ACTIVE --format='value(account)'   # must show roberto@lunivate.com
-gcloud config get-value project                                      # must be business-os-481523
+railway whoami                                                       # must show roberto@lunivate.com
+railway status --service businessos-api                              # must resolve project BusinessOS / production
 npx wrangler whoami                                                   # must be logged in
 ```
 
-If gcloud is expired: `gcloud auth login` (interactive - the deploy will silently fail otherwise).
+If Railway is not authenticated: `railway login` (interactive - the deploy will silently fail otherwise).
 
 Then confirm the code is sound:
 ```
@@ -38,16 +38,22 @@ cd ../../frontend && npx svelte-check --threshold error   # must be 0 errors
 Commit the change on `businessossync` with a clear message.
 No `Co-Authored-By` line. No em dashes.
 
-## 2. Backend -> Cloud Run
+## 2. Backend -> Railway
 
-Use source-deploy. Do NOT use `cloudbuild.yaml` - its `gcr.io` push is IAM-denied and it silently fails.
+CI deploys on push to `main` (`.github/workflows/deploy-backend.yml`: Go tests, then
+`railway up`). To deploy by hand, stage a copy outside the git tree (Railway prunes
+uploads with the repo-root `.gitignore`, which drops `cmd/server`) and upload it:
 
 ```
-gcloud run deploy businessos-api --source=desktop/backend-go --region=us-central1 --platform=managed
+STAGE="$(mktemp -d)/businessos-backend"
+mkdir -p "$STAGE" && cp -R desktop/backend-go/. "$STAGE"/
+railway up "$STAGE" --path-as-root --no-gitignore --service businessos-api --ci
 ```
 
-Source-deploy preserves existing env vars + secrets, so a plain redeploy is safe.
-Watch for `serving 100 percent of traffic` and a new revision number.
+This rebuilds from `desktop/backend-go/Dockerfile` and rolls the new deployment into the
+`businessos-api` service. Service variables (including `DATABASE_URL` from the Railway
+Postgres) are preserved, so a plain redeploy is safe.
+Watch the build finish, then confirm health (step 7).
 
 ## 3. Frontend -> Cloudflare Pages
 
@@ -71,13 +77,17 @@ npm run build                                  # or the forge package step
 # package the .app -> .dmg (make is broken; use forge package + hdiutil)
 ```
 
-Then upload and update the download link:
+Then upload to the downloads bucket (Cloudflare R2) and update the download link:
 ```
-gsutil cp <built>.dmg gs://businessos-downloads/BusinessOS-<version>-arm64.dmg
+npx wrangler r2 object put businessos-downloads/BusinessOS-<version>-arm64.dmg \
+  --file <built>.dmg --content-type application/x-apple-diskimage --remote
 # build + upload the x64 (Intel) DMG too - the landing page links arm64 only today
 ```
 
-The landing-page download button is in `frontend/src/routes/+page.svelte` (points at `gs://businessos-downloads/...`).
+The bucket is served at `https://downloads.businessos.dev`. It is provisioned once
+(enable R2, create the `businessos-downloads` bucket, attach the custom domain) and is
+uploaded from CI by `.github/workflows/desktop-release.yml`.
+The landing-page download button is in `frontend/src/routes/+page.svelte`.
 Update the version/filename there if it changed, then re-run step 3.
 
 Signing: SOLVED as of v1.0.1. The DMG is signed + notarized with the MIOSA LLC
@@ -131,25 +141,26 @@ curl -s -o /dev/null -w '%{http_code}\n' https://businessos.dev/api/<new-endpoin
 # frontend fingerprint matches the deployment you just pushed
 curl -s https://businessos.dev/ | grep -oE 'app\.[A-Za-z0-9_-]+\.js' | head -1
 
-# health
-curl -s -o /dev/null -w '%{http_code}\n' https://businessos-api-4lama7hpmq-uc.a.run.app/health   # 200
+# health (Railway)
+curl -s -o /dev/null -w '%{http_code}\n' https://businessos-api-production.up.railway.app/health   # 200
+curl -s https://businessos-api-production.up.railway.app/health/detailed    # database: connected
 ```
 
 If you changed an authed flow, actually log in (web) and click it. A 200 is not proof it works.
 
 ## Landmines (learned the hard way)
 
-- `api.businessos.dev` is DEAD (no Cloud Run domain mapping, returns 404). The backend is reached via `businessos.dev/api/*` through the Cloudflare Pages Function proxy (`functions/api/[[path]].js`). Any redirect/callback URL must use `businessos.dev`, not `api.businessos.dev`.
-- Google OAuth: `GOOGLE_REDIRECT_URI` must be `https://businessos.dev/api/v1/auth/oauth/google/callback` AND that exact URI must be in the OAuth client `460433387676` authorized redirect URIs in Google Console (console-only, no gcloud/API for it). Localhost redirects are already authorized, so local dev + Google works.
+- `api.businessos.dev` is DEAD (not routed, returns 404). The backend is reached via `businessos.dev/api/*` through the Cloudflare Pages Function proxy (`functions/api/[[path]].js`), which forwards to Railway. Any redirect/callback URL must use `businessos.dev`, not `api.businessos.dev`.
+- Google OAuth: `GOOGLE_REDIRECT_URI` must be `https://businessos.dev/api/v1/auth/oauth/google/callback` AND that exact URI must be in the OAuth client `460433387676` authorized redirect URIs in the Google Cloud Console (console-only; not configurable via API). Localhost redirects are already authorized, so local dev + Google works.
 - `ALLOWED_ORIGINS` must include `https://businessos.dev` (not just `app.`).
-- gcloud auth expires often and fails SILENTLY in non-interactive deploys - always check in pre-flight.
+- Railway auth expires often and fails SILENTLY in non-interactive deploys - always check in pre-flight. CI uses a project token (`RAILWAY_TOKEN`), not an interactive login.
 - Never start the bundled `optimal-engine` (dev-local.sh is guarded) - it squats `:4200` and clobbers Roberto's real engine.
 - Never `DROP SCHEMA` / reset the live DB casually.
 - Session cookie is `better-auth.session_token`, `Domain=.businessos.dev` - the proxy forwards it, so app <-> api share the session.
 
 ## Rollback
 
-Backend: `gcloud run services update-traffic businessos-api --region=us-central1 --to-revisions=<prev-revision>=100`
+Backend: `railway down -y --service businessos-api` removes the most recent deployment (rolling back to the previous one), or open the Railway dashboard > Deployments and redeploy a known-good one.
 Frontend: redeploy the previous build, or roll back in the Cloudflare Pages dashboard.
 
 ## Versioning (added v1.0.1)

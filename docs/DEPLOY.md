@@ -1,7 +1,7 @@
 # BusinessOS Deploy Runbook
 
 Ordered, copy-pasteable procedure to ship all three artifacts and verify the live system.
-Backend goes to Cloud Run, frontend to Cloudflare Pages, desktop to a macOS DMG.
+Backend goes to Railway, frontend to Cloudflare Pages, desktop to a macOS DMG.
 
 > Conventions: `$` lines are commands. Do not paste secret values into this file or into
 > shell history; pipe them from a file or `openssl rand`. No command here runs automatically.
@@ -10,40 +10,43 @@ Backend goes to Cloud Run, frontend to Cloudflare Pages, desktop to a macOS DMG.
 
 | Thing | Value |
 |-------|-------|
-| GCP project | `business-os-481523` |
-| Cloud Run service | `businessos-api` (region `us-central1`) |
-| Backend public host | `https://api.businessos.dev` (routed to Cloud Run) |
-| Backend image | `gcr.io/business-os-481523/businessos-api` |
-| Frontend (web) | `https://app.businessos.dev` (Cloudflare Pages, project `businessos`) |
-| Session cookie | `Domain=.businessos.dev` (shared across `app.` and `api.`) |
-| Cloud SQL instance | `business-os-481523:us-central1:businessos-db` |
+| Railway workspace | `Roberto Luna's Projects` |
+| Railway project | `BusinessOS` (environment `production`) |
+| Railway service | `businessos-api` |
+| Backend public URL | `https://businessos-api-production.up.railway.app` |
+| Backend public host (browser) | `https://businessos.dev/api/*` via the Cloudflare Pages Function proxy |
+| Railway database | Railway Postgres service `Postgres` in project `BusinessOS` |
+| Frontend (web) | `https://app.businessos.dev` and `https://businessos.dev` (Cloudflare Pages, project `businessos-5`) |
+| Session cookie | `Domain=.businessos.dev` (shared across the Pages app and the proxied `/api`) |
+| Downloads | Cloudflare R2 bucket `businessos-downloads`, served at `https://downloads.businessos.dev` |
 | Backend Dockerfile | `desktop/backend-go/Dockerfile` (binds `SERVER_PORT`, default 8080) |
-| Cloud Build config | `desktop/backend-go/cloudbuild.yaml` |
-| Frontend proxy | `frontend/functions/api/[[path]].js` (Pages Function) |
+| Backend CI | `.github/workflows/deploy-backend.yml` (`railway up` after tests pass) |
+| Frontend proxy | `frontend/functions/api/[[path]].js` (Pages Function, proxies to Railway) |
 
 ### Required backend environment
 
-Set as Cloud Run env vars (non-secret) and Secret Manager secrets. Production
-`config.Validate()` (`desktop/backend-go/internal/config/config_helpers.go`) **crashes the
-service at boot** if any required secret below is missing.
+Configured in the Railway service's **Variables** tab (project `BusinessOS`, service
+`businessos-api`). Production `config.Validate()`
+(`desktop/backend-go/internal/config/config_helpers.go`) **crashes the service at boot**
+if any required value below is missing.
 
-Plain env vars (set by `cloudbuild.yaml`):
+Non-secret variables:
 
 | Var | Value | Why |
 |-----|-------|-----|
 | `ENVIRONMENT` | `production` | turns on prod validation + secure cookies |
-| `SERVER_PORT` | `8080` | backend binds `SERVER_PORT`, Cloud Run injects `PORT` (ignored), so 8080 must match the Dockerfile `EXPOSE` |
-| `COOKIE_DOMAIN` | `.businessos.dev` | session cookie must be shared across `app.`/`api.` or **login does not stick** |
-| `GOOGLE_REDIRECT_URI` | `https://api.businessos.dev/api/auth/google/callback/login` | must match the Google console authorized redirect URI |
-| `ALLOWED_ORIGINS` | `https://app.businessos.dev,app://localhost,http://localhost:5173` | prod CORS allowlist (no wildcard, validator rejects `*`) |
+| `SERVER_PORT` | `8080` | backend binds `SERVER_PORT`; must match the Dockerfile `EXPOSE` |
+| `COOKIE_DOMAIN` | `.businessos.dev` | session cookie must be shared across the app and `/api` or **login does not stick** |
+| `GOOGLE_REDIRECT_URI` | `https://businessos.dev/api/v1/auth/oauth/google/callback` | must match the Google console authorized redirect URI |
+| `ALLOWED_ORIGINS` | `https://businessos.dev,https://app.businessos.dev,app://localhost,http://localhost:5173` | prod CORS allowlist (no wildcard, validator rejects `*`) |
 | `AI_PROVIDER` | `anthropic` | |
 | `ENABLE_LOCAL_MODELS` | `false` | |
 
-Secrets in Secret Manager (all `:latest`):
+Secrets (Railway Variables, masked):
 
 | Secret | Constraint |
 |--------|-----------|
-| `DATABASE_URL` | not localhost, no `CHANGE_ME` |
+| `DATABASE_URL` | provided by the Railway Postgres service; not localhost, no `CHANGE_ME` |
 | `GOOGLE_CLIENT_ID` | |
 | `GOOGLE_CLIENT_SECRET` | |
 | `SECRET_KEY` | >= 32 chars (64 recommended) |
@@ -53,26 +56,22 @@ Secrets in Secret Manager (all `:latest`):
 | `INTERNAL_API_SECRET` | >= 32 chars, REQUIRED in prod |
 | `WEBHOOK_SIGNING_SECRET` | >= 16 chars, REQUIRED in prod |
 
-One-time secret creation (skip any that already exist):
+Inspect or set them from an authenticated CLI (or the Railway dashboard):
 
 ```bash
-$ for s in DATABASE_URL GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET SECRET_KEY \
-    ANTHROPIC_API_KEY TOKEN_ENCRYPTION_KEY REDIS_KEY_HMAC_SECRET \
-    INTERNAL_API_SECRET WEBHOOK_SIGNING_SECRET; do
-    gcloud secrets describe "$s" --project business-os-481523 >/dev/null 2>&1 \
-      || echo "MISSING: $s (create with: gcloud secrets create $s --data-file=-)"
-  done
+$ railway variables --service businessos-api --environment production
+$ railway variables --service businessos-api --environment production --set KEY=VALUE
 ```
 
 ### Frontend environment
 
-Set in the Cloudflare Pages dashboard (project `businessos`):
+Set in the Cloudflare Pages dashboard (project `businessos-5`):
 
 | Var | Value | Used by |
 |-----|-------|---------|
 | `CLOUDFLARE_BUILD` | `true` | build command, selects the static adapter |
 | `PUBLIC_ENVIRONMENT` | `production` | |
-| `BUSINESSOS_BACKEND_URL` | `https://api.businessos.dev` | optional override for the Pages Function; defaults to the Cloud Run URL baked into `[[path]].js` |
+| `BUSINESSOS_BACKEND_URL` | `https://businessos-api-production.up.railway.app` | optional override for the Pages Function; defaults to the Railway URL baked into `[[path]].js` |
 
 The browser always calls the same origin (`/api/*`); the Pages Function proxies to the
 backend, so the session cookie stays first-party. `VITE_BACKEND_URL` / `VITE_API_URL`
@@ -80,20 +79,26 @@ should be left UNSET for the web build (the runtime resolver returns `/api/v1`).
 
 ---
 
-## A. Apply pending migrations to the cloud database
+## A. Apply pending migrations to the Railway database
 
 Migrations live in `desktop/backend-go/internal/database/migrations/`. The backend can
 auto-apply on boot, but apply explicitly first so a bad migration fails before the new
 revision serves traffic.
 
 ```bash
-# From a host that can reach Cloud SQL (Cloud SQL Auth Proxy or an authorized network).
-$ cd desktop/backend-go
-# Inspect what is pending (compare files against the applied set in the DB).
-$ ls internal/database/migrations/ | sort
-# Apply with your migration tool of record (whatever the team uses, e.g. the proxy + psql,
-# or the backend's built-in migrator). Confirm 104/105 (superadmin seed + autopromote)
-# are present so roberto@businessos.dev becomes superadmin.
+# Open a psql shell against the Railway Postgres (proxied by the CLI).
+$ railway connect Postgres --environment production
+# Then, inside psql, confirm the applied set. Migrations live in
+# desktop/backend-go/internal/database/migrations/ and are applied by the
+# backend's built-in migrator / auto-apply runner.
+```
+
+To run a single file directly instead, read the connection string from the service and
+apply it with psql:
+
+```bash
+$ export DATABASE_URL="$(railway variables --service businessos-api --environment production --kv | sed -n 's/^DATABASE_URL=//p')"
+$ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f desktop/backend-go/internal/database/migrations/<n>_<name>.sql
 ```
 
 Verify the superadmin row exists after migrating:
@@ -106,34 +111,37 @@ $ psql "$DATABASE_URL" -c \
 
 ---
 
-## B. Deploy backend to Cloud Run
+## B. Deploy backend to Railway
+
+Preferred path is CI: push to `main` with changes under `desktop/backend-go/**` and
+`.github/workflows/deploy-backend.yml` runs the Go tests then `railway up`.
+
+To deploy manually, stage a copy of the backend outside the git working tree (Railway
+prunes uploads with the repository-root `.gitignore`, which drops `cmd/server` from the
+backend) and upload it:
 
 ```bash
-$ cd desktop/backend-go
-# Cloud Build builds desktop/backend-go/Dockerfile, pushes the image, and deploys.
-$ gcloud builds submit --config cloudbuild.yaml --project business-os-481523 .
+$ STAGE="$(mktemp -d)/businessos-backend"
+$ mkdir -p "$STAGE" && cp -R desktop/backend-go/. "$STAGE"/
+$ railway up "$STAGE" --path-as-root --no-gitignore --service businessos-api --ci
 ```
 
-`cloudbuild.yaml` sets all env vars + secrets listed above and deploys with
-`--allow-unauthenticated`, `--add-cloudsql-instances`, memory 512Mi, cpu 1,
-min 0 / max 10 instances, concurrency 80.
-
-Confirm the revision is serving and reachable through the routed host:
+Watch for the build to finish, then confirm the service is serving and reachable:
 
 ```bash
-$ gcloud run services describe businessos-api \
-    --region us-central1 --project business-os-481523 \
-    --format='value(status.url, status.latestReadyRevisionName)'
-$ curl -fsS https://api.businessos.dev/health && echo OK
+$ curl -fsS https://businessos-api-production.up.railway.app/health && echo OK
+$ curl -fsS https://businessos-api-production.up.railway.app/health/detailed
+# {"components":{"database":{"status":"connected"},...},"status":"healthy"}
 ```
 
-If the new revision never becomes ready, check logs for a config validation panic
-(missing secret) — that is the most common boot failure:
+If the new deployment never becomes healthy, check the build + runtime logs:
 
 ```bash
-$ gcloud run services logs read businessos-api \
-    --region us-central1 --project business-os-481523 --limit 50
+$ railway logs --service businessos-api
 ```
+
+A config validation panic (missing variable) is the most common boot failure; fix the
+value in the Variables tab and redeploy.
 
 ---
 
@@ -147,15 +155,18 @@ push to the production branch). To deploy manually with Wrangler:
 $ cd frontend
 $ CLOUDFLARE_BUILD=true npm run build
 # Output dir is build/ (pages_build_output_dir in wrangler.toml).
-$ npx wrangler pages deploy build --project-name=businessos
+$ npx wrangler pages deploy build --project-name=businessos-5 --branch=main --commit-dirty=true
 ```
+
+The project is `businessos-5`, NOT `businessos`. `--branch=main` makes it the production
+deployment (serves `businessos.dev` + `app.businessos.dev`).
 
 The `frontend/functions/` directory is uploaded with the static assets and becomes the
 Pages Function that proxies `/api/*`. Confirm both the SPA and the proxy:
 
 ```bash
-$ curl -fsS -o /dev/null -w '%{http_code}\n' https://app.businessos.dev/        # 200
-$ curl -fsS https://app.businessos.dev/api/v1/health && echo PROXY_OK           # via Function -> Cloud Run
+$ curl -fsS -o /dev/null -w '%{http_code}\n' https://businessos.dev/            # 200
+$ curl -fsS https://businessos.dev/api/v1/health && echo PROXY_OK              # via Function -> Railway
 ```
 
 ---
@@ -187,17 +198,21 @@ Code signing + notarization run only if `APPLE_ID` (and `APPLE_IDENTITY`, `APPLE
 `APPLE_TEAM_ID`) are exported; otherwise the DMG is unsigned (fine for local testing,
 Gatekeeper will warn end users).
 
+Upload the built installers to the downloads bucket and update the landing-page links; see
+`docs/deployment/BUILD-DESKTOP.md` for the upload step.
+
 ---
 
 ## E. Smoke test (do this after every deploy)
 
-1. Backend health:
+1. Backend health (Railway):
    ```bash
-   $ curl -fsS https://api.businessos.dev/health && echo OK
+   $ curl -fsS https://businessos-api-production.up.railway.app/health && echo OK
+   $ curl -fsS https://businessos-api-production.up.railway.app/health/detailed
    ```
-2. Proxy health (web origin -> Function -> Cloud Run):
+2. Proxy health (web origin -> Function -> Railway):
    ```bash
-   $ curl -fsS https://app.businessos.dev/api/v1/health && echo OK
+   $ curl -fsS https://businessos.dev/api/v1/health && echo OK
    ```
 3. Login (browser):
    - Open `https://app.businessos.dev`, sign in (Google or email).
@@ -216,38 +231,14 @@ Gatekeeper will warn end users).
 
 ---
 
-## Deploy bugs found and fixed
+## Notes carried over from the previous (Cloud Run) stack
 
-Fixed in this pass (in `desktop/backend-go/cloudbuild.yaml`):
-
-1. **Missing required secrets — boot crash.** cloudbuild wired only 5 secrets, but
-   production `config.Validate()` requires `TOKEN_ENCRYPTION_KEY`,
-   `REDIS_KEY_HMAC_SECRET`, `INTERNAL_API_SECRET`, and `WEBHOOK_SIGNING_SECRET`.
-   Without them the service panics at boot. Added all four to `--set-secrets`
-   (`cloudbuild.yaml:78`) and to the prerequisites comment.
-2. **`GOOGLE_REDIRECT_URI` malformed / wrong host.** Was
-   `https://${_SERVICE_NAME}-${PROJECT_NUMBER}.${_REGION}.run.app/...`. `${PROJECT_NUMBER}`
-   is not a Cloud Build built-in substitution, so it expanded empty and produced a
-   broken URI on the raw run.app host. Changed to
-   `https://api.businessos.dev/api/auth/google/callback/login` (`cloudbuild.yaml:84`).
-3. **`ALLOWED_ORIGINS` pointed at the wrong domain.** Was `https://businessos.app,...`;
-   the live web app is `app.businessos.dev`. Changed to
-   `https://app.businessos.dev,app://localhost,http://localhost:5173`
-   (`cloudbuild.yaml:89`).
-4. **`COOKIE_DOMAIN` never set.** The backend reads `COOKIE_DOMAIN` to scope the session
-   cookie to `.businessos.dev`; unset means the cookie has no Domain and does not survive
-   the `app.` <-> `api.` hop, so login silently fails. Added
-   `COOKIE_DOMAIN=.businessos.dev` to `--set-env-vars` (`cloudbuild.yaml:73`).
-
-Flagged, NOT changed (out of my file ownership or not a clear bug):
-
-- **`desktop/forge.config.ts:141-142`** — `PublisherGithub` repo is the placeholder
-  `your-org/businessos-desktop`. Only affects `forge publish`, not `forge make` (the DMG
-  build), so it does not block the DMG. Fix before using GitHub auto-publish.
-- **`frontend/functions/api/[[path]].js`** — proxy logic is correct (forwards
-  path+query, drops `Host`, streams the body with `duplex: half`, passes `Set-Cookie`
-  through). No change. If a future content-encoding mismatch appears, strip
-  `content-encoding`/`content-length` from the forwarded response headers.
-- **Cloud Run `PORT` vs `SERVER_PORT`** — Cloud Run injects `PORT`; the backend binds
-  `SERVER_PORT`. It works only because cloudbuild hardcodes `SERVER_PORT=8080`. Kept the
-  explicit value and documented it. A backend-owned fix would be to fall back to `PORT`.
+- **`GOOGLE_REDIRECT_URI` must use the routed host, not the raw backend host.** It must be
+  `https://businessos.dev/api/v1/auth/oauth/google/callback` and that exact URI must be in
+  the Google OAuth client's authorized redirect URIs (console-only).
+- **`ALLOWED_ORIGINS` must point at `businessos.dev`.** The live web app is
+  `businessos.dev` / `app.businessos.dev`.
+- **`COOKIE_DOMAIN` must be set.** Unset means the cookie has no Domain and does not
+  survive the app <-> `/api` hop, so login silently fails.
+- **Migrations are not automatic on the cloud DB.** Apply them explicitly (step A) before
+  the new revision serves traffic.

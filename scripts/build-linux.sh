@@ -6,7 +6,7 @@
 #
 # Usage:
 #   ./scripts/build-linux.sh            # build only
-#   ./scripts/build-linux.sh --upload   # build + upload (needs: gcloud already logged in)
+#   ./scripts/build-linux.sh --upload   # build + upload (needs: wrangler already logged in)
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,10 +46,19 @@ npx electron-forge make --arch=x64
 echo "==> Done. Installers are in: $REPO/desktop/out/make/"
 find "$REPO/desktop/out/make" -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -print
 
-# 4. Optional upload to the download bucket (you must already be `gcloud auth login`'d).
+# 4. Optional upload to the download bucket (you must already be `wrangler login`'d).
 if [ "$UPLOAD" = "--upload" ]; then
-  echo "==> Uploading installers to gs://businessos-downloads ..."
-  find "$REPO/desktop/out/make" -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -print0 \
-    | xargs -0 -I{} gsutil cp "{}" gs://businessos-downloads/
+  echo "==> Uploading installers to the businessos-downloads R2 bucket ..."
+  while IFS= read -r -d '' f; do
+    name="$(basename "$f")"
+    case "$f" in
+      *.deb) ct="application/vnd.debian.binary-package" ;;
+      *.rpm) ct="application/x-rpm" ;;
+      *)     ct="application/octet-stream" ;;
+    esac
+    npx wrangler r2 object put "businessos-downloads/$name" \
+      --file "$f" --content-type "$ct" --remote
+  done < <(find "$REPO/desktop/out/make" -type f \
+    \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -print0)
   echo "==> Uploaded. They are now downloadable."
 fi

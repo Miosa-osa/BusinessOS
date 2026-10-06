@@ -28,11 +28,11 @@
 
 ```bash
 # Check logs
-gcloud run services logs read businessos-backend --limit=50
+railway logs --service businessos-api
 
 # Common causes:
-# 1. Missing environment variable → check required env vars
-# 2. Database connection refused → check Cloud SQL proxy / connection string
+# 1. Missing environment variable → check the Railway service Variables tab
+# 2. Database connection refused → check the Railway Postgres service / DATABASE_URL
 # 3. Port conflict → check if another service uses port 8080
 ```
 
@@ -40,11 +40,11 @@ gcloud run services logs read businessos-backend --limit=50
 
 ```bash
 # Check recent logs for panic or error patterns
-gcloud run services logs read businessos-backend --limit=100 | grep -i "error\|panic"
+railway logs --service businessos-api | grep -i "error\|panic"
 
 # Check if it's a specific endpoint
-curl -v $BACKEND_URL/api/health
-curl -v $BACKEND_URL/api/workspaces
+curl -v $BACKEND_URL/health
+curl -v $BACKEND_URL/health/detailed
 ```
 
 ---
@@ -54,15 +54,12 @@ curl -v $BACKEND_URL/api/workspaces
 ### Connection refused
 
 ```bash
-# Verify Cloud SQL instance is running
-gcloud sql instances describe businessos-db --format='value(state)'
+# Verify the Railway Postgres service is running (dashboard: project BusinessOS)
+railway status --service Postgres
 
-# Verify connection name
-gcloud sql instances describe businessos-db --format='value(connectionName)'
-
-# Test connection via proxy
-cloud-sql-proxy miosa-460433:us-central1:businessos-db --port=5433
-psql "postgresql://postgres:PASSWORD@localhost:5433/businessos" -c "SELECT 1;"
+# Open a psql shell against it (proxied by the CLI)
+railway connect Postgres --environment production
+# then: SELECT 1;
 ```
 
 ### Too many connections
@@ -136,8 +133,8 @@ redis-cli -h HOST FLUSHDB
 ### Blank page after deploy
 
 ```bash
-# Check frontend Cloud Run logs
-gcloud run services logs read businessos-frontend --limit=50
+# Check the Cloudflare Pages deployment + build logs
+npx wrangler pages deployment list --project-name=businessos-5
 
 # Common causes:
 # 1. PUBLIC_API_URL not set → frontend can't reach backend
@@ -149,10 +146,10 @@ gcloud run services logs read businessos-frontend --limit=50
 
 ```bash
 # Check CORS headers
-curl -I -H "Origin: https://businessos.app" $BACKEND_URL/api/health
+curl -I -H "Origin: https://businessos.dev" $BACKEND_URL/health
 
 # Expected:
-# Access-Control-Allow-Origin: https://businessos.app
+# Access-Control-Allow-Origin: https://businessos.dev
 # Access-Control-Allow-Credentials: true
 ```
 
@@ -166,11 +163,9 @@ curl -I -H "Origin: https://businessos.app" $BACKEND_URL/api/health
 # Test SSE endpoint directly
 curl -N -H "Accept: text/event-stream" "$BACKEND_URL/api/osa/apps/generate/1/stream"
 
-# Check Cloud Run timeout (SSE needs > 60s)
-gcloud run services describe businessos-backend --format='value(spec.template.spec.timeoutSeconds)'
-
-# If timeout too low:
-gcloud run services update businessos-backend --timeout=300
+# Check the Railway service request timeout (SSE needs > 60s)
+# Railway does not cap HTTP request duration by default; if a proxy timeout is
+# suspected, check the service's Networking settings in the Railway dashboard.
 ```
 
 ### Events being dropped
@@ -205,7 +200,7 @@ TODO: Fixed by Roberto Agent A
 ```bash
 # Check if queue worker is running
 # Check backend logs for queue processing errors
-gcloud run services logs read businessos-backend --limit=50 | grep "queue"
+railway logs --service businessos-api | grep "queue"
 
 # Check if Anthropic API is reachable
 curl -H "x-api-key: $ANTHROPIC_API_KEY" https://api.anthropic.com/v1/messages
@@ -221,8 +216,7 @@ curl -H "x-api-key: $ANTHROPIC_API_KEY" https://api.anthropic.com/v1/messages
 # Verify redirect URI matches
 # Google Cloud Console → APIs & Services → Credentials
 # Authorized redirect URIs must include:
-#   https://businessos.app/api/auth/callback/google
-#   https://api.businessos.app/api/auth/callback/google
+#   https://businessos.dev/api/v1/auth/oauth/google/callback
 
 # Check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set
 ```
@@ -243,11 +237,10 @@ curl -H "x-api-key: $ANTHROPIC_API_KEY" https://api.anthropic.com/v1/messages
 ### High memory (OOM kills)
 
 ```bash
-# Check Cloud Run instance metrics
-# Console → Cloud Run → businessos-backend → Metrics → Memory
+# Check service metrics
+# railway metrics --service businessos-api
 
-# If consistently high: increase memory limit
-gcloud run services update businessos-backend --memory=1Gi
+# If consistently high: raise the memory limit in the Railway service Settings
 
 # Check for memory leaks: goroutine count, connection pool
 ```
@@ -263,25 +256,25 @@ gcloud run services update businessos-backend --memory=1Gi
 
 ## Deployment Issues
 
-### Cloud Run deploy fails
+### Railway deploy fails
 
 ```bash
-# Check build logs
-gcloud builds list --limit=5
+# Check the most recent deployments and their status
+railway deployment list --service businessos-api
 
-# Check if Docker image was pushed
-gcloud container images list-tags gcr.io/miosa-460433/businessos-backend
+# Stream the failing build/deploy logs
+railway logs --service businessos-api
 
-# Rebuild and push manually
-docker build -t gcr.io/miosa-460433/businessos-backend:latest .
-docker push gcr.io/miosa-460433/businessos-backend:latest
+# Redeploy the latest, or roll back by removing the newest deployment
+railway deployment redeploy --service businessos-api
+railway down -y --service businessos-api
 ```
 
 ### CI/CD pipeline stuck
 
 ```bash
 # Check GitHub Actions
-# https://github.com/robertohluna/BOS/actions
+# https://github.com/Miosa-osa/businessos-5/actions
 
 # Re-run failed job from GitHub UI
 ```

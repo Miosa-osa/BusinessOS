@@ -55,9 +55,10 @@ pg_dump "$STAGING_DB_URL" > "$BACKUP_FILE"
 ls -lh "$BACKUP_FILE"
 head -100 "$BACKUP_FILE"
 
-# Compress and store
+# Compress and store (Cloudflare R2)
 gzip "$BACKUP_FILE"
-gsutil cp "${BACKUP_FILE}.gz" gs://businessos-backups/staging/
+npx wrangler r2 object put "businessos-backups/staging/${BACKUP_FILE}.gz" \
+  --file "${BACKUP_FILE}.gz" --content-type application/gzip --remote
 ```
 
 **Verification:**

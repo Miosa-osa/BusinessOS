@@ -1,9 +1,9 @@
 # Production Go-Live Checklist
 
 > **Every step required to take BusinessOS from local development to live production.**
-> Covers: Web (Cloud Run), Desktop (Electron), environment rotation, database migration, secrets, monitoring, rollback.
+> Covers: Web (Railway backend + Cloudflare Pages frontend), Desktop (Electron), environment rotation, database migration, secrets, monitoring, rollback.
 >
-> Last Updated: 2026-02-23
+> Last Updated: 2026-10-06
 > Status: CHECKLIST (execute in order, top to bottom)
 
 ---
@@ -13,226 +13,153 @@
 ### Code Readiness
 
 - [ ] All Sprint 1 bug fixes merged (FK violation, prompt overwrite, SSE routes, hardcoded URLs)
-- [ ] `cd desktop/backend-go && go build ./cmd/server` → EXIT 0
-- [ ] `cd desktop/backend-go && go test ./...` → ALL PASS
-- [ ] `cd frontend && npm run build` → EXIT 0
-- [ ] `cd frontend && npm run check` → EXIT 0
+- [ ] `cd desktop/backend-go && go build ./cmd/server` -> EXIT 0
+- [ ] `cd desktop/backend-go && go test ./...` -> ALL PASS
+- [ ] `cd frontend && npm run build` -> EXIT 0
 - [ ] No hardcoded credentials in codebase (run: `grep -r "sk-ant\|password.*=.*\"[^\"]*\"" --include="*.go" --include="*.ts" desktop/backend-go/ frontend/src/`)
 - [ ] No `localhost` URLs in production code paths
 - [ ] All environment variables use `os.Getenv()` or config struct (no hardcoded values)
 
-### GCP Project Setup
+### Tooling
 
-- [ ] GCP project exists: `miosa-460433`
-- [ ] Billing enabled on GCP project
-- [ ] APIs enabled:
-  ```bash
-  gcloud services enable \
-    run.googleapis.com \
-    sqladmin.googleapis.com \
-    redis.googleapis.com \
-    secretmanager.googleapis.com \
-    containerregistry.googleapis.com \
-    cloudbuild.googleapis.com \
-    compute.googleapis.com
-  ```
-- [ ] `gcloud` CLI authenticated: `gcloud auth login`
-- [ ] Docker authenticated: `gcloud auth configure-docker`
+- [ ] Railway CLI authenticated: `railway whoami`
+- [ ] Railway project linked: `railway status --service businessos-api` (project `BusinessOS`, environment `production`)
+- [ ] Wrangler authenticated: `npx wrangler whoami`
+
+### Platform Provisioning (Railway)
+
+- [ ] Railway project `BusinessOS` exists in the `Roberto Luna's Projects` workspace
+- [ ] Service `businessos-api` exists (built from `desktop/backend-go/Dockerfile`)
+- [ ] Railway Postgres service `Postgres` exists in the same project
+- [ ] Billing / usage limits configured on the workspace
 
 ---
 
-## Phase 1: Database (Cloud SQL)
+## Phase 1: Database (Railway Postgres)
 
-### Create Instance
+### Provision
 
-```bash
-# Create Cloud SQL PostgreSQL instance (if not already created)
-gcloud sql instances create businessos-db \
-  --database-version=POSTGRES_15 \
-  --tier=db-f1-micro \
-  --region=us-central1 \
-  --root-password=$(openssl rand -base64 32)
-
-# Create database
-gcloud sql databases create businessos --instance=businessos-db
-
-# Get connection name (needed for Cloud Run)
-gcloud sql instances describe businessos-db --format='value(connectionName)'
-# → miosa-460433:us-central1:businessos-db
-```
+- [ ] Postgres service added to project `BusinessOS` (Railway dashboard > New > Database > PostgreSQL)
+- [ ] `DATABASE_URL` is referenced by the `businessos-api` service (Railway provides it as a service variable)
 
 ### Run Migrations
 
 ```bash
-# Option A: Cloud SQL Proxy (recommended for migration)
-cloud-sql-proxy miosa-460433:us-central1:businessos-db --port=5433 &
+# Open a psql shell against the Railway Postgres (proxied by the CLI)
+railway connect Postgres --environment production
 
-# Apply all 93 migrations
-for f in supabase/migrations/*.sql; do
-  echo "Applying: $f"
-  psql "postgresql://postgres:PASSWORD@localhost:5433/businessos" -f "$f"
-done
-
-# Verify migration count
-psql "postgresql://postgres:PASSWORD@localhost:5433/businessos" \
-  -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"
+# Apply pending migrations from desktop/backend-go/internal/database/migrations/
+# (the backend can also auto-apply on boot, but apply explicitly before a deploy
+# so a bad migration fails before the new revision serves traffic)
 ```
 
 ### Checklist
 
-- [ ] Cloud SQL instance running
-- [ ] Database `businessos` created
-- [ ] All 93 migrations applied (including 090_tenant_org_foundation.sql)
-- [ ] Connection string noted: `postgresql://user:pass@/businessos?host=/cloudsql/miosa-460433:us-central1:businessos-db`
-- [ ] pgvector extension enabled: `CREATE EXTENSION IF NOT EXISTS vector;`
+- [ ] Railway Postgres running
+- [ ] All migrations applied (including `090_tenant_org_foundation.sql`)
+- [ ] `pgvector` extension enabled: `CREATE EXTENSION IF NOT EXISTS vector;`
+- [ ] Superadmin row present: `select email, role from users where email = 'roberto@businessos.dev';`
+- [ ] Connection string reachable from the backend (`/health/detailed` reports `database: connected`)
 
 ---
 
-## Phase 2: Redis (Memorystore or Cloud Run Sidecar)
+## Phase 2: Redis (Optional)
 
-### Option A: GCP Memorystore (Production)
+Redis is used for session caching and rate limiting. It is optional: `/health/detailed` reports
+`redis: not_configured` when it is absent, and the backend runs without it.
 
-```bash
-gcloud redis instances create businessos-redis \
-  --region=us-central1 \
-  --tier=BASIC \
-  --size=1
-```
+### Options
 
-### Option B: Redis Container (Budget)
-
-Deploy Redis as a separate Cloud Run service or use a managed Redis from Upstash/Railway.
+- Railway Redis service in the same project (Railway dashboard > New > Database > Redis), or
+- Managed Redis from Upstash.
 
 ### Checklist
 
-- [ ] Redis instance accessible from Cloud Run
-- [ ] Connection URL noted: `redis://HOST:PORT`
-- [ ] Verified connection: `redis-cli -h HOST -p PORT PING`
+- [ ] Redis instance created (if used)
+- [ ] `REDIS_URL` / `REDIS_PASSWORD` set on the `businessos-api` service
+- [ ] Verified connection: `redis-cli -h HOST -p PORT PING` -> `PONG`
 
 ---
 
-## Phase 3: Backend Deployment (Cloud Run)
+## Phase 3: Backend Deployment (Railway)
 
-### Build & Push Container
+### Deploy
 
-```bash
-# Build backend Docker image
-cd desktop/backend-go
-docker build -t gcr.io/miosa-460433/businessos-backend:latest .
-docker push gcr.io/miosa-460433/businessos-backend:latest
-```
-
-### Deploy to Cloud Run
+Preferred path is CI (`.github/workflows/deploy-backend.yml`): push to `main` with changes
+under `desktop/backend-go/**`; the workflow runs the Go tests then `railway up`. To deploy by
+hand, stage a copy outside the git tree (Railway prunes uploads with the repo-root
+`.gitignore`, which drops `cmd/server`) and upload it:
 
 ```bash
-gcloud run deploy businessos-backend \
-  --image=gcr.io/miosa-460433/businessos-backend:latest \
-  --platform=managed \
-  --region=us-central1 \
-  --allow-unauthenticated \
-  --port=8080 \
-  --memory=512Mi \
-  --cpu=1 \
-  --min-instances=0 \
-  --max-instances=10 \
-  --add-cloudsql-instances=miosa-460433:us-central1:businessos-db \
-  --set-env-vars="^||^DATABASE_URL=postgresql://postgres:PASSWORD@/businessos?host=/cloudsql/miosa-460433:us-central1:businessos-db||REDIS_URL=redis://HOST:PORT||ENVIRONMENT=production||ANTHROPIC_API_KEY=sk-ant-xxx||BETTER_AUTH_SECRET=$(openssl rand -hex 32)||CORS_ALLOWED_ORIGINS=https://businessos.app,https://app.businessos.app||PORT=8080"
+STAGE="$(mktemp -d)/businessos-backend"
+mkdir -p "$STAGE" && cp -R desktop/backend-go/. "$STAGE"/
+railway up "$STAGE" --path-as-root --no-gitignore --service businessos-api --ci
 ```
 
 ### Verify Backend
 
 ```bash
-# Get service URL
-BACKEND_URL=$(gcloud run services describe businessos-backend --region=us-central1 --format='value(status.url)')
-
 # Health check
-curl "$BACKEND_URL/health"
-# Expected: {"status":"ok"}
+curl -fsS https://businessos-api-production.up.railway.app/health
+# Expected: 200
 
-# API check
-curl "$BACKEND_URL/api/health"
-# Expected: 200 OK with JSON response
+# Detailed health (database connectivity)
+curl -fsS https://businessos-api-production.up.railway.app/health/detailed
+# Expected: {"components":{"database":{"status":"connected"},...},"status":"healthy"}
 ```
 
 ### Checklist
 
-- [ ] Docker image built and pushed to GCR
-- [ ] Cloud Run service deployed
-- [ ] Cloud SQL connection working (check logs: `gcloud run services logs read businessos-backend`)
-- [ ] Redis connection working
+- [ ] Backend deployed to Railway
+- [ ] Database connection working (`/health/detailed`)
+- [ ] Redis connection working (if configured)
 - [ ] Health endpoint returns 200
-- [ ] CORS configured for production domains only
-- [ ] Environment variables set (no hardcoded secrets)
+- [ ] CORS (`ALLOWED_ORIGINS`) set to production domains only (no wildcard)
+- [ ] Environment variables set in the Railway Variables tab (no hardcoded secrets)
 
 ---
 
-## Phase 4: Frontend Deployment (Cloud Run)
-
-### Build & Push Container
+## Phase 4: Frontend Deployment (Cloudflare Pages)
 
 ```bash
-# Build frontend Docker image
 cd frontend
-docker build -t gcr.io/miosa-460433/businessos-frontend:latest .
-docker push gcr.io/miosa-460433/businessos-frontend:latest
+CLOUDFLARE_BUILD=true npm run build
+npx wrangler pages deploy build --project-name=businessos-5 --branch=main --commit-dirty=true
 ```
 
-### Deploy to Cloud Run
-
-```bash
-gcloud run deploy businessos-frontend \
-  --image=gcr.io/miosa-460433/businessos-frontend:latest \
-  --platform=managed \
-  --region=us-central1 \
-  --allow-unauthenticated \
-  --port=3000 \
-  --memory=256Mi \
-  --cpu=1 \
-  --min-instances=0 \
-  --max-instances=5 \
-  --set-env-vars="^||^PUBLIC_API_URL=$BACKEND_URL||PUBLIC_SUPABASE_URL=https://your-project.supabase.co||PUBLIC_SUPABASE_ANON_KEY=your-anon-key||ORIGIN=https://businessos.app"
-```
+The project is `businessos-5` (serves `businessos.dev` and `app.businessos.dev`). `VITE_API_URL`
+and `VITE_BACKEND_URL` stay UNSET: the app calls same-origin `/api/*`, which the Pages Function
+(`frontend/functions/api/[[path]].js`) proxies to Railway.
 
 ### Checklist
 
-- [ ] Frontend Docker image built and pushed
-- [ ] Cloud Run service deployed
-- [ ] `PUBLIC_API_URL` points to backend Cloud Run URL
+- [ ] Cloudflare Pages project `businessos-5` exists and is the production project
+- [ ] Build output dir is `build`
+- [ ] `BUSINESSOS_BACKEND_URL` set (optional override; defaults to the Railway URL)
 - [ ] Frontend loads without console errors
-- [ ] Auth flow works (login → redirect → dashboard)
+- [ ] Proxy works: `curl -fsS https://businessos.dev/api/v1/health`
+- [ ] Auth flow works (login -> redirect -> dashboard)
 
 ---
 
-## Phase 5: DNS & Custom Domain
+## Phase 5: DNS & Custom Domain (Cloudflare)
 
-```bash
-# Map custom domain to frontend
-gcloud run domain-mappings create \
-  --service=businessos-frontend \
-  --domain=businessos.app \
-  --region=us-central1
+`businessos.dev` is on Cloudflare. The Pages project and the R2 downloads bucket attach as
+custom domains in the same zone, so DNS records are created automatically.
 
-# Map API subdomain to backend
-gcloud run domain-mappings create \
-  --service=businessos-backend \
-  --domain=api.businessos.app \
-  --region=us-central1
-```
-
-### DNS Records (at your registrar)
-
-| Type | Name | Value |
-|------|------|-------|
-| CNAME | `businessos.app` | `ghs.googlehosted.com.` |
-| CNAME | `api.businessos.app` | `ghs.googlehosted.com.` |
+| Host | Target |
+|------|--------|
+| `businessos.dev` | Cloudflare Pages project `businessos-5` |
+| `app.businessos.dev` | Cloudflare Pages project `businessos-5` |
+| `downloads.businessos.dev` | Cloudflare R2 bucket `businessos-downloads` |
 
 ### Checklist
 
-- [ ] DNS records configured
-- [ ] SSL certificates provisioned by Cloud Run (automatic)
-- [ ] `https://businessos.app` loads frontend
-- [ ] `https://api.businessos.app/health` returns 200
-- [ ] CORS updated to include custom domains
+- [ ] `https://businessos.dev` loads the frontend
+- [ ] `https://app.businessos.dev` loads the frontend
+- [ ] `https://businessos.dev/api/v1/health` proxies to the backend
+- [ ] `api.businessos.dev` is intentionally NOT routed (the backend is reached through `/api/*`)
+- [ ] SSL certificates provisioned by Cloudflare (automatic)
 
 ---
 
@@ -240,56 +167,51 @@ gcloud run domain-mappings create \
 
 ### Google OAuth
 
-```bash
-# In Google Cloud Console → APIs & Services → Credentials
-# Create OAuth 2.0 Client ID:
-#   Application type: Web application
-#   Authorized redirect URIs:
-#     - https://businessos.app/api/auth/callback/google
-#     - https://api.businessos.app/api/auth/callback/google
-```
+In Google Cloud Console -> APIs & Services -> Credentials, the Web application OAuth client
+must list the production redirect URI:
 
-### BetterAuth
+- `https://businessos.dev/api/v1/auth/oauth/google/callback`
 
-Set these environment variables on backend Cloud Run:
+(Localhost redirects are already authorized, so local dev + Google works.)
+
+### Backend Variables
+
+Set on the Railway `businessos-api` service:
 
 | Variable | Value |
 |----------|-------|
-| `BETTER_AUTH_SECRET` | Random 64-char hex string |
-| `BETTER_AUTH_URL` | `https://api.businessos.app` |
-| `GOOGLE_CLIENT_ID` | From Google Cloud Console |
-| `GOOGLE_CLIENT_SECRET` | From Google Cloud Console |
+| `SECRET_KEY` | random 64-char hex string |
+| `COOKIE_DOMAIN` | `.businessos.dev` |
+| `GOOGLE_CLIENT_ID` | from the Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | from the Google Cloud Console |
+| `GOOGLE_REDIRECT_URI` | `https://businessos.dev/api/v1/auth/oauth/google/callback` |
 
 ### Checklist
 
-- [ ] Google OAuth client configured for production URLs
-- [ ] BetterAuth secret set (unique per environment)
-- [ ] Login flow works: Google OAuth → callback → session → dashboard
-- [ ] Session cookies have `Secure` and `HttpOnly` flags
+- [ ] Google OAuth client configured for the production redirect URI
+- [ ] `SECRET_KEY` set (unique per environment)
+- [ ] Login flow works: Google OAuth -> callback -> session -> dashboard
+- [ ] Session cookies have `Secure` and `HttpOnly` flags and `Domain=.businessos.dev`
 - [ ] Session expiration configured (default: 30 days)
 
 ---
 
 ## Phase 7: GitHub Secrets (CI/CD)
 
-Set these in your GitHub repository (Settings → Secrets and variables → Actions):
+Set these in the repository (Settings -> Secrets and variables -> Actions):
 
 ### Required Secrets
 
 | Secret | Value | Used By |
 |--------|-------|---------|
-| `GCP_PROJECT_ID` | `miosa-460433` | All deploy workflows |
-| `GCP_SA_KEY` | Service account JSON key (base64) | GCP authentication |
-| `DATABASE_URL` | Cloud SQL connection string | Backend deploy |
-| `REDIS_URL` | Redis connection URL | Backend deploy |
-| `ANTHROPIC_API_KEY` | Anthropic API key | Backend runtime |
-| `BETTER_AUTH_SECRET` | Auth secret (hex) | Backend runtime |
-| `GOOGLE_CLIENT_ID` | OAuth client ID | Auth |
-| `GOOGLE_CLIENT_SECRET` | OAuth client secret | Auth |
-| `SUPABASE_URL` | Supabase project URL | Frontend runtime |
-| `SUPABASE_ANON_KEY` | Supabase anon key | Frontend runtime |
+| `RAILWAY_TOKEN` | Railway project token for project `BusinessOS`, environment `production` | `deploy-backend.yml` |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token (R2 + Pages) | desktop release uploads, Pages deploys |
 
-### Optional Secrets (Desktop Builds)
+> `RAILWAY_TOKEN` must be a **project token** (Railway dashboard > Project BusinessOS >
+> Settings > Tokens > Create Token, select the production environment). It is used only for
+> deploys and is revoked by deleting the token in the same panel.
+
+### Desktop Build Secrets (optional)
 
 | Secret | Value | Used By |
 |--------|-------|---------|
@@ -302,16 +224,17 @@ Set these in your GitHub repository (Settings → Secrets and variables → Acti
 
 ### Checklist
 
-- [ ] All required secrets set
-- [ ] CI/CD deploy workflow updated (`.github/workflows/deploy-backend.yml`)
-- [ ] CI/CD deploy workflow updated (`.github/workflows/deploy-frontend.yml`) — Cloud Run, NOT Vercel
+- [ ] `RAILWAY_TOKEN` set (project token)
+- [ ] `CLOUDFLARE_API_TOKEN` set
+- [ ] CI/CD deploy workflow updated (`.github/workflows/deploy-backend.yml`) -> Railway
+- [ ] CI/CD deploy workflow updated (`.github/workflows/deploy-frontend.yml`) -> Cloudflare Pages
 - [ ] Test deployment via CI: push to `main`, verify auto-deploy succeeds
 
 ---
 
 ## Phase 8: Desktop App (Electron Packaging)
 
-> See `docs/deployment/ELECTRON-PACKAGING-GUIDE.md` for full details.
+> See `docs/deployment/ELECTRON-PACKAGING-GUIDE.md` and `docs/deployment/BUILD-DESKTOP.md`.
 
 ### Quick Steps
 
@@ -340,19 +263,20 @@ npm run make -- --platform=darwin
 - [ ] Backend sidecar starts (check: `lsof -i :18080`)
 - [ ] Frontend connects to sidecar backend
 - [ ] SQLite database created at `~/Library/Application Support/BusinessOS/`
+- [ ] Installers uploaded to the `businessos-downloads` R2 bucket (see `docs/deployment/BUILD-DESKTOP.md`)
 
 ---
 
 ## Phase 9: Monitoring & Observability
 
-### Cloud Run Metrics (Built-in)
+### Railway (Built-in)
 
 ```bash
-# View logs
-gcloud run services logs read businessos-backend --region=us-central1 --limit=100
+# View build + runtime logs
+railway logs --service businessos-api
 
-# View metrics in console
-# https://console.cloud.google.com/run?project=miosa-460433
+# Metrics in the dashboard
+# https://railway.com/dashboard (project BusinessOS > service businessos-api > Metrics)
 ```
 
 ### Error Tracking (Sentry)
@@ -365,17 +289,13 @@ See `docs/deployment/SENTRY_SETUP.md` for Sentry integration.
 
 ### Uptime Monitoring
 
-```bash
-# Set up Google Cloud Monitoring uptime check
-# https://console.cloud.google.com/monitoring/uptime?project=miosa-460433
-#
-# Check: GET https://api.businessos.app/health every 5 minutes
-# Alert: Email + Slack if down for 2+ consecutive checks
-```
+- [ ] Uptime check on `GET https://businessos-api-production.up.railway.app/health` every 5 minutes
+- [ ] Uptime check on `GET https://businessos.dev/api/v1/health` (proxy path)
+- [ ] Alert channels set up (email/Slack) if down for 2+ consecutive checks
 
 ### Checklist
 
-- [ ] Cloud Run logs accessible
+- [ ] Railway logs accessible
 - [ ] Sentry configured (optional but recommended)
 - [ ] Uptime monitoring configured
 - [ ] Alert channels set up (email/Slack)
@@ -386,7 +306,7 @@ See `docs/deployment/SENTRY_SETUP.md` for Sentry integration.
 
 ### Web App
 
-- [ ] Navigate to `https://businessos.app`
+- [ ] Navigate to `https://businessos.dev`
 - [ ] Sign in with Google OAuth
 - [ ] Create a workspace
 - [ ] Open chat interface
@@ -407,55 +327,35 @@ See `docs/deployment/SENTRY_SETUP.md` for Sentry integration.
 - [ ] Generate an app
 - [ ] Verify: Same E2E flow as web
 - [ ] Verify: Cmd+Shift+Space opens quick chat popup (macOS)
-- [ ] Close and reopen app → verify data persists (SQLite)
+- [ ] Close and reopen app -> verify data persists (SQLite)
 
 ---
 
 ## Environment Rotation Plan
 
-### Three Environments
-
-| Environment | Backend URL | Frontend URL | Database | Purpose |
-|-------------|------------|-------------|----------|---------|
-| **Local** | `localhost:8000` | `localhost:5173` | Local PostgreSQL | Development |
-| **Staging** | `businessos-backend-staging-xxx.run.app` | `businessos-frontend-staging-xxx.run.app` | Cloud SQL (staging DB) | Testing before production |
-| **Production** | `api.businessos.app` | `businessos.app` | Cloud SQL (production DB) | Live users |
+| Environment | Backend | Frontend | Database | Purpose |
+|-------------|---------|----------|----------|---------|
+| **Local** | `localhost:8801` | `localhost:5173` | Local PostgreSQL (`businessos_dev`) | Development |
+| **Production** | Railway `businessos-api` | Cloudflare Pages `businessos-5` | Railway Postgres | Live users |
 
 ### Promotion Flow
 
 ```
 LOCAL (developer machines)
-    │
-    │ PR merge to main → CI tests pass
-    │
-    ▼
-STAGING (auto-deploy on main merge)
-    │
-    │ QA verification + smoke test pass
-    │ Manual approval by team lead
-    │
-    ▼
-PRODUCTION (manual deploy or tag-triggered)
+    |
+    | PR merge to main -> CI tests pass
+    |
+    v
+MAIN (Railway + Cloudflare Pages auto-deploy on main)
+    |
+    | Smoke test + QA verification pass
+    |
+    v
+PRODUCTION (businessos.dev)
 ```
 
-### Staging Setup
-
-```bash
-# Create staging Cloud SQL database
-gcloud sql databases create businessos_staging --instance=businessos-db
-
-# Deploy staging backend
-gcloud run deploy businessos-backend-staging \
-  --image=gcr.io/miosa-460433/businessos-backend:latest \
-  --region=us-central1 \
-  --set-env-vars="DATABASE_URL=...staging...||ENVIRONMENT=staging"
-
-# Deploy staging frontend
-gcloud run deploy businessos-frontend-staging \
-  --image=gcr.io/miosa-460433/businessos-frontend:latest \
-  --region=us-central1 \
-  --set-env-vars="PUBLIC_API_URL=https://businessos-backend-staging-xxx.run.app"
-```
+There is currently a single cloud environment (`production`). Add a Railway
+environment (and a Pages preview branch) if a separate staging tier is needed.
 
 ---
 
@@ -464,53 +364,49 @@ gcloud run deploy businessos-frontend-staging \
 ### Backend Rollback
 
 ```bash
-# List recent revisions
-gcloud run revisions list --service=businessos-backend --region=us-central1
+# List recent deployments
+railway deployment list --service businessos-api
 
-# Route traffic to previous revision
-gcloud run services update-traffic businessos-backend \
-  --region=us-central1 \
-  --to-revisions=businessos-backend-PREVIOUS_REVISION=100
+# Redeploy a known-good deployment from the dashboard (Deployments > Redeploy),
+# or remove the newest one to fall back to the previous:
+railway down -y --service businessos-api
 ```
 
 ### Frontend Rollback
 
-```bash
-gcloud run services update-traffic businessos-frontend \
-  --region=us-central1 \
-  --to-revisions=businessos-frontend-PREVIOUS_REVISION=100
-```
+Roll back in the Cloudflare Pages dashboard (project `businessos-5` >
+Deployments > select a previous production deployment > Rollback), or redeploy
+the previous build with Wrangler.
 
 ### Database Rollback
 
 ```bash
-# Apply rollback migration (if available)
+# Apply a rollback migration (if available)
 psql "$DATABASE_URL" -f supabase/migrations/XXX_rollback.sql
 
-# Or restore from backup
-gcloud sql backups list --instance=businessos-db
-gcloud sql backups restore BACKUP_ID --restore-instance=businessos-db
+# Or restore from a Railway Postgres backup
+# Project BusinessOS > Postgres service > Backups (or point-in-time recovery).
 ```
 
 ---
 
 ## Post-Launch (Day 1-3)
 
-- [ ] Monitor error rates in Sentry/Cloud Run logs
+- [ ] Monitor error rates (Sentry / Railway logs)
 - [ ] Monitor response times (p50 < 200ms, p99 < 2s)
 - [ ] Monitor database connection pool usage
 - [ ] Check for any 5xx errors
-- [ ] Verify auto-scaling works under load
-- [ ] Verify Redis session caching is working
+- [ ] Verify auto-scaling works under load (Railway service scaling settings)
+- [ ] Verify Redis session caching is working (if configured)
 - [ ] Test auto-update for desktop app (publish a minor version bump)
 - [ ] Document any issues found and create Sprint 2 tasks
 
 ---
 
 **Related Docs:**
-- `docs/deployment/DEPLOYMENT.md` — Detailed GCP setup
-- `docs/deployment/DEPLOYMENT_GUIDE.md` — Backend-specific deployment
-- `docs/deployment/ELECTRON-PACKAGING-GUIDE.md` — Desktop app packaging
-- `docs/deployment/CLOUD-INFRASTRUCTURE.md` — Cloud infrastructure details
-- `docs/deployment/DISASTER_RECOVERY.md` — DR procedures
-- `docs/deployment/MONITORING_SETUP.md` — Monitoring configuration
+- `docs/DEPLOY.md` - Deploy runbook (Railway + Cloudflare Pages)
+- `docs/deployment/GO-LIVE-SOP.md` - Per-release go-live SOP
+- `docs/deployment/BUILD-DESKTOP.md` - Desktop packaging + downloads upload
+- `docs/deployment/ELECTRON-PACKAGING-GUIDE.md` - Desktop app packaging
+- `docs/deployment/DISASTER_RECOVERY.md` - DR procedures
+- `docs/deployment/MONITORING_SETUP.md` - Monitoring configuration

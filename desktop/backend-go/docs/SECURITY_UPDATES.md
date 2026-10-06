@@ -142,15 +142,10 @@ openssl rand -base64 32
 openssl rand -base64 48
 ```
 
-2. **Store in secrets manager**:
+2. **Store as service variables** (Railway `businessos-api` service, Variables tab):
 ```bash
-# GCP Secret Manager
-echo -n "your-redis-password" | gcloud secrets create redis-password --data-file=-
-echo -n "your-hmac-secret" | gcloud secrets create redis-hmac-secret --data-file=-
-
-# AWS Secrets Manager
-aws secretsmanager create-secret --name redis-password --secret-string "your-redis-password"
-aws secretsmanager create-secret --name redis-hmac-secret --secret-string "your-hmac-secret"
+railway variables --service businessos-api --environment production --set REDIS_PASSWORD="your-redis-password"
+railway variables --service businessos-api --environment production --set REDIS_KEY_HMAC_SECRET="your-hmac-secret"
 ```
 
 3. **Configure environment**:

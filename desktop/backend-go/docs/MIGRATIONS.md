@@ -411,11 +411,11 @@ cd desktop/backend-go
 docker build -t businessos-backend:staging .
 docker push businessos-backend:staging
 
-# Deploy to Cloud Run (example)
-gcloud run deploy businessos-backend-staging \
-  --image businessos-backend:staging \
-  --platform managed \
-  --region us-central1
+# Deploy to Railway (staging environment)
+STAGE="$(mktemp -d)/businessos-backend"
+mkdir -p "$STAGE" && cp -R desktop/backend-go/. "$STAGE"/
+railway up "$STAGE" --path-as-root --no-gitignore \
+  --service businessos-api --environment staging --ci
 ```
 
 ### Post-Deployment Verification
@@ -460,8 +460,9 @@ pg_dump "$PRODUCTION_DATABASE_URL" | gzip > backup_prod_$(date +%Y%m%d_%H%M%S).s
 # Verify backup
 gunzip -c backup_prod_*.sql.gz | head -100
 
-# Upload to secure storage
-gsutil cp backup_prod_*.sql.gz gs://businessos-backups/$(date +%Y-%m)/
+# Upload to secure storage (Cloudflare R2)
+npx wrangler r2 object put "businessos-backups/db/$(date +%Y-%m)/$(basename backup_prod_*.sql.gz)" \
+  --file backup_prod_$(date +%Y%m%d_%H%M%S).sql.gz --content-type application/gzip --remote
 ```
 
 #### 3. Apply Migrations
@@ -498,24 +499,22 @@ docker build -t businessos-backend:prod .
 docker push businessos-backend:prod
 
 # Deploy to production
-gcloud run deploy businessos-backend-prod \
-  --image businessos-backend:prod \
-  --platform managed \
-  --region us-central1 \
-  --no-traffic  # Deploy without traffic first
+STAGE="$(mktemp -d)/businessos-backend"
+mkdir -p "$STAGE" && cp -R desktop/backend-go/. "$STAGE"/
+railway up "$STAGE" --path-as-root --no-gitignore \
+  --service businessos-api --environment production --ci
 
 # Smoke test new version
-curl https://businessos-backend-prod-canary.run.app/health
+curl https://businessos-api-production.up.railway.app/health
 
-# If healthy, route traffic
-gcloud run services update-traffic businessos-backend-prod --to-latest
+# If unhealthy, roll back (see the Rollback Plan below)
 ```
 
 #### 5. Monitor
 
 ```bash
 # Watch logs for errors
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=businessos-backend-prod" --limit 100 --format json
+railway logs --service businessos-api
 
 # Check metrics
 # - Response times
@@ -528,8 +527,8 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
 If issues arise in production:
 
 ```bash
-# 1. Route traffic back to old version
-gcloud run services update-traffic businessos-backend-prod --to-revisions=PREVIOUS_REVISION=100
+# 1. Roll back to the previous deployment
+railway down -y --service businessos-api
 
 # 2. Rollback database (if needed)
 psql "$PRODUCTION_DATABASE_URL" <<EOF

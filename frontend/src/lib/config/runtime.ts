@@ -4,9 +4,9 @@ export const LOCAL_BACKEND_URL =
   import.meta.env.VITE_LOCAL_BACKEND_URL || "http://localhost:8801";
 export const LOCAL_OSA_URL = "http://localhost:18080";
 // Must be a *.businessos.dev host: the session cookie is Domain=.businessos.dev,
-// so it only attaches to those hosts (not run.app, not the unrouted
+// so it only attaches to those hosts (not the Railway host, not the unrouted
 // api.businessos.dev). app.businessos.dev's Cloudflare Pages function proxies
-// /api/* to the Cloud Run backend.
+// /api/* to the Railway backend.
 export const PRODUCTION_BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "https://app.businessos.dev";
 

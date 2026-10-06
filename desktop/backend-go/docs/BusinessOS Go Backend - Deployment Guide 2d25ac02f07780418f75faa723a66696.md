@@ -312,22 +312,20 @@ CMD ["./server"]
 1. **Build and push:**
 
 ```bash
-gcloud builds submit --tag gcr.io/YOUR_PROJECT/businessos-backend
-
+STAGE="$(mktemp -d)/businessos-backend"
+mkdir -p "$STAGE" && cp -R desktop/backend-go/. "$STAGE"/
 ```
 
 1. **Deploy:**
 
 ```bash
-gcloud run deploy businessos-backend \\
-  --image gcr.io/YOUR_PROJECT/businessos-backend \\
-  --platform managed \\
-  --region us-central1 \\
-  --allow-unauthenticated \\
-  --set-env-vars ENVIRONMENT=production,SERVER_PORT=8080 \\
-  --set-env-vars DATABASE_URL="postgres://..." \\
-  --set-env-vars GOOGLE_CLIENT_ID="...",GOOGLE_CLIENT_SECRET="..." \\
-  --set-env-vars ALLOWED_ORIGINS="<https://app.example.com>"
+railway up "$STAGE" --path-as-root --no-gitignore \\
+  --service businessos-api --environment production --ci
+```
+
+Set the runtime values (ENVIRONMENT=production, SERVER_PORT=8080, DATABASE_URL,
+GOOGLE_CLIENT_ID/SECRET, ALLOWED_ORIGINS) on the Railway service Variables tab; see
+`docs/deploy/RAILWAY-SETUP.md`.
 
 ```
 

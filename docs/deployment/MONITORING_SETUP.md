@@ -2,15 +2,20 @@
 
 ## Overview
 
-Comprehensive monitoring setup for BusinessOS using GCP Cloud Monitoring, structured logging, and health checks.
+Comprehensive monitoring setup for BusinessOS using Railway service metrics and logs,
+Cloudflare analytics, Sentry, structured logging, and health checks.
 
 ## Table of Contents
 
 1. [Structured Logging](#structured-logging)
-2. [Cloud Monitoring Dashboard](#cloud-monitoring-dashboard)
-3. [Alert Policies](#alert-policies)
-4. [Uptime Monitoring](#uptime-monitoring)
-5. [Performance Metrics](#performance-metrics)
+2. [Railway Metrics & Logs](#railway-metrics--logs)
+3. [Cloudflare Analytics](#cloudflare-analytics)
+4. [Health Endpoints](#health-endpoints)
+5. [Uptime Monitoring](#uptime-monitoring)
+6. [Alert Policies](#alert-policies)
+7. [Performance Metrics](#performance-metrics)
+8. [Log Searches](#log-searches)
+9. [Notification Channels](#notification-channels)
 
 ---
 
@@ -29,34 +34,16 @@ import (
 	"context"
 	"log/slog"
 	"os"
-
-	"cloud.google.com/go/logging"
 )
 
 func setupLogger(environment string) {
 	var handler slog.Handler
 
 	if environment == "production" {
-		// Production: JSON format for Cloud Logging
+		// Production: JSON to stdout. Railway captures stdout, so JSON keeps
+		// logs parseable by `railway logs` and by any log drain.
 		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
-			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-				// Add severity mapping for Cloud Logging
-				if a.Key == slog.LevelKey {
-					level := a.Value.Any().(slog.Level)
-					switch level {
-					case slog.LevelDebug:
-						a.Value = slog.StringValue("DEBUG")
-					case slog.LevelInfo:
-						a.Value = slog.StringValue("INFO")
-					case slog.LevelWarn:
-						a.Value = slog.StringValue("WARNING")
-					case slog.LevelError:
-						a.Value = slog.StringValue("ERROR")
-					}
-				}
-				return a
-			},
 		})
 	} else {
 		// Development: Human-readable format
@@ -181,407 +168,125 @@ slog.Error("Background job failed",
 
 ---
 
-## Cloud Monitoring Dashboard
+## Railway Metrics & Logs
 
-### 1. Create Dashboard via Terraform
+Railway provides built-in logs and metrics per service.
 
-Create file: `infrastructure/monitoring/dashboard.tf`
+```bash
+# Stream runtime logs
+railway logs --service businessos-api
 
-```hcl
-resource "google_monitoring_dashboard" "businessos_backend" {
-  dashboard_json = jsonencode({
-    displayName = "BusinessOS Backend"
-    mosaicLayout = {
-      columns = 12
-      tiles = [
-        # Request Rate
-        {
-          width  = 6
-          height = 4
-          widget = {
-            title = "HTTP Request Rate"
-            xyChart = {
-              dataSets = [{
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_count\""
-                    aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_RATE"
-                      crossSeriesReducer = "REDUCE_SUM"
-                    }
-                  }
-                }
-              }]
-            }
-          }
-        },
-        # Error Rate
-        {
-          xPos   = 6
-          width  = 6
-          height = 4
-          widget = {
-            title = "HTTP Error Rate (5xx)"
-            xyChart = {
-              dataSets = [{
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_count\" AND metric.label.response_code_class=\"5xx\""
-                    aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_RATE"
-                      crossSeriesReducer = "REDUCE_SUM"
-                    }
-                  }
-                }
-              }]
-            }
-          }
-        },
-        # Latency
-        {
-          yPos   = 4
-          width  = 12
-          height = 4
-          widget = {
-            title = "Request Latency (p50, p95, p99)"
-            xyChart = {
-              dataSets = [
-                {
-                  timeSeriesQuery = {
-                    timeSeriesFilter = {
-                      filter = "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_latencies\""
-                      aggregation = {
-                        alignmentPeriod    = "60s"
-                        perSeriesAligner   = "ALIGN_DELTA"
-                        crossSeriesReducer = "REDUCE_PERCENTILE_50"
-                      }
-                    }
-                  }
-                  plotType = "LINE"
-                },
-                # Add p95 and p99 similarly
-              ]
-            }
-          }
-        },
-        # Database Connections
-        {
-          yPos   = 8
-          width  = 6
-          height = 4
-          widget = {
-            title = "Database Connections"
-            xyChart = {
-              dataSets = [{
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "resource.type=\"cloudsql_database\" AND metric.type=\"cloudsql.googleapis.com/database/network/connections\""
-                    aggregation = {
-                      alignmentPeriod  = "60s"
-                      perSeriesAligner = "ALIGN_MEAN"
-                    }
-                  }
-                }
-              }]
-            }
-          }
-        },
-        # Redis Memory Usage
-        {
-          xPos   = 6
-          yPos   = 8
-          width  = 6
-          height = 4
-          widget = {
-            title = "Redis Memory Usage"
-            xyChart = {
-              dataSets = [{
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "resource.type=\"redis_instance\" AND metric.type=\"redis.googleapis.com/stats/memory/usage_ratio\""
-                    aggregation = {
-                      alignmentPeriod  = "60s"
-                      perSeriesAligner = "ALIGN_MEAN"
-                    }
-                  }
-                }
-              }]
-            }
-          }
-        }
-      ]
-    }
-  })
-}
+# Deployment history
+railway deployment list --service businessos-api
+
+# Resource metrics (CPU, memory, network, HTTP)
+railway metrics --service businessos-api
 ```
 
-### 2. Create Dashboard Manually (GCP Console)
+In the dashboard (project `BusinessOS` > service `businessos-api`): the Metrics tab shows
+CPU, memory, network, and HTTP request metrics; the Logs tab supports filtering by text.
 
-1. Go to [Cloud Monitoring](https://console.cloud.google.com/monitoring)
-2. Click **Dashboards** > **Create Dashboard**
-3. Name: "BusinessOS Backend"
-4. Add charts:
-
-**Chart 1: Request Rate**
-- Resource type: Cloud Run Revision
-- Metric: `run.googleapis.com/request_count`
-- Aggregation: Rate (1 minute)
-- Reducer: Sum
-
-**Chart 2: Error Rate**
-- Resource type: Cloud Run Revision
-- Metric: `run.googleapis.com/request_count`
-- Filter: `response_code_class = 5xx`
-- Aggregation: Rate (1 minute)
-
-**Chart 3: Latency Percentiles**
-- Resource type: Cloud Run Revision
-- Metric: `run.googleapis.com/request_latencies`
-- Aggregation: Percentiles (50th, 95th, 99th)
-
-**Chart 4: Container Instance Count**
-- Resource type: Cloud Run Revision
-- Metric: `run.googleapis.com/container/instance_count`
-
-**Chart 5: Memory Usage**
-- Resource type: Cloud Run Revision
-- Metric: `run.googleapis.com/container/memory/utilizations`
-
-**Chart 6: CPU Usage**
-- Resource type: Cloud Run Revision
-- Metric: `run.googleapis.com/container/cpu/utilizations`
+| Signal | Where |
+|--------|-------|
+| Build logs | Railway > service > Deployments > build |
+| Runtime logs | `railway logs` or Railway > service > Logs |
+| CPU / memory | Railway > service > Metrics |
+| HTTP request volume / latency | Railway > service > Metrics (HTTP) |
+| Postgres metrics | Railway > Postgres service > Metrics |
 
 ---
 
-## Alert Policies
+## Cloudflare Analytics
 
-### 1. High Error Rate Alert
+| Signal | Where |
+|--------|-------|
+| Pages requests, bandwidth, errors | Cloudflare dashboard > Workers & Pages > `businessos-5` > Metrics |
+| Pages build/deploy status | Cloudflare dashboard > Workers & Pages > `businessos-5` > Deployments |
+| R2 object count / storage | Cloudflare dashboard > R2 > `businessos-downloads` |
+| Proxy Function errors | Cloudflare dashboard > Workers & Pages > `businessos-5` > Functions logs |
 
-```yaml
-# alert-high-error-rate.yaml
-displayName: "High Error Rate (5xx)"
-conditions:
-  - displayName: "5xx errors > 5% of requests"
-    conditionThreshold:
-      filter: |
-        resource.type = "cloud_run_revision"
-        AND metric.type = "run.googleapis.com/request_count"
-        AND metric.label.response_code_class = "5xx"
-      aggregations:
-        - alignmentPeriod: 60s
-          perSeriesAligner: ALIGN_RATE
-          crossSeriesReducer: REDUCE_SUM
-      comparison: COMPARISON_GT
-      thresholdValue: 5  # errors per minute
-      duration: 300s  # sustained for 5 minutes
+---
 
-notificationChannels:
-  - projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]
+## Health Endpoints
 
-alertStrategy:
-  autoClose: 1800s  # 30 minutes
-```
+The backend exposes health probes (`cmd/server/routes.go`):
 
-Apply via CLI:
+| Endpoint | Meaning |
+|----------|---------|
+| `GET /health` | Liveness (process is up). Used by CI smoke tests. |
+| `GET /healthz` | Liveness alias |
+| `GET /ready` / `GET /readyz` | Readiness |
+| `GET /health/detailed` | Dependency status: `database`, `redis`, `containers` |
+
 ```bash
-gcloud alpha monitoring policies create --policy-from-file=alert-high-error-rate.yaml
+curl -fsS https://businessos-api-production.up.railway.app/health
+curl -fsS https://businessos-api-production.up.railway.app/health/detailed
+# {"components":{"database":{"status":"connected"},...},"status":"healthy"}
 ```
-
-### 2. High Latency Alert
-
-```yaml
-displayName: "High Request Latency (p95)"
-conditions:
-  - displayName: "p95 latency > 2 seconds"
-    conditionThreshold:
-      filter: |
-        resource.type = "cloud_run_revision"
-        AND metric.type = "run.googleapis.com/request_latencies"
-      aggregations:
-        - alignmentPeriod: 60s
-          perSeriesAligner: ALIGN_DELTA
-          crossSeriesReducer: REDUCE_PERCENTILE_95
-      comparison: COMPARISON_GT
-      thresholdValue: 2000  # milliseconds
-      duration: 300s
-```
-
-### 3. Database Connection Alert
-
-```yaml
-displayName: "High Database Connection Usage"
-conditions:
-  - displayName: "DB connections > 80% of limit"
-    conditionThreshold:
-      filter: |
-        resource.type = "cloudsql_database"
-        AND metric.type = "cloudsql.googleapis.com/database/network/connections"
-      comparison: COMPARISON_GT
-      thresholdValue: 80  # depends on your tier
-      duration: 600s
-```
-
-### 4. Memory Pressure Alert
-
-```yaml
-displayName: "High Memory Usage"
-conditions:
-  - displayName: "Memory utilization > 90%"
-    conditionThreshold:
-      filter: |
-        resource.type = "cloud_run_revision"
-        AND metric.type = "run.googleapis.com/container/memory/utilizations"
-      comparison: COMPARISON_GT
-      thresholdValue: 0.9  # 90%
-      duration: 300s
-```
-
-### Create Alerts via Console
-
-1. Go to **Monitoring** > **Alerting** > **Create Policy**
-2. Add condition (metric threshold)
-3. Configure notification channels (Email, Slack, PagerDuty)
-4. Set documentation (runbook link)
-5. Save policy
 
 ---
 
 ## Uptime Monitoring
 
-### 1. Create Uptime Checks
+Use an external uptime provider (Better Stack, UptimeRobot, or Cloudflare Health Checks).
+Railway does not provide built-in uptime alerts.
 
-**Backend Health Check:**
+Checks to configure:
 
-```yaml
-# uptime-backend-health.yaml
-displayName: "Backend Health Check"
-monitoredResource:
-  type: "uptime_url"
-httpCheck:
-  path: "/health"
-  port: 443
-  useSsl: true
-  validateSsl: true
-timeout: 10s
-period: 60s  # Check every minute
-selectedRegions:
-  - USA
-  - EUROPE
-  - ASIA_PACIFIC
-```
+| Target | Interval | Alert |
+|--------|----------|-------|
+| `https://businessos-api-production.up.railway.app/health` | 5 min | down for 2+ checks |
+| `https://businessos.dev/api/v1/health` (proxy path) | 5 min | down for 2+ checks |
+| `https://businessos.dev` | 5 min | down for 2+ checks |
 
-Apply:
-```bash
-gcloud monitoring uptime-checks create https://api.businessos.example.com/health \
-  --display-name="Backend Health Check"
-```
+---
 
-**Backend Ready Check:**
+## Alert Policies
 
-```bash
-gcloud monitoring uptime-checks create https://api.businessos.example.com/ready \
-  --display-name="Backend Ready Check"
-```
+Railway exposes usage alerts; application-level alerts come from Sentry.
 
-**Frontend Homepage:**
+### 1. High Error Rate (5xx)
 
-```bash
-gcloud monitoring uptime-checks create https://app.businessos.example.com \
-  --display-name="Frontend Homepage Check"
-```
+- Source: Sentry issue alerts on the backend project.
+- Rule: alert when the 5xx rate exceeds 5 errors per minute sustained for 5 minutes.
+- Action: email + Slack.
 
-### 2. Uptime Check Alerts
+### 2. High Latency (p95)
 
-Create alert when uptime check fails:
+- Source: Railway HTTP metrics.
+- Rule: alert when p95 request latency exceeds 2 seconds for 5 minutes.
 
-```yaml
-displayName: "Service Down - Health Check Failed"
-conditions:
-  - displayName: "Health check fails"
-    conditionThreshold:
-      filter: |
-        resource.type = "uptime_url"
-        AND metric.type = "monitoring.googleapis.com/uptime_check/check_passed"
-      aggregations:
-        - alignmentPeriod: 60s
-          perSeriesAligner: ALIGN_FRACTION_TRUE
-      comparison: COMPARISON_LT
-      thresholdValue: 0.8  # Alert if < 80% success rate
-      duration: 60s
+### 3. Database Connection Usage
 
-notificationChannels:
-  - [CRITICAL_CHANNEL_ID]  # Page on-call engineer
-```
+- Source: Railway Postgres metrics.
+- Rule: alert when active connections exceed 80% of the instance limit.
+
+### 4. Memory Pressure
+
+- Source: Railway service memory metrics.
+- Rule: alert when memory stays above 80% of the service limit.
+
+### 5. Usage / Spend
+
+- Source: Railway workspace usage limits.
+- Rule: set a soft limit so a runaway deploy cannot bill without notice.
 
 ---
 
 ## Performance Metrics
 
-### Custom Metrics Export
+### Exporting Custom Metrics
 
-Add custom metrics from your application:
+Prefer OpenTelemetry (OTLP) or structured stdout logs, which Railway and any log drain can
+ingest. Do not add a vendor-specific metrics client to the backend.
 
 ```go
-package metrics
-
-import (
-	"context"
-	"log/slog"
-
-	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
-	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
+// Emit a structured metric log line; scrape it from the log drain if needed.
+slog.Info("metric",
+	"name", "redis.hit_rate",
+	"value", hitRate,
+	"unit", "ratio",
 )
-
-type MetricsClient struct {
-	client    *monitoring.MetricClient
-	projectID string
-}
-
-func NewMetricsClient(ctx context.Context, projectID string) (*MetricsClient, error) {
-	client, err := monitoring.NewMetricClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &MetricsClient{
-		client:    client,
-		projectID: projectID,
-	}, nil
-}
-
-// RecordCacheHitRate records Redis cache hit rate
-func (m *MetricsClient) RecordCacheHitRate(ctx context.Context, hitRate float64) error {
-	req := &monitoringpb.CreateTimeSeriesRequest{
-		Name: "projects/" + m.projectID,
-		TimeSeries: []*monitoringpb.TimeSeries{{
-			Metric: &monitoringpb.Metric{
-				Type: "custom.googleapis.com/redis/hit_rate",
-			},
-			Resource: &monitoringpb.MonitoredResource{
-				Type: "global",
-			},
-			Points: []*monitoringpb.Point{{
-				Interval: &monitoringpb.TimeInterval{
-					EndTime: timestamppb.Now(),
-				},
-				Value: &monitoringpb.TypedValue{
-					Value: &monitoringpb.TypedValue_DoubleValue{
-						DoubleValue: hitRate,
-					},
-				},
-			}},
-		}},
-	}
-
-	err := m.client.CreateTimeSeries(ctx, req)
-	if err != nil {
-		slog.Error("Failed to record metric", "error", err)
-	}
-	return err
-}
 ```
 
 ### Tracked Metrics
@@ -600,58 +305,33 @@ func (m *MetricsClient) RecordCacheHitRate(ctx context.Context, hitRate float64)
 
 ---
 
-## Log-Based Metrics
+## Log Searches
 
-Create metrics from log entries:
-
-### 1. Failed Login Attempts
+Filter Railway logs for the events that matter. Log lines are JSON, so filter on the message:
 
 ```bash
-gcloud logging metrics create failed_logins \
-  --description="Failed login attempts" \
-  --log-filter='jsonPayload.message:"Authentication failed"'
-```
+# Failed authentication attempts
+railway logs --service businessos-api | grep "Authentication failed"
 
-### 2. Slow Database Queries
+# Slow database queries
+railway logs --service businessos-api | grep "Slow database query"
 
-```bash
-gcloud logging metrics create slow_queries \
-  --description="Database queries > 1 second" \
-  --log-filter='jsonPayload.message:"Slow database query"'
-```
-
-### 3. Background Job Failures
-
-```bash
-gcloud logging metrics create job_failures \
-  --description="Background job failures" \
-  --log-filter='jsonPayload.message:"Background job failed"'
+# Background job failures
+railway logs --service businessos-api | grep "Background job failed"
 ```
 
 ---
 
 ## Notification Channels
 
-### Setup Email Notifications
+### Email
 
-```bash
-gcloud alpha monitoring channels create \
-  --display-name="Ops Team Email" \
-  --type=email \
-  --channel-labels=email_address=ops@businessos.example.com
-```
+Configure email notification in Sentry (project alerts) and in the external uptime provider.
 
-### Setup Slack Notifications
+### Slack
 
-1. Create Slack webhook: https://api.slack.com/messaging/webhooks
-2. Add notification channel:
-
-```bash
-gcloud alpha monitoring channels create \
-  --display-name="Slack #alerts" \
-  --type=slack \
-  --channel-labels=url=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
-```
+Point Sentry alert rules and the uptime provider at a Slack webhook (Slack incoming
+webhook, or Sentry's native Slack integration).
 
 ---
 
@@ -659,33 +339,26 @@ gcloud alpha monitoring channels create \
 
 ### Initial Setup
 
-- [ ] Configure structured logging (slog + JSON)
-- [ ] Create Cloud Monitoring dashboard
-- [ ] Set up uptime checks (/health, /ready, homepage)
-- [ ] Create alert policies (error rate, latency, DB)
-- [ ] Configure notification channels (email, Slack)
-- [ ] Enable Cloud Logging API
-- [ ] Set log retention policies (30-90 days)
+- [ ] Sentry project created for backend and frontend, DSNs configured
+- [ ] Sentry alert rules configured (error rate, new issue)
+- [ ] Uptime checks configured (Railway health + proxy + frontend)
+- [ ] Notification channels set up (email/Slack)
+- [ ] Railway workspace usage limit set
 
 ### Post-Deployment
 
-- [ ] Verify logs appear in Cloud Logging
-- [ ] Check dashboard shows live data
-- [ ] Test uptime checks are running
-- [ ] Trigger test alert to verify notifications
-- [ ] Document alert response procedures
-- [ ] Set up log-based metrics
-- [ ] Configure log exclusions (reduce costs)
+- [ ] No new Sentry issues in the first hour
+- [ ] `/health/detailed` reports `database: connected`
+- [ ] Railway HTTP metrics show expected traffic
+- [ ] p95 latency within budget (< 2s)
+- [ ] No 5xx spikes
 
 ---
 
 ## Resources
 
-- [Cloud Monitoring Documentation](https://cloud.google.com/monitoring/docs)
-- [Cloud Logging Documentation](https://cloud.google.com/logging/docs)
-- [Alert Policy Best Practices](https://cloud.google.com/monitoring/alerts/best-practices)
-
----
-
-**Last Updated:** 2026-01-18
-**Maintainer:** BusinessOS Team
+- Railway metrics and logs: https://docs.railway.com/guides/metrics
+- Cloudflare Pages analytics: https://developers.cloudflare.com/pages/
+- Sentry Go: https://docs.sentry.io/platforms/go/
+- Sentry SvelteKit: https://docs.sentry.io/platforms/javascript/guides/sveltekit/
+- Health checks: see `cmd/server/routes.go` in the backend
