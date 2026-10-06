@@ -3,8 +3,8 @@
 *.test
 *.out
 main
-server
-businessos-server
+/server
+/businessos-server
 businessos-backend
 bin/
 uploads/
